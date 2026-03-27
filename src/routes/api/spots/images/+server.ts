@@ -5,11 +5,13 @@ import { spotImages, spots } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import { logAudit } from '$lib/server/audit';
 
 const UPLOAD_DIR = './static/uploads';
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
 	const formData = await request.formData();
@@ -51,10 +53,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		uploadedBy: locals.user.id
 	}).returning().get();
 
+	logAudit({
+		event,
+		action: 'spot.image.upload',
+		actorUserId: locals.user.id,
+		actorUsername: locals.user.username,
+		detail: { spotId, spotName: spot.name, imageId: result.id, filename }
+	});
+
 	return json({ success: true, image: { id: result.id, filename, url: `/uploads/${filename}` } });
 };
 
-export const DELETE: RequestHandler = async ({ request, locals }) => {
+export const DELETE: RequestHandler = async (event) => {
+	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
 	const { imageId } = await request.json();
@@ -72,6 +83,14 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 	try { unlinkSync(filepath); } catch {}
 
 	db.delete(spotImages).where(eq(spotImages.id, imageId)).run();
+
+	logAudit({
+		event,
+		action: 'spot.image.delete',
+		actorUserId: locals.user.id,
+		actorUsername: locals.user.username,
+		detail: { imageId, spotId: image.spotId, filename: image.filename }
+	});
 
 	return json({ success: true });
 };

@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { invites, users } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import cryptoRandomString from 'crypto-random-string';
+import { logAudit } from '$lib/server/audit';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') throw error(403, 'Kein Zugriff');
@@ -24,7 +25,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 	return json({ invites: allInvites });
 };
 
-export const POST: RequestHandler = async ({ locals }) => {
+export const POST: RequestHandler = async (event) => {
+	const { locals } = event;
 	if (!locals.user || locals.user.role !== 'admin') throw error(403, 'Kein Zugriff');
 
 	const token = cryptoRandomString({ length: 32, type: 'url-safe' });
@@ -37,6 +39,14 @@ export const POST: RequestHandler = async ({ locals }) => {
 		createdBy: locals.user.id,
 		expiresAt: expires.toISOString()
 	}).returning().get();
+
+	logAudit({
+		event,
+		action: 'admin.invite.created',
+		actorUserId: locals.user.id,
+		actorUsername: locals.user.username,
+		detail: { inviteId: result.id, expiresAt: result.expiresAt }
+	});
 
 	return json({ success: true, invite: result });
 };

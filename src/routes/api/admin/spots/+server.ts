@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { spots, users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { logAudit } from '$lib/server/audit';
 
 function assertCanManageSpots(locals: App.Locals) {
 	if (!locals.user || (locals.user.role !== 'admin' && locals.user.role !== 'spotmanager')) {
@@ -37,7 +38,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	return json({ spots: allSpots });
 };
 
-export const PATCH: RequestHandler = async ({ request, locals }) => {
+export const PATCH: RequestHandler = async (event) => {
+	const { request, locals } = event;
 	const body = await request.json();
 	const { spotId, action } = body;
 
@@ -53,12 +55,26 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 	if (action === 'trash') {
 		assertAdmin(locals);
 		db.update(spots).set({ deleted: true }).where(eq(spots.id, spotId)).run();
+		logAudit({
+			event,
+			action: 'admin.spot.trash',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			detail: { spotId, spotName: spot.name }
+		});
 		return json({ success: true, message: `"${spot.name}" in den Papierkorb verschoben` });
 	}
 
 	if (action === 'restore') {
 		assertAdmin(locals);
 		db.update(spots).set({ deleted: false }).where(eq(spots.id, spotId)).run();
+		logAudit({
+			event,
+			action: 'admin.spot.restore',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			detail: { spotId, spotName: spot.name }
+		});
 		return json({ success: true, message: `"${spot.name}" wiederhergestellt` });
 	}
 
@@ -84,6 +100,13 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 			description: description || null
 		}).where(eq(spots.id, spotId)).run();
 
+		logAudit({
+			event,
+			action: 'admin.spot.edit',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			detail: { spotId, name, city }
+		});
 		return json({ success: true, message: `"${name}" wurde aktualisiert` });
 	}
 

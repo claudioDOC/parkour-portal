@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { spots, users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { logAudit } from '$lib/server/audit';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
@@ -21,7 +22,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 	return json({ spots: allSpots });
 };
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
 	const body = await request.json();
@@ -45,6 +47,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		description: description || null,
 		addedBy: locals.user.id
 	}).returning().get();
+
+	logAudit({
+		event,
+		action: 'spot.create',
+		actorUserId: locals.user.id,
+		actorUsername: locals.user.username,
+		detail: { spotId: result.id, name: result.name, city: result.city }
+	});
 
 	return json({ success: true, spot: result });
 };

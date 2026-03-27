@@ -2,7 +2,8 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { votes, trainingSpotVotes, absences, spots, trainingSessions, users } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { logAudit } from '$lib/server/audit';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -56,7 +57,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	return json({ spotVotes, trainingVotes, absences: userAbsences });
 };
 
-export const DELETE: RequestHandler = async ({ request, locals }) => {
+export const DELETE: RequestHandler = async (event) => {
+	const { request, locals } = event;
 	assertAdmin(locals);
 
 	const { type, id } = await request.json();
@@ -67,16 +69,37 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 
 	if (type === 'spot_vote') {
 		db.delete(votes).where(eq(votes.id, id)).run();
+		logAudit({
+			event,
+			action: 'admin.userdata.delete',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			detail: { type: 'spot_vote', entryId: id }
+		});
 		return json({ success: true });
 	}
 
 	if (type === 'training_vote') {
 		db.delete(trainingSpotVotes).where(eq(trainingSpotVotes.id, id)).run();
+		logAudit({
+			event,
+			action: 'admin.userdata.delete',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			detail: { type: 'training_vote', entryId: id }
+		});
 		return json({ success: true });
 	}
 
 	if (type === 'absence') {
 		db.delete(absences).where(eq(absences.id, id)).run();
+		logAudit({
+			event,
+			action: 'admin.userdata.delete',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			detail: { type: 'absence', entryId: id }
+		});
 		return json({ success: true });
 	}
 

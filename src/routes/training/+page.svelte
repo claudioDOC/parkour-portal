@@ -162,7 +162,10 @@
 										<div class="flex items-center gap-3 min-w-0">
 											<span class="text-accent font-bold text-lg shrink-0">{sv.voteCount}</span>
 											<div class="min-w-0">
-												<p class="text-text-primary font-medium text-sm truncate">{sv.spotName}</p>
+												<a
+													href="/spots/{sv.spotId}"
+													class="text-text-primary font-medium text-sm truncate block hover:text-accent transition-colors"
+												>{sv.spotName}</a>
 												<p class="text-text-muted text-xs">{sv.spotCity} &middot; {sv.voterList.join(', ')}</p>
 											</div>
 										</div>
@@ -215,7 +218,7 @@
 										{/if}
 									</div>
 									<div class="flex justify-between items-center pt-2">
-										<a href="/finder" class="text-accent text-xs hover:underline">Spot-Finder nutzen →</a>
+										<a href="/finder?session={session.id}" class="text-accent text-xs hover:underline">Spot-Finder nutzen →</a>
 										<button onclick={() => { showSpotPicker = null; spotSearch = ''; }} class="text-text-muted text-xs hover:text-text-secondary">Abbrechen</button>
 									</div>
 								</div>
@@ -234,13 +237,16 @@
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div>
 								<p class="text-success text-xs font-medium uppercase tracking-wide mb-2">
-									Dabei ({session.attending.length})
+									Zieht ({session.attending.length + (session.guests?.length || 0)})
 								</p>
 								<div class="flex flex-wrap gap-1.5">
 									{#each session.attending as user}
 										<span class="bg-success/10 text-success text-xs px-2.5 py-1 rounded-full">{user.username}</span>
 									{/each}
-									{#if session.attending.length === 0}
+									{#each session.guests || [] as guest}
+										<span class="bg-amber-500/10 text-amber-400 text-xs px-2.5 py-1 rounded-full">{guest.name}</span>
+									{/each}
+									{#if session.attending.length === 0 && !(session.guests?.length)}
 										<span class="text-text-muted text-xs">Niemand</span>
 									{/if}
 								</div>

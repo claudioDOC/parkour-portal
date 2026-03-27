@@ -4,8 +4,10 @@ import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { hashPassword, verifyPassword } from '$lib/server/auth';
+import { logAudit } from '$lib/server/audit';
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
 	const { currentPassword, newPassword } = await request.json();
@@ -23,11 +25,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const valid = await verifyPassword(currentPassword, user.passwordHash);
 	if (!valid) {
+		logAudit({
+			event,
+			action: 'auth.password_change.failed',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: { reason: 'wrong_current' }
+		});
 		return json({ error: 'Aktuelles Passwort ist falsch' }, { status: 403 });
 	}
 
 	const newHash = await hashPassword(newPassword);
 	db.update(users).set({ passwordHash: newHash }).where(eq(users.id, locals.user.id)).run();
+	logAudit({
+		event,
+		action: 'auth.password_change',
+		actorUserId: locals.user.id,
+		actorUsername: locals.user.username
+	});
 
 	return json({ success: true });
 };
