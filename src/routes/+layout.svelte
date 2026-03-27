@@ -13,6 +13,7 @@
 		{ href: '/training', label: 'Training', icon: '◷' },
 		{ href: '/spots', label: 'Spots', icon: '◎' },
 		{ href: '/finder', label: 'Spot-Finder', icon: '⚡' },
+		{ href: '/statistik', label: 'Statistik', icon: '▤' },
 		{ href: '/settings', label: 'Einstellungen', icon: '⚙' }
 	];
 

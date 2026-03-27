@@ -51,9 +51,9 @@
 		<div class="space-y-3">
 			{#each data.nextTrainings as session}
 				<div class="bg-bg-card rounded-xl p-5 border border-border">
-					<div class="flex items-center justify-between">
-						<div>
-							<div class="flex items-center gap-2">
+					<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+						<div class="min-w-0 flex-1">
+							<div class="flex items-center gap-2 flex-wrap">
 								<span class="font-semibold text-text-primary">{session.dayOfWeek}</span>
 								{#if isToday(session.date)}
 									<span class="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full font-medium">Heute</span>
@@ -62,22 +62,52 @@
 							<p class="text-text-secondary text-sm mt-1">{formatDate(session.date)} &middot; {session.timeStart} - {session.timeEnd}</p>
 							{#if session.topVote}
 								<p class="text-accent text-sm mt-2 font-medium">
-									Spot: {session.topVote.spotName} ({session.topVote.spotCity}) &middot; {session.topVote.voteCount} Stimmen
+									Spot:
+									<a href="/spots/{session.topVote.spotId}" class="hover:underline">{session.topVote.spotName}</a>
+									({session.topVote.spotCity}) &middot; {session.topVote.voteCount} Stimmen
 								</p>
 							{:else}
 								<p class="text-text-muted text-xs mt-2">Noch kein Spot vorgeschlagen</p>
 							{/if}
-							{#if session.absences.length > 0}
-								<p class="text-text-muted text-xs mt-1">
-									Abgemeldet: {session.absences.map(a => a.username).join(', ')}
-								</p>
-							{/if}
+							<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+								<div>
+									<p class="text-success text-xs font-medium uppercase tracking-wide mb-2">
+										Zieht ({session.attending.length + (session.guests?.length || 0)})
+									</p>
+									<div class="flex flex-wrap gap-1.5">
+										{#each session.attending as user}
+											<span class="bg-success/10 text-success text-xs px-2.5 py-1 rounded-full">{user.username}</span>
+										{/each}
+										{#each session.guests || [] as guest}
+											<span class="bg-amber-500/10 text-amber-400 text-xs px-2.5 py-1 rounded-full">{guest.name}</span>
+										{/each}
+										{#if session.attending.length === 0 && !(session.guests?.length)}
+											<span class="text-text-muted text-xs">–</span>
+										{/if}
+									</div>
+								</div>
+								<div>
+									<p class="text-danger text-xs font-medium uppercase tracking-wide mb-2">
+										Abgemeldet ({session.absences.length})
+									</p>
+									<div class="flex flex-wrap gap-1.5">
+										{#each session.absences as absence}
+											<span class="bg-danger/10 text-danger text-xs px-2.5 py-1 rounded-full" title={absence.reason || ''}>
+												{absence.username}{#if absence.reason} *{/if}
+											</span>
+										{/each}
+										{#if session.absences.length === 0}
+											<span class="text-text-muted text-xs">–</span>
+										{/if}
+									</div>
+								</div>
+							</div>
 						</div>
-						<div class="flex items-center gap-3">
+						<div class="flex items-center gap-3 shrink-0">
 							{#if session.userAbsent}
 								<span class="text-xs bg-danger/20 text-danger px-3 py-1 rounded-full font-medium">Abgemeldet</span>
 							{:else}
-								<span class="text-xs bg-success/20 text-success px-3 py-1 rounded-full font-medium">Dabei</span>
+								<span class="text-xs bg-success/20 text-success px-3 py-1 rounded-full font-medium">Zieht</span>
 							{/if}
 						</div>
 					</div>

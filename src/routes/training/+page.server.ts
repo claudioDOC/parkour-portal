@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { trainingSessions, absences, users, trainingSpotVotes, spots } from '$lib/server/db/schema';
+import { trainingSessions, absences, users, trainingSpotVotes, spots, sessionGuests, sessionHiddenUsers } from '$lib/server/db/schema';
 import { eq, gte, asc, sql, and } from 'drizzle-orm';
 import { getCurrentWeather } from '$lib/server/weather';
 
@@ -33,9 +33,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.where(eq(absences.sessionId, session.id))
 			.all();
 
+		const hiddenUserIds = new Set(
+			db.select({ userId: sessionHiddenUsers.userId })
+				.from(sessionHiddenUsers)
+				.where(eq(sessionHiddenUsers.sessionId, session.id))
+				.all()
+				.map((h) => h.userId)
+		);
+
 		const absentUserIds = new Set(sessionAbsences.map((a) => a.userId));
-		const attending = allUsers.filter((u) => !absentUserIds.has(u.id));
+		const attending = allUsers.filter((u) => !absentUserIds.has(u.id) && !hiddenUserIds.has(u.id));
 		const userAbsent = locals.user ? absentUserIds.has(locals.user.id) : false;
+
+		const guests = db.select({ id: sessionGuests.id, name: sessionGuests.name })
+			.from(sessionGuests)
+			.where(eq(sessionGuests.sessionId, session.id))
+			.all();
 
 		const spotVotes = db.select({
 			spotId: trainingSpotVotes.spotId,
@@ -105,6 +118,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			...session,
 			absences: sessionAbsences,
 			attending,
+			guests,
 			userAbsent,
 			totalMembers: allUsers.length,
 			spotVotes: spotVotes.map((sv) => ({

@@ -90,3 +90,28 @@ export const trainingSpotVotes = sqliteTable('training_spot_votes', {
 	userId: integer('user_id').notNull().references(() => users.id),
 	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
+
+export const sessionGuests = sqliteTable('session_guests', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	sessionId: integer('session_id').notNull().references(() => trainingSessions.id),
+	name: text('name').notNull(),
+	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});
+
+export const sessionHiddenUsers = sqliteTable('session_hidden_users', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	sessionId: integer('session_id').notNull().references(() => trainingSessions.id),
+	userId: integer('user_id').notNull().references(() => users.id),
+	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});
+
+export const auditLogs = sqliteTable('audit_logs', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+	action: text('action').notNull(),
+	actorUserId: integer('actor_user_id'),
+	actorUsername: text('actor_username'),
+	targetUserId: integer('target_user_id'),
+	detailJson: text('detail_json'),
+	ip: text('ip')
+});

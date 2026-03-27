@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { goto, invalidateAll } from '$app/navigation';
+	import { CITY_REGIONS } from '$lib/cityRegions';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -10,11 +12,15 @@
 
 	let answers = $state({
 		useAutoWeather: false,
-		city: 'egal',
+		cityMode: 'all' as 'all' | 'pick',
+		cityPick: [] as string[],
 		weatherCondition: 'egal' as 'trocken' | 'nass' | 'egal',
 		isDark: false,
-		technique: 'egal'
+		techniqueMode: 'all' as 'all' | 'pick',
+		techniquePick: [] as string[]
 	});
+
+	const voteSessionId = $derived(data.voteSessionId ?? data.nextOpenSessionId ?? null);
 
 	type SpotResult = {
 		id: number;
@@ -32,7 +38,6 @@
 
 	let results = $state<SpotResult[]>([]);
 	let votingSpotId = $state<number | null>(null);
-	let votedSpotId = $state<number | null>(null);
 
 	const steps: { key: Step; label: string; number: number }[] = [
 		{ key: 'start', label: 'Start', number: 1 },
@@ -74,13 +79,63 @@
 	function restart() {
 		answers = {
 			useAutoWeather: false,
-			city: 'egal',
+			cityMode: 'all',
+			cityPick: [],
 			weatherCondition: 'egal',
 			isDark: false,
-			technique: 'egal'
+			techniqueMode: 'all',
+			techniquePick: []
 		};
 		results = [];
 		currentStep = 'start';
+	}
+
+	function setCityAll() {
+		answers.cityMode = 'all';
+		answers.cityPick = [];
+	}
+
+	function toggleCity(city: string) {
+		answers.cityMode = 'pick';
+		if (answers.cityPick.includes(city)) {
+			const next = answers.cityPick.filter((x) => x !== city);
+			answers.cityPick = next;
+			if (next.length === 0) answers.cityMode = 'all';
+		} else {
+			answers.cityPick = [...answers.cityPick, city];
+		}
+	}
+
+	function regionCitiesActive(regionCities: string[]) {
+		return regionCities.every((c) => answers.cityPick.includes(c));
+	}
+
+	function toggleRegion(regionCities: string[]) {
+		answers.cityMode = 'pick';
+		const allIn = regionCitiesActive(regionCities);
+		if (allIn) {
+			const next = answers.cityPick.filter((c) => !regionCities.includes(c));
+			answers.cityPick = next;
+			if (next.length === 0) answers.cityMode = 'all';
+		} else {
+			answers.cityPick = [...new Set([...answers.cityPick, ...regionCities])];
+		}
+	}
+
+	function setTechniqueAll() {
+		answers.techniqueMode = 'all';
+		answers.techniquePick = [];
+	}
+
+	function toggleTechnique(tech: string) {
+		answers.techniqueMode = 'pick';
+		if (answers.techniquePick.includes(tech)) {
+			const next = answers.techniquePick.filter((x) => x !== tech);
+			answers.techniquePick = next;
+			if (next.length === 0) answers.techniqueMode = 'all';
+		} else {
+			answers.techniquePick = [...answers.techniquePick, tech];
+		}
 	}
 
 	async function findSpots() {
@@ -89,10 +144,16 @@
 			const res = await fetch('/api/finder', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(answers)
+				body: JSON.stringify({
+					useAutoWeather: answers.useAutoWeather,
+					weatherCondition: answers.weatherCondition,
+					isDark: answers.isDark,
+					cities: answers.cityMode === 'all' ? [] : answers.cityPick,
+					techniques: answers.techniqueMode === 'all' ? [] : answers.techniquePick
+				})
 			});
-			const data = await res.json();
-			results = data.results;
+			const json = await res.json();
+			results = json.results;
 			currentStep = 'result';
 		} finally {
 			loading = false;
@@ -106,15 +167,18 @@
 	};
 
 	async function voteForTraining(spotId: number) {
-		if (!data.nextOpenSessionId) return;
+		if (!voteSessionId) return;
 		votingSpotId = spotId;
 		try {
 			const res = await fetch('/api/training', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ action: 'vote_spot', sessionId: data.nextOpenSessionId, spotId })
+				body: JSON.stringify({ action: 'vote_spot', sessionId: voteSessionId, spotId })
 			});
-			if (res.ok) votedSpotId = spotId;
+			if (res.ok) {
+				await invalidateAll();
+				await goto('/training');
+			}
 		} finally {
 			votingSpotId = null;
 		}
@@ -172,24 +236,48 @@
 
 		{:else if currentStep === 'city'}
 			<h3 class="text-xl font-semibold text-text-primary mb-2">In welcher Stadt?</h3>
-			<p class="text-text-secondary text-sm mb-6">Wo willst du heute trainieren?</p>
+			<p class="text-text-secondary text-sm mb-6">Zuerst Pendelregion wählen oder unten einzelne Orte – am Spot bleibt der genaue Ort erhalten.</p>
 
+			<p class="text-text-secondary text-sm font-medium mb-3">Region (Arbeitsweg)</p>
+			<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+				{#each CITY_REGIONS as region}
+					<button
+						type="button"
+						onclick={() => toggleRegion(region.cities)}
+						class="p-4 rounded-xl border-2 text-left transition-all {answers.cityMode === 'pick' && regionCitiesActive(region.cities) ? 'border-accent bg-accent/10' : 'border-border bg-bg-secondary hover:border-text-muted'}"
+					>
+						<span class="text-lg">🗺️</span>
+						<p class="font-medium text-text-primary mt-1">{region.label}</p>
+						<p class="text-text-muted text-xs mt-1 leading-snug">{region.cities.join(', ')}</p>
+						{#if answers.cityMode === 'pick' && regionCitiesActive(region.cities)}
+							<p class="text-accent text-xs mt-1">Alle Orte dieser Region</p>
+						{/if}
+					</button>
+				{/each}
+			</div>
+
+			<p class="text-text-secondary text-sm font-medium mb-3">Genauer Ort</p>
 			<div class="grid grid-cols-2 gap-3">
 				<button
-					onclick={() => answers.city = 'egal'}
-					class="p-4 rounded-xl border-2 text-left transition-all {answers.city === 'egal' ? 'border-accent bg-accent/10' : 'border-border bg-bg-secondary hover:border-text-muted'}"
+					type="button"
+					onclick={setCityAll}
+					class="p-4 rounded-xl border-2 text-left transition-all {answers.cityMode === 'all' ? 'border-accent bg-accent/10' : 'border-border bg-bg-secondary hover:border-text-muted'}"
 				>
 					<span class="text-lg">🌍</span>
-					<p class="font-medium text-text-primary mt-1">Egal</p>
-					<p class="text-text-muted text-xs">Alle Städte</p>
+					<p class="font-medium text-text-primary mt-1">Alle Städte</p>
+					<p class="text-text-muted text-xs">Kein Filter</p>
 				</button>
 				{#each data.cities as city}
 					<button
-						onclick={() => answers.city = city}
-						class="p-4 rounded-xl border-2 text-left transition-all {answers.city === city ? 'border-accent bg-accent/10' : 'border-border bg-bg-secondary hover:border-text-muted'}"
+						type="button"
+						onclick={() => toggleCity(city)}
+						class="p-4 rounded-xl border-2 text-left transition-all {answers.cityMode === 'pick' && answers.cityPick.includes(city) ? 'border-accent bg-accent/10' : 'border-border bg-bg-secondary hover:border-text-muted'}"
 					>
 						<span class="text-lg">📍</span>
 						<p class="font-medium text-text-primary mt-1">{city}</p>
+						{#if answers.cityPick.includes(city)}
+							<p class="text-accent text-xs mt-0.5">Ausgewählt</p>
+						{/if}
 					</button>
 				{/each}
 			</div>
@@ -240,23 +328,26 @@
 
 		{:else if currentStep === 'technique'}
 			<h3 class="text-xl font-semibold text-text-primary mb-2">Welche Kerntechnik?</h3>
-			<p class="text-text-secondary text-sm mb-6">Optional: Wonach suchst du?</p>
+			<p class="text-text-secondary text-sm mb-6">Mehrfachauswahl: Spot passt, wenn mindestens eine Technik vorkommt. Oder „Egal“.</p>
 
 			<div class="grid grid-cols-2 gap-3">
 				<button
-					onclick={() => answers.technique = 'egal'}
-					class="p-4 rounded-xl border-2 text-left transition-all {answers.technique === 'egal' ? 'border-accent bg-accent/10' : 'border-border bg-bg-secondary hover:border-text-muted'}"
+					onclick={setTechniqueAll}
+					class="p-4 rounded-xl border-2 text-left transition-all {answers.techniqueMode === 'all' ? 'border-accent bg-accent/10' : 'border-border bg-bg-secondary hover:border-text-muted'}"
 				>
 					<span class="text-lg">🤸</span>
 					<p class="font-medium text-text-primary mt-1">Egal</p>
-					<p class="text-text-muted text-xs">Alles passt</p>
+					<p class="text-text-muted text-xs">Kein Technik-Filter</p>
 				</button>
 				{#each data.techniques as tech}
 					<button
-						onclick={() => answers.technique = tech}
-						class="p-4 rounded-xl border-2 text-left transition-all {answers.technique === tech ? 'border-accent bg-accent/10' : 'border-border bg-bg-secondary hover:border-text-muted'}"
+						onclick={() => toggleTechnique(tech)}
+						class="p-4 rounded-xl border-2 text-left transition-all {answers.techniqueMode === 'pick' && answers.techniquePick.includes(tech) ? 'border-accent bg-accent/10' : 'border-border bg-bg-secondary hover:border-text-muted'}"
 					>
 						<p class="font-medium text-text-primary">{tech}</p>
+						{#if answers.techniquePick.includes(tech)}
+							<p class="text-accent text-xs mt-1">Ausgewählt</p>
+						{/if}
 					</button>
 				{/each}
 			</div>
@@ -271,14 +362,9 @@
 					<p class="text-text-muted text-sm mt-1">Versuche weniger strenge Kriterien</p>
 				</div>
 			{:else}
-				{#if votedSpotId}
-					<div class="bg-success/10 border border-success/30 text-success rounded-lg p-3 text-sm mb-4">
-						Spot wurde fürs nächste Training gevoted! <a href="/training" class="underline font-medium">Zum Training →</a>
-					</div>
-				{/if}
 				<div class="space-y-4">
 					{#each results as spot, i}
-						<div class="bg-bg-secondary rounded-xl p-5 border border-border {votedSpotId === spot.id ? 'border-accent/50' : ''} transition-colors">
+						<div class="bg-bg-secondary rounded-xl p-5 border border-border transition-colors">
 							<div class="flex items-start gap-4">
 								<div class="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold shrink-0">
 									{i + 1}
@@ -303,19 +389,15 @@
 											<span class="text-xs bg-accent/15 text-accent px-2 py-0.5 rounded-full">{tech.trim()}</span>
 										{/each}
 									</div>
-									{#if data.nextOpenSessionId}
+									{#if voteSessionId}
 										<div class="mt-3">
-											{#if votedSpotId === spot.id}
-												<span class="text-success text-xs font-medium">✓ Gevoted fürs Training</span>
-											{:else}
-												<button
-													onclick={() => voteForTraining(spot.id)}
-													disabled={votingSpotId !== null || votedSpotId !== null}
-													class="bg-accent/15 hover:bg-accent/25 text-accent text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
-												>
-													{votingSpotId === spot.id ? '...' : 'Fürs nächste Training voten'}
-												</button>
-											{/if}
+											<button
+												onclick={() => voteForTraining(spot.id)}
+												disabled={votingSpotId !== null}
+												class="bg-accent/15 hover:bg-accent/25 text-accent text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+											>
+												{votingSpotId === spot.id ? '...' : 'Fürs Training voten & zur Übersicht'}
+											</button>
 										</div>
 									{/if}
 								</div>
@@ -326,14 +408,26 @@
 			{/if}
 		{/if}
 
-		<div class="flex justify-between mt-8 pt-6 border-t border-border">
+		<div class="flex justify-between items-center gap-4 flex-wrap mt-8 pt-6 border-t border-border">
 			{#if currentStep !== 'start'}
-				<button
-					onclick={currentStep === 'result' ? restart : prevStep}
-					class="text-text-secondary hover:text-text-primary transition-colors text-sm font-medium"
-				>
-					{currentStep === 'result' ? 'Nochmal starten' : '← Zurück'}
-				</button>
+				<div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+					<button
+						type="button"
+						onclick={prevStep}
+						class="text-text-secondary hover:text-text-primary transition-colors text-sm font-medium text-left"
+					>
+						← Zurück
+					</button>
+					{#if currentStep === 'result'}
+						<button
+							type="button"
+							onclick={restart}
+							class="text-text-muted hover:text-text-secondary transition-colors text-sm text-left sm:border-l sm:border-border sm:pl-4"
+						>
+							Von vorne
+						</button>
+					{/if}
+				</div>
 			{:else}
 				<div></div>
 			{/if}

@@ -9,7 +9,7 @@ Gebaut für unsere Trainingsgruppe im Raum Thun/Bern, aber so aufgebaut, dass es
 ### Training
 - Trainings werden automatisch generiert (standardmässig Di + Do, 18:15–20:15)
 - Abmeldung nur mit Begründung (mind. 10 Zeichen)
-- Übersicht wer dabei ist und wer fehlt
+- Übersicht wer zieht (ohne Abmeldung) und wer abgemeldet ist
 
 ### Spots
 - Spot-Datenbank mit Name, Stadt, Koordinaten, Beschreibung

@@ -1,8 +1,12 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { trainingSessions, trainingSpotVotes, absences, spots, users } from '$lib/server/db/schema';
-import { eq, gte, asc, and, sql } from 'drizzle-orm';
+import {
+	trainingSessions, trainingSpotVotes, absences, spots, users,
+	sessionGuests, sessionHiddenUsers
+} from '$lib/server/db/schema';
+import { eq, gte, asc, and } from 'drizzle-orm';
+import { logAudit } from '$lib/server/audit';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -35,8 +39,19 @@ export const GET: RequestHandler = async ({ locals }) => {
 			.where(eq(absences.sessionId, session.id))
 			.all();
 
+		const hiddenUsers = db.select({
+			id: sessionHiddenUsers.id,
+			userId: sessionHiddenUsers.userId,
+			username: users.username
+		})
+			.from(sessionHiddenUsers)
+			.innerJoin(users, eq(sessionHiddenUsers.userId, users.id))
+			.where(eq(sessionHiddenUsers.sessionId, session.id))
+			.all();
+
 		const absentUserIds = new Set(sessionAbsences.map((a) => a.userId));
-		const attending = allUsers.filter((u) => !absentUserIds.has(u.id));
+		const hiddenUserIds = new Set(hiddenUsers.map((h) => h.userId));
+		const attending = allUsers.filter((u) => !absentUserIds.has(u.id) && !hiddenUserIds.has(u.id));
 
 		const spotVotes = db.select({
 			id: trainingSpotVotes.id,
@@ -51,43 +66,117 @@ export const GET: RequestHandler = async ({ locals }) => {
 			.where(eq(trainingSpotVotes.sessionId, session.id))
 			.all();
 
+		const guests = db.select()
+			.from(sessionGuests)
+			.where(eq(sessionGuests.sessionId, session.id))
+			.all();
+
 		return {
 			...session,
 			absences: sessionAbsences,
 			attending,
-			spotVotes
+			spotVotes,
+			guests,
+			hiddenUsers
 		};
 	});
 
 	return json({ sessions: result });
 };
 
-export const DELETE: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, locals } = event;
+	assertAdmin(locals);
+
+	const { type, sessionId, name } = await request.json();
+
+	if (type === 'add_guest' && sessionId && name?.trim()) {
+		db.insert(sessionGuests).values({
+			sessionId,
+			name: name.trim()
+		}).run();
+		logAudit({
+			event,
+			action: 'admin.training.guest_add',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			detail: { sessionId, guestName: name.trim() }
+		});
+		return json({ success: true });
+	}
+
+	return json({ error: 'Ungültige Aktion' }, { status: 400 });
+};
+
+export const DELETE: RequestHandler = async (event) => {
+	const { request, locals } = event;
 	assertAdmin(locals);
 
 	const { type, id, userId, sessionId } = await request.json();
 
 	if (type === 'spot_vote' && id) {
 		db.delete(trainingSpotVotes).where(eq(trainingSpotVotes.id, id)).run();
+		logAudit({
+			event,
+			action: 'admin.training.spot_vote_remove',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			detail: { voteId: id }
+		});
 		return json({ success: true });
 	}
 
-	if (type === 'force_absence' && userId && sessionId) {
-		const existing = db.select().from(absences)
-			.where(and(eq(absences.userId, userId), eq(absences.sessionId, sessionId)))
+	if (type === 'hide_user' && userId && sessionId) {
+		const existing = db.select().from(sessionHiddenUsers)
+			.where(and(eq(sessionHiddenUsers.userId, userId), eq(sessionHiddenUsers.sessionId, sessionId)))
 			.get();
 		if (!existing) {
-			db.insert(absences).values({
-				userId,
-				sessionId,
-				reason: 'Vom Admin entfernt'
-			}).run();
+			db.insert(sessionHiddenUsers).values({ sessionId, userId }).run();
 		}
+		logAudit({
+			event,
+			action: 'admin.training.hide_user',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			targetUserId: userId,
+			detail: { sessionId }
+		});
+		return json({ success: true });
+	}
+
+	if (type === 'unhide_user' && id) {
+		db.delete(sessionHiddenUsers).where(eq(sessionHiddenUsers.id, id)).run();
+		logAudit({
+			event,
+			action: 'admin.training.unhide_user',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			detail: { hiddenEntryId: id }
+		});
 		return json({ success: true });
 	}
 
 	if (type === 'remove_absence' && id) {
 		db.delete(absences).where(eq(absences.id, id)).run();
+		logAudit({
+			event,
+			action: 'admin.training.remove_absence',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			detail: { absenceId: id }
+		});
+		return json({ success: true });
+	}
+
+	if (type === 'remove_guest' && id) {
+		db.delete(sessionGuests).where(eq(sessionGuests.id, id)).run();
+		logAudit({
+			event,
+			action: 'admin.training.remove_guest',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			detail: { guestId: id }
+		});
 		return json({ success: true });
 	}
 

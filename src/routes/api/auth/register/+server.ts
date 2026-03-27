@@ -4,8 +4,10 @@ import { db } from '$lib/server/db';
 import { users, invites } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { hashPassword, createSession } from '$lib/server/auth';
+import { logAudit } from '$lib/server/audit';
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, cookies } = event;
 	const { username, password, token } = await request.json();
 
 	if (!username || !password || !token) {
@@ -52,6 +54,13 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		.run();
 
 	createSession(result, cookies);
+	logAudit({
+		event,
+		action: 'auth.register',
+		actorUserId: result.id,
+		actorUsername: result.username,
+		detail: { inviteId: invite.id }
+	});
 
 	return json({ success: true, user: { id: result.id, username: result.username, role: result.role } });
 };
