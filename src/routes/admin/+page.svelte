@@ -28,7 +28,7 @@
 		deleted: boolean;
 	};
 
-	let activeTab = $state<'invites' | 'users' | 'spots' | 'trash'>('users');
+	let activeTab = $state<'invites' | 'users' | 'spots' | 'trash' | 'trainings'>('users');
 
 	let invites = $state<Invite[]>([]);
 	let generatingInvite = $state(false);
@@ -50,6 +50,21 @@
 	let userData = $state<UserData | null>(null);
 	let loadingUserData = $state(false);
 
+	type TrainingSession = {
+		id: number;
+		date: string;
+		dayOfWeek: string;
+		timeStart: string;
+		timeEnd: string;
+		absences: { id: number; userId: number; username: string; reason: string | null }[];
+		attending: { id: number; username: string; active: boolean }[];
+		spotVotes: { id: number; spotName: string; spotCity: string; username: string; userId: number }[];
+	};
+
+	let trainingSessions = $state<TrainingSession[]>([]);
+	let loadingTrainings = $state(false);
+	let trainingMessage = $state('');
+
 	let spotList = $state<Spot[]>([]);
 	let trashedSpots = $state<Spot[]>([]);
 	let spotMessage = $state('');
@@ -60,6 +75,7 @@
 		loadInvites();
 		loadSpots();
 		loadTrashedSpots();
+		loadTrainingSessions();
 	});
 
 	async function loadInvites() {
@@ -181,6 +197,33 @@
 			await toggleUserData(expandedUserId);
 			await toggleUserData(expandedUserId);
 			await loadUsers();
+		}
+	}
+
+	async function loadTrainingSessions() {
+		loadingTrainings = true;
+		try {
+			const res = await fetch('/api/admin/training');
+			if (res.ok) {
+				const data = await res.json();
+				trainingSessions = data.sessions || [];
+			}
+		} finally {
+			loadingTrainings = false;
+		}
+	}
+
+	async function deleteTrainingEntry(type: string, payload: Record<string, unknown>) {
+		trainingMessage = '';
+		const res = await fetch('/api/admin/training', {
+			method: 'DELETE',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ type, ...payload })
+		});
+		if (res.ok) {
+			trainingMessage = 'Erfolgreich entfernt';
+			await loadTrainingSessions();
+			setTimeout(() => trainingMessage = '', 2000);
 		}
 	}
 
@@ -313,9 +356,10 @@
 		<p class="text-text-secondary mt-1">User, Spots und Einladungen verwalten</p>
 	</div>
 
-	<div class="flex gap-1 bg-bg-secondary rounded-lg p-1">
+	<div class="flex gap-1 bg-bg-secondary rounded-lg p-1 overflow-x-auto">
 		{#each [
 			{ id: 'users' as const, label: 'User', count: userList.length },
+			{ id: 'trainings' as const, label: 'Trainings', count: trainingSessions.length },
 			{ id: 'spots' as const, label: 'Spots', count: spotList.length },
 			{ id: 'trash' as const, label: 'Papierkorb', count: trashedSpots.length },
 			{ id: 'invites' as const, label: 'Einladungen', count: invites.length }
@@ -516,6 +560,100 @@
 
 			{#if spotList.length === 0}
 				<p class="text-text-muted text-center py-8">Noch keine Spots vorhanden</p>
+			{/if}
+		</div>
+	{/if}
+
+	{#if activeTab === 'trainings'}
+		<div class="space-y-4">
+			{#if trainingMessage}
+				<div class="bg-success/10 border border-success/30 text-success rounded-lg p-3 text-sm">{trainingMessage}</div>
+			{/if}
+
+			{#if loadingTrainings}
+				<p class="text-text-muted text-center py-8">Laden...</p>
+			{:else if trainingSessions.length === 0}
+				<p class="text-text-muted text-center py-8">Keine kommenden Trainings</p>
+			{:else}
+				{#each trainingSessions as session}
+					{@const sessionDate = new Date(session.date + 'T00:00:00')}
+					<div class="bg-bg-card rounded-xl border border-border overflow-hidden">
+						<div class="p-5">
+							<div class="flex items-center gap-2 mb-1">
+								<h3 class="font-semibold text-text-primary">{session.dayOfWeek}</h3>
+								<span class="text-text-muted text-sm">
+									{sessionDate.toLocaleDateString('de-CH', { day: 'numeric', month: 'long', year: 'numeric' })}
+								</span>
+								<span class="text-text-muted text-xs">{session.timeStart} – {session.timeEnd}</span>
+							</div>
+
+							{#if session.spotVotes.length > 0}
+								<div class="mt-4">
+									<p class="text-text-secondary text-xs font-semibold uppercase tracking-wide mb-2">
+										Spot-Votes ({session.spotVotes.length})
+									</p>
+									<div class="space-y-1">
+										{#each session.spotVotes as vote}
+											<div class="flex items-center justify-between bg-bg-secondary rounded-lg px-3 py-2">
+												<div class="text-sm">
+													<span class="text-text-primary font-medium">{vote.username}</span>
+													<span class="text-text-muted mx-1">→</span>
+													<span class="text-accent">{vote.spotName}</span>
+													<span class="text-text-muted text-xs ml-1">({vote.spotCity})</span>
+												</div>
+												<button onclick={() => deleteTrainingEntry('spot_vote', { id: vote.id })}
+													class="text-text-muted hover:text-danger text-sm shrink-0 transition-colors cursor-pointer px-2">×</button>
+											</div>
+										{/each}
+									</div>
+								</div>
+							{/if}
+
+							<div class="mt-4">
+								<p class="text-success text-xs font-semibold uppercase tracking-wide mb-2">
+									Dabei ({session.attending.length})
+								</p>
+								{#if session.attending.length > 0}
+									<div class="space-y-1">
+										{#each session.attending as user}
+											<div class="flex items-center justify-between bg-bg-secondary rounded-lg px-3 py-2">
+												<span class="text-text-primary text-sm">{user.username}</span>
+												<button onclick={() => deleteTrainingEntry('force_absence', { userId: user.id, sessionId: session.id })}
+													class="text-text-muted hover:text-danger text-xs shrink-0 transition-colors cursor-pointer"
+													title="Als abwesend markieren">Entfernen</button>
+											</div>
+										{/each}
+									</div>
+								{:else}
+									<p class="text-text-muted text-sm">Niemand</p>
+								{/if}
+							</div>
+
+							{#if session.absences.length > 0}
+								<div class="mt-4">
+									<p class="text-danger text-xs font-semibold uppercase tracking-wide mb-2">
+										Abgemeldet ({session.absences.length})
+									</p>
+									<div class="space-y-1">
+										{#each session.absences as absence}
+											<div class="flex items-center justify-between bg-bg-secondary rounded-lg px-3 py-2">
+												<div class="text-sm">
+													<span class="text-text-primary">{absence.username}</span>
+													{#if absence.reason}
+														<span class="text-text-muted text-xs ml-2">– {absence.reason}</span>
+													{/if}
+												</div>
+												<button onclick={() => deleteTrainingEntry('remove_absence', { id: absence.id })}
+													class="text-text-muted hover:text-success text-xs shrink-0 transition-colors cursor-pointer"
+													title="Abmeldung aufheben">Aufheben</button>
+											</div>
+										{/each}
+									</div>
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/each}
 			{/if}
 		</div>
 	{/if}
