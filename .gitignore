@@ -30,3 +30,7 @@ vite.config.ts.timestamp-*
 
 # Uploads
 /static/uploads/
+/data/uploads/
+
+# Cursor / lokale KI-Regeln (nicht ins öffentliche Repo)
+.cursor/

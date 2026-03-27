@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { invites, users } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import cryptoRandomString from 'crypto-random-string';
+import { randomBytes } from 'node:crypto';
 import { logAudit } from '$lib/server/audit';
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -29,7 +29,7 @@ export const POST: RequestHandler = async (event) => {
 	const { locals } = event;
 	if (!locals.user || locals.user.role !== 'admin') throw error(403, 'Kein Zugriff');
 
-	const token = cryptoRandomString({ length: 32, type: 'url-safe' });
+	const token = randomBytes(24).toString('base64url');
 
 	const expires = new Date();
 	expires.setDate(expires.getDate() + 7);

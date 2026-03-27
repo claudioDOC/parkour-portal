@@ -3,11 +3,10 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { spotImages, spots } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'fs';
-import { join } from 'path';
+import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
+import { join } from 'node:path';
 import { logAudit } from '$lib/server/audit';
-
-const UPLOAD_DIR = './static/uploads';
+import { getUploadWriteDir } from '$lib/server/uploads';
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 export const POST: RequestHandler = async (event) => {
@@ -36,16 +35,22 @@ export const POST: RequestHandler = async (event) => {
 		return json({ error: 'Spot nicht gefunden' }, { status: 404 });
 	}
 
-	if (!existsSync(UPLOAD_DIR)) {
-		mkdirSync(UPLOAD_DIR, { recursive: true });
+	const uploadDir = getUploadWriteDir();
+	if (!existsSync(uploadDir)) {
+		mkdirSync(uploadDir, { recursive: true, mode: 0o775 });
 	}
 
 	const ext = file.name.split('.').pop() || 'jpg';
 	const filename = `${spotId}-${Date.now()}.${ext}`;
-	const filepath = join(UPLOAD_DIR, filename);
+	const filepath = join(uploadDir, filename);
 
 	const buffer = Buffer.from(await file.arrayBuffer());
-	writeFileSync(filepath, buffer);
+	try {
+		writeFileSync(filepath, buffer, { mode: 0o664 });
+	} catch (e) {
+		console.error('spot image write failed', e);
+		return json({ error: 'Speichern fehlgeschlagen (Rechte/Pfad prüfen)' }, { status: 500 });
+	}
 
 	const result = db.insert(spotImages).values({
 		spotId,
@@ -79,8 +84,17 @@ export const DELETE: RequestHandler = async (event) => {
 		return json({ error: 'Keine Berechtigung' }, { status: 403 });
 	}
 
-	const filepath = join(UPLOAD_DIR, image.filename);
-	try { unlinkSync(filepath); } catch {}
+	const filepath = join(getUploadWriteDir(), image.filename);
+	try {
+		unlinkSync(filepath);
+	} catch {
+		const legacy = join(process.cwd(), 'static', 'uploads', image.filename);
+		try {
+			unlinkSync(legacy);
+		} catch {
+			/* ignore */
+		}
+	}
 
 	db.delete(spotImages).where(eq(spotImages.id, imageId)).run();
 
