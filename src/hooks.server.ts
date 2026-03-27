@@ -2,7 +2,13 @@ import type { Handle } from '@sveltejs/kit';
 import { getSession } from '$lib/server/auth';
 import { redirect } from '@sveltejs/kit';
 
-const publicPaths = ['/login', '/register', '/api/auth/login', '/api/auth/register'];
+const publicPaths = [
+	'/login',
+	'/register',
+	'/api/auth/login',
+	'/api/auth/register',
+	'/uploads'
+];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const session = getSession(event.cookies);

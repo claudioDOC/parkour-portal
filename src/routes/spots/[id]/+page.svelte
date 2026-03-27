@@ -149,7 +149,11 @@
 			formData.append('image', file);
 			formData.append('spotId', String(data.spot.id));
 
-			const res = await fetch('/api/spots/images', { method: 'POST', body: formData });
+			const res = await fetch('/api/spots/images', {
+				method: 'POST',
+				body: formData,
+				credentials: 'include'
+			});
 			const result = await res.json();
 
 			if (!res.ok) {
