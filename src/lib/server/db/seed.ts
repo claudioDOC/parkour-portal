@@ -16,6 +16,19 @@ const db = drizzle(sqlite, { schema });
 
 migrate(db, { migrationsFolder: './drizzle' });
 
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS audit_logs (
+	id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	created_at text DEFAULT (datetime('now')) NOT NULL,
+	action text NOT NULL,
+	actor_user_id integer,
+	actor_username text,
+	target_user_id integer,
+	detail_json text,
+	ip text
+);
+`);
+
 const existing = db.select().from(schema.users).all();
 if (existing.length === 0) {
 	const hash = bcryptjs.hashSync('admin123', 10);

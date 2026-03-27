@@ -1,6 +1,15 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { trainingSessions, absences, spots, votes, users, trainingSpotVotes } from '$lib/server/db/schema';
+import {
+	trainingSessions,
+	absences,
+	spots,
+	votes,
+	users,
+	trainingSpotVotes,
+	sessionGuests,
+	sessionHiddenUsers
+} from '$lib/server/db/schema';
 import { eq, gte, asc, desc, sql, and } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -12,9 +21,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.limit(2)
 		.all();
 
+	const allUsers = db.select({ id: users.id, username: users.username }).from(users).all();
+
 	const trainingsWithDetails = nextTrainings.map((session) => {
 		const sessionAbsences = db.select({
 			id: absences.id,
+			userId: absences.userId,
 			username: users.username,
 			reason: absences.reason
 		})
@@ -23,15 +35,33 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.where(eq(absences.sessionId, session.id))
 			.all();
 
-		const userAbsent = locals.user
-			? sessionAbsences.some((a) => a.username === locals.user!.username)
-			: false;
+		const hiddenUserIds = new Set(
+			db
+				.select({ userId: sessionHiddenUsers.userId })
+				.from(sessionHiddenUsers)
+				.where(eq(sessionHiddenUsers.sessionId, session.id))
+				.all()
+				.map((h) => h.userId)
+		);
 
-		const topVote = db.select({
-			spotName: spots.name,
-			spotCity: spots.city,
-			voteCount: sql<number>`COUNT(${trainingSpotVotes.id})`.as('vote_count')
-		})
+		const absentUserIds = new Set(sessionAbsences.map((a) => a.userId));
+		const attending = allUsers.filter((u) => !absentUserIds.has(u.id) && !hiddenUserIds.has(u.id));
+
+		const guests = db
+			.select({ id: sessionGuests.id, name: sessionGuests.name })
+			.from(sessionGuests)
+			.where(eq(sessionGuests.sessionId, session.id))
+			.all();
+
+		const userAbsent = locals.user ? absentUserIds.has(locals.user.id) : false;
+
+		const topVote = db
+			.select({
+				spotId: trainingSpotVotes.spotId,
+				spotName: spots.name,
+				spotCity: spots.city,
+				voteCount: sql<number>`COUNT(${trainingSpotVotes.id})`.as('vote_count')
+			})
 			.from(trainingSpotVotes)
 			.innerJoin(spots, eq(trainingSpotVotes.spotId, spots.id))
 			.where(eq(trainingSpotVotes.sessionId, session.id))
@@ -40,7 +70,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.limit(1)
 			.get();
 
-		return { ...session, absences: sessionAbsences, userAbsent, topVote: topVote || null };
+		return {
+			...session,
+			absences: sessionAbsences,
+			attending,
+			guests,
+			userAbsent,
+			topVote: topVote || null
+		};
 	});
 
 	const topSpots = db.select({
