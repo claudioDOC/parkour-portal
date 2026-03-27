@@ -32,6 +32,7 @@
 
 	let invites = $state<Invite[]>([]);
 	let generatingInvite = $state(false);
+	let inviteError = $state('');
 	let copiedToken = $state<string | null>(null);
 
 	let userList = $state<User[]>([]);
@@ -222,15 +223,34 @@
 	}
 
 	async function loadInvites() {
-		const res = await fetch('/api/admin/invites');
+		const res = await fetch('/api/admin/invites', { credentials: 'include' });
 		const data = await res.json();
-		invites = data.invites;
+		if (!res.ok) {
+			inviteError = data.message || data.error || `Laden fehlgeschlagen (${res.status})`;
+			invites = [];
+			return;
+		}
+		inviteError = '';
+		invites = data.invites ?? [];
 	}
 
 	async function generateInvite() {
+		inviteError = '';
 		generatingInvite = true;
 		try {
-			await fetch('/api/admin/invites', { method: 'POST' });
+			const res = await fetch('/api/admin/invites', {
+				method: 'POST',
+				credentials: 'include'
+			});
+			const data = await res.json().catch(() => ({}));
+			if (!res.ok) {
+				const d = data as { message?: string; error?: string };
+				inviteError =
+					(typeof d.message === 'string' && d.message) ||
+					(typeof d.error === 'string' && d.error) ||
+					`Erstellen fehlgeschlagen (${res.status})`;
+				return;
+			}
 			await loadInvites();
 		} finally {
 			generatingInvite = false;
@@ -1036,6 +1056,9 @@
 			>
 				{generatingInvite ? 'Wird erstellt...' : '+ Einladungslink erstellen'}
 			</button>
+			{#if inviteError}
+				<p class="text-danger text-sm">{inviteError}</p>
+			{/if}
 
 			<div class="space-y-3">
 				{#each invites as invite}
