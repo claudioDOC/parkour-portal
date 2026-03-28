@@ -245,11 +245,13 @@
 			});
 			const data = await res.json().catch(() => ({}));
 			if (!res.ok) {
-				const d = data as { message?: string; error?: string };
-				inviteError =
+				const d = data as { message?: string; error?: string; detail?: string };
+				const main =
 					(typeof d.message === 'string' && d.message) ||
 					(typeof d.error === 'string' && d.error) ||
 					`Erstellen fehlgeschlagen (${res.status})`;
+				const extra = typeof d.detail === 'string' && d.detail ? ` — ${d.detail}` : '';
+				inviteError = main + extra;
 				return;
 			}
 			await loadInvites();
