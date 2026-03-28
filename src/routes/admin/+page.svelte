@@ -133,7 +133,7 @@
 		'spot.vote.remove': 'Spot-Bewertung entfernt',
 		'spot.image.upload': 'Spot-Bild hochgeladen',
 		'spot.image.delete': 'Spot-Bild gelöscht',
-		'training.absence': 'Training: Abgemeldet',
+		'training.absence': 'Training: Zieht nicht',
 		'training.absence.cancel': 'Training: Abmeldung zurückgenommen',
 		'training.rsvp_yes': 'Training: Zusage',
 		'training.rsvp_no': 'Training: Zusage zurückgenommen',
@@ -685,7 +685,7 @@
 							</select>
 							<div
 								class="flex flex-wrap items-center gap-2 text-xs text-text-muted"
-								title="Nur bei „wie alle“: fest automatisch unter Abgemeldet an diesem Wochentag (Person kann pro Termin „Diesmal doch dabei“ wählen)"
+								title="Nur bei „wie alle“: fest automatisch unter Zieht nicht an diesem Wochentag (Person kann pro Termin „Diesmal doch dabei“ wählen)"
 							>
 								<span class="shrink-0">Auto-Abmeldung</span>
 								<label class="flex items-center gap-1 cursor-pointer {user.trainingAttendance === 'opt_in' ? 'opacity-40' : ''}">
@@ -935,7 +935,7 @@
 							{#if session.absences.length > 0}
 								<div class="mt-4">
 									<p class="text-danger text-xs font-semibold uppercase tracking-wide mb-2">
-										Abgemeldet ({session.absences.length})
+										Zieht nicht ({session.absences.length})
 									</p>
 									<div class="space-y-1">
 										{#each session.absences as absence}

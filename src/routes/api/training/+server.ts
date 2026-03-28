@@ -38,7 +38,7 @@ export const POST: RequestHandler = async (event) => {
 			.get();
 
 		if (existing) {
-			return json({ error: 'Bereits abgemeldet' }, { status: 400 });
+			return json({ error: 'Bereits als zieht nicht eingetragen' }, { status: 400 });
 		}
 
 		db.insert(absences).values({
