@@ -4,6 +4,8 @@ Ein selbst gehostetes Webportal für Parkour-Gruppen. Verwaltet Trainings, Spot-
 
 Gebaut für unsere Trainingsgruppe im Raum Thun/Bern, aber so aufgebaut, dass es jede Parkour-Gruppe nutzen kann.
 
+**Bedienung für Mitglieder & Admins:** [docs/BENUTZER-ANLEITUNG.md](docs/BENUTZER-ANLEITUNG.md) (Tutorial / How-to).
+
 ## Features
 
 ### Training
