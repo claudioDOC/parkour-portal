@@ -97,19 +97,38 @@
 		imageFiles = imageFiles.filter((_, i) => i !== index);
 	}
 
-	async function uploadImages(spotId: number) {
+	async function uploadImages(spotId: number): Promise<boolean> {
 		uploadingImages = true;
-		for (const file of imageFiles) {
-			const formData = new FormData();
-			formData.append('image', file);
-			formData.append('spotId', String(spotId));
-			await fetch('/api/spots/images', {
-				method: 'POST',
-				body: formData,
-				credentials: 'include'
-			});
+		try {
+			for (const file of imageFiles) {
+				const formData = new FormData();
+				formData.append('image', file);
+				formData.append('spotId', String(spotId));
+				const res = await fetch('/api/spots/images', {
+					method: 'POST',
+					body: formData,
+					credentials: 'include'
+				});
+				const raw = await res.text();
+				let result: { error?: string } = {};
+				try {
+					result = raw ? JSON.parse(raw) : {};
+				} catch {
+					result = {};
+				}
+				if (!res.ok) {
+					const msg =
+						res.status === 413
+							? 'Bild zu gross (Server/nginx-Limit). README: BODY_SIZE_LIMIT & client_max_body_size.'
+							: result.error || 'Bild-Upload fehlgeschlagen';
+					error = msg;
+					return false;
+				}
+			}
+			return true;
+		} finally {
+			uploadingImages = false;
 		}
-		uploadingImages = false;
 	}
 
 	async function handleSubmit(e: Event) {
@@ -146,7 +165,8 @@
 			}
 
 			if (imageFiles.length > 0) {
-				await uploadImages(data.spot.id);
+				const uploadsOk = await uploadImages(data.spot.id);
+				if (!uploadsOk) return;
 			}
 
 			success = true;

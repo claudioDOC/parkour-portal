@@ -6,7 +6,8 @@ import {
 	trainingSessions,
 	trainingSpotVotes,
 	spots,
-	trainingSessionRsvp
+	trainingSessionRsvp,
+	trainingSessionWeekdayOverride
 } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
@@ -54,6 +55,15 @@ export const POST: RequestHandler = async (event) => {
 			)
 			.run();
 
+		db.delete(trainingSessionWeekdayOverride)
+			.where(
+				and(
+					eq(trainingSessionWeekdayOverride.userId, locals.user.id),
+					eq(trainingSessionWeekdayOverride.sessionId, sessionId)
+				)
+			)
+			.run();
+
 		logAudit({
 			event,
 			action: 'training.absence',
@@ -72,6 +82,57 @@ export const POST: RequestHandler = async (event) => {
 		logAudit({
 			event,
 			action: 'training.absence.cancel',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: { sessionId, date: session.date }
+		});
+		return json({ success: true });
+	}
+
+	if (action === 'weekday_override_yes') {
+		if (locals.user.trainingAttendance !== 'implicit') {
+			return json({ error: 'Nur mit Standard-Trainingsmodus (nicht Opt-in)' }, { status: 400 });
+		}
+		if (!locals.user.autoAbsentWeekdays.includes(session.dayOfWeek)) {
+			return json({ error: 'Für diesen Wochentag gibt es keine Admin-Standard-Abmeldung' }, { status: 400 });
+		}
+		const existingOv = db
+			.select()
+			.from(trainingSessionWeekdayOverride)
+			.where(
+				and(
+					eq(trainingSessionWeekdayOverride.userId, locals.user.id),
+					eq(trainingSessionWeekdayOverride.sessionId, sessionId)
+				)
+			)
+			.get();
+		if (!existingOv) {
+			db.insert(trainingSessionWeekdayOverride)
+				.values({ userId: locals.user.id, sessionId })
+				.run();
+		}
+		logAudit({
+			event,
+			action: 'training.weekday_override_yes',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: { sessionId, date: session.date, dayOfWeek: session.dayOfWeek }
+		});
+		return json({ success: true });
+	}
+
+	if (action === 'weekday_override_no') {
+		db.delete(trainingSessionWeekdayOverride)
+			.where(
+				and(
+					eq(trainingSessionWeekdayOverride.userId, locals.user.id),
+					eq(trainingSessionWeekdayOverride.sessionId, sessionId)
+				)
+			)
+			.run();
+		logAudit({
+			event,
+			action: 'training.weekday_override_no',
 			actorUserId: locals.user.id,
 			actorUsername: locals.user.username,
 			detail: { sessionId, date: session.date }

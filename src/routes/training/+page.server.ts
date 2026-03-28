@@ -8,11 +8,17 @@ import {
 	spots,
 	sessionGuests,
 	sessionHiddenUsers,
-	trainingSessionRsvp
+	trainingSessionRsvp,
+	trainingSessionWeekdayOverride
 } from '$lib/server/db/schema';
 import { eq, gte, asc, sql, and } from 'drizzle-orm';
 import { getCurrentWeather } from '$lib/server/weather';
-import { filterAttendingUsers } from '$lib/server/trainingAttendance';
+import {
+	filterAttendingUsers,
+	normalizeUserForAttendance,
+	computeEffectiveAbsentUserIds,
+	buildAbsenceListForSession
+} from '$lib/server/trainingAttendance';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const viewerAttendance = locals.user?.trainingAttendance ?? null;
@@ -24,15 +30,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.limit(8)
 		.all();
 
-	const allUsers = db
+	const allUsersRaw = db
 		.select({
 			id: users.id,
 			username: users.username,
 			active: users.active,
-			trainingAttendance: users.trainingAttendance
+			trainingAttendance: users.trainingAttendance,
+			autoAbsentWeekdays: users.autoAbsentWeekdays
 		})
 		.from(users)
 		.all();
+	const allUsers = allUsersRaw.map(normalizeUserForAttendance);
 	const allSpots = db.select({ id: spots.id, name: spots.name, city: spots.city }).from(spots).all();
 
 	let weather = null;
@@ -60,7 +68,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.map((h) => h.userId)
 		);
 
-		const absentUserIds = new Set(sessionAbsences.map((a) => a.userId));
+		const dbAbsentIds = new Set(sessionAbsences.map((a) => a.userId));
+		const overrideUserIds = new Set(
+			db
+				.select({ userId: trainingSessionWeekdayOverride.userId })
+				.from(trainingSessionWeekdayOverride)
+				.where(eq(trainingSessionWeekdayOverride.sessionId, session.id))
+				.all()
+				.map((r) => r.userId)
+		);
+		const effectiveAbsentIds = computeEffectiveAbsentUserIds(
+			allUsers,
+			session.dayOfWeek,
+			dbAbsentIds,
+			overrideUserIds
+		);
 		const rsvpUserIds = new Set(
 			db
 				.select({ userId: trainingSessionRsvp.userId })
@@ -69,9 +91,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.all()
 				.map((r) => r.userId)
 		);
-		const attending = filterAttendingUsers(allUsers, absentUserIds, hiddenUserIds, rsvpUserIds);
-		const userAbsent = locals.user ? absentUserIds.has(locals.user.id) : false;
-		const userHasRsvp = locals.user ? rsvpUserIds.has(locals.user.id) : false;
+		const attending = filterAttendingUsers(allUsers, effectiveAbsentIds, hiddenUserIds, rsvpUserIds);
+		const absencesForList = buildAbsenceListForSession(
+			allUsers,
+			sessionAbsences,
+			effectiveAbsentIds,
+			dbAbsentIds,
+			session.dayOfWeek
+		);
+		const uid = locals.user?.id;
+		const userDbAbsent = uid ? dbAbsentIds.has(uid) : false;
+		const userVirtualAbsent = uid ? effectiveAbsentIds.has(uid) && !dbAbsentIds.has(uid) : false;
+		const userHasWeekdayOverride = uid ? overrideUserIds.has(uid) : false;
+		const userHasRsvp = uid ? rsvpUserIds.has(uid) : false;
 
 		const guests = db.select({ id: sessionGuests.id, name: sessionGuests.name })
 			.from(sessionGuests)
@@ -144,10 +176,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		return {
 			...session,
-			absences: sessionAbsences,
+			absences: absencesForList,
 			attending,
 			guests,
-			userAbsent,
+			userDbAbsent,
+			userVirtualAbsent,
+			userHasWeekdayOverride,
 			userHasRsvp,
 			totalMembers: allUsers.length,
 			spotVotes: spotVotes.map((sv) => ({

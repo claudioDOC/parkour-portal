@@ -76,7 +76,7 @@
 			</div>
 		{/if}
 
-		<aside class="hidden md:flex fixed top-0 left-0 bottom-0 w-64 bg-bg-secondary border-r border-border flex-col z-50">
+		<aside class="max-md:hidden flex fixed top-0 left-0 bottom-0 w-64 bg-bg-secondary border-r border-border flex-col z-50">
 			<div class="p-6">
 				<h1 class="text-2xl font-bold text-accent tracking-tight">PARKOUR</h1>
 				<p class="text-text-muted text-sm mt-1">Portal</p>
