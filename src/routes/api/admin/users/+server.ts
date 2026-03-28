@@ -6,6 +6,8 @@ import { eq, sql } from 'drizzle-orm';
 import { hashPassword } from '$lib/server/auth';
 import { logAudit } from '$lib/server/audit';
 import { parseAutoAbsentWeekdays, serializeAutoAbsentWeekdays } from '$lib/server/trainingAttendance';
+import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
+import { userCoreAuth } from '$lib/server/db/userCoreSelect';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -16,34 +18,61 @@ function assertAdmin(locals: App.Locals) {
 export const GET: RequestHandler = async ({ locals }) => {
 	assertAdmin(locals);
 
+	const schemaOk = isTrainingAttendanceSchemaReady();
+
+	if (schemaOk) {
+		const rows = db
+			.select({
+				id: users.id,
+				username: users.username,
+				role: users.role,
+				active: users.active,
+				trainingAttendance: users.trainingAttendance,
+				autoAbsentWeekdaysRaw: users.autoAbsentWeekdays,
+				createdAt: users.createdAt,
+				spotCount: sql<number>`(SELECT COUNT(*) FROM spots WHERE added_by = ${users.id})`,
+				voteCount: sql<number>`(SELECT COUNT(*) FROM votes WHERE user_id = ${users.id})`
+			})
+			.from(users)
+			.all();
+		const allUsers = rows.map((r) => ({
+			id: r.id,
+			username: r.username,
+			role: r.role,
+			active: r.active,
+			trainingAttendance: r.trainingAttendance,
+			autoAbsentWeekdays: parseAutoAbsentWeekdays(r.autoAbsentWeekdaysRaw),
+			createdAt: r.createdAt,
+			spotCount: r.spotCount,
+			voteCount: r.voteCount
+		}));
+		return json({ users: allUsers, trainingSchemaReady: true });
+	}
+
 	const rows = db
 		.select({
 			id: users.id,
 			username: users.username,
 			role: users.role,
 			active: users.active,
-			trainingAttendance: users.trainingAttendance,
-			autoAbsentWeekdaysRaw: users.autoAbsentWeekdays,
 			createdAt: users.createdAt,
 			spotCount: sql<number>`(SELECT COUNT(*) FROM spots WHERE added_by = ${users.id})`,
 			voteCount: sql<number>`(SELECT COUNT(*) FROM votes WHERE user_id = ${users.id})`
 		})
 		.from(users)
 		.all();
-
 	const allUsers = rows.map((r) => ({
 		id: r.id,
 		username: r.username,
 		role: r.role,
 		active: r.active,
-		trainingAttendance: r.trainingAttendance,
-		autoAbsentWeekdays: parseAutoAbsentWeekdays(r.autoAbsentWeekdaysRaw),
+		trainingAttendance: 'implicit' as const,
+		autoAbsentWeekdays: [] as string[],
 		createdAt: r.createdAt,
 		spotCount: r.spotCount,
 		voteCount: r.voteCount
 	}));
-
-	return json({ users: allUsers });
+	return json({ users: allUsers, trainingSchemaReady: false });
 };
 
 export const PATCH: RequestHandler = async (event) => {
@@ -57,7 +86,7 @@ export const PATCH: RequestHandler = async (event) => {
 		return json({ error: 'User-ID erforderlich' }, { status: 400 });
 	}
 
-	const user = db.select().from(users).where(eq(users.id, userId)).get();
+	const user = db.select(userCoreAuth).from(users).where(eq(users.id, userId)).get();
 	if (!user) {
 		return json({ error: 'User nicht gefunden' }, { status: 404 });
 	}
@@ -117,6 +146,15 @@ export const PATCH: RequestHandler = async (event) => {
 	}
 
 	if (action === 'set_training_attendance') {
+		if (!isTrainingAttendanceSchemaReady()) {
+			return json(
+				{
+					error:
+						'Datenbank-Migration fehlt: drizzle/0002_training_opt_in.sql auf die Server-DB anwenden.'
+				},
+				{ status: 503 }
+			);
+		}
 		if (trainingAttendance !== 'implicit' && trainingAttendance !== 'opt_in') {
 			return json({ error: 'Ungültiger Trainingsmodus' }, { status: 400 });
 		}
@@ -139,6 +177,15 @@ export const PATCH: RequestHandler = async (event) => {
 	}
 
 	if (action === 'set_auto_absent_weekdays') {
+		if (!isTrainingAttendanceSchemaReady()) {
+			return json(
+				{
+					error:
+						'Datenbank-Migration fehlt: drizzle/0003_auto_absent_weekdays.sql auf die Server-DB anwenden.'
+				},
+				{ status: 503 }
+			);
+		}
 		if (!Array.isArray(autoAbsentWeekdays)) {
 			return json({ error: 'autoAbsentWeekdays muss ein Array sein' }, { status: 400 });
 		}

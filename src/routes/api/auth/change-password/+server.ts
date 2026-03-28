@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
+import { userCoreAuth } from '$lib/server/db/userCoreSelect';
 import { eq } from 'drizzle-orm';
 import { hashPassword, verifyPassword } from '$lib/server/auth';
 import { logAudit } from '$lib/server/audit';
@@ -20,7 +21,7 @@ export const POST: RequestHandler = async (event) => {
 		return json({ error: 'Neues Passwort muss mindestens 4 Zeichen haben' }, { status: 400 });
 	}
 
-	const user = db.select().from(users).where(eq(users.id, locals.user.id)).get();
+	const user = db.select(userCoreAuth).from(users).where(eq(users.id, locals.user.id)).get();
 	if (!user) throw error(404, 'User nicht gefunden');
 
 	const valid = await verifyPassword(currentPassword, user.passwordHash);
