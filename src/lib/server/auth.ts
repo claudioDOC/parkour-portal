@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import bcryptjs from 'bcryptjs';
 import { db } from './db';
 import { users } from './db/schema';
+import { userCoreAuth } from './db/userCoreSelect';
 import { eq } from 'drizzle-orm';
 import type { Cookies } from '@sveltejs/kit';
 
@@ -53,5 +54,5 @@ export function clearSession(cookies: Cookies) {
 }
 
 export function getUserById(id: number) {
-	return db.select().from(users).where(eq(users.id, id)).get();
+	return db.select(userCoreAuth).from(users).where(eq(users.id, id)).get();
 }

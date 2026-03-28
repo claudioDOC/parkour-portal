@@ -35,7 +35,7 @@ export const POST: RequestHandler = async (event) => {
 		return json({ error: 'Einladungslink ist abgelaufen' }, { status: 400 });
 	}
 
-	const existingUser = db.select().from(users).where(eq(users.username, username)).get();
+	const existingUser = db.select({ id: users.id }).from(users).where(eq(users.username, username)).get();
 	if (existingUser) {
 		return json({ error: 'Username bereits vergeben' }, { status: 400 });
 	}

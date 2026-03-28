@@ -11,6 +11,7 @@ import {
 } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
+import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 
 export const POST: RequestHandler = async (event) => {
 	const { request, locals } = event;
@@ -46,23 +47,25 @@ export const POST: RequestHandler = async (event) => {
 			reason: reason.trim()
 		}).run();
 
-		db.delete(trainingSessionRsvp)
-			.where(
-				and(
-					eq(trainingSessionRsvp.userId, locals.user.id),
-					eq(trainingSessionRsvp.sessionId, sessionId)
+		if (isTrainingAttendanceSchemaReady()) {
+			db.delete(trainingSessionRsvp)
+				.where(
+					and(
+						eq(trainingSessionRsvp.userId, locals.user.id),
+						eq(trainingSessionRsvp.sessionId, sessionId)
+					)
 				)
-			)
-			.run();
+				.run();
 
-		db.delete(trainingSessionWeekdayOverride)
-			.where(
-				and(
-					eq(trainingSessionWeekdayOverride.userId, locals.user.id),
-					eq(trainingSessionWeekdayOverride.sessionId, sessionId)
+			db.delete(trainingSessionWeekdayOverride)
+				.where(
+					and(
+						eq(trainingSessionWeekdayOverride.userId, locals.user.id),
+						eq(trainingSessionWeekdayOverride.sessionId, sessionId)
+					)
 				)
-			)
-			.run();
+				.run();
+		}
 
 		logAudit({
 			event,
@@ -90,6 +93,12 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	if (action === 'weekday_override_yes') {
+		if (!isTrainingAttendanceSchemaReady()) {
+			return json(
+				{ error: 'Datenbank-Migration fehlt (0002/0003). Admin: drizzle-SQL auf Server-DB anwenden.' },
+				{ status: 503 }
+			);
+		}
 		if (locals.user.trainingAttendance !== 'implicit') {
 			return json({ error: 'Nur mit Standard-Trainingsmodus (nicht Opt-in)' }, { status: 400 });
 		}
@@ -122,6 +131,12 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	if (action === 'weekday_override_no') {
+		if (!isTrainingAttendanceSchemaReady()) {
+			return json(
+				{ error: 'Datenbank-Migration fehlt (0002/0003). Admin: drizzle-SQL auf Server-DB anwenden.' },
+				{ status: 503 }
+			);
+		}
 		db.delete(trainingSessionWeekdayOverride)
 			.where(
 				and(
@@ -141,6 +156,12 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	if (action === 'rsvp_yes') {
+		if (!isTrainingAttendanceSchemaReady()) {
+			return json(
+				{ error: 'Datenbank-Migration fehlt (0002). Admin: drizzle-SQL auf Server-DB anwenden.' },
+				{ status: 503 }
+			);
+		}
 		if (locals.user.trainingAttendance !== 'opt_in') {
 			return json({ error: 'Zusage nur für Opt-in-Accounts' }, { status: 400 });
 		}
@@ -173,6 +194,12 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	if (action === 'rsvp_no') {
+		if (!isTrainingAttendanceSchemaReady()) {
+			return json(
+				{ error: 'Datenbank-Migration fehlt (0002). Admin: drizzle-SQL auf Server-DB anwenden.' },
+				{ status: 503 }
+			);
+		}
 		if (locals.user.trainingAttendance !== 'opt_in') {
 			return json({ error: 'Nur für Opt-in-Accounts' }, { status: 400 });
 		}

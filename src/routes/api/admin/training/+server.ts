@@ -20,6 +20,7 @@ import {
 	computeEffectiveAbsentUserIds,
 	buildAbsenceListForSession
 } from '$lib/server/trainingAttendance';
+import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -37,17 +38,30 @@ export const GET: RequestHandler = async ({ locals }) => {
 		.limit(8)
 		.all();
 
-	const allUsers = db
-		.select({
-			id: users.id,
-			username: users.username,
-			active: users.active,
-			trainingAttendance: users.trainingAttendance,
-			autoAbsentWeekdays: users.autoAbsentWeekdays
-		})
-		.from(users)
-		.all()
-		.map(normalizeUserForAttendance);
+	const schemaOk = isTrainingAttendanceSchemaReady();
+	const allUsers = schemaOk
+		? db
+				.select({
+					id: users.id,
+					username: users.username,
+					active: users.active,
+					trainingAttendance: users.trainingAttendance,
+					autoAbsentWeekdays: users.autoAbsentWeekdays
+				})
+				.from(users)
+				.all()
+				.map(normalizeUserForAttendance)
+		: db
+				.select({ id: users.id, username: users.username, active: users.active })
+				.from(users)
+				.all()
+				.map((u) => ({
+					id: u.id,
+					username: u.username,
+					active: u.active ?? true,
+					trainingAttendance: 'implicit' as const,
+					autoAbsentWeekdays: [] as string[]
+				}));
 
 	const result = sessions.map((session) => {
 		const sessionAbsences = db.select({
@@ -73,36 +87,51 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		const dbAbsentIds = new Set(sessionAbsences.map((a) => a.userId));
 		const hiddenUserIds = new Set(hiddenUsers.map((h) => h.userId));
-		const overrideUserIds = new Set(
-			db
-				.select({ userId: trainingSessionWeekdayOverride.userId })
-				.from(trainingSessionWeekdayOverride)
-				.where(eq(trainingSessionWeekdayOverride.sessionId, session.id))
-				.all()
-				.map((r) => r.userId)
-		);
-		const effectiveAbsentIds = computeEffectiveAbsentUserIds(
-			allUsers,
-			session.dayOfWeek,
-			dbAbsentIds,
-			overrideUserIds
-		);
-		const rsvpUserIds = new Set(
-			db
-				.select({ userId: trainingSessionRsvp.userId })
-				.from(trainingSessionRsvp)
-				.where(eq(trainingSessionRsvp.sessionId, session.id))
-				.all()
-				.map((r) => r.userId)
-		);
-		const attending = filterAttendingUsers(allUsers, effectiveAbsentIds, hiddenUserIds, rsvpUserIds);
-		const absencesForList = buildAbsenceListForSession(
-			allUsers,
-			sessionAbsences,
-			effectiveAbsentIds,
-			dbAbsentIds,
-			session.dayOfWeek
-		);
+		let attending;
+		let absencesForList;
+
+		if (!schemaOk) {
+			const rsvpEmpty = new Set<number>();
+			attending = filterAttendingUsers(allUsers, dbAbsentIds, hiddenUserIds, rsvpEmpty);
+			absencesForList = sessionAbsences.map((a) => ({
+				id: a.id,
+				userId: a.userId,
+				username: a.username,
+				reason: a.reason,
+				virtual: false as const
+			}));
+		} else {
+			const overrideUserIds = new Set(
+				db
+					.select({ userId: trainingSessionWeekdayOverride.userId })
+					.from(trainingSessionWeekdayOverride)
+					.where(eq(trainingSessionWeekdayOverride.sessionId, session.id))
+					.all()
+					.map((r) => r.userId)
+			);
+			const effectiveAbsentIds = computeEffectiveAbsentUserIds(
+				allUsers,
+				session.dayOfWeek,
+				dbAbsentIds,
+				overrideUserIds
+			);
+			const rsvpUserIds = new Set(
+				db
+					.select({ userId: trainingSessionRsvp.userId })
+					.from(trainingSessionRsvp)
+					.where(eq(trainingSessionRsvp.sessionId, session.id))
+					.all()
+					.map((r) => r.userId)
+			);
+			attending = filterAttendingUsers(allUsers, effectiveAbsentIds, hiddenUserIds, rsvpUserIds);
+			absencesForList = buildAbsenceListForSession(
+				allUsers,
+				sessionAbsences,
+				effectiveAbsentIds,
+				dbAbsentIds,
+				session.dayOfWeek
+			);
+		}
 
 		const spotVotes = db.select({
 			id: trainingSpotVotes.id,
