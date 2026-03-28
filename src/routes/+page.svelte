@@ -88,7 +88,7 @@
 								</div>
 								<div>
 									<p class="text-danger text-xs font-medium uppercase tracking-wide mb-2">
-										Abgemeldet ({session.absences.length})
+										Zieht nicht ({session.absences.length})
 									</p>
 									<div class="flex flex-wrap gap-1.5">
 										{#each session.absences as absence}
@@ -105,7 +105,7 @@
 						</div>
 						<div class="flex items-center gap-3 shrink-0">
 							{#if session.userEffectivelyAbsent}
-								<span class="text-xs bg-danger/20 text-danger px-3 py-1 rounded-full font-medium">Abgemeldet</span>
+								<span class="text-xs bg-danger/20 text-danger px-3 py-1 rounded-full font-medium">Zieht nicht</span>
 							{:else}
 								<span class="text-xs bg-success/20 text-success px-3 py-1 rounded-full font-medium">Zieht</span>
 							{/if}

@@ -150,7 +150,7 @@ export const PATCH: RequestHandler = async (event) => {
 			return json(
 				{
 					error:
-						'Datenbank-Migration fehlt: drizzle/0002_training_opt_in.sql auf die Server-DB anwenden.'
+						'Datenbank-Migration fehlt: drizzle/0002_training_opt_in.sql und drizzle/0003_auto_absent_weekdays.sql der Reihe nach auf die Server-DB anwenden (sqlite3 data/parkour.db < drizzle/0002_training_opt_in.sql; dasselbe für 0003).'
 				},
 				{ status: 503 }
 			);
@@ -181,7 +181,7 @@ export const PATCH: RequestHandler = async (event) => {
 			return json(
 				{
 					error:
-						'Datenbank-Migration fehlt: drizzle/0003_auto_absent_weekdays.sql auf die Server-DB anwenden.'
+						'Datenbank-Migration fehlt: drizzle/0002_training_opt_in.sql und drizzle/0003_auto_absent_weekdays.sql der Reihe nach auf die Server-DB anwenden (sqlite3 data/parkour.db < drizzle/0002_training_opt_in.sql; dasselbe für 0003).'
 				},
 				{ status: 503 }
 			);

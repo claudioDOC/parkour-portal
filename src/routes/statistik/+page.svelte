@@ -51,7 +51,7 @@
 			<div class="bg-bg-card rounded-xl border border-border p-4 md:p-5">
 				<p class="text-text-muted text-xs uppercase tracking-wide">Ø pro Training</p>
 				<p class="text-2xl md:text-3xl font-bold text-text-primary mt-1">{stats.group.avgAbsencesPerSession}</p>
-				<p class="text-text-muted text-xs mt-1">Leute abgemeldet</p>
+				<p class="text-text-muted text-xs mt-1">Leute ziehen nicht</p>
 			</div>
 			<div class="bg-bg-card rounded-xl border border-border p-4 md:p-5">
 				<p class="text-text-muted text-xs uppercase tracking-wide">Mitglieder</p>
