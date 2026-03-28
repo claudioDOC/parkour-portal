@@ -17,7 +17,12 @@ const config = {
 		// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
 		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
-		adapter: adapter()
+		adapter: adapter(),
+		// CSRF nur in Prod: hinter nginx ist event.url oft http://127.0.0.1:3000, Browser-Origin https://… → POST-Block.
+		// Sauberer Fix auf dem Server: ORIGIN=https://domain (adapter-node). '*' schaltet Kit-CSRF wie in der Doku beschrieben ab.
+		csrf: {
+			trustedOrigins: ['*']
+		}
 	}
 };
 

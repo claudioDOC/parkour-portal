@@ -99,6 +99,7 @@ Die App läuft standardmässig auf `http://localhost:5173` (Dev) bzw. `http://lo
 ### Konfiguration
 
 - **JWT Secret**: Setze `JWT_SECRET` als Umgebungsvariable für Produktion
+- **Hinter nginx/HTTPS (Produktion)**: Setze für den Node-Prozess `ORIGIN=https://deine-domain` (siehe [adapter-node Environment](https://svelte.dev/docs/kit/adapter-node#Environment-variables)), sonst kann SvelteKit die öffentliche URL falsch erraten. Im Repo ist vorerst `csrf.trustedOrigins: ['*']` gesetzt, damit POST/Upload trotzdem gehen.
 - **Trainingszeiten**: Anpassbar in `src/lib/server/db/seed.ts`
 - **Standard-Stadt für Wetter**: Thun (anpassbar in `src/lib/server/weather.ts`)
 
