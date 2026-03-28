@@ -6,5 +6,5 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(303, '/');
 	}
 
-	return {};
+	return { viewerId: locals.user.id };
 };

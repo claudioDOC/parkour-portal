@@ -35,6 +35,17 @@ export const POST: RequestHandler = async (event) => {
 		return json({ error: 'Ungültige Anmeldedaten' }, { status: 401 });
 	}
 
+	if (user.deleted) {
+		logAudit({
+			event,
+			action: 'auth.login.failed',
+			actorUserId: user.id,
+			actorUsername: user.username,
+			detail: { reason: 'trashed' }
+		});
+		return json({ error: 'Dieser Account ist nicht mehr verfügbar.' }, { status: 403 });
+	}
+
 	if (!user.active) {
 		logAudit({
 			event,
