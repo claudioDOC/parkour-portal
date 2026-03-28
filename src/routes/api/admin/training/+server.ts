@@ -9,11 +9,17 @@ import {
 	users,
 	sessionGuests,
 	sessionHiddenUsers,
-	trainingSessionRsvp
+	trainingSessionRsvp,
+	trainingSessionWeekdayOverride
 } from '$lib/server/db/schema';
 import { eq, gte, asc, and } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
-import { filterAttendingUsers } from '$lib/server/trainingAttendance';
+import {
+	filterAttendingUsers,
+	normalizeUserForAttendance,
+	computeEffectiveAbsentUserIds,
+	buildAbsenceListForSession
+} from '$lib/server/trainingAttendance';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -36,10 +42,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 			id: users.id,
 			username: users.username,
 			active: users.active,
-			trainingAttendance: users.trainingAttendance
+			trainingAttendance: users.trainingAttendance,
+			autoAbsentWeekdays: users.autoAbsentWeekdays
 		})
 		.from(users)
-		.all();
+		.all()
+		.map(normalizeUserForAttendance);
 
 	const result = sessions.map((session) => {
 		const sessionAbsences = db.select({
@@ -63,8 +71,22 @@ export const GET: RequestHandler = async ({ locals }) => {
 			.where(eq(sessionHiddenUsers.sessionId, session.id))
 			.all();
 
-		const absentUserIds = new Set(sessionAbsences.map((a) => a.userId));
+		const dbAbsentIds = new Set(sessionAbsences.map((a) => a.userId));
 		const hiddenUserIds = new Set(hiddenUsers.map((h) => h.userId));
+		const overrideUserIds = new Set(
+			db
+				.select({ userId: trainingSessionWeekdayOverride.userId })
+				.from(trainingSessionWeekdayOverride)
+				.where(eq(trainingSessionWeekdayOverride.sessionId, session.id))
+				.all()
+				.map((r) => r.userId)
+		);
+		const effectiveAbsentIds = computeEffectiveAbsentUserIds(
+			allUsers,
+			session.dayOfWeek,
+			dbAbsentIds,
+			overrideUserIds
+		);
 		const rsvpUserIds = new Set(
 			db
 				.select({ userId: trainingSessionRsvp.userId })
@@ -73,7 +95,14 @@ export const GET: RequestHandler = async ({ locals }) => {
 				.all()
 				.map((r) => r.userId)
 		);
-		const attending = filterAttendingUsers(allUsers, absentUserIds, hiddenUserIds, rsvpUserIds);
+		const attending = filterAttendingUsers(allUsers, effectiveAbsentIds, hiddenUserIds, rsvpUserIds);
+		const absencesForList = buildAbsenceListForSession(
+			allUsers,
+			sessionAbsences,
+			effectiveAbsentIds,
+			dbAbsentIds,
+			session.dayOfWeek
+		);
 
 		const spotVotes = db.select({
 			id: trainingSpotVotes.id,
@@ -95,7 +124,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		return {
 			...session,
-			absences: sessionAbsences,
+			absences: absencesForList,
 			attending,
 			spotVotes,
 			guests,

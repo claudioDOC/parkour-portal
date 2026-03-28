@@ -154,10 +154,20 @@
 				body: formData,
 				credentials: 'include'
 			});
-			const result = await res.json();
+			const raw = await res.text();
+			let result: { error?: string } = {};
+			try {
+				result = raw ? JSON.parse(raw) : {};
+			} catch {
+				result = {};
+			}
 
 			if (!res.ok) {
-				alert(result.error || 'Upload fehlgeschlagen');
+				const hint =
+					res.status === 413
+						? 'Datei zu gross (nginx: client_max_body_size / Server: BODY_SIZE_LIMIT). Siehe README.'
+						: result.error || raw?.slice(0, 120) || 'Upload fehlgeschlagen';
+				alert(hint);
 				return;
 			}
 

@@ -78,13 +78,21 @@
 
 						{#if !past}
 							<div class="shrink-0 flex flex-col items-end gap-2">
-								{#if session.userAbsent}
+								{#if session.userDbAbsent}
 									<button
 										onclick={() => postAction('cancel_absence', session.id)}
 										disabled={loadingSession === session.id}
 										class="bg-danger/15 hover:bg-danger/25 text-danger px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
 									>
 										{loadingSession === session.id ? '...' : 'Wieder anmelden'}
+									</button>
+								{:else if session.userVirtualAbsent}
+									<button
+										onclick={() => postAction('weekday_override_yes', session.id)}
+										disabled={loadingSession === session.id}
+										class="bg-accent/15 hover:bg-accent/25 text-accent px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+									>
+										{loadingSession === session.id ? '...' : 'Diesmal doch dabei'}
 									</button>
 								{:else if data.viewerTrainingAttendance === 'opt_in'}
 									<div class="flex flex-wrap justify-end gap-2">
@@ -107,7 +115,16 @@
 										{/if}
 									</div>
 								{/if}
-								{#if !session.userAbsent && showReason === session.id}
+								{#if session.userHasWeekdayOverride && data.viewerTrainingAttendance === 'implicit'}
+									<button
+										onclick={() => postAction('weekday_override_no', session.id)}
+										disabled={loadingSession === session.id}
+										class="text-text-muted hover:text-warning text-xs px-2 py-1 transition-colors"
+									>
+										{loadingSession === session.id ? '...' : 'Standard-Abmeldung wieder für diesen Termin'}
+									</button>
+								{/if}
+								{#if !session.userDbAbsent && !session.userVirtualAbsent && showReason === session.id}
 								<div class="space-y-2">
 									<div class="flex gap-2">
 										<input
@@ -134,7 +151,7 @@
 										<p class="text-warning text-xs">Noch {10 - reasonInput[session.id].trim().length} Zeichen</p>
 									{/if}
 								</div>
-								{:else if !session.userAbsent}
+								{:else if !session.userDbAbsent && !session.userVirtualAbsent}
 									<button
 										onclick={() => showReason = session.id}
 										class="bg-bg-hover hover:bg-danger/15 hover:text-danger text-text-secondary px-4 py-2 rounded-lg text-sm font-medium transition-colors"
