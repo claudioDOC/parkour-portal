@@ -6,6 +6,33 @@ import { eq, desc } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { logAudit } from '$lib/server/audit';
 
+function errMeta(e: unknown): { msg: string; code: string } {
+	if (e && typeof e === 'object' && 'message' in e) {
+		const m = (e as { message: unknown }).message;
+		const c = (e as { code?: unknown }).code;
+		return {
+			msg: typeof m === 'string' ? m : String(m),
+			code: c != null ? String(c) : ''
+		};
+	}
+	return { msg: String(e), code: '' };
+}
+
+function looksLikeSqlite(msg: string, code: string): boolean {
+	if (code.startsWith('SQLITE_')) return true;
+	const u = msg.toUpperCase();
+	return (
+		u.includes('SQLITE') ||
+		msg.includes('no such table') ||
+		msg.includes('no such column') ||
+		msg.includes('readonly database') ||
+		msg.includes('SQL logic error') ||
+		msg.includes('constraint failed') ||
+		msg.includes('locked') ||
+		msg.includes('SqliteError')
+	);
+}
+
 /** Reine JSON-Werte (kein BigInt) — vermeidet 500 „Internal Error“ beim Serialisieren in Prod. */
 function inviteRowApi(row: {
 	id: unknown;
@@ -86,7 +113,7 @@ export const POST: RequestHandler = async (event) => {
 		}).run();
 
 		const result = db.select().from(invites).where(eq(invites.token, token)).get();
-		if (!result) {
+		if (!result || result.token == null || result.id == null) {
 			console.error('invite insert: Zeile nach Insert per token nicht gefunden');
 			return json({ error: 'Einladung konnte nicht gespeichert werden' }, { status: 500 });
 		}
@@ -102,19 +129,40 @@ export const POST: RequestHandler = async (event) => {
 		return json({ success: true, invite: inviteRowApi(result) });
 	} catch (e) {
 		console.error('POST /api/admin/invites', e);
-		const msg = e instanceof Error ? e.message : '';
-		if (msg.includes('FOREIGN KEY') || msg.includes('SQLITE_CONSTRAINT')) {
+		const { msg, code } = errMeta(e);
+		const detail = msg.replace(/\s+/g, ' ').trim().slice(0, 400);
+
+		if (
+			msg.includes('FOREIGN KEY') ||
+			msg.includes('SQLITE_CONSTRAINT_FOREIGNKEY') ||
+			code === 'SQLITE_CONSTRAINT_FOREIGNKEY'
+		) {
 			return json(
 				{
 					error:
-						'Datenbank lehnt den Eintrag ab (z. B. nach DB-Restore). Bitte abmelden und erneut mit Admin anmelden.'
+						'Datenbank lehnt den Eintrag ab (z. B. nach DB-Restore). Bitte abmelden und erneut mit Admin anmelden.',
+					detail
 				},
 				{ status: 500 }
 			);
 		}
-		if (msg.includes('SQLITE') || msg.includes('SqliteError')) {
-			return json({ error: 'Datenbankfehler beim Erstellen der Einladung' }, { status: 500 });
+
+		if (looksLikeSqlite(msg, code)) {
+			return json(
+				{
+					error: 'Datenbankfehler beim Erstellen der Einladung.',
+					detail
+				},
+				{ status: 500 }
+			);
 		}
-		return json({ error: 'Serverfehler beim Erstellen der Einladung' }, { status: 500 });
+
+		return json(
+			{
+				error: 'Serverfehler beim Erstellen der Einladung.',
+				detail: detail || undefined
+			},
+			{ status: 500 }
+		);
 	}
 };
