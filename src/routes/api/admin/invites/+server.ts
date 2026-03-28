@@ -6,47 +6,115 @@ import { eq, desc } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { logAudit } from '$lib/server/audit';
 
+/** Reine JSON-Werte (kein BigInt) — vermeidet 500 „Internal Error“ beim Serialisieren in Prod. */
+function inviteRowApi(row: {
+	id: unknown;
+	token: string;
+	used: boolean;
+	expiresAt: string;
+	createdAt: string;
+	createdBy?: number;
+	usedBy?: number | null;
+}) {
+	return {
+		id: Number(row.id),
+		token: row.token,
+		used: Boolean(row.used),
+		expiresAt: row.expiresAt,
+		createdAt: row.createdAt,
+		...(row.createdBy !== undefined ? { createdBy: Number(row.createdBy) } : {}),
+		...(row.usedBy !== undefined ? { usedBy: row.usedBy == null ? null : Number(row.usedBy) } : {})
+	};
+}
+
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user || locals.user.role !== 'admin') throw error(403, 'Kein Zugriff');
 
-	const allInvites = db.select({
-		id: invites.id,
-		token: invites.token,
-		used: invites.used,
-		expiresAt: invites.expiresAt,
-		createdAt: invites.createdAt,
-		createdByName: users.username
-	})
-		.from(invites)
-		.innerJoin(users, eq(invites.createdBy, users.id))
-		.orderBy(desc(invites.createdAt))
-		.all();
+	try {
+		const allInvites = db
+			.select({
+				id: invites.id,
+				token: invites.token,
+				used: invites.used,
+				expiresAt: invites.expiresAt,
+				createdAt: invites.createdAt,
+				createdByName: users.username
+			})
+			.from(invites)
+			.leftJoin(users, eq(invites.createdBy, users.id))
+			.orderBy(desc(invites.createdAt))
+			.all();
 
-	return json({ invites: allInvites });
+		return json({
+			invites: allInvites.map((row) => ({
+				...inviteRowApi(row),
+				createdByName: row.createdByName ?? '(unbekannt)'
+			}))
+		});
+	} catch (e) {
+		console.error('GET /api/admin/invites', e);
+		return json({ error: 'Einladungen konnten nicht geladen werden', invites: [] }, { status: 500 });
+	}
 };
 
 export const POST: RequestHandler = async (event) => {
 	const { locals } = event;
 	if (!locals.user || locals.user.role !== 'admin') throw error(403, 'Kein Zugriff');
 
-	const token = randomBytes(24).toString('base64url');
+	try {
+		const dbUser = db.select({ id: users.id }).from(users).where(eq(users.id, locals.user.id)).get();
+		if (!dbUser) {
+			return json(
+				{
+					error:
+						'Dein Account ist in der Datenbank nicht mehr vorhanden — bitte abmelden und mit einem gültigen Admin neu anmelden.'
+				},
+				{ status: 401 }
+			);
+		}
 
-	const expires = new Date();
-	expires.setDate(expires.getDate() + 7);
+		// Hex: überall unterstützt; eindeutiger Lookup nach Insert ohne lastInsertRowid
+		const token = randomBytes(32).toString('hex');
 
-	const result = db.insert(invites).values({
-		token,
-		createdBy: locals.user.id,
-		expiresAt: expires.toISOString()
-	}).returning().get();
+		const expires = new Date();
+		expires.setDate(expires.getDate() + 7);
 
-	logAudit({
-		event,
-		action: 'admin.invite.created',
-		actorUserId: locals.user.id,
-		actorUsername: locals.user.username,
-		detail: { inviteId: result.id, expiresAt: result.expiresAt }
-	});
+		db.insert(invites).values({
+			token,
+			createdBy: locals.user.id,
+			expiresAt: expires.toISOString()
+		}).run();
 
-	return json({ success: true, invite: result });
+		const result = db.select().from(invites).where(eq(invites.token, token)).get();
+		if (!result) {
+			console.error('invite insert: Zeile nach Insert per token nicht gefunden');
+			return json({ error: 'Einladung konnte nicht gespeichert werden' }, { status: 500 });
+		}
+
+		logAudit({
+			event,
+			action: 'admin.invite.created',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: { inviteId: Number(result.id), expiresAt: result.expiresAt }
+		});
+
+		return json({ success: true, invite: inviteRowApi(result) });
+	} catch (e) {
+		console.error('POST /api/admin/invites', e);
+		const msg = e instanceof Error ? e.message : '';
+		if (msg.includes('FOREIGN KEY') || msg.includes('SQLITE_CONSTRAINT')) {
+			return json(
+				{
+					error:
+						'Datenbank lehnt den Eintrag ab (z. B. nach DB-Restore). Bitte abmelden und erneut mit Admin anmelden.'
+				},
+				{ status: 500 }
+			);
+		}
+		if (msg.includes('SQLITE') || msg.includes('SqliteError')) {
+			return json({ error: 'Datenbankfehler beim Erstellen der Einladung' }, { status: 500 });
+		}
+		return json({ error: 'Serverfehler beim Erstellen der Einladung' }, { status: 500 });
+	}
 };

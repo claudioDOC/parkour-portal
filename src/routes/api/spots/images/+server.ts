@@ -9,64 +9,109 @@ import { logAudit } from '$lib/server/audit';
 import { getUploadWriteDir } from '$lib/server/uploads';
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
+const VALID_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const VALID_EXT = new Set(['jpg', 'jpeg', 'png', 'webp']);
+
+function imageAllowed(file: File): boolean {
+	if (file.type && VALID_TYPES.includes(file.type)) return true;
+	const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+	return VALID_EXT.has(ext);
+}
+
+function safeImageExt(file: File): string {
+	const fromName = file.name.split('.').pop()?.toLowerCase() ?? '';
+	if (VALID_EXT.has(fromName)) return fromName === 'jpeg' ? 'jpg' : fromName;
+	if (file.type === 'image/jpeg') return 'jpg';
+	if (file.type === 'image/png') return 'png';
+	if (file.type === 'image/webp') return 'webp';
+	return 'jpg';
+}
+
 export const POST: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
-	const formData = await request.formData();
-	const file = formData.get('image') as File | null;
-	const spotId = parseInt(formData.get('spotId') as string);
-
-	if (!file || !spotId) {
-		return json({ error: 'Bild und Spot-ID erforderlich' }, { status: 400 });
-	}
-
-	if (file.size > MAX_SIZE) {
-		return json({ error: 'Bild darf maximal 5MB groß sein' }, { status: 400 });
-	}
-
-	const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-	if (!validTypes.includes(file.type)) {
-		return json({ error: 'Nur JPG, PNG und WebP erlaubt' }, { status: 400 });
-	}
-
-	const spot = db.select().from(spots).where(eq(spots.id, spotId)).get();
-	if (!spot) {
-		return json({ error: 'Spot nicht gefunden' }, { status: 404 });
-	}
-
-	const uploadDir = getUploadWriteDir();
-	if (!existsSync(uploadDir)) {
-		mkdirSync(uploadDir, { recursive: true, mode: 0o775 });
-	}
-
-	const ext = file.name.split('.').pop() || 'jpg';
-	const filename = `${spotId}-${Date.now()}.${ext}`;
-	const filepath = join(uploadDir, filename);
-
-	const buffer = Buffer.from(await file.arrayBuffer());
 	try {
-		writeFileSync(filepath, buffer, { mode: 0o664 });
+		const formData = await request.formData();
+		const file = formData.get('image') as File | null;
+		const spotId = parseInt(formData.get('spotId') as string, 10);
+
+		if (!file || !spotId) {
+			return json({ error: 'Bild und Spot-ID erforderlich' }, { status: 400 });
+		}
+
+		if (file.size > MAX_SIZE) {
+			return json({ error: 'Bild darf maximal 5MB groß sein' }, { status: 400 });
+		}
+
+		if (!imageAllowed(file)) {
+			return json({ error: 'Nur JPG, PNG und WebP erlaubt' }, { status: 400 });
+		}
+
+		const spot = db.select().from(spots).where(eq(spots.id, spotId)).get();
+		if (!spot) {
+			return json({ error: 'Spot nicht gefunden' }, { status: 404 });
+		}
+
+		const uploadDir = getUploadWriteDir();
+		try {
+			if (!existsSync(uploadDir)) {
+				mkdirSync(uploadDir, { recursive: true, mode: 0o775 });
+			}
+		} catch (e) {
+			console.error('upload mkdir failed', uploadDir, e);
+			return json(
+				{ error: 'Upload-Ordner nicht anlegbar (sudo mkdir -p data/uploads, Rechte für Dienst-User)' },
+				{ status: 500 }
+			);
+		}
+
+		const ext = safeImageExt(file);
+		const filename = `${spotId}-${Date.now()}.${ext}`;
+		const filepath = join(uploadDir, filename);
+
+		const buffer = Buffer.from(await file.arrayBuffer());
+		try {
+			writeFileSync(filepath, buffer, { mode: 0o664 });
+		} catch (e) {
+			console.error('spot image write failed', e);
+			return json({ error: 'Speichern fehlgeschlagen (Rechte/Pfad prüfen)' }, { status: 500 });
+		}
+
+		const ins = db
+			.insert(spotImages)
+			.values({
+				spotId,
+				filename,
+				uploadedBy: locals.user.id
+			})
+			.run();
+
+		const newId = Number(ins.lastInsertRowid);
+		const result = db.select().from(spotImages).where(eq(spotImages.id, newId)).get();
+		if (!result) {
+			console.error('spotImages insert: row missing, lastInsertRowid=', newId);
+			try {
+				unlinkSync(filepath);
+			} catch {
+				/* ignore */
+			}
+			return json({ error: 'Bildmetadaten konnten nicht gespeichert werden' }, { status: 500 });
+		}
+
+		logAudit({
+			event,
+			action: 'spot.image.upload',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: { spotId, spotName: spot.name, imageId: result.id, filename }
+		});
+
+		return json({ success: true, image: { id: result.id, filename, url: `/uploads/${filename}` } });
 	} catch (e) {
-		console.error('spot image write failed', e);
-		return json({ error: 'Speichern fehlgeschlagen (Rechte/Pfad prüfen)' }, { status: 500 });
+		console.error('POST /api/spots/images', e);
+		return json({ error: 'Upload fehlgeschlagen' }, { status: 500 });
 	}
-
-	const result = db.insert(spotImages).values({
-		spotId,
-		filename,
-		uploadedBy: locals.user.id
-	}).returning().get();
-
-	logAudit({
-		event,
-		action: 'spot.image.upload',
-		actorUserId: locals.user.id,
-		actorUsername: locals.user.username,
-		detail: { spotId, spotName: spot.name, imageId: result.id, filename }
-	});
-
-	return json({ success: true, image: { id: result.id, filename, url: `/uploads/${filename}` } });
 };
 
 export const DELETE: RequestHandler = async (event) => {
