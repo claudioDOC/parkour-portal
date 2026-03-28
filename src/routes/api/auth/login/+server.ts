@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
+import { userCoreAuth } from '$lib/server/db/userCoreSelect';
 import { eq } from 'drizzle-orm';
 import { verifyPassword, createSession } from '$lib/server/auth';
 import { logAudit } from '$lib/server/audit';
@@ -14,7 +15,7 @@ export const POST: RequestHandler = async (event) => {
 		return json({ error: 'Username und Passwort erforderlich' }, { status: 400 });
 	}
 
-	const user = db.select().from(users).where(eq(users.username, username)).get();
+	const user = db.select(userCoreAuth).from(users).where(eq(users.username, username)).get();
 	if (!user) {
 		logAudit({
 			event,
