@@ -8,8 +8,9 @@ Gebaut für unsere Trainingsgruppe im Raum Thun/Bern, aber so aufgebaut, dass es
 
 ### Training
 - Trainings werden automatisch generiert (standardmässig Di + Do, 18:15–20:15)
-- Abmeldung nur mit Begründung (mind. 10 Zeichen)
-- Übersicht wer zieht (ohne Abmeldung) und wer abgemeldet ist
+- Übersicht **Zieht** vs. **Zieht nicht** (Abmeldung nur mit Begründung, mind. 10 Zeichen)
+- Optionaler Modus **nur mit Zusage** (Opt-in) und **Auto-Abmeldung** an festen Wochentagen (Admin pro User; erfordert DB-Migrationen 0002/0003)
+- Spot-Voting pro Termin, Gäste eintragen, Admins können User pro Session aus der „Zieht“-Liste ausblenden
 
 ### Spots
 - Spot-Datenbank mit Name, Stadt, Koordinaten, Beschreibung
@@ -34,15 +35,19 @@ Gebaut für unsere Trainingsgruppe im Raum Thun/Bern, aber so aufgebaut, dass es
 ### User-System
 - Registrierung nur per Einladungslink (kein offenes Signup)
 - Drei Rollen:
-  - **Admin**: Volle Kontrolle (User-Verwaltung, Spot-Papierkorb, Passwort-Reset, Rollen)
+  - **Admin**: Volle Kontrolle (User-Verwaltung, Trainings-Administration, Spot-Papierkorb, Passwort-Reset, Rollen, Audit-Protokoll)
   - **Spot-Manager**: Spots hinzufügen und bearbeiten
   - **Mitglied**: Standard-Rolle, kann Spots hinzufügen, voten, am Training teilnehmen
 - Passwort ändern in den Einstellungen
 
+### Statistik
+- Übersicht Trainingsbeteiligung pro Mitglied (geschätzt, ab Registrierung; nutzt dieselben Regeln wie die Trainingsseite, inkl. Opt-in/Auto-Abmeldung wenn migriert)
+
 ### Admin-Bereich
-- User-Verwaltung: Passwort zurücksetzen, Rolle ändern, User deaktivieren/aktivieren (Soft-Delete)
-- Spot-Verwaltung: Bearbeiten, Papierkorb mit Wiederherstellen (kein permanentes Löschen)
-- Einladungslinks erstellen und verwalten
+- **User**: Passwort zurücksetzen, Rolle ändern, Trainingsmodus (wie alle / nur Zusage), Auto-Abmeldung Wochentage, deaktivieren/aktivieren, **Papierkorb** (User aus allen Listen nehmen) und im Papierkorb **wiederherstellen** oder **endgültig löschen** (inkl. eigener Spots, Bilder, Votes, Trainingsdaten; Migration `0004_user_deleted.sql`)
+- **Trainings**: kommende Termine, Gäste, Abwesenheiten, Spot-Votes, ausgeblendete User verwalten
+- **Spots**: Bearbeiten; **Papierkorb** mit Wiederherstellen (kein permanentes Spot-Löschen über die UI)
+- Einladungslinks erstellen und verwalten, Server-Infos, Audit-Log
 
 ## Tech Stack
 
@@ -75,11 +80,10 @@ Die Datenbank ist nicht im Repo enthalten und muss lokal angelegt werden. Dazu e
 
 ```bash
 mkdir -p data
-npx drizzle-kit generate
 npx tsx src/lib/server/db/seed.ts
 ```
 
-Das erstellt die SQLite-Datenbank unter `data/parkour.db`, einen Admin-User und die ersten Trainings-Sessions. Passwort direkt nach dem ersten Login ändern!
+Der Seed wendet die SQL-Dateien aus `drizzle/` an, legt `data/parkour.db` an, erstellt einen Admin-User und die ersten Trainings-Sessions. Passwort direkt nach dem ersten Login ändern!
 
 ### Starten
 
@@ -103,6 +107,7 @@ Die App läuft standardmässig auf `http://localhost:5173` (Dev) bzw. `http://lo
 - **Bild-Upload (Produktion / VPS)**: Lokal funktioniert `vite dev` mit grösseren Bodies; der **Node-Adapter** begrenzt die Request-Grösse standardmässig stark (oft ~512KB). Ohne Anpassung schlagen grössere Fotos mit generischem „Upload fehlgeschlagen“ fehl. Setze für den Prozess z. B. `BODY_SIZE_LIMIT=10485760` (10MB, etwas über dem App-Limit von 5MB). Unter **nginx** zusätzlich im `server`-Block: `client_max_body_size 10M;` (Standard ist oft 1MB → 413 vor Node). Beispiel **systemd** unter `[Service]`: `Environment="BODY_SIZE_LIMIT=10485760"`.
 - **SQLite-Schreibrechte**: Der User, unter dem `node build` läuft (systemd `User=`), braucht Schreibzugriff auf `data/parkour.db` und den Ordner `data/` (WAL-Dateien). Sonst: „attempt to write a readonly database“. Für Upload-Dateien derselbe User Schreibrechte auf `data/uploads/` (wird bei Bedarf angelegt).
 - **Ohne Migration 0002/0003**: Die App startet weiter (Login, Spots, Training-Liste im **alten** Modus). Opt-in, Auto-Abmeldung und zugehörige Admin-Aktionen sind erst nach Anwenden der SQL-Migrationen auf der Server-DB aktiv; im Server-Log erscheint ein Hinweis.
+- **Ohne Migration 0004** (`drizzle/0004_user_deleted.sql`): Die Spalte `users.deleted` fehlt — User-Papierkorb und endgültiges Löschen funktionieren erst nach Anwenden auf der Server-DB.
 - **Trainingszeiten**: Anpassbar in `src/lib/server/db/seed.ts`
 - **Standard-Stadt für Wetter**: Thun (anpassbar in `src/lib/server/weather.ts`)
 

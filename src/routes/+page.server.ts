@@ -41,11 +41,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 					autoAbsentWeekdays: users.autoAbsentWeekdays
 				})
 				.from(users)
+				.where(eq(users.deleted, false))
 				.all()
 				.map(normalizeUserForAttendance)
 		: db
 				.select({ id: users.id, username: users.username, active: users.active })
 				.from(users)
+				.where(eq(users.deleted, false))
 				.all()
 				.map((u) => ({
 					id: u.id,
@@ -64,7 +66,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		})
 			.from(absences)
 			.innerJoin(users, eq(absences.userId, users.id))
-			.where(eq(absences.sessionId, session.id))
+			.where(and(eq(absences.sessionId, session.id), eq(users.deleted, false)))
 			.all();
 
 		const hiddenUserIds = new Set(
@@ -172,7 +174,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.limit(5)
 		.all();
 
-	const memberCount = db.select({ count: sql<number>`COUNT(*)` }).from(users).get();
+	const memberCount = db
+		.select({ count: sql<number>`COUNT(*)` })
+		.from(users)
+		.where(eq(users.deleted, false))
+		.get();
 
 	return {
 		nextTrainings: trainingsWithDetails,

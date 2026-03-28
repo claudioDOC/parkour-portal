@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
 
 	type Invite = {
 		id: number;
@@ -73,8 +76,10 @@
 
 	let spotList = $state<Spot[]>([]);
 	let trashedSpots = $state<Spot[]>([]);
+	let trashedUserList = $state<User[]>([]);
 	let spotMessage = $state('');
 	let confirmSpot = $state<{ action: string; spot: Spot } | null>(null);
+	let userBinModal = $state<null | { mode: 'to_trash' | 'restore' | 'purge'; user: User }>(null);
 
 	type SystemStats = {
 		hostname: string;
@@ -116,6 +121,9 @@
 		'admin.user.toggle_active': 'Admin: User aktiviert/deaktiviert',
 		'admin.user.training_attendance': 'Admin: Trainingsliste-Modus geändert',
 		'admin.user.auto_absent_weekdays': 'Admin: Standard-Abmeldung Wochentage geändert',
+		'admin.user.trash': 'Admin: User → Papierkorb',
+		'admin.user.restore': 'Admin: User wiederhergestellt',
+		'admin.user.purge': 'Admin: User endgültig gelöscht',
 		'admin.invite.created': 'Admin: Einladung erstellt',
 		'admin.spot.trash': 'Admin: Spot → Papierkorb',
 		'admin.spot.restore': 'Admin: Spot wiederhergestellt',
@@ -195,6 +203,7 @@
 		loadInvites();
 		loadSpots();
 		loadTrashedSpots();
+		loadTrashedUsers();
 		loadTrainingSessions();
 		loadSystem();
 	});
@@ -282,6 +291,31 @@
 		const res = await fetch('/api/admin/users');
 		const data = await res.json();
 		userList = data.users;
+	}
+
+	async function loadTrashedUsers() {
+		const res = await fetch('/api/admin/users?trashed=true');
+		if (!res.ok) return;
+		const d = await res.json();
+		trashedUserList = d.users ?? [];
+	}
+
+	async function userTrashAction(user: User, action: 'trash_user' | 'restore_user' | 'purge_user') {
+		userMessage = '';
+		userError = '';
+		const res = await fetch('/api/admin/users', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ userId: user.id, action })
+		});
+		const d = await res.json();
+		if (!res.ok) {
+			userError = d.error ?? 'Fehler';
+			return;
+		}
+		userMessage = d.message ?? 'OK';
+		await loadUsers();
+		await loadTrashedUsers();
 	}
 
 	async function resetUserPassword() {
@@ -591,6 +625,89 @@
 	</div>
 {/if}
 
+{#if userBinModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70" onclick={() => (userBinModal = null)}>
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<div class="bg-bg-card border border-border rounded-xl p-6 max-w-sm mx-4 shadow-2xl" onclick={(e) => e.stopPropagation()}>
+			{#if userBinModal.mode === 'to_trash'}
+				<h3 class="text-lg font-semibold text-text-primary mb-2">User in den Papierkorb legen?</h3>
+				<p class="text-text-secondary text-sm mb-1">
+					<span class="font-medium text-text-primary">{userBinModal.user.username}</span> kann sich nicht mehr einloggen und erscheint nicht in normalen Listen.
+				</p>
+				<p class="text-text-muted text-xs mb-4">
+					Daten bleiben vorerst erhalten. Im Papierkorb kannst du wiederherstellen oder endgültig löschen.
+				</p>
+				<div class="flex gap-2 justify-end">
+					<button
+						onclick={() => (userBinModal = null)}
+						class="px-4 py-2 rounded-lg text-sm text-text-secondary bg-bg-secondary hover:bg-bg-hover border border-border transition-colors cursor-pointer"
+					>
+						Abbrechen
+					</button>
+					<button
+						onclick={async () => {
+							const u = userBinModal!.user;
+							userBinModal = null;
+							await userTrashAction(u, 'trash_user');
+						}}
+						class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-warning hover:bg-warning/80 transition-colors cursor-pointer"
+					>
+						In Papierkorb
+					</button>
+				</div>
+			{:else if userBinModal.mode === 'restore'}
+				<h3 class="text-lg font-semibold text-text-primary mb-2">User wiederherstellen?</h3>
+				<p class="text-text-secondary text-sm mb-4">
+					<span class="font-medium text-text-primary">{userBinModal.user.username}</span> erscheint wieder in der User-Liste. Login bleibt deaktiviert, bis du den User aktivierst.
+				</p>
+				<div class="flex gap-2 justify-end">
+					<button
+						onclick={() => (userBinModal = null)}
+						class="px-4 py-2 rounded-lg text-sm text-text-secondary bg-bg-secondary hover:bg-bg-hover border border-border transition-colors cursor-pointer"
+					>
+						Abbrechen
+					</button>
+					<button
+						onclick={async () => {
+							const u = userBinModal!.user;
+							userBinModal = null;
+							await userTrashAction(u, 'restore_user');
+						}}
+						class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-success hover:bg-success/80 transition-colors cursor-pointer"
+					>
+						Wiederherstellen
+					</button>
+				</div>
+			{:else}
+				<h3 class="text-lg font-semibold text-text-primary mb-2">Endgültig löschen?</h3>
+				<p class="text-text-secondary text-sm mb-1">
+					<span class="font-medium text-text-primary">{userBinModal.user.username}</span> und alle zugehörigen Daten werden unwiderruflich entfernt (eigene Spots inkl. Bilder, Bewertungen, Trainings-Einträge).
+				</p>
+				<p class="text-danger text-xs font-medium mb-4">Dieser Schritt kann nicht rückgängig gemacht werden.</p>
+				<div class="flex gap-2 justify-end">
+					<button
+						onclick={() => (userBinModal = null)}
+						class="px-4 py-2 rounded-lg text-sm text-text-secondary bg-bg-secondary hover:bg-bg-hover border border-border transition-colors cursor-pointer"
+					>
+						Abbrechen
+					</button>
+					<button
+						onclick={async () => {
+							const u = userBinModal!.user;
+							userBinModal = null;
+							await userTrashAction(u, 'purge_user');
+						}}
+						class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-danger hover:bg-danger/80 transition-colors cursor-pointer"
+					>
+						Endgültig löschen
+					</button>
+				</div>
+			{/if}
+		</div>
+	</div>
+{/if}
+
 <div class="space-y-6">
 	<div>
 		<h2 class="text-2xl font-bold text-text-primary">Admin-Bereich</h2>
@@ -602,7 +719,7 @@
 			{ id: 'users' as const, label: 'User', count: userList.length },
 			{ id: 'trainings' as const, label: 'Trainings', count: trainingSessions.length },
 			{ id: 'spots' as const, label: 'Spots', count: spotList.length },
-			{ id: 'trash' as const, label: 'Papierkorb', count: trashedSpots.length },
+			{ id: 'trash' as const, label: 'Papierkorb', count: trashedSpots.length + trashedUserList.length },
 			{ id: 'invites' as const, label: 'Einladungen', count: invites.length },
 			{ id: 'server' as const, label: 'Server', count: null as number | null },
 			{ id: 'audit' as const, label: 'Protokoll', count: null as number | null }
@@ -611,6 +728,10 @@
 				onclick={() => {
 					activeTab = tab.id;
 					if (tab.id === 'audit') loadAudit(false);
+					if (tab.id === 'trash') {
+						loadTrashedSpots();
+						loadTrashedUsers();
+					}
 				}}
 				class="flex-1 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer {activeTab === tab.id ? 'bg-bg-card text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}"
 			>
@@ -722,6 +843,14 @@
 									class="text-xs bg-success/10 hover:bg-success/20 border border-success/30 px-3 py-1.5 rounded-lg text-success transition-colors cursor-pointer"
 								>
 									Aktivieren
+								</button>
+							{/if}
+							{#if user.id !== data.viewerId}
+								<button
+									onclick={() => (userBinModal = { mode: 'to_trash', user })}
+									class="text-xs bg-danger/10 hover:bg-danger/20 border border-danger/30 px-3 py-1.5 rounded-lg text-danger transition-colors cursor-pointer"
+								>
+									Papierkorb
 								</button>
 							{/if}
 						</div>
@@ -985,25 +1114,78 @@
 	{/if}
 
 	{#if activeTab === 'trash'}
-		<div class="space-y-3">
-			{#if trashedSpots.length === 0}
-				<p class="text-text-muted text-center py-8">Papierkorb ist leer</p>
-			{:else}
-				<p class="text-text-secondary text-sm mb-2">Gelöschte Spots können jederzeit wiederhergestellt werden.</p>
-				{#each trashedSpots as spot}
-					<div class="bg-bg-card rounded-xl border border-border p-4 flex items-center justify-between gap-4 opacity-70">
-						<div>
-							<p class="text-text-primary font-medium">{spot.name}</p>
-							<p class="text-text-muted text-xs">{spot.city} · von {spot.addedByName}</p>
-						</div>
-						<button
-							onclick={() => confirmSpot = { action: 'restore', spot }}
-							class="text-xs bg-success/10 hover:bg-success/20 border border-success/30 px-3 py-1.5 rounded-lg text-success transition-colors cursor-pointer"
-						>
-							Wiederherstellen
-						</button>
+		<div class="space-y-8">
+			{#if userMessage}
+				<div class="bg-success/10 border border-success/30 text-success rounded-lg p-3 text-sm">{userMessage}</div>
+			{/if}
+			{#if userError}
+				<div class="bg-danger/10 border border-danger/30 text-danger rounded-lg p-3 text-sm">{userError}</div>
+			{/if}
+
+			<div>
+				<h3 class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">User</h3>
+				{#if trashedUserList.length === 0}
+					<p class="text-text-muted text-sm">Keine User im Papierkorb.</p>
+				{:else}
+					<p class="text-text-secondary text-sm mb-3">
+						Wiederherstellen bringt den User zurück in die Liste (Login bleibt aus bis Aktivieren). Endgültig löschen entfernt alle zugehörigen Daten.
+					</p>
+					<div class="space-y-2">
+						{#each trashedUserList as u}
+							<div class="bg-bg-card rounded-xl border border-border p-4 flex items-center justify-between gap-4 flex-wrap opacity-90">
+								<div>
+									<p class="text-text-primary font-medium">{u.username}</p>
+									<p class="text-text-muted text-xs">
+										{roleLabels[u.role] || u.role} · seit {formatDate(u.createdAt)}
+									</p>
+								</div>
+								<div class="flex items-center gap-2">
+									<button
+										onclick={() => (userBinModal = { mode: 'restore', user: u })}
+										class="text-xs bg-success/10 hover:bg-success/20 border border-success/30 px-3 py-1.5 rounded-lg text-success transition-colors cursor-pointer"
+									>
+										Wiederherstellen
+									</button>
+									<button
+										onclick={() => (userBinModal = { mode: 'purge', user: u })}
+										class="text-xs bg-danger/10 hover:bg-danger/20 border border-danger/30 px-3 py-1.5 rounded-lg text-danger transition-colors cursor-pointer"
+									>
+										Endgültig löschen
+									</button>
+								</div>
+							</div>
+						{/each}
 					</div>
-				{/each}
+				{/if}
+			</div>
+
+			<div>
+				<h3 class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Spots</h3>
+				{#if trashedSpots.length === 0}
+					<p class="text-text-muted text-sm">Keine Spots im Papierkorb.</p>
+				{:else}
+					<p class="text-text-secondary text-sm mb-2">Gelöschte Spots können jederzeit wiederhergestellt werden.</p>
+					<div class="space-y-2">
+						{#each trashedSpots as spot}
+							<div class="bg-bg-card rounded-xl border border-border p-4 flex items-center justify-between gap-4 opacity-70">
+								<div>
+									<p class="text-text-primary font-medium">{spot.name}</p>
+									<p class="text-text-muted text-xs">{spot.city} · von {spot.addedByName}</p>
+								</div>
+								<button
+									onclick={() => confirmSpot = { action: 'restore', spot }}
+									class="text-xs bg-success/10 hover:bg-success/20 border border-success/30 px-3 py-1.5 rounded-lg text-success transition-colors cursor-pointer"
+								>
+									Wiederherstellen
+								</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			{#if trashedUserList.length === 0 && trashedSpots.length === 0}
+				<p class="text-text-muted text-center py-4 text-sm">Papierkorb ist leer.</p>
 			{/if}
 		</div>
 	{/if}

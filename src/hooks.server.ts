@@ -1,5 +1,5 @@
 import type { Handle } from '@sveltejs/kit';
-import { getSession } from '$lib/server/auth';
+import { getSession, clearSession } from '$lib/server/auth';
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
@@ -20,31 +20,48 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	if (session) {
 		if (!isTrainingAttendanceSchemaReady()) {
-			event.locals.user = {
-				id: session.userId,
-				username: session.username,
-				role: session.role,
-				trainingAttendance: 'implicit',
-				autoAbsentWeekdays: []
-			};
+			const core = db
+				.select({ active: users.active, deleted: users.deleted })
+				.from(users)
+				.where(eq(users.id, session.userId))
+				.get();
+			if (!core || !core.active || core.deleted) {
+				clearSession(event.cookies);
+				event.locals.user = null;
+			} else {
+				event.locals.user = {
+					id: session.userId,
+					username: session.username,
+					role: session.role,
+					trainingAttendance: 'implicit',
+					autoAbsentWeekdays: []
+				};
+			}
 		} else {
 			const row = db
 				.select({
+					active: users.active,
+					deleted: users.deleted,
 					trainingAttendance: users.trainingAttendance,
 					autoAbsentWeekdays: users.autoAbsentWeekdays
 				})
 				.from(users)
 				.where(eq(users.id, session.userId))
 				.get();
-			const trainingAttendance = row?.trainingAttendance === 'opt_in' ? 'opt_in' : 'implicit';
-			const autoAbsentWeekdays = parseAutoAbsentWeekdays(row?.autoAbsentWeekdays);
-			event.locals.user = {
-				id: session.userId,
-				username: session.username,
-				role: session.role,
-				trainingAttendance,
-				autoAbsentWeekdays
-			};
+			if (!row || !row.active || row.deleted) {
+				clearSession(event.cookies);
+				event.locals.user = null;
+			} else {
+				const trainingAttendance = row.trainingAttendance === 'opt_in' ? 'opt_in' : 'implicit';
+				const autoAbsentWeekdays = parseAutoAbsentWeekdays(row.autoAbsentWeekdays);
+				event.locals.user = {
+					id: session.userId,
+					username: session.username,
+					role: session.role,
+					trainingAttendance,
+					autoAbsentWeekdays
+				};
+			}
 		}
 	} else {
 		event.locals.user = null;

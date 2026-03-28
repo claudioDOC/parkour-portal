@@ -6,5 +6,6 @@ export const userCoreAuth = {
 	username: users.username,
 	passwordHash: users.passwordHash,
 	role: users.role,
-	active: users.active
+	active: users.active,
+	deleted: users.deleted
 } as const;

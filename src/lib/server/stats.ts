@@ -10,7 +10,7 @@ import {
 } from '$lib/server/db/schema';
 import { isImplicitEffectiveAbsent } from '$lib/server/trainingAttendance';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
-import { eq, lt, asc, sql } from 'drizzle-orm';
+import { and, eq, lt, asc, sql } from 'drizzle-orm';
 
 export type UserTrainingStats = {
 	userId: number;
@@ -70,7 +70,12 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		.orderBy(asc(trainingSessions.date))
 		.all();
 
-	const members = db.select().from(users).where(eq(users.active, true)).orderBy(asc(users.username)).all();
+	const members = db
+		.select()
+		.from(users)
+		.where(and(eq(users.active, true), eq(users.deleted, false)))
+		.orderBy(asc(users.username))
+		.all();
 
 	const allAbsences = db.select().from(absences).all();
 	const absencePairs = new Set<string>();
@@ -271,7 +276,7 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 			active: users.active
 		})
 		.from(users)
-		.where(eq(users.active, true))
+		.where(and(eq(users.active, true), eq(users.deleted, false)))
 		.orderBy(asc(users.username))
 		.all();
 

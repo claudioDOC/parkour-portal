@@ -42,6 +42,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 					autoAbsentWeekdays: users.autoAbsentWeekdays
 				})
 				.from(users)
+				.where(eq(users.deleted, false))
 				.all()
 				.map(normalizeUserForAttendance)
 		: db
@@ -51,6 +52,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 					active: users.active
 				})
 				.from(users)
+				.where(eq(users.deleted, false))
 				.all()
 				.map((u) => ({
 					id: u.id,
@@ -75,7 +77,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		})
 			.from(absences)
 			.innerJoin(users, eq(absences.userId, users.id))
-			.where(eq(absences.sessionId, session.id))
+			.where(and(eq(absences.sessionId, session.id), eq(users.deleted, false)))
 			.all();
 
 		const hiddenUserIds = new Set(
@@ -161,7 +163,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.from(trainingSpotVotes)
 			.innerJoin(spots, eq(trainingSpotVotes.spotId, spots.id))
 			.innerJoin(users, eq(trainingSpotVotes.userId, users.id))
-			.where(eq(trainingSpotVotes.sessionId, session.id))
+			.where(and(eq(trainingSpotVotes.sessionId, session.id), eq(users.deleted, false)))
 			.groupBy(trainingSpotVotes.spotId)
 			.orderBy(sql`vote_count DESC`)
 			.all();
