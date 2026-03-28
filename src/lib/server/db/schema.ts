@@ -27,6 +27,8 @@ export const users = sqliteTable('users', {
 	trainingAttendance: text('training_attendance', { enum: ['implicit', 'opt_in'] })
 		.notNull()
 		.default('implicit'),
+	/** JSON-Array, z. B. ["Donnerstag"] – nur bei implicit: auto. abgemeldet an diesem Wochentag (siehe training_session_weekday_override). */
+	autoAbsentWeekdays: text('auto_absent_weekdays').notNull().default('[]'),
 	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
 
@@ -62,6 +64,22 @@ export const trainingSessionRsvp = sqliteTable(
 		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 	},
 	(t) => [uniqueIndex('training_session_rsvp_session_user').on(t.sessionId, t.userId)]
+);
+
+/** Einmalig: trotz auto_absent_weekdays für diesen Termin dabei (nur implicit). */
+export const trainingSessionWeekdayOverride = sqliteTable(
+	'training_session_weekday_override',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		sessionId: integer('session_id')
+			.notNull()
+			.references(() => trainingSessions.id),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [uniqueIndex('training_session_weekday_override_session_user').on(t.sessionId, t.userId)]
 );
 
 export const absences = sqliteTable('absences', {

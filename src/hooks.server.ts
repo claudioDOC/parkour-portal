@@ -4,6 +4,7 @@ import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { parseAutoAbsentWeekdays } from '$lib/server/trainingAttendance';
 
 const publicPaths = [
 	'/login',
@@ -18,16 +19,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	if (session) {
 		const row = db
-			.select({ trainingAttendance: users.trainingAttendance })
+			.select({
+				trainingAttendance: users.trainingAttendance,
+				autoAbsentWeekdays: users.autoAbsentWeekdays
+			})
 			.from(users)
 			.where(eq(users.id, session.userId))
 			.get();
 		const trainingAttendance = row?.trainingAttendance === 'opt_in' ? 'opt_in' : 'implicit';
+		const autoAbsentWeekdays = parseAutoAbsentWeekdays(row?.autoAbsentWeekdays);
 		event.locals.user = {
 			id: session.userId,
 			username: session.username,
 			role: session.role,
-			trainingAttendance
+			trainingAttendance,
+			autoAbsentWeekdays
 		};
 	} else {
 		event.locals.user = null;

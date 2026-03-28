@@ -5,6 +5,7 @@ import { users } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { hashPassword } from '$lib/server/auth';
 import { logAudit } from '$lib/server/audit';
+import { parseAutoAbsentWeekdays, serializeAutoAbsentWeekdays } from '$lib/server/trainingAttendance';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -15,16 +16,32 @@ function assertAdmin(locals: App.Locals) {
 export const GET: RequestHandler = async ({ locals }) => {
 	assertAdmin(locals);
 
-	const allUsers = db.select({
-		id: users.id,
-		username: users.username,
-		role: users.role,
-		active: users.active,
-		trainingAttendance: users.trainingAttendance,
-		createdAt: users.createdAt,
-		spotCount: sql<number>`(SELECT COUNT(*) FROM spots WHERE added_by = ${users.id})`,
-		voteCount: sql<number>`(SELECT COUNT(*) FROM votes WHERE user_id = ${users.id})`
-	}).from(users).all();
+	const rows = db
+		.select({
+			id: users.id,
+			username: users.username,
+			role: users.role,
+			active: users.active,
+			trainingAttendance: users.trainingAttendance,
+			autoAbsentWeekdaysRaw: users.autoAbsentWeekdays,
+			createdAt: users.createdAt,
+			spotCount: sql<number>`(SELECT COUNT(*) FROM spots WHERE added_by = ${users.id})`,
+			voteCount: sql<number>`(SELECT COUNT(*) FROM votes WHERE user_id = ${users.id})`
+		})
+		.from(users)
+		.all();
+
+	const allUsers = rows.map((r) => ({
+		id: r.id,
+		username: r.username,
+		role: r.role,
+		active: r.active,
+		trainingAttendance: r.trainingAttendance,
+		autoAbsentWeekdays: parseAutoAbsentWeekdays(r.autoAbsentWeekdaysRaw),
+		createdAt: r.createdAt,
+		spotCount: r.spotCount,
+		voteCount: r.voteCount
+	}));
 
 	return json({ users: allUsers });
 };
@@ -33,7 +50,8 @@ export const PATCH: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	assertAdmin(locals);
 
-	const { userId, action, newPassword, newRole, trainingAttendance } = await request.json();
+	const { userId, action, newPassword, newRole, trainingAttendance, autoAbsentWeekdays } =
+		await request.json();
 
 	if (!userId) {
 		return json({ error: 'User-ID erforderlich' }, { status: 400 });
@@ -118,6 +136,23 @@ export const PATCH: RequestHandler = async (event) => {
 					? `${user.username}: Trainingsliste nur mit Zusage`
 					: `${user.username}: Trainingsliste wie alle anderen`
 		});
+	}
+
+	if (action === 'set_auto_absent_weekdays') {
+		if (!Array.isArray(autoAbsentWeekdays)) {
+			return json({ error: 'autoAbsentWeekdays muss ein Array sein' }, { status: 400 });
+		}
+		const serialized = serializeAutoAbsentWeekdays(autoAbsentWeekdays.map((x: unknown) => String(x)));
+		db.update(users).set({ autoAbsentWeekdays: serialized }).where(eq(users.id, userId)).run();
+		logAudit({
+			event,
+			action: 'admin.user.auto_absent_weekdays',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			targetUserId: userId,
+			detail: { targetUsername: user.username, autoAbsentWeekdays: serialized }
+		});
+		return json({ success: true, message: `Standard-Abmeldung für ${user.username} aktualisiert` });
 	}
 
 	return json({ error: 'Ungültige Aktion' }, { status: 400 });

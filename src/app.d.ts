@@ -6,6 +6,7 @@ declare global {
 				username: string;
 				role: 'admin' | 'spotmanager' | 'member';
 				trainingAttendance: 'implicit' | 'opt_in';
+				autoAbsentWeekdays: string[];
 			} | null;
 		}
 	}

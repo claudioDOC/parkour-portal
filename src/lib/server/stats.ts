@@ -1,5 +1,14 @@
 import { db } from '$lib/server/db';
-import { users, trainingSessions, absences, spots, votes, trainingSessionRsvp } from '$lib/server/db/schema';
+import {
+	users,
+	trainingSessions,
+	absences,
+	spots,
+	votes,
+	trainingSessionRsvp,
+	trainingSessionWeekdayOverride
+} from '$lib/server/db/schema';
+import { isImplicitEffectiveAbsent } from '$lib/server/trainingAttendance';
 import { eq, lt, asc, sql } from 'drizzle-orm';
 
 export type UserTrainingStats = {
@@ -70,6 +79,12 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		rsvpPairs.add(`${r.userId}:${r.sessionId}`);
 	}
 
+	const allOverrides = db.select().from(trainingSessionWeekdayOverride).all();
+	const overridePairs = new Set<string>();
+	for (const o of allOverrides) {
+		overridePairs.add(`${o.userId}:${o.sessionId}`);
+	}
+
 	const spotsByUser = db
 		.select({ uid: spots.addedBy, c: sql<number>`count(*)` })
 		.from(spots)
@@ -95,12 +110,14 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		monthlyMap.get(mk)!.sessions += 1;
 	}
 
-	for (const a of allAbsences) {
-		const session = pastSessions.find((x) => x.id === a.sessionId);
-		if (!session) continue;
-		const mk = session.date.slice(0, 7);
+	for (const s of pastSessions) {
+		const mk = s.date.slice(0, 7);
 		if (!monthlyMap.has(mk)) monthlyMap.set(mk, { sessions: 0, absences: 0 });
-		monthlyMap.get(mk)!.absences += 1;
+		for (const u of members) {
+			if (isImplicitEffectiveAbsent(u, s, absencePairs, overridePairs)) {
+				monthlyMap.get(mk)!.absences += 1;
+			}
+		}
 	}
 
 	const monthly: MonthGroupRow[] = [...monthlyMap.entries()]
@@ -113,7 +130,12 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		}));
 
 	const pastSessionCount = pastSessions.length;
-	const totalAbsences = allAbsences.filter((a) => pastSessions.some((s) => s.id === a.sessionId)).length;
+	let totalAbsences = 0;
+	for (const s of pastSessions) {
+		for (const u of members) {
+			if (isImplicitEffectiveAbsent(u, s, absencePairs, overridePairs)) totalAbsences++;
+		}
+	}
 	const avgAbsencesPerSession =
 		pastSessionCount > 0 ? Math.round((totalAbsences / pastSessionCount) * 10) / 10 : 0;
 
@@ -124,8 +146,8 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		const eligible = pastSessions.filter((s) => s.date >= start);
 		const eligibleIds = eligible.map((s) => s.id);
 		let abs = 0;
-		for (const sid of eligibleIds) {
-			if (absencePairs.has(`${u.id}:${sid}`)) abs++;
+		for (const s of eligible) {
+			if (isImplicitEffectiveAbsent(u, s, absencePairs, overridePairs)) abs++;
 		}
 		const implicitPresent =
 			u.trainingAttendance === 'opt_in'
@@ -138,7 +160,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 
 		let streak = 0;
 		for (let i = eligible.length - 1; i >= 0; i--) {
-			if (absencePairs.has(`${u.id}:${eligible[i].id}`)) break;
+			if (isImplicitEffectiveAbsent(u, eligible[i], absencePairs, overridePairs)) break;
 			streak++;
 		}
 
@@ -171,7 +193,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 			const eligible = sessionsInMonth.filter((s) => s.date >= start);
 			let abs = 0;
 			for (const s of eligible) {
-				if (absencePairs.has(`${u.id}:${s.id}`)) abs++;
+				if (isImplicitEffectiveAbsent(u, s, absencePairs, overridePairs)) abs++;
 			}
 			monthAbs += abs;
 			const implicitPresent =
@@ -185,7 +207,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 				eligible.length > 0 ? Math.round((implicitPresent / eligible.length) * 1000) / 10 : 0;
 			let streak = 0;
 			for (let i = eligible.length - 1; i >= 0; i--) {
-				if (absencePairs.has(`${u.id}:${eligible[i].id}`)) break;
+				if (isImplicitEffectiveAbsent(u, eligible[i], absencePairs, overridePairs)) break;
 				streak++;
 			}
 			lb.push({

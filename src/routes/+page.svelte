@@ -104,7 +104,7 @@
 							</div>
 						</div>
 						<div class="flex items-center gap-3 shrink-0">
-							{#if session.userAbsent}
+							{#if session.userEffectivelyAbsent}
 								<span class="text-xs bg-danger/20 text-danger px-3 py-1 rounded-full font-medium">Abgemeldet</span>
 							{:else}
 								<span class="text-xs bg-success/20 text-success px-3 py-1 rounded-full font-medium">Zieht</span>

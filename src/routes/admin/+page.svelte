@@ -16,6 +16,7 @@
 		role: 'admin' | 'spotmanager' | 'member';
 		active: boolean;
 		trainingAttendance: 'implicit' | 'opt_in';
+		autoAbsentWeekdays: string[];
 		createdAt: string;
 		spotCount: number;
 		voteCount: number;
@@ -58,7 +59,7 @@
 		dayOfWeek: string;
 		timeStart: string;
 		timeEnd: string;
-		absences: { id: number; userId: number; username: string; reason: string | null }[];
+		absences: { id: number | null; userId: number; username: string; reason: string | null; virtual?: boolean }[];
 		attending: { id: number; username: string }[];
 		spotVotes: { id: number; spotName: string; spotCity: string; username: string; userId: number }[];
 		guests: { id: number; sessionId: number; name: string }[];
@@ -114,6 +115,7 @@
 		'admin.user.role_change': 'Admin: Rolle geändert',
 		'admin.user.toggle_active': 'Admin: User aktiviert/deaktiviert',
 		'admin.user.training_attendance': 'Admin: Trainingsliste-Modus geändert',
+		'admin.user.auto_absent_weekdays': 'Admin: Standard-Abmeldung Wochentage geändert',
 		'admin.invite.created': 'Admin: Einladung erstellt',
 		'admin.spot.trash': 'Admin: Spot → Papierkorb',
 		'admin.spot.restore': 'Admin: Spot wiederhergestellt',
@@ -135,6 +137,8 @@
 		'training.absence.cancel': 'Training: Abmeldung zurückgenommen',
 		'training.rsvp_yes': 'Training: Zusage',
 		'training.rsvp_no': 'Training: Zusage zurückgenommen',
+		'training.weekday_override_yes': 'Training: trotz Standard-Regel dabei',
+		'training.weekday_override_no': 'Training: Standard-Abmeldung wieder aktiv',
 		'training.spot_vote': 'Training: Spot gevotet',
 		'training.spot_vote.change': 'Training: Spot-Vote geändert',
 		'training.spot_vote.remove': 'Training: Spot-Vote zurückgezogen'
@@ -322,6 +326,34 @@
 		spotmanager: 'Spot-Manager',
 		member: 'Mitglied'
 	};
+
+	async function setAutoAbsentWeekdays(user: User, days: string[]) {
+		userMessage = '';
+		userError = '';
+		const res = await fetch('/api/admin/users', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				userId: user.id,
+				action: 'set_auto_absent_weekdays',
+				autoAbsentWeekdays: days
+			})
+		});
+		const data = await res.json();
+		if (!res.ok) {
+			userError = data.error;
+			return;
+		}
+		userMessage = data.message;
+		await loadUsers();
+	}
+
+	async function toggleAutoAbsentDay(user: User, day: 'Dienstag' | 'Donnerstag') {
+		if (user.trainingAttendance === 'opt_in') return;
+		const has = user.autoAbsentWeekdays.includes(day);
+		const next = has ? user.autoAbsentWeekdays.filter((d) => d !== day) : [...user.autoAbsentWeekdays, day];
+		await setAutoAbsentWeekdays(user, next);
+	}
 
 	async function setTrainingAttendance(user: User, mode: 'implicit' | 'opt_in') {
 		if (mode === user.trainingAttendance) return;
@@ -651,6 +683,32 @@
 								<option value="implicit">Training: wie alle</option>
 								<option value="opt_in">Training: nur Zusage</option>
 							</select>
+							<div
+								class="flex flex-wrap items-center gap-2 text-xs text-text-muted"
+								title="Nur bei „wie alle“: fest automatisch unter Abgemeldet an diesem Wochentag (Person kann pro Termin „Diesmal doch dabei“ wählen)"
+							>
+								<span class="shrink-0">Auto-Abmeldung</span>
+								<label class="flex items-center gap-1 cursor-pointer {user.trainingAttendance === 'opt_in' ? 'opacity-40' : ''}">
+									<input
+										type="checkbox"
+										checked={user.autoAbsentWeekdays.includes('Dienstag')}
+										disabled={user.trainingAttendance === 'opt_in'}
+										onchange={() => toggleAutoAbsentDay(user, 'Dienstag')}
+										class="rounded border-border"
+									/>
+									Di
+								</label>
+								<label class="flex items-center gap-1 cursor-pointer {user.trainingAttendance === 'opt_in' ? 'opacity-40' : ''}">
+									<input
+										type="checkbox"
+										checked={user.autoAbsentWeekdays.includes('Donnerstag')}
+										disabled={user.trainingAttendance === 'opt_in'}
+										onchange={() => toggleAutoAbsentDay(user, 'Donnerstag')}
+										class="rounded border-border"
+									/>
+									Do
+								</label>
+							</div>
 							{#if user.active}
 								<button
 									onclick={() => confirmAction = { type: 'deactivate', user }}
@@ -887,9 +945,16 @@
 													{#if absence.reason}
 														<span class="text-text-muted text-xs ml-2">– {absence.reason}</span>
 													{/if}
+													{#if absence.virtual}
+														<span class="text-text-muted text-xs ml-2">(User-Regel)</span>
+													{/if}
 												</div>
-												<button onclick={() => deleteTrainingEntry('remove_absence', { id: absence.id })}
-													class="text-text-muted hover:text-success text-xs shrink-0 transition-colors cursor-pointer">Aufheben</button>
+												{#if absence.virtual}
+													<span class="text-text-muted text-xs shrink-0">User bearbeiten</span>
+												{:else if absence.id != null}
+													<button onclick={() => deleteTrainingEntry('remove_absence', { id: absence.id })}
+														class="text-text-muted hover:text-success text-xs shrink-0 transition-colors cursor-pointer">Aufheben</button>
+												{/if}
 											</div>
 										{/each}
 									</div>
