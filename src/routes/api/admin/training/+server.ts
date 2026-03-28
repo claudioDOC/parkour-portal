@@ -2,11 +2,18 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import {
-	trainingSessions, trainingSpotVotes, absences, spots, users,
-	sessionGuests, sessionHiddenUsers
+	trainingSessions,
+	trainingSpotVotes,
+	absences,
+	spots,
+	users,
+	sessionGuests,
+	sessionHiddenUsers,
+	trainingSessionRsvp
 } from '$lib/server/db/schema';
 import { eq, gte, asc, and } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
+import { filterAttendingUsers } from '$lib/server/trainingAttendance';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -24,8 +31,15 @@ export const GET: RequestHandler = async ({ locals }) => {
 		.limit(8)
 		.all();
 
-	const allUsers = db.select({ id: users.id, username: users.username, active: users.active })
-		.from(users).all();
+	const allUsers = db
+		.select({
+			id: users.id,
+			username: users.username,
+			active: users.active,
+			trainingAttendance: users.trainingAttendance
+		})
+		.from(users)
+		.all();
 
 	const result = sessions.map((session) => {
 		const sessionAbsences = db.select({
@@ -51,7 +65,15 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		const absentUserIds = new Set(sessionAbsences.map((a) => a.userId));
 		const hiddenUserIds = new Set(hiddenUsers.map((h) => h.userId));
-		const attending = allUsers.filter((u) => !absentUserIds.has(u.id) && !hiddenUserIds.has(u.id));
+		const rsvpUserIds = new Set(
+			db
+				.select({ userId: trainingSessionRsvp.userId })
+				.from(trainingSessionRsvp)
+				.where(eq(trainingSessionRsvp.sessionId, session.id))
+				.all()
+				.map((r) => r.userId)
+		);
+		const attending = filterAttendingUsers(allUsers, absentUserIds, hiddenUserIds, rsvpUserIds);
 
 		const spotVotes = db.select({
 			id: trainingSpotVotes.id,

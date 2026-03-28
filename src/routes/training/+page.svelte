@@ -77,7 +77,7 @@
 						</div>
 
 						{#if !past}
-							<div class="shrink-0">
+							<div class="shrink-0 flex flex-col items-end gap-2">
 								{#if session.userAbsent}
 									<button
 										onclick={() => postAction('cancel_absence', session.id)}
@@ -86,7 +86,28 @@
 									>
 										{loadingSession === session.id ? '...' : 'Wieder anmelden'}
 									</button>
-								{:else if showReason === session.id}
+								{:else if data.viewerTrainingAttendance === 'opt_in'}
+									<div class="flex flex-wrap justify-end gap-2">
+										{#if session.userHasRsvp}
+											<button
+												onclick={() => postAction('rsvp_no', session.id)}
+												disabled={loadingSession === session.id}
+												class="bg-bg-hover hover:bg-warning/15 text-text-secondary px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+											>
+												{loadingSession === session.id ? '...' : 'Zusage zurücknehmen'}
+											</button>
+										{:else}
+											<button
+												onclick={() => postAction('rsvp_yes', session.id)}
+												disabled={loadingSession === session.id}
+												class="bg-accent/15 hover:bg-accent/25 text-accent px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+											>
+												{loadingSession === session.id ? '...' : 'Zusage'}
+											</button>
+										{/if}
+									</div>
+								{/if}
+								{#if !session.userAbsent && showReason === session.id}
 								<div class="space-y-2">
 									<div class="flex gap-2">
 										<input
@@ -113,7 +134,7 @@
 										<p class="text-warning text-xs">Noch {10 - reasonInput[session.id].trim().length} Zeichen</p>
 									{/if}
 								</div>
-								{:else}
+								{:else if !session.userAbsent}
 									<button
 										onclick={() => showReason = session.id}
 										class="bg-bg-hover hover:bg-danger/15 hover:text-danger text-text-secondary px-4 py-2 rounded-lg text-sm font-medium transition-colors"

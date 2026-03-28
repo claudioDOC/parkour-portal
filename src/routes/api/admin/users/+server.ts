@@ -20,6 +20,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		username: users.username,
 		role: users.role,
 		active: users.active,
+		trainingAttendance: users.trainingAttendance,
 		createdAt: users.createdAt,
 		spotCount: sql<number>`(SELECT COUNT(*) FROM spots WHERE added_by = ${users.id})`,
 		voteCount: sql<number>`(SELECT COUNT(*) FROM votes WHERE user_id = ${users.id})`
@@ -32,7 +33,7 @@ export const PATCH: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	assertAdmin(locals);
 
-	const { userId, action, newPassword, newRole } = await request.json();
+	const { userId, action, newPassword, newRole, trainingAttendance } = await request.json();
 
 	if (!userId) {
 		return json({ error: 'User-ID erforderlich' }, { status: 400 });
@@ -61,7 +62,7 @@ export const PATCH: RequestHandler = async (event) => {
 	}
 
 	if (action === 'change_role') {
-		if (userId === locals.user.id) {
+		if (userId === locals.user!.id) {
 			return json({ error: 'Du kannst deine eigene Rolle nicht ändern' }, { status: 400 });
 		}
 		if (newRole !== 'admin' && newRole !== 'spotmanager' && newRole !== 'member') {
@@ -80,7 +81,7 @@ export const PATCH: RequestHandler = async (event) => {
 	}
 
 	if (action === 'toggle_active') {
-		if (userId === locals.user.id) {
+		if (userId === locals.user!.id) {
 			return json({ error: 'Du kannst dich nicht selbst deaktivieren' }, { status: 400 });
 		}
 		const newActive = !user.active;
@@ -95,6 +96,28 @@ export const PATCH: RequestHandler = async (event) => {
 			detail: { targetUsername: user.username, active: newActive }
 		});
 		return json({ success: true, message: `${user.username} wurde ${status}` });
+	}
+
+	if (action === 'set_training_attendance') {
+		if (trainingAttendance !== 'implicit' && trainingAttendance !== 'opt_in') {
+			return json({ error: 'Ungültiger Trainingsmodus' }, { status: 400 });
+		}
+		db.update(users).set({ trainingAttendance }).where(eq(users.id, userId)).run();
+		logAudit({
+			event,
+			action: 'admin.user.training_attendance',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			targetUserId: userId,
+			detail: { targetUsername: user.username, trainingAttendance }
+		});
+		return json({
+			success: true,
+			message:
+				trainingAttendance === 'opt_in'
+					? `${user.username}: Trainingsliste nur mit Zusage`
+					: `${user.username}: Trainingsliste wie alle anderen`
+		});
 	}
 
 	return json({ error: 'Ungültige Aktion' }, { status: 400 });

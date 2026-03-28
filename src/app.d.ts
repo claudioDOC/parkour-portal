@@ -5,6 +5,7 @@ declare global {
 				id: number;
 				username: string;
 				role: 'admin' | 'spotmanager' | 'member';
+				trainingAttendance: 'implicit' | 'opt_in';
 			} | null;
 		}
 	}

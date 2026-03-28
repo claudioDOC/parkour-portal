@@ -1,10 +1,21 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { trainingSessions, absences, users, trainingSpotVotes, spots, sessionGuests, sessionHiddenUsers } from '$lib/server/db/schema';
+import {
+	trainingSessions,
+	absences,
+	users,
+	trainingSpotVotes,
+	spots,
+	sessionGuests,
+	sessionHiddenUsers,
+	trainingSessionRsvp
+} from '$lib/server/db/schema';
 import { eq, gte, asc, sql, and } from 'drizzle-orm';
 import { getCurrentWeather } from '$lib/server/weather';
+import { filterAttendingUsers } from '$lib/server/trainingAttendance';
 
 export const load: PageServerLoad = async ({ locals }) => {
+	const viewerAttendance = locals.user?.trainingAttendance ?? null;
 	const today = new Date().toISOString().split('T')[0];
 
 	const sessions = db.select().from(trainingSessions)
@@ -13,7 +24,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.limit(8)
 		.all();
 
-	const allUsers = db.select({ id: users.id, username: users.username }).from(users).all();
+	const allUsers = db
+		.select({
+			id: users.id,
+			username: users.username,
+			active: users.active,
+			trainingAttendance: users.trainingAttendance
+		})
+		.from(users)
+		.all();
 	const allSpots = db.select({ id: spots.id, name: spots.name, city: spots.city }).from(spots).all();
 
 	let weather = null;
@@ -42,8 +61,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 		);
 
 		const absentUserIds = new Set(sessionAbsences.map((a) => a.userId));
-		const attending = allUsers.filter((u) => !absentUserIds.has(u.id) && !hiddenUserIds.has(u.id));
+		const rsvpUserIds = new Set(
+			db
+				.select({ userId: trainingSessionRsvp.userId })
+				.from(trainingSessionRsvp)
+				.where(eq(trainingSessionRsvp.sessionId, session.id))
+				.all()
+				.map((r) => r.userId)
+		);
+		const attending = filterAttendingUsers(allUsers, absentUserIds, hiddenUserIds, rsvpUserIds);
 		const userAbsent = locals.user ? absentUserIds.has(locals.user.id) : false;
+		const userHasRsvp = locals.user ? rsvpUserIds.has(locals.user.id) : false;
 
 		const guests = db.select({ id: sessionGuests.id, name: sessionGuests.name })
 			.from(sessionGuests)
@@ -120,6 +148,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			attending,
 			guests,
 			userAbsent,
+			userHasRsvp,
 			totalMembers: allUsers.length,
 			spotVotes: spotVotes.map((sv) => ({
 				...sv,
@@ -135,6 +164,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		sessions: sessionsWithDetails,
 		allSpots,
-		weather
+		weather,
+		viewerTrainingAttendance: viewerAttendance
 	};
 };

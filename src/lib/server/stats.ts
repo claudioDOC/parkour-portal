@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { users, trainingSessions, absences, spots, votes } from '$lib/server/db/schema';
+import { users, trainingSessions, absences, spots, votes, trainingSessionRsvp } from '$lib/server/db/schema';
 import { eq, lt, asc, sql } from 'drizzle-orm';
 
 export type UserTrainingStats = {
@@ -64,6 +64,12 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		absencePairs.add(`${a.userId}:${a.sessionId}`);
 	}
 
+	const allRsvp = db.select().from(trainingSessionRsvp).all();
+	const rsvpPairs = new Set<string>();
+	for (const r of allRsvp) {
+		rsvpPairs.add(`${r.userId}:${r.sessionId}`);
+	}
+
 	const spotsByUser = db
 		.select({ uid: spots.addedBy, c: sql<number>`count(*)` })
 		.from(spots)
@@ -121,7 +127,12 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		for (const sid of eligibleIds) {
 			if (absencePairs.has(`${u.id}:${sid}`)) abs++;
 		}
-		const implicitPresent = eligible.length - abs;
+		const implicitPresent =
+			u.trainingAttendance === 'opt_in'
+				? eligibleIds.filter(
+						(sid) => !absencePairs.has(`${u.id}:${sid}`) && rsvpPairs.has(`${u.id}:${sid}`)
+					).length
+				: eligible.length - abs;
 		const showUpPercent =
 			eligible.length > 0 ? Math.round((implicitPresent / eligible.length) * 1000) / 10 : 0;
 
@@ -163,7 +174,13 @@ export function computeTrainingStats(): TrainingStatsPayload {
 				if (absencePairs.has(`${u.id}:${s.id}`)) abs++;
 			}
 			monthAbs += abs;
-			const implicitPresent = eligible.length - abs;
+			const implicitPresent =
+				u.trainingAttendance === 'opt_in'
+					? eligible.filter(
+							(s) =>
+								!absencePairs.has(`${u.id}:${s.id}`) && rsvpPairs.has(`${u.id}:${s.id}`)
+						).length
+					: eligible.length - abs;
 			const showUpPercent =
 				eligible.length > 0 ? Math.round((implicitPresent / eligible.length) * 1000) / 10 : 0;
 			let streak = 0;
