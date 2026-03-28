@@ -291,7 +291,7 @@
 							</div>
 							<div>
 								<p class="text-danger text-xs font-medium uppercase tracking-wide mb-2">
-									Abgemeldet ({session.absences.length})
+									Zieht nicht ({session.absences.length})
 								</p>
 								<div class="flex flex-wrap gap-1.5">
 									{#each session.absences as absence}
