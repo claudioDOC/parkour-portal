@@ -2,12 +2,13 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 import { hashPassword } from '$lib/server/auth';
 import { logAudit } from '$lib/server/audit';
 import { parseAutoAbsentWeekdays, serializeAutoAbsentWeekdays } from '$lib/server/trainingAttendance';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 import { userCoreAuth } from '$lib/server/db/userCoreSelect';
+import { purgeUserAccount } from '$lib/server/purgeUserAccount';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -15,9 +16,18 @@ function assertAdmin(locals: App.Locals) {
 	}
 }
 
-export const GET: RequestHandler = async ({ locals }) => {
+function otherNonDeletedAdminCount(userId: number): number {
+	return db
+		.select({ id: users.id })
+		.from(users)
+		.where(and(eq(users.role, 'admin'), eq(users.deleted, false), ne(users.id, userId)))
+		.all().length;
+}
+
+export const GET: RequestHandler = async ({ locals, url }) => {
 	assertAdmin(locals);
 
+	const trashed = url.searchParams.get('trashed') === 'true';
 	const schemaOk = isTrainingAttendanceSchemaReady();
 
 	if (schemaOk) {
@@ -34,6 +44,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 				voteCount: sql<number>`(SELECT COUNT(*) FROM votes WHERE user_id = ${users.id})`
 			})
 			.from(users)
+			.where(eq(users.deleted, trashed))
 			.all();
 		const allUsers = rows.map((r) => ({
 			id: r.id,
@@ -49,7 +60,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		return json({ users: allUsers, trainingSchemaReady: true });
 	}
 
-	const rows = db
+		const rows = db
 		.select({
 			id: users.id,
 			username: users.username,
@@ -60,6 +71,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 			voteCount: sql<number>`(SELECT COUNT(*) FROM votes WHERE user_id = ${users.id})`
 		})
 		.from(users)
+		.where(eq(users.deleted, trashed))
 		.all();
 	const allUsers = rows.map((r) => ({
 		id: r.id,
@@ -89,6 +101,14 @@ export const PATCH: RequestHandler = async (event) => {
 	const user = db.select(userCoreAuth).from(users).where(eq(users.id, userId)).get();
 	if (!user) {
 		return json({ error: 'User nicht gefunden' }, { status: 404 });
+	}
+
+	if (
+		user.deleted &&
+		action !== 'restore_user' &&
+		action !== 'purge_user'
+	) {
+		return json({ error: 'User ist im Papierkorb — zuerst wiederherstellen oder endgültig löschen.' }, { status: 400 });
 	}
 
 	if (action === 'reset_password') {
@@ -200,6 +220,63 @@ export const PATCH: RequestHandler = async (event) => {
 			detail: { targetUsername: user.username, autoAbsentWeekdays: serialized }
 		});
 		return json({ success: true, message: `Standard-Abmeldung für ${user.username} aktualisiert` });
+	}
+
+	if (action === 'trash_user') {
+		if (userId === locals.user!.id) {
+			return json({ error: 'Du kannst dich nicht selbst in den Papierkorb legen' }, { status: 400 });
+		}
+		if (user.deleted) {
+			return json({ error: 'User ist bereits im Papierkorb' }, { status: 400 });
+		}
+		if (user.role === 'admin' && otherNonDeletedAdminCount(userId) === 0) {
+			return json({ error: 'Der letzte Admin kann nicht in den Papierkorb gelegt werden' }, { status: 400 });
+		}
+		db.update(users).set({ deleted: true, active: false }).where(eq(users.id, userId)).run();
+		logAudit({
+			event,
+			action: 'admin.user.trash',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			targetUserId: userId,
+			detail: { targetUsername: user.username }
+		});
+		return json({ success: true, message: `${user.username} wurde in den Papierkorb gelegt` });
+	}
+
+	if (action === 'restore_user') {
+		if (!user.deleted) {
+			return json({ error: 'User ist nicht im Papierkorb' }, { status: 400 });
+		}
+		db.update(users).set({ deleted: false }).where(eq(users.id, userId)).run();
+		logAudit({
+			event,
+			action: 'admin.user.restore',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			targetUserId: userId,
+			detail: { targetUsername: user.username }
+		});
+		return json({ success: true, message: `${user.username} wurde wiederhergestellt` });
+	}
+
+	if (action === 'purge_user') {
+		if (userId === locals.user!.id) {
+			return json({ error: 'Du kannst dich nicht selbst löschen' }, { status: 400 });
+		}
+		if (!user.deleted) {
+			return json({ error: 'Nur User im Papierkorb können endgültig gelöscht werden' }, { status: 400 });
+		}
+		const username = user.username;
+		purgeUserAccount(userId);
+		logAudit({
+			event,
+			action: 'admin.user.purge',
+			actorUserId: locals.user!.id,
+			actorUsername: locals.user!.username,
+			detail: { targetUsername: username, targetUserId: userId }
+		});
+		return json({ success: true, message: `${username} wurde endgültig gelöscht` });
 	}
 
 	return json({ error: 'Ungültige Aktion' }, { status: 400 });
