@@ -15,6 +15,7 @@
 		username: string;
 		role: 'admin' | 'spotmanager' | 'member';
 		active: boolean;
+		trainingAttendance: 'implicit' | 'opt_in';
 		createdAt: string;
 		spotCount: number;
 		voteCount: number;
@@ -58,7 +59,7 @@
 		timeStart: string;
 		timeEnd: string;
 		absences: { id: number; userId: number; username: string; reason: string | null }[];
-		attending: { id: number; username: string; active: boolean }[];
+		attending: { id: number; username: string }[];
 		spotVotes: { id: number; spotName: string; spotCity: string; username: string; userId: number }[];
 		guests: { id: number; sessionId: number; name: string }[];
 		hiddenUsers: { id: number; userId: number; username: string }[];
@@ -112,6 +113,7 @@
 		'admin.user.password_reset': 'Admin: Passwort zurückgesetzt',
 		'admin.user.role_change': 'Admin: Rolle geändert',
 		'admin.user.toggle_active': 'Admin: User aktiviert/deaktiviert',
+		'admin.user.training_attendance': 'Admin: Trainingsliste-Modus geändert',
 		'admin.invite.created': 'Admin: Einladung erstellt',
 		'admin.spot.trash': 'Admin: Spot → Papierkorb',
 		'admin.spot.restore': 'Admin: Spot wiederhergestellt',
@@ -131,6 +133,8 @@
 		'spot.image.delete': 'Spot-Bild gelöscht',
 		'training.absence': 'Training: Abgemeldet',
 		'training.absence.cancel': 'Training: Abmeldung zurückgenommen',
+		'training.rsvp_yes': 'Training: Zusage',
+		'training.rsvp_no': 'Training: Zusage zurückgenommen',
 		'training.spot_vote': 'Training: Spot gevotet',
 		'training.spot_vote.change': 'Training: Spot-Vote geändert',
 		'training.spot_vote.remove': 'Training: Spot-Vote zurückgezogen'
@@ -318,6 +322,28 @@
 		spotmanager: 'Spot-Manager',
 		member: 'Mitglied'
 	};
+
+	async function setTrainingAttendance(user: User, mode: 'implicit' | 'opt_in') {
+		if (mode === user.trainingAttendance) return;
+		userMessage = '';
+		userError = '';
+		const res = await fetch('/api/admin/users', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				userId: user.id,
+				action: 'set_training_attendance',
+				trainingAttendance: mode
+			})
+		});
+		const data = await res.json();
+		if (!res.ok) {
+			userError = data.error;
+			return;
+		}
+		userMessage = data.message;
+		await loadUsers();
+	}
 
 	async function toggleActive(user: User) {
 		confirmAction = null;
@@ -614,6 +640,16 @@
 								<option value="admin">Admin</option>
 								<option value="spotmanager">Spot-Manager</option>
 								<option value="member">Mitglied</option>
+							</select>
+							<select
+								value={user.trainingAttendance}
+								onchange={(e) =>
+									setTrainingAttendance(user, (e.target as HTMLSelectElement).value as 'implicit' | 'opt_in')}
+								title="Trainingsliste: Standard = zieht mit; Opt-in = nur mit Zusage"
+								class="text-xs bg-bg-secondary border border-border px-2 py-1.5 rounded-lg text-text-secondary cursor-pointer focus:outline-none focus:border-accent max-w-[11rem]"
+							>
+								<option value="implicit">Training: wie alle</option>
+								<option value="opt_in">Training: nur Zusage</option>
 							</select>
 							{#if user.active}
 								<button

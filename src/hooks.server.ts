@@ -1,6 +1,9 @@
 import type { Handle } from '@sveltejs/kit';
 import { getSession } from '$lib/server/auth';
 import { redirect } from '@sveltejs/kit';
+import { db } from '$lib/server/db';
+import { users } from '$lib/server/db/schema';
+import { eq } from 'drizzle-orm';
 
 const publicPaths = [
 	'/login',
@@ -14,10 +17,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const session = getSession(event.cookies);
 
 	if (session) {
+		const row = db
+			.select({ trainingAttendance: users.trainingAttendance })
+			.from(users)
+			.where(eq(users.id, session.userId))
+			.get();
+		const trainingAttendance = row?.trainingAttendance === 'opt_in' ? 'opt_in' : 'implicit';
 		event.locals.user = {
 			id: session.userId,
 			username: session.username,
-			role: session.role
+			role: session.role,
+			trainingAttendance
 		};
 	} else {
 		event.locals.user = null;
