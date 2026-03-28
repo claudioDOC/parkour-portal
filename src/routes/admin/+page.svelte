@@ -240,7 +240,8 @@
 		try {
 			const res = await fetch('/api/admin/invites', {
 				method: 'POST',
-				credentials: 'include'
+				credentials: 'include',
+				headers: { Accept: 'application/json' }
 			});
 			const data = await res.json().catch(() => ({}));
 			if (!res.ok) {
