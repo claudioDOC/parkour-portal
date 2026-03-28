@@ -8,9 +8,11 @@ import {
 	users,
 	trainingSpotVotes,
 	sessionGuests,
-	sessionHiddenUsers
+	sessionHiddenUsers,
+	trainingSessionRsvp
 } from '$lib/server/db/schema';
 import { eq, gte, asc, desc, sql, and } from 'drizzle-orm';
+import { filterAttendingUsers } from '$lib/server/trainingAttendance';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const today = new Date().toISOString().split('T')[0];
@@ -21,7 +23,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.limit(2)
 		.all();
 
-	const allUsers = db.select({ id: users.id, username: users.username }).from(users).all();
+	const allUsers = db
+		.select({
+			id: users.id,
+			username: users.username,
+			active: users.active,
+			trainingAttendance: users.trainingAttendance
+		})
+		.from(users)
+		.all();
 
 	const trainingsWithDetails = nextTrainings.map((session) => {
 		const sessionAbsences = db.select({
@@ -45,7 +55,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		);
 
 		const absentUserIds = new Set(sessionAbsences.map((a) => a.userId));
-		const attending = allUsers.filter((u) => !absentUserIds.has(u.id) && !hiddenUserIds.has(u.id));
+		const rsvpUserIds = new Set(
+			db
+				.select({ userId: trainingSessionRsvp.userId })
+				.from(trainingSessionRsvp)
+				.where(eq(trainingSessionRsvp.sessionId, session.id))
+				.all()
+				.map((r) => r.userId)
+		);
+		const attending = filterAttendingUsers(allUsers, absentUserIds, hiddenUserIds, rsvpUserIds);
 
 		const guests = db
 			.select({ id: sessionGuests.id, name: sessionGuests.name })

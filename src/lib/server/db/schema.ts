@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 export const TECHNIQUES = [
@@ -23,6 +23,10 @@ export const users = sqliteTable('users', {
 	passwordHash: text('password_hash').notNull(),
 	role: text('role', { enum: ['admin', 'spotmanager', 'member'] }).notNull().default('member'),
 	active: integer('active', { mode: 'boolean' }).notNull().default(true),
+	/** implicit = wie bisher: zieht mit, wenn nicht abgemeldet. opt_in = nur in „Zieht“, wenn explizit zugesagt. */
+	trainingAttendance: text('training_attendance', { enum: ['implicit', 'opt_in'] })
+		.notNull()
+		.default('implicit'),
 	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
 
@@ -43,6 +47,22 @@ export const trainingSessions = sqliteTable('training_sessions', {
 	timeStart: text('time_start').notNull().default('18:15'),
 	timeEnd: text('time_end').notNull().default('20:15')
 });
+
+/** Explizite Zusage für ein Training (nur bei trainingAttendance opt_in relevant). */
+export const trainingSessionRsvp = sqliteTable(
+	'training_session_rsvp',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		sessionId: integer('session_id')
+			.notNull()
+			.references(() => trainingSessions.id),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [uniqueIndex('training_session_rsvp_session_user').on(t.sessionId, t.userId)]
+);
 
 export const absences = sqliteTable('absences', {
 	id: integer('id').primaryKey({ autoIncrement: true }),

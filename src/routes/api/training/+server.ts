@@ -1,7 +1,13 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { absences, trainingSessions, trainingSpotVotes, spots } from '$lib/server/db/schema';
+import {
+	absences,
+	trainingSessions,
+	trainingSpotVotes,
+	spots,
+	trainingSessionRsvp
+} from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
 
@@ -39,6 +45,15 @@ export const POST: RequestHandler = async (event) => {
 			reason: reason.trim()
 		}).run();
 
+		db.delete(trainingSessionRsvp)
+			.where(
+				and(
+					eq(trainingSessionRsvp.userId, locals.user.id),
+					eq(trainingSessionRsvp.sessionId, sessionId)
+				)
+			)
+			.run();
+
 		logAudit({
 			event,
 			action: 'training.absence',
@@ -57,6 +72,58 @@ export const POST: RequestHandler = async (event) => {
 		logAudit({
 			event,
 			action: 'training.absence.cancel',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: { sessionId, date: session.date }
+		});
+		return json({ success: true });
+	}
+
+	if (action === 'rsvp_yes') {
+		if (locals.user.trainingAttendance !== 'opt_in') {
+			return json({ error: 'Zusage nur für Opt-in-Accounts' }, { status: 400 });
+		}
+		const absent = db.select().from(absences)
+			.where(and(eq(absences.userId, locals.user.id), eq(absences.sessionId, sessionId)))
+			.get();
+		if (absent) {
+			return json({ error: 'Zuerst Abmeldung zurücknehmen' }, { status: 400 });
+		}
+		const existingRsvp = db.select().from(trainingSessionRsvp)
+			.where(and(
+				eq(trainingSessionRsvp.userId, locals.user.id),
+				eq(trainingSessionRsvp.sessionId, sessionId)
+			))
+			.get();
+		if (!existingRsvp) {
+			db.insert(trainingSessionRsvp).values({
+				userId: locals.user.id,
+				sessionId
+			}).run();
+		}
+		logAudit({
+			event,
+			action: 'training.rsvp_yes',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: { sessionId, date: session.date }
+		});
+		return json({ success: true });
+	}
+
+	if (action === 'rsvp_no') {
+		if (locals.user.trainingAttendance !== 'opt_in') {
+			return json({ error: 'Nur für Opt-in-Accounts' }, { status: 400 });
+		}
+		db.delete(trainingSessionRsvp)
+			.where(and(
+				eq(trainingSessionRsvp.userId, locals.user.id),
+				eq(trainingSessionRsvp.sessionId, sessionId)
+			))
+			.run();
+		logAudit({
+			event,
+			action: 'training.rsvp_no',
 			actorUserId: locals.user.id,
 			actorUsername: locals.user.username,
 			detail: { sessionId, date: session.date }
