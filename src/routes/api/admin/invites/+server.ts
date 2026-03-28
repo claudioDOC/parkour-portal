@@ -147,6 +147,17 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
+		if (msg.includes('readonly database')) {
+			return json(
+				{
+					error: 'SQLite-Datenbank ist schreibgeschützt für den Server-Prozess.',
+					detail:
+						'Auf dem VPS: Schreibrechte für Ordner data/ und Datei data/parkour.db (und ggf. .db-wal/.db-shm) auf den User der systemd-Unit legen, z. B. sudo chown -R MEINUSER:MEINUSER /pfad/zum/projekt/data && sudo chmod u+rwX /pfad/zum/projekt/data'
+				},
+				{ status: 500 }
+			);
+		}
+
 		if (looksLikeSqlite(msg, code)) {
 			return json(
 				{
