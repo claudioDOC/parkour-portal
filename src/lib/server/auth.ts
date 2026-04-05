@@ -40,10 +40,14 @@ export function createSession(
 		{ expiresIn: '30d' }
 	);
 
+	const origin = (process.env.ORIGIN ?? '').toLowerCase();
+	const secure = origin.startsWith('https://');
+
 	cookies.set(COOKIE_NAME, token, {
 		path: '/',
 		httpOnly: true,
-		sameSite: 'strict',
+		sameSite: 'lax',
+		secure,
 		maxAge: 60 * 60 * 24 * 30
 	});
 }
@@ -60,7 +64,9 @@ export function getSession(cookies: Cookies): JwtPayload | null {
 }
 
 export function clearSession(cookies: Cookies) {
-	cookies.delete(COOKIE_NAME, { path: '/' });
+	const origin = (process.env.ORIGIN ?? '').toLowerCase();
+	const secure = origin.startsWith('https://');
+	cookies.delete(COOKIE_NAME, { path: '/', secure });
 }
 
 export function getUserById(id: number) {

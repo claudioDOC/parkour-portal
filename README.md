@@ -102,6 +102,10 @@ node build
 
 Die App läuft standardmässig auf `http://localhost:5173` (Dev) bzw. `http://localhost:3000` (Produktion).
 
+**Deployment / VPS:** Nach `git pull` immer **`npm ci`** (oder `npm install`) im Projektordner ausführen, danach **`npm run build`**. Ohne diesen Schritt fehlen neue Dependencies (`package-lock.json` ändert sich) — typischer Build-Fehler: *Rollup failed to resolve import "file-type"* o. Ä.
+
+Wenn die Seite nach einem Deploy **HTTP 500** liefert und in den Logs SQLite-Fehler wie *no such column* stehen: **`npm run db:migrate`** ausführen (wendet `drizzle/*.sql` auf `data/parkour.db` an), danach Dienst neu starten. Alternativ einmalig **`npx tsx src/lib/server/db/seed.ts`** (Migrationen + ggf. Seed-Logik).
+
 ### Konfiguration
 
 - **JWT Secret**: Setze `JWT_SECRET` als Umgebungsvariable für Produktion
