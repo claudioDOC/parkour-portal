@@ -38,7 +38,7 @@
 </script>
 
 <svelte:head>
-	<title>Mate Portal</title>
+	<title>Parkour Portal</title>
 	{#if pwaInfo}
 		{@html pwaInfo.webManifest.linkTag}
 	{/if}

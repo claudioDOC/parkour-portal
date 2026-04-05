@@ -11,9 +11,9 @@ export default defineConfig({
 			registerType: 'autoUpdate',
 			manifest: {
 				id: '/',
-				name: 'Mate Portal',
-				short_name: 'Mate',
-				description: 'Parkour training portal and spot finder',
+				name: 'Parkour Portal',
+				short_name: 'Parkour Portal',
+				description: 'Parkour Portal',
 				start_url: '/',
 				scope: '/',
 				display: 'standalone',
