@@ -5,8 +5,19 @@ import { users, invites } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { hashPassword, createSession } from '$lib/server/auth';
 import { logAudit } from '$lib/server/audit';
+import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
+import { getClientIp, rateLimitAuthRegister } from '$lib/server/rateLimitAuth';
 
 export const POST: RequestHandler = async (event) => {
+	const ip = getClientIp(event);
+	const limited = rateLimitAuthRegister(ip);
+	if (!limited.ok) {
+		return json(
+			{ error: 'Zu viele Registrierungsversuche von dieser Verbindung. Bitte später erneut versuchen.' },
+			{ status: 429, headers: { 'Retry-After': String(limited.retryAfterSec) } }
+		);
+	}
+
 	const { request, cookies } = event;
 	const { username, password, token } = await request.json();
 
@@ -18,8 +29,11 @@ export const POST: RequestHandler = async (event) => {
 		return json({ error: 'Username muss mindestens 3 Zeichen lang sein' }, { status: 400 });
 	}
 
-	if (password.length < 6) {
-		return json({ error: 'Passwort muss mindestens 6 Zeichen lang sein' }, { status: 400 });
+	if (password.length < MIN_PASSWORD_LENGTH) {
+		return json(
+			{ error: `Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein` },
+			{ status: 400 }
+		);
 	}
 
 	const invite = db.select().from(invites)

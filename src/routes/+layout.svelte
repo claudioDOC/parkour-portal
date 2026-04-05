@@ -28,6 +28,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Mate Portal</title>
+</svelte:head>
+
 {#if !data.user}
 	{@render children()}
 {:else}

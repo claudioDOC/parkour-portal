@@ -6,8 +6,18 @@ import { userCoreAuth } from '$lib/server/db/userCoreSelect';
 import { eq } from 'drizzle-orm';
 import { verifyPassword, createSession } from '$lib/server/auth';
 import { logAudit } from '$lib/server/audit';
+import { getClientIp, rateLimitAuthLogin } from '$lib/server/rateLimitAuth';
 
 export const POST: RequestHandler = async (event) => {
+	const ip = getClientIp(event);
+	const limited = rateLimitAuthLogin(ip);
+	if (!limited.ok) {
+		return json(
+			{ error: 'Zu viele Anmeldeversuche. Bitte kurz warten und erneut versuchen.' },
+			{ status: 429, headers: { 'Retry-After': String(limited.retryAfterSec) } }
+		);
+	}
+
 	const { request, cookies } = event;
 	const { username, password } = await request.json();
 

@@ -18,21 +18,6 @@ function errMeta(e: unknown): { msg: string; code: string } {
 	return { msg: String(e), code: '' };
 }
 
-function looksLikeSqlite(msg: string, code: string): boolean {
-	if (code.startsWith('SQLITE_')) return true;
-	const u = msg.toUpperCase();
-	return (
-		u.includes('SQLITE') ||
-		msg.includes('no such table') ||
-		msg.includes('no such column') ||
-		msg.includes('readonly database') ||
-		msg.includes('SQL logic error') ||
-		msg.includes('constraint failed') ||
-		msg.includes('locked') ||
-		msg.includes('SqliteError')
-	);
-}
-
 /** Reine JSON-Werte (kein BigInt) — vermeidet 500 „Internal Error“ beim Serialisieren in Prod. */
 function inviteRowApi(row: {
 	id: unknown;
@@ -130,7 +115,6 @@ export const POST: RequestHandler = async (event) => {
 	} catch (e) {
 		console.error('POST /api/admin/invites', e);
 		const { msg, code } = errMeta(e);
-		const detail = msg.replace(/\s+/g, ' ').trim().slice(0, 400);
 
 		if (
 			msg.includes('FOREIGN KEY') ||
@@ -140,8 +124,7 @@ export const POST: RequestHandler = async (event) => {
 			return json(
 				{
 					error:
-						'Datenbank lehnt den Eintrag ab (z. B. nach DB-Restore). Bitte abmelden und erneut mit Admin anmelden.',
-					detail
+						'Die Aktion wurde abgelehnt (Datenkonsistenz). Bitte abmelden und erneut anmelden oder einen Admin kontaktieren.'
 				},
 				{ status: 500 }
 			);
@@ -150,30 +133,13 @@ export const POST: RequestHandler = async (event) => {
 		if (msg.includes('readonly database')) {
 			return json(
 				{
-					error: 'SQLite-Datenbank ist schreibgeschützt für den Server-Prozess.',
-					detail:
-						'Auf dem VPS: Schreibrechte für Ordner data/ und Datei data/parkour.db (und ggf. .db-wal/.db-shm) auf den User der systemd-Unit legen, z. B. sudo chown -R MEINUSER:MEINUSER /pfad/zum/projekt/data && sudo chmod u+rwX /pfad/zum/projekt/data'
+					error:
+						'Datenbank ist schreibgeschützt. Prüfe Dateirechte für den Ordner data/ und parkour.db für den App-User (systemd-Unit). Details im Server-Log.'
 				},
 				{ status: 500 }
 			);
 		}
 
-		if (looksLikeSqlite(msg, code)) {
-			return json(
-				{
-					error: 'Datenbankfehler beim Erstellen der Einladung.',
-					detail
-				},
-				{ status: 500 }
-			);
-		}
-
-		return json(
-			{
-				error: 'Serverfehler beim Erstellen der Einladung.',
-				detail: detail || undefined
-			},
-			{ status: 500 }
-		);
+		return json({ error: 'Einladung konnte nicht erstellt werden.' }, { status: 500 });
 	}
 };

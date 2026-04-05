@@ -31,13 +31,14 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 const existing = db.select().from(schema.users).all();
 if (existing.length === 0) {
-	const hash = bcryptjs.hashSync('admin123', 10);
+	const initialPw = 'admin123456';
+	const hash = bcryptjs.hashSync(initialPw, 10);
 	db.insert(schema.users).values({
 		username: 'Claudio',
 		passwordHash: hash,
 		role: 'admin'
 	}).run();
-	console.log('Admin-User erstellt: Claudio / admin123');
+	console.log(`Admin-User erstellt: Claudio / ${initialPw} (mind. 10 Zeichen — bitte nach erstem Login ändern)`);
 } else {
 	console.log('Datenbank hat bereits User, Seed übersprungen.');
 }

@@ -13,6 +13,8 @@ interface JwtPayload {
 	userId: number;
 	username: string;
 	role: 'admin' | 'spotmanager' | 'member';
+	/** Fehlt bei alten Tokens → wird wie 0 behandelt */
+	sessionVersion?: number;
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -23,9 +25,17 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 	return bcryptjs.compare(password, hash);
 }
 
-export function createSession(user: { id: number; username: string; role: string }, cookies: Cookies) {
+export function createSession(
+	user: { id: number; username: string; role: string; sessionVersion: number },
+	cookies: Cookies
+) {
 	const token = jwt.sign(
-		{ userId: user.id, username: user.username, role: user.role },
+		{
+			userId: user.id,
+			username: user.username,
+			role: user.role,
+			sessionVersion: user.sessionVersion
+		},
 		JWT_SECRET,
 		{ expiresIn: '30d' }
 	);

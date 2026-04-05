@@ -8,7 +8,7 @@ Diese Anleitung führt dich beim **ersten Mal** durch die wichtigsten Bereiche. 
 
 1. Du erhältst von einem **Admin** einen **Einladungslink** (URL mit Token), z. B.  
    `https://eure-domain.ch/register/DEIN-TOKEN`
-2. Dort wählst du **Benutzername** (mind. 3 Zeichen) und **Passwort** (mind. 6 Zeichen).
+2. Dort wählst du **Benutzername** (mind. 3 Zeichen) und **Passwort** (mind. 10 Zeichen).
 3. Nach der Registrierung bist du **eingeloggt**. Merke dir dein Passwort – Admins können es bei Bedarf zurücksetzen, sehen es aber nicht.
 4. **Login** später immer unter `/login` mit Benutzername und Passwort.
 

@@ -9,6 +9,7 @@ import { parseAutoAbsentWeekdays, serializeAutoAbsentWeekdays } from '$lib/serve
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 import { userCoreAuth } from '$lib/server/db/userCoreSelect';
 import { purgeUserAccount } from '$lib/server/purgeUserAccount';
+import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -112,11 +113,20 @@ export const PATCH: RequestHandler = async (event) => {
 	}
 
 	if (action === 'reset_password') {
-		if (!newPassword || newPassword.length < 4) {
-			return json({ error: 'Neues Passwort muss mindestens 4 Zeichen haben' }, { status: 400 });
+		if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
+			return json(
+				{ error: `Neues Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen haben` },
+				{ status: 400 }
+			);
 		}
 		const hash = await hashPassword(newPassword);
-		db.update(users).set({ passwordHash: hash }).where(eq(users.id, userId)).run();
+		db.update(users)
+			.set({
+				passwordHash: hash,
+				sessionVersion: sql`${users.sessionVersion} + 1`
+			})
+			.where(eq(users.id, userId))
+			.run();
 		logAudit({
 			event,
 			action: 'admin.user.password_reset',

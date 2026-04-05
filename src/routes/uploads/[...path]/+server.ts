@@ -32,7 +32,8 @@ export const GET: RequestHandler = async ({ params }) => {
 			return new Response(buf, {
 				headers: {
 					'content-type': type,
-					'cache-control': 'public, max-age=86400'
+					'cache-control': 'public, max-age=86400',
+					'X-Content-Type-Options': 'nosniff'
 				}
 			});
 		}
