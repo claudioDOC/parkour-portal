@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
-import { userCoreAuth } from '$lib/server/db/userCoreSelect';
+import { getUserCoreById } from '$lib/server/userCoreQuery';
 import { eq, sql } from 'drizzle-orm';
 import { createSession, hashPassword, verifyPassword } from '$lib/server/auth';
 import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
@@ -25,7 +25,7 @@ export const POST: RequestHandler = async (event) => {
 		);
 	}
 
-	const user = db.select(userCoreAuth).from(users).where(eq(users.id, locals.user.id)).get();
+	const user = getUserCoreById(locals.user.id);
 	if (!user) throw error(404, 'User nicht gefunden');
 
 	const valid = await verifyPassword(currentPassword, user.passwordHash);

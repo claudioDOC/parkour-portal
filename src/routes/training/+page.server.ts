@@ -20,6 +20,8 @@ import {
 	buildAbsenceListForSession
 } from '$lib/server/trainingAttendance';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
+import { asNum } from '$lib/server/asSqlNumber';
+import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const viewerAttendance = locals.user?.trainingAttendance ?? null;
@@ -42,7 +44,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 					autoAbsentWeekdays: users.autoAbsentWeekdays
 				})
 				.from(users)
-				.where(eq(users.deleted, false))
+				.where(usersNotDeletedCondition())
 				.all()
 				.map(normalizeUserForAttendance)
 		: db
@@ -52,7 +54,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 					active: users.active
 				})
 				.from(users)
-				.where(eq(users.deleted, false))
+				.where(usersNotDeletedCondition())
 				.all()
 				.map((u) => ({
 					id: u.id,
@@ -77,7 +79,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		})
 			.from(absences)
 			.innerJoin(users, eq(absences.userId, users.id))
-			.where(and(eq(absences.sessionId, session.id), eq(users.deleted, false)))
+			.where(andWithUsersNotDeleted(eq(absences.sessionId, session.id)))
 			.all();
 
 		const hiddenUserIds = new Set(
@@ -163,7 +165,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.from(trainingSpotVotes)
 			.innerJoin(spots, eq(trainingSpotVotes.spotId, spots.id))
 			.innerJoin(users, eq(trainingSpotVotes.userId, users.id))
-			.where(and(eq(trainingSpotVotes.sessionId, session.id), eq(users.deleted, false)))
+			.where(andWithUsersNotDeleted(eq(trainingSpotVotes.sessionId, session.id)))
 			.groupBy(trainingSpotVotes.spotId)
 			.orderBy(sql`vote_count DESC`)
 			.all();
@@ -192,7 +194,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 					name: spotVotes[0].spotName,
 					city: spotVotes[0].spotCity,
 					spotId: spotVotes[0].spotId,
-					votes: spotVotes[0].voteCount
+					votes: asNum(spotVotes[0].voteCount)
 				};
 			} else if (weather) {
 				let query = `SELECT s.id, s.name, s.city, COALESCE(AVG(v.score), 0) as avg_score
@@ -210,7 +212,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 				query += ` GROUP BY s.id ORDER BY avg_score DESC LIMIT 1`;
 
-				const result = db.all(sql.raw(query)) as { id: number; name: string; city: string; avg_score: number }[];
+				const result = db.all(sql.raw(query)) as {
+					id: number;
+					name: string;
+					city: string;
+					avg_score: unknown;
+				}[];
 				if (result.length > 0) {
 					autoSpot = { name: result[0].name, city: result[0].city, spotId: result[0].id };
 				}
@@ -229,6 +236,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			totalMembers: allUsers.length,
 			spotVotes: spotVotes.map((sv) => ({
 				...sv,
+				voteCount: asNum(sv.voteCount),
 				voterList: (sv.voters || '').split(',')
 			})),
 			userVotedSpotId,

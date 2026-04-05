@@ -20,6 +20,8 @@ import {
 	buildAbsenceListForSession
 } from '$lib/server/trainingAttendance';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
+import { asNum } from '$lib/server/asSqlNumber';
+import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const today = new Date().toISOString().split('T')[0];
@@ -41,13 +43,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 					autoAbsentWeekdays: users.autoAbsentWeekdays
 				})
 				.from(users)
-				.where(eq(users.deleted, false))
+				.where(usersNotDeletedCondition())
 				.all()
 				.map(normalizeUserForAttendance)
 		: db
 				.select({ id: users.id, username: users.username, active: users.active })
 				.from(users)
-				.where(eq(users.deleted, false))
+				.where(usersNotDeletedCondition())
 				.all()
 				.map((u) => ({
 					id: u.id,
@@ -66,7 +68,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		})
 			.from(absences)
 			.innerJoin(users, eq(absences.userId, users.id))
-			.where(and(eq(absences.sessionId, session.id), eq(users.deleted, false)))
+			.where(andWithUsersNotDeleted(eq(absences.sessionId, session.id)))
 			.all();
 
 		const hiddenUserIds = new Set(
@@ -156,17 +158,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 			attending,
 			guests,
 			userEffectivelyAbsent,
-			topVote: topVote || null
+			topVote: topVote
+				? {
+						...topVote,
+						voteCount: asNum(topVote.voteCount)
+					}
+				: null
 		};
 	});
 
-	const topSpots = db.select({
-		id: spots.id,
-		name: spots.name,
-		city: spots.city,
-		avgScore: sql<number>`COALESCE(AVG(${votes.score}), 0)`.as('avg_score'),
-		voteCount: sql<number>`COUNT(${votes.id})`.as('vote_count')
-	})
+	const topSpotsRaw = db
+		.select({
+			id: spots.id,
+			name: spots.name,
+			city: spots.city,
+			avgScore: sql<number>`COALESCE(AVG(${votes.score}), 0)`.as('avg_score'),
+			voteCount: sql<number>`COUNT(${votes.id})`.as('vote_count')
+		})
 		.from(spots)
 		.leftJoin(votes, eq(spots.id, votes.spotId))
 		.groupBy(spots.id)
@@ -174,15 +182,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.limit(5)
 		.all();
 
+	const topSpots = topSpotsRaw.map((s) => ({
+		...s,
+		avgScore: asNum(s.avgScore),
+		voteCount: asNum(s.voteCount)
+	}));
+
 	const memberCount = db
 		.select({ count: sql<number>`COUNT(*)` })
 		.from(users)
-		.where(eq(users.deleted, false))
+		.where(usersNotDeletedCondition())
 		.get();
 
 	return {
 		nextTrainings: trainingsWithDetails,
 		topSpots,
-		memberCount: memberCount?.count ?? 0
+		memberCount: asNum(memberCount?.count ?? 0)
 	};
 };

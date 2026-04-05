@@ -16,3 +16,6 @@ sqlite.pragma('journal_mode = WAL');
 sqlite.pragma('foreign_keys = ON');
 
 export const db = drizzle(sqlite, { schema });
+
+/** Direkter SQLite-Zugriff für Legacy-Abfragen (fehlende Spalten `deleted` / `session_version`). */
+export { sqlite as sqliteDb };

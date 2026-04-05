@@ -2,14 +2,16 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
-import { and, eq, ne, sql } from 'drizzle-orm';
+import { eq, ne, sql } from 'drizzle-orm';
 import { hashPassword } from '$lib/server/auth';
 import { logAudit } from '$lib/server/audit';
 import { parseAutoAbsentWeekdays, serializeAutoAbsentWeekdays } from '$lib/server/trainingAttendance';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
-import { userCoreAuth } from '$lib/server/db/userCoreSelect';
+import { getUserCoreById } from '$lib/server/userCoreQuery';
+import { andWithUsersNotDeleted, whereUsersTrashed } from '$lib/server/usersWhere';
 import { purgeUserAccount } from '$lib/server/purgeUserAccount';
 import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
+import { asNum } from '$lib/server/asSqlNumber';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -21,7 +23,7 @@ function otherNonDeletedAdminCount(userId: number): number {
 	return db
 		.select({ id: users.id })
 		.from(users)
-		.where(and(eq(users.role, 'admin'), eq(users.deleted, false), ne(users.id, userId)))
+		.where(andWithUsersNotDeleted(eq(users.role, 'admin'), ne(users.id, userId)))
 		.all().length;
 }
 
@@ -45,7 +47,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				voteCount: sql<number>`(SELECT COUNT(*) FROM votes WHERE user_id = ${users.id})`
 			})
 			.from(users)
-			.where(eq(users.deleted, trashed))
+			.where(whereUsersTrashed(trashed))
 			.all();
 		const allUsers = rows.map((r) => ({
 			id: r.id,
@@ -55,13 +57,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			trainingAttendance: r.trainingAttendance,
 			autoAbsentWeekdays: parseAutoAbsentWeekdays(r.autoAbsentWeekdaysRaw),
 			createdAt: r.createdAt,
-			spotCount: r.spotCount,
-			voteCount: r.voteCount
+			spotCount: asNum(r.spotCount),
+			voteCount: asNum(r.voteCount)
 		}));
 		return json({ users: allUsers, trainingSchemaReady: true });
 	}
 
-		const rows = db
+	const rows = db
 		.select({
 			id: users.id,
 			username: users.username,
@@ -72,7 +74,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			voteCount: sql<number>`(SELECT COUNT(*) FROM votes WHERE user_id = ${users.id})`
 		})
 		.from(users)
-		.where(eq(users.deleted, trashed))
+		.where(whereUsersTrashed(trashed))
 		.all();
 	const allUsers = rows.map((r) => ({
 		id: r.id,
@@ -82,8 +84,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		trainingAttendance: 'implicit' as const,
 		autoAbsentWeekdays: [] as string[],
 		createdAt: r.createdAt,
-		spotCount: r.spotCount,
-		voteCount: r.voteCount
+		spotCount: asNum(r.spotCount),
+		voteCount: asNum(r.voteCount)
 	}));
 	return json({ users: allUsers, trainingSchemaReady: false });
 };
@@ -99,7 +101,7 @@ export const PATCH: RequestHandler = async (event) => {
 		return json({ error: 'User-ID erforderlich' }, { status: 400 });
 	}
 
-	const user = db.select(userCoreAuth).from(users).where(eq(users.id, userId)).get();
+	const user = getUserCoreById(userId);
 	if (!user) {
 		return json({ error: 'User nicht gefunden' }, { status: 404 });
 	}

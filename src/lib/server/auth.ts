@@ -1,9 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcryptjs from 'bcryptjs';
-import { db } from './db';
-import { users } from './db/schema';
-import { userCoreAuth } from './db/userCoreSelect';
-import { eq } from 'drizzle-orm';
+import { getUserCoreById } from '$lib/server/userCoreQuery';
 import type { Cookies } from '@sveltejs/kit';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'parkour-portal-secret-change-me';
@@ -70,5 +67,5 @@ export function clearSession(cookies: Cookies) {
 }
 
 export function getUserById(id: number) {
-	return db.select(userCoreAuth).from(users).where(eq(users.id, id)).get();
+	return getUserCoreById(id);
 }

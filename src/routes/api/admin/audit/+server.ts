@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { auditLogs } from '$lib/server/db/schema';
 import { desc, sql } from 'drizzle-orm';
+import { asNum } from '$lib/server/asSqlNumber';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -17,7 +18,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10));
 
 	const countRow = db.select({ count: sql<number>`count(*)` }).from(auditLogs).get();
-	const total = Number(countRow?.count ?? 0);
+	const total = asNum(countRow?.count ?? 0);
 
 	const rows = db.select().from(auditLogs).orderBy(desc(auditLogs.id)).limit(limit).offset(offset).all();
 
