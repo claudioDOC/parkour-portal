@@ -36,6 +36,13 @@
       "when": 1775300000000,
       "tag": "0005_session_version",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1775400000000,
+      "tag": "0006_spots_deleted",
+      "breakpoints": true
     }
   ]
 }
