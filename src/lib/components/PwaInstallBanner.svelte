@@ -88,8 +88,7 @@
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 				</svg>
 			</button>
-			<p id="pwa-install-title" class="text-text-primary font-semibold text-sm">App installieren</p>
-			<p class="text-text-secondary text-xs mt-1">Chrome kann das Portal als App auf dein Gerät legen.</p>
+			<p id="pwa-install-title" class="text-text-primary font-semibold text-sm">App installieren?</p>
 			<button
 				type="button"
 				class="mt-3 w-full bg-accent hover:bg-accent-hover text-white text-sm font-medium rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60"
