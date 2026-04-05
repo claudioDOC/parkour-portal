@@ -33,11 +33,15 @@ function assertAdmin(locals: App.Locals) {
 export const GET: RequestHandler = async ({ locals }) => {
 	assertAdmin(locals);
 
-	const today = new Date().toISOString().split('T')[0];
-	const sessions = db.select().from(trainingSessions)
-		.where(gte(trainingSessions.date, today))
+	const pastCutoff = new Date();
+	pastCutoff.setDate(pastCutoff.getDate() - 21);
+	const cutoffStr = pastCutoff.toISOString().split('T')[0];
+	const sessions = db
+		.select()
+		.from(trainingSessions)
+		.where(gte(trainingSessions.date, cutoffStr))
 		.orderBy(asc(trainingSessions.date))
-		.limit(8)
+		.limit(48)
 		.all();
 
 	const schemaOk = isTrainingAttendanceSchemaReady();
@@ -173,7 +177,10 @@ export const POST: RequestHandler = async (event) => {
 	assertAdmin(locals);
 
 	try {
-		const { type, sessionId, name } = await request.json();
+		const body = await request.json();
+		const { type, sessionId, name } = body;
+		const userId = typeof body.userId === 'number' ? body.userId : Number(body.userId);
+		const reasonRaw = typeof body.reason === 'string' ? body.reason.trim() : '';
 
 		if (type === 'add_guest' && sessionId && name?.trim()) {
 			db.insert(sessionGuests).values({
@@ -186,6 +193,48 @@ export const POST: RequestHandler = async (event) => {
 				actorUserId: locals.user!.id,
 				actorUsername: locals.user!.username,
 				detail: { sessionId, guestName: name.trim() }
+			});
+			return json({ success: true });
+		}
+
+		/** Nachträgliche Abmeldung (z. B. nicht erschienen) — zählt in der Statistik wie eine normale Abmeldung */
+		if (type === 'add_absence' && sessionId && Number.isFinite(userId) && userId > 0) {
+			const session = db.select().from(trainingSessions).where(eq(trainingSessions.id, sessionId)).get();
+			if (!session) {
+				return json({ error: 'Training nicht gefunden' }, { status: 404 });
+			}
+			const target = db
+				.select({ id: users.id })
+				.from(users)
+				.where(and(eq(users.id, userId), usersNotDeletedCondition()))
+				.get();
+			if (!target) {
+				return json({ error: 'User nicht gefunden' }, { status: 404 });
+			}
+			const existing = db
+				.select({ id: absences.id })
+				.from(absences)
+				.where(and(eq(absences.sessionId, sessionId), eq(absences.userId, userId)))
+				.get();
+			if (existing) {
+				return json({ error: 'Für diesen User besteht schon ein Abwesenheits-Eintrag' }, { status: 400 });
+			}
+			const reason =
+				reasonRaw ||
+				'Nicht erschienen (Admin)';
+			db.insert(absences).values({ sessionId, userId, reason }).run();
+			if (isTrainingAttendanceSchemaReady()) {
+				db.delete(trainingSessionRsvp)
+					.where(and(eq(trainingSessionRsvp.sessionId, sessionId), eq(trainingSessionRsvp.userId, userId)))
+					.run();
+			}
+			logAudit({
+				event,
+				action: 'admin.training.add_absence',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				targetUserId: userId,
+				detail: { sessionId, reason }
 			});
 			return json({ success: true });
 		}

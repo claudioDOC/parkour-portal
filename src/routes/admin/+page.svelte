@@ -75,6 +75,9 @@
 	let trainingMessage = $state('');
 	let trainingError = $state('');
 	let guestName = $state<Record<number, string>>({});
+	/** Admin: User für nachträgliche Abmeldung pro Session (User-ID als String) */
+	let adminAbsencePick = $state<Record<number, string>>({});
+	let adminAbsenceNote = $state<Record<number, string>>({});
 
 	let spotList = $state<Spot[]>([]);
 	let trashedSpots = $state<Spot[]>([]);
@@ -136,6 +139,7 @@
 		'admin.training.hide_user': 'Admin: User aus „Zieht" entfernt',
 		'admin.training.unhide_user': 'Admin: User wieder sichtbar',
 		'admin.training.remove_absence': 'Admin: Abmeldung aufgehoben',
+		'admin.training.add_absence': 'Admin: nachträglich abgemeldet / nicht erschienen',
 		'admin.training.remove_guest': 'Admin: Gast entfernt',
 		'spot.create': 'Spot vorgeschlagen',
 		'spot.vote.create': 'Spot-Bewertung abgegeben',
@@ -518,6 +522,57 @@
 		trainingMessage = 'Erfolgreich';
 		await loadTrainingSessions();
 		setTimeout(() => (trainingMessage = ''), 2000);
+	}
+
+	function trainingDayIsPast(dateStr: string): boolean {
+		return dateStr < new Date().toISOString().split('T')[0];
+	}
+
+	function canAddAdminAbsence(session: TrainingSession, userId: number): boolean {
+		return !session.absences.some((a) => a.userId === userId && a.id != null);
+	}
+
+	function setAdminAbsencePick(sessionId: number, value: string) {
+		adminAbsencePick = { ...adminAbsencePick, [sessionId]: value };
+	}
+
+	function setAdminAbsenceNote(sessionId: number, value: string) {
+		adminAbsenceNote = { ...adminAbsenceNote, [sessionId]: value };
+	}
+
+	async function submitAdminAbsence(sessionId: number) {
+		const uid = Number(adminAbsencePick[sessionId]);
+		if (!Number.isFinite(uid) || uid <= 0) return;
+		trainingMessage = '';
+		trainingError = '';
+		const note = adminAbsenceNote[sessionId]?.trim();
+		const res = await fetch('/api/admin/training', {
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				type: 'add_absence',
+				sessionId: Number(sessionId),
+				userId: uid,
+				...(note ? { reason: note } : {})
+			})
+		});
+		let data: Record<string, unknown> = {};
+		try {
+			data = await res.json();
+		} catch {
+			trainingError = `Antwort ungültig (${res.status})`;
+			return;
+		}
+		if (!res.ok) {
+			setTrainingErrorFromResponse(res, data);
+			return;
+		}
+		trainingMessage = 'Abwesenheit eingetragen';
+		adminAbsencePick = { ...adminAbsencePick, [sessionId]: '' };
+		adminAbsenceNote = { ...adminAbsenceNote, [sessionId]: '' };
+		await loadTrainingSessions();
+		setTimeout(() => (trainingMessage = ''), 2500);
 	}
 
 	async function addGuest(sessionId: number) {
@@ -928,7 +983,7 @@
 						<button
 							onclick={resetUserPassword}
 							disabled={resetPassword.length < MIN_PASSWORD_LENGTH}
-							class="bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+							class="cursor-pointer rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50"
 						>
 							Setzen
 						</button>
@@ -1048,18 +1103,27 @@
 			{#if loadingTrainings}
 				<p class="text-text-muted text-center py-8">Laden...</p>
 			{:else if trainingSessions.length === 0}
-				<p class="text-text-muted text-center py-8">Keine kommenden Trainings</p>
+				<p class="text-text-muted text-center py-8">Keine Trainings im gewählten Zeitraum</p>
 			{:else}
+				<p class="text-text-secondary text-sm">
+					Zeitraum: letzte 3 Wochen bis inkl. kommende Termine. Nachträgliche Abmeldungen wirken auf die
+					<a href="/statistik" class="text-accent hover:underline">Statistik</a> wie eine normale Abmeldung;
+					„Aufheben“ entfernt den Eintrag wieder.
+				</p>
 				{#each trainingSessions as session}
 					{@const sessionDate = new Date(session.date + 'T00:00:00')}
-					<div class="bg-bg-card rounded-xl border border-border overflow-hidden">
+					{@const sessionPast = trainingDayIsPast(session.date)}
+					<div class="bg-bg-card rounded-xl border border-border overflow-hidden {sessionPast ? 'opacity-90' : ''}">
 						<div class="p-5">
-							<div class="flex items-center gap-2 mb-1">
+							<div class="flex flex-wrap items-center gap-2 mb-1">
 								<h3 class="font-semibold text-text-primary">{session.dayOfWeek}</h3>
 								<span class="text-text-muted text-sm">
 									{sessionDate.toLocaleDateString('de-CH', { day: 'numeric', month: 'long', year: 'numeric' })}
 								</span>
 								<span class="text-text-muted text-xs">{session.timeStart} – {session.timeEnd}</span>
+								{#if sessionPast}
+									<span class="text-xs rounded-full bg-bg-hover px-2 py-0.5 text-text-muted">Vergangen</span>
+								{/if}
 							</div>
 
 							{#if session.spotVotes.length > 0}
@@ -1120,8 +1184,47 @@
 									<button
 										onclick={() => addGuest(session.id)}
 										disabled={!guestName[session.id]?.trim()}
-										class="bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+										class="cursor-pointer rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50"
 									>+</button>
+								</div>
+
+								<div class="mt-4 rounded-lg border border-dashed border-accent/25 bg-bg-secondary/40 p-3">
+									<p class="text-text-secondary text-xs font-semibold uppercase tracking-wide">
+										Nachträglich abmelden
+									</p>
+									<p class="text-text-muted text-xs mt-1 mb-2">
+										Wenn jemand nicht kam (auch am Tag danach): als abwesend eintragen — zählt in der Statistik.
+										Nicht möglich, wenn schon ein Abwesenheits-Eintrag existiert.
+									</p>
+									<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+										<select
+											value={adminAbsencePick[session.id] ?? ''}
+											onchange={(e) => setAdminAbsencePick(session.id, e.currentTarget.value)}
+											class="min-w-[10rem] flex-1 rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+										>
+											<option value="">User wählen …</option>
+											{#each userList as u}
+												{#if canAddAdminAbsence(session, u.id)}
+													<option value={String(u.id)}>{u.username}</option>
+												{/if}
+											{/each}
+										</select>
+										<input
+											type="text"
+											value={adminAbsenceNote[session.id] ?? ''}
+											oninput={(e) => setAdminAbsenceNote(session.id, e.currentTarget.value)}
+											placeholder="Grund (optional)"
+											class="min-w-[8rem] flex-1 rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+										/>
+										<button
+											type="button"
+											onclick={() => submitAdminAbsence(session.id)}
+											disabled={!adminAbsencePick[session.id]}
+											class="cursor-pointer rounded-lg bg-accent/90 px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent disabled:opacity-50"
+										>
+											Eintragen
+										</button>
+									</div>
 								</div>
 							</div>
 
@@ -1402,7 +1505,7 @@
 			<button
 				onclick={generateInvite}
 				disabled={generatingInvite}
-				class="bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+				class="cursor-pointer rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50"
 			>
 				{generatingInvite ? 'Wird erstellt...' : '+ Einladungslink erstellen'}
 			</button>

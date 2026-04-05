@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatStimmen } from '$lib/formatStimmen';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -13,44 +14,40 @@
 	}
 </script>
 
-<div class="space-y-8">
-	<div>
-		<h2 class="text-2xl font-bold text-text-primary">Dashboard</h2>
-		<p class="text-text-secondary mt-1">Willkommen zurück, {data.user?.username}!</p>
-	</div>
-
-	<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-		<div class="bg-bg-card rounded-xl p-5 border border-border">
-			<p class="text-text-muted text-sm">Mitglieder</p>
-			<p class="text-2xl font-bold text-text-primary mt-1">{data.memberCount}</p>
-		</div>
-		<div class="bg-bg-card rounded-xl p-5 border border-border">
-			<p class="text-text-muted text-sm">Nächstes Training</p>
-			<p class="text-2xl font-bold text-accent mt-1">
-				{#if data.nextTrainings.length > 0}
-					{data.nextTrainings[0].dayOfWeek}
-				{:else}
-					-
-				{/if}
+<div class="space-y-10">
+	<header class="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-5">
+		<div
+			class="hidden h-14 w-1.5 shrink-0 rounded-sm bg-gradient-to-b from-accent via-accent-hot to-accent-hot/60 shadow-[0_0_22px_-2px_rgb(229_255_61_/_0.5)] sm:block"
+			aria-hidden="true"
+		></div>
+		<div class="min-w-0 space-y-1">
+			<p class="font-display text-sm font-medium uppercase tracking-[0.35em] text-accent-hot">Übersicht</p>
+			<div class="space-y-2">
+				<h2 class="font-display text-4xl font-semibold uppercase tracking-[0.06em] text-text-primary md:text-5xl">
+					Dashboard
+				</h2>
+				<div
+					class="h-1.5 w-16 rounded-sm bg-gradient-to-r from-accent to-accent-hot sm:hidden"
+					aria-hidden="true"
+				></div>
+			</div>
+			<p class="text-text-secondary">
+				Willkommen zurück, <span class="font-medium text-text-primary">{data.user?.username}</span>.
 			</p>
 		</div>
-		<div class="bg-bg-card rounded-xl p-5 border border-border col-span-2 md:col-span-1">
-			<p class="text-text-muted text-sm">Top Spot</p>
-			<p class="text-2xl font-bold text-text-primary mt-1 truncate">
-				{#if data.topSpots.length > 0}
-					{data.topSpots[0].name}
-				{:else}
-					-
-				{/if}
-			</p>
-		</div>
-	</div>
+	</header>
 
-	<div>
-		<h3 class="text-lg font-semibold text-text-primary mb-4">Nächste Trainings</h3>
+	<section class="space-y-4">
+		<div class="flex items-center gap-3">
+			<span
+				class="h-1 w-10 shrink-0 rounded-sm bg-gradient-to-r from-accent to-accent-hot/80"
+				aria-hidden="true"
+			></span>
+			<h3 class="font-display text-xl font-medium uppercase tracking-[0.1em] text-text-primary">Nächste Trainings</h3>
+		</div>
 		<div class="space-y-3">
 			{#each data.nextTrainings as session}
-				<div class="bg-bg-card rounded-xl p-5 border border-border">
+				<div class="card-surface card-surface-lift p-5 md:p-6">
 					<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center gap-2 flex-wrap">
@@ -64,7 +61,7 @@
 								<p class="text-accent text-sm mt-2 font-medium">
 									Spot:
 									<a href="/spots/{session.topVote.spotId}" class="hover:underline">{session.topVote.spotName}</a>
-									({session.topVote.spotCity}) &middot; {session.topVote.voteCount} Stimmen
+									({session.topVote.spotCity}) &middot; {formatStimmen(session.topVote.voteCount)}
 								</p>
 							{:else}
 								<p class="text-text-muted text-xs mt-2">Noch kein Spot vorgeschlagen</p>
@@ -103,13 +100,13 @@
 								</div>
 							</div>
 						</div>
-						<div class="flex items-center gap-3 shrink-0">
-							{#if session.userEffectivelyAbsent}
-								<span class="text-xs bg-danger/20 text-danger px-3 py-1 rounded-full font-medium">Zieht nicht</span>
-							{:else}
-								<span class="text-xs bg-success/20 text-success px-3 py-1 rounded-full font-medium">Zieht</span>
-							{/if}
-						</div>
+						{#if session.userEffectivelyAbsent}
+							<div class="flex shrink-0 items-center gap-3">
+								<span class="rounded-full bg-danger/20 px-3 py-1 text-xs font-medium text-danger">
+									Abgemeldet
+								</span>
+							</div>
+						{/if}
 					</div>
 				</div>
 			{/each}
@@ -117,14 +114,29 @@
 				<p class="text-text-muted text-center py-8">Keine kommenden Trainings</p>
 			{/if}
 		</div>
-		<a href="/training" class="inline-block text-accent hover:underline text-sm mt-3">Alle Trainings &amp; Spot-Voting →</a>
-	</div>
+		<a
+			href="/training"
+			class="inline-flex items-center gap-1 text-sm font-medium text-accent transition-colors hover:text-accent-hover hover:underline"
+		>
+			Alle Trainings &amp; Spot-Voting
+			<span aria-hidden="true">→</span>
+		</a>
+	</section>
 
-	<div>
-		<h3 class="text-lg font-semibold text-text-primary mb-4">Top Spots</h3>
-		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+	<section class="space-y-4">
+		<div class="flex items-center gap-3">
+			<span
+				class="h-1 w-10 shrink-0 rounded-sm bg-gradient-to-r from-accent to-accent-hot/80"
+				aria-hidden="true"
+			></span>
+			<h3 class="font-display text-xl font-medium uppercase tracking-[0.1em] text-text-primary">Top Spots</h3>
+		</div>
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 			{#each data.topSpots as spot, i}
-				<a href="/spots/{spot.id}" class="bg-bg-card rounded-xl p-5 border border-border hover:border-accent/50 transition-colors block">
+				<a
+					href="/spots/{spot.id}"
+					class="card-surface card-surface-lift block p-5 md:p-6"
+				>
 					<div class="flex items-start justify-between">
 						<div>
 							<span class="text-text-muted text-xs">#{i + 1}</span>
@@ -142,6 +154,12 @@
 				<p class="text-text-muted text-center py-8 col-span-full">Noch keine Spots vorhanden</p>
 			{/if}
 		</div>
-		<a href="/spots" class="inline-block text-accent hover:underline text-sm mt-3">Alle Spots anzeigen →</a>
-	</div>
+		<a
+			href="/spots"
+			class="inline-flex items-center gap-1 text-sm font-medium text-accent transition-colors hover:text-accent-hover hover:underline"
+		>
+			Alle Spots anzeigen
+			<span aria-hidden="true">→</span>
+		</a>
+	</section>
 </div>

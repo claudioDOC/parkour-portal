@@ -4,15 +4,21 @@
 	let { form }: PageProps = $props();
 </script>
 
-<div class="min-h-screen bg-bg-primary flex items-center justify-center px-4">
+<div class="flex min-h-screen items-center justify-center px-4 py-10">
 	<div class="w-full max-w-md">
-		<div class="text-center mb-8">
-			<h1 class="text-4xl font-bold text-accent tracking-tight">PARKOUR</h1>
-			<p class="text-text-secondary mt-2">Portal Login</p>
+		<div class="mb-8 text-center">
+			<div
+				class="urban-cut mx-auto mb-4 flex h-14 w-14 items-center justify-center bg-gradient-to-br from-accent from-20% to-accent-hot font-display text-3xl font-bold leading-none text-[#0c0c0e] shadow-lg shadow-accent/40 ring-1 ring-white/25"
+			>
+				P
+			</div>
+			<h1 class="font-display text-4xl font-semibold uppercase tracking-[0.08em] text-text-primary">Parkour</h1>
+			<p class="font-display mt-1 text-sm uppercase tracking-[0.35em] text-accent-hot">Portal</p>
+			<p class="mt-3 text-sm text-text-secondary">Melde dich an, um fortzufahren</p>
 		</div>
 
 		<!-- Kein use:enhance: klassischer POST → Browser wendet Set-Cookie zuverlässig an (Redirect 303 → /). -->
-		<form method="POST" class="bg-bg-card rounded-2xl p-8 shadow-xl border border-border">
+		<form method="POST" class="card-surface rounded-lg p-8 ring-1 ring-white/10">
 			{#if form?.error}
 				<div class="bg-danger/10 border border-danger/30 text-danger rounded-lg p-3 mb-6 text-sm">
 					{form.error}
@@ -21,26 +27,26 @@
 
 			<div class="space-y-5">
 				<div>
-					<label for="username" class="block text-text-secondary text-sm font-medium mb-2">Username</label>
+					<label for="username" class="mb-2 block text-sm font-medium text-text-secondary">Username</label>
 					<input
 						id="username"
 						name="username"
 						type="text"
 						autocomplete="username"
-						class="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors"
+						class="focus-ring w-full rounded-lg border border-border bg-bg-secondary px-4 py-3 text-text-primary transition-colors placeholder:text-text-muted focus:border-accent/70"
 						placeholder="Dein Username"
 						required
 					/>
 				</div>
 
 				<div>
-					<label for="password" class="block text-text-secondary text-sm font-medium mb-2">Passwort</label>
+					<label for="password" class="mb-2 block text-sm font-medium text-text-secondary">Passwort</label>
 					<input
 						id="password"
 						name="password"
 						type="password"
 						autocomplete="current-password"
-						class="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors"
+						class="focus-ring w-full rounded-xl border border-border bg-bg-secondary px-4 py-3 text-text-primary transition-colors placeholder:text-text-muted focus:border-accent/60"
 						placeholder="Dein Passwort"
 						required
 					/>
@@ -48,7 +54,7 @@
 
 				<button
 					type="submit"
-					class="w-full bg-accent hover:bg-accent-hover text-white font-semibold rounded-lg px-4 py-3 transition-colors cursor-pointer"
+					class="focus-ring urban-cut w-full cursor-pointer bg-accent px-4 py-3.5 font-display text-lg font-semibold uppercase tracking-[0.12em] text-[#0c0c0e] shadow-md shadow-accent/35 transition-colors hover:bg-accent-hover"
 				>
 					Anmelden
 				</button>

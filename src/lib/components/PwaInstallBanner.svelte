@@ -91,7 +91,7 @@
 			<p id="pwa-install-title" class="text-text-primary font-semibold text-sm">App installieren?</p>
 			<button
 				type="button"
-				class="mt-3 w-full bg-accent hover:bg-accent-hover text-white text-sm font-medium rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60"
+				class="mt-3 w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-60"
 				onclick={install}
 				disabled={installing}
 			>

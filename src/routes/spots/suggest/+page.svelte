@@ -376,8 +376,11 @@
 					placeholder="Was macht diesen Spot besonders?"></textarea>
 			</div>
 
-			<button type="submit" disabled={loading || uploadingImages}
-				class="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-3 transition-colors cursor-pointer">
+			<button
+				type="submit"
+				disabled={loading || uploadingImages}
+				class="w-full cursor-pointer rounded-lg bg-accent px-4 py-3 font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50"
+			>
 				{#if uploadingImages}
 					Bilder werden hochgeladen...
 				{:else if loading}

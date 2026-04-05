@@ -1,20 +1,33 @@
 @import 'tailwindcss';
 
 @theme {
-	--color-bg-primary: #0f0f0f;
-	--color-bg-secondary: #1a1a1a;
-	--color-bg-card: #222222;
-	--color-bg-hover: #2a2a2a;
-	--color-accent: #10b981;
-	--color-accent-hover: #059669;
-	--color-accent-dim: #064e3b;
-	--color-text-primary: #f5f5f5;
-	--color-text-secondary: #a3a3a3;
-	--color-text-muted: #737373;
-	--color-border: #333333;
-	--color-danger: #ef4444;
-	--color-warning: #f59e0b;
-	--color-success: #10b981;
+	--font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+		'Segoe UI Symbol';
+	/* Schmale Display-Schrift: urban / Sport / „Straße“ */
+	--font-display: 'Teko', ui-sans-serif, system-ui, sans-serif;
+
+	/* Asphalt & Beton — kühler, urban */
+	--color-bg-primary: #121214;
+	--color-bg-secondary: #1a1b1f;
+	--color-bg-card: #222328;
+	--color-bg-hover: #2c2e35;
+	/* Neon-Lime (Highlighter / Spot-Markierung) + Orange für Verläufe */
+	--color-accent: #e5ff3d;
+	--color-accent-hover: #d4ef2a;
+	--color-accent-hot: #ff7a45;
+	--color-accent-dim: #3d4a1a;
+	--color-text-primary: #f4f4f5;
+	--color-text-secondary: #b4b6bf;
+	--color-text-muted: #7a7d88;
+	--color-border: #35363e;
+	--color-danger: #fb9090;
+	--color-warning: #fcd34d;
+	--color-success: #c8f04a;
+
+	--shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.06), 0 10px 36px -10px rgb(0 0 0 / 0.55);
+	--shadow-card-hover: 0 1px 0 0 rgb(255 255 255 / 0.08), 0 16px 48px -12px rgb(0 0 0 / 0.6),
+		0 0 0 1px rgb(229 255 61 / 0.18);
+	--shadow-nav: 0 0 0 1px rgb(255 255 255 / 0.05);
 }
 
 *,
@@ -23,13 +36,63 @@
 	border-color: var(--color-border);
 }
 
-html,
-body {
+html {
 	background-color: var(--color-bg-primary);
+	background-image:
+		radial-gradient(ellipse 110% 70% at 50% -25%, rgb(229 255 61 / 0.11), transparent 52%),
+		radial-gradient(ellipse 55% 40% at 100% 0%, rgb(255 122 69 / 0.09), transparent 50%),
+		radial-gradient(ellipse 45% 35% at 0% 100%, rgb(229 255 61 / 0.05), transparent 50%),
+		/* Diagonales „Tape“-Raster, sehr leise */
+		repeating-linear-gradient(
+			-42deg,
+			transparent,
+			transparent 5px,
+			rgb(255 255 255 / 0.018) 5px,
+			rgb(255 255 255 / 0.018) 6px
+		),
+		radial-gradient(circle, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+	background-size: auto, auto, auto, auto, 24px 24px;
+	background-attachment: fixed;
+	min-height: 100%;
+}
+
+body {
+	background-color: transparent;
 	color: var(--color-text-primary);
 	min-height: 100vh;
+	font-family: var(--font-sans);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+}
+
+@utility card-surface {
+	background:
+		linear-gradient(180deg, rgb(255 255 255 / 0.05) 0%, transparent 45%),
+		var(--color-bg-card);
+	border: 1px solid var(--color-border);
+	border-radius: 0.625rem;
+	box-shadow: var(--shadow-card);
+	transition:
+		border-color 0.22s ease,
+		box-shadow 0.28s ease,
+		transform 0.28s ease;
+}
+
+@utility font-display {
+	font-family: var(--font-display);
+}
+
+/** Geschnittene Ecke — industrial / movement */
+@utility urban-cut {
+	clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+}
+
+
+@utility focus-ring {
+	outline: none;
+	&:focus-visible {
+		box-shadow: 0 0 0 2px var(--color-bg-primary), 0 0 0 4px rgb(229 255 61 / 0.45);
+	}
 }
 
 select,
@@ -65,5 +128,14 @@ select option {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	background: var(--color-text-muted);
+	background: rgb(229 255 61 / 0.35);
+}
+
+/** Karten-Hover (normales CSS — Tailwind @utility :hover wird hier nicht zuverlässig gebündelt) */
+@media (hover: hover) {
+	.card-surface-lift:hover {
+		border-color: rgb(229 255 61 / 0.28);
+		box-shadow: var(--shadow-card-hover);
+		transform: translateY(-2px);
+	}
 }

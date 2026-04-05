@@ -30,6 +30,13 @@
 			<strong class="text-text-secondary font-medium">Gezogen</strong> = wie oft ohne Abmeldung zum Training (geschätzt, ab Registrierung).
 			<strong class="text-text-secondary font-medium">Gezogen %</strong> = Anteil „gezogen“ an allen relevanten Trainings.
 		</p>
+		{#if data.user?.role === 'admin'}
+			<p class="text-text-muted text-sm mt-3 max-w-xl border-t border-border/60 pt-3">
+				<strong class="text-text-secondary font-medium">Korrekturen:</strong> Fehlende Anwesenheit nachträglich als Abwesenheit eintragen oder aufheben unter
+				<a href="/admin" class="text-accent hover:underline">Admin → Trainings</a>
+				(„Nachträglich abmelden“ / „Aufheben“ bei bestehendem Eintrag). Es gibt kein separates Zurücksetzen der Statistik — sie folgt immer den gespeicherten Trainingsdaten.
+			</p>
+		{/if}
 	</section>
 
 	{#if stats.group.pastSessionCount === 0}
