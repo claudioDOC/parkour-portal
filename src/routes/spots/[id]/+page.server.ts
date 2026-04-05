@@ -4,6 +4,7 @@ import { spots, votes, users, spotImages } from '$lib/server/db/schema';
 import { eq, sql, and } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import { getNextOpenSessionId } from '$lib/server/training';
+import { asNum } from '$lib/server/asSqlNumber';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const spotId = parseInt(params.id);
@@ -59,8 +60,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	return {
 		spot,
-		avgScore: stats?.avgScore ?? 0,
-		voteCount: stats?.voteCount ?? 0,
+		avgScore: asNum(stats?.avgScore ?? 0),
+		voteCount: asNum(stats?.voteCount ?? 0),
 		userVote,
 		images: images.map((img) => ({ ...img, url: `/uploads/${img.filename}` })),
 		user: locals.user,

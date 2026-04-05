@@ -2,8 +2,11 @@ import type { RequestEvent } from '@sveltejs/kit';
 
 type Bucket = { count: number; resetAt: number };
 
-const loginBuckets = new Map<string, Bucket>();
+const loginFailureBuckets = new Map<string, Bucket>();
 const registerBuckets = new Map<string, Bucket>();
+
+const LOGIN_FAIL_MAX = 5;
+const LOGIN_FAIL_WINDOW_MS = 60_000;
 
 /** Client-IP: bei Reverse-Proxy zuerst X-Forwarded-For (erster Hop). */
 export function getClientIp(event: RequestEvent): string {
@@ -34,9 +37,37 @@ function consume(
 	return { ok: true };
 }
 
-/** Max. 5 Login-Versuche pro Minute pro IP (Brute-Force-Schutz). */
-export function rateLimitAuthLogin(ip: string) {
-	return consume(loginBuckets, ip, 5, 60_000);
+/**
+ * Vor dem Login: blockiert nur nach mehreren Fehlversuchen (falsches Passwort, …).
+ * Erfolgreiche Logins zählen nicht — verhindert Sperre, wenn Session/Cookie separat hakt.
+ */
+export function assertLoginFailuresBelowLimit(
+	ip: string
+): { ok: true } | { ok: false; retryAfterSec: number } {
+	const now = Date.now();
+	const b = loginFailureBuckets.get(ip);
+	if (!b || now >= b.resetAt) {
+		return { ok: true };
+	}
+	if (b.count >= LOGIN_FAIL_MAX) {
+		return { ok: false, retryAfterSec: Math.max(1, Math.ceil((b.resetAt - now) / 1000)) };
+	}
+	return { ok: true };
+}
+
+/** Nach fehlgeschlagenem Login (unbekannter User, falsches Passwort, inaktiv, Papierkorb). */
+export function recordLoginAuthFailure(ip: string) {
+	const now = Date.now();
+	let b = loginFailureBuckets.get(ip);
+	if (!b || now >= b.resetAt) {
+		b = { count: 0, resetAt: now + LOGIN_FAIL_WINDOW_MS };
+		loginFailureBuckets.set(ip, b);
+	}
+	b.count += 1;
+}
+
+export function clearLoginAuthFailures(ip: string) {
+	loginFailureBuckets.delete(ip);
 }
 
 /** Max. 10 Registrierungen pro Stunde pro IP (Invite + Massen-Accounts). */

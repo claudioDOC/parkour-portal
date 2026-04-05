@@ -21,6 +21,7 @@ import {
 	buildAbsenceListForSession
 } from '$lib/server/trainingAttendance';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
+import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -49,13 +50,13 @@ export const GET: RequestHandler = async ({ locals }) => {
 					autoAbsentWeekdays: users.autoAbsentWeekdays
 				})
 				.from(users)
-				.where(eq(users.deleted, false))
+				.where(usersNotDeletedCondition())
 				.all()
 				.map(normalizeUserForAttendance)
 		: db
 				.select({ id: users.id, username: users.username, active: users.active })
 				.from(users)
-				.where(eq(users.deleted, false))
+				.where(usersNotDeletedCondition())
 				.all()
 				.map((u) => ({
 					id: u.id,
@@ -74,7 +75,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		})
 			.from(absences)
 			.innerJoin(users, eq(absences.userId, users.id))
-			.where(and(eq(absences.sessionId, session.id), eq(users.deleted, false)))
+			.where(andWithUsersNotDeleted(eq(absences.sessionId, session.id)))
 			.all();
 
 		const hiddenUsers = db.select({
@@ -84,7 +85,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		})
 			.from(sessionHiddenUsers)
 			.innerJoin(users, eq(sessionHiddenUsers.userId, users.id))
-			.where(and(eq(sessionHiddenUsers.sessionId, session.id), eq(users.deleted, false)))
+			.where(andWithUsersNotDeleted(eq(sessionHiddenUsers.sessionId, session.id)))
 			.all();
 
 		const dbAbsentIds = new Set(sessionAbsences.map((a) => a.userId));
@@ -145,7 +146,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 			.from(trainingSpotVotes)
 			.innerJoin(spots, eq(trainingSpotVotes.spotId, spots.id))
 			.innerJoin(users, eq(trainingSpotVotes.userId, users.id))
-			.where(and(eq(trainingSpotVotes.sessionId, session.id), eq(users.deleted, false)))
+			.where(andWithUsersNotDeleted(eq(trainingSpotVotes.sessionId, session.id)))
 			.all();
 
 		const guests = db.select()

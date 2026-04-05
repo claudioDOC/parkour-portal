@@ -10,7 +10,9 @@ import {
 } from '$lib/server/db/schema';
 import { isImplicitEffectiveAbsent } from '$lib/server/trainingAttendance';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
-import { and, eq, lt, asc, sql } from 'drizzle-orm';
+import { eq, lt, asc, sql } from 'drizzle-orm';
+import { asNum } from '$lib/server/asSqlNumber';
+import { andWithUsersNotDeleted } from '$lib/server/usersWhere';
 
 export type UserTrainingStats = {
 	userId: number;
@@ -73,7 +75,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 	const members = db
 		.select()
 		.from(users)
-		.where(and(eq(users.active, true), eq(users.deleted, false)))
+		.where(andWithUsersNotDeleted(eq(users.active, true)))
 		.orderBy(asc(users.username))
 		.all();
 
@@ -102,7 +104,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		.groupBy(spots.addedBy)
 		.all();
 	const spotCountMap = new Map<number, number>();
-	for (const row of spotsByUser) spotCountMap.set(row.uid, Number(row.c));
+	for (const row of spotsByUser) spotCountMap.set(row.uid, asNum(row.c));
 
 	const votesByUser = db
 		.select({ uid: votes.userId, c: sql<number>`count(*)` })
@@ -110,7 +112,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		.groupBy(votes.userId)
 		.all();
 	const voteCountMap = new Map<number, number>();
-	for (const row of votesByUser) voteCountMap.set(row.uid, Number(row.c));
+	for (const row of votesByUser) voteCountMap.set(row.uid, asNum(row.c));
 
 	const monthlyMap = new Map<string, { sessions: number; absences: number }>();
 
@@ -276,7 +278,7 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 			active: users.active
 		})
 		.from(users)
-		.where(and(eq(users.active, true), eq(users.deleted, false)))
+		.where(andWithUsersNotDeleted(eq(users.active, true)))
 		.orderBy(asc(users.username))
 		.all();
 
@@ -293,7 +295,7 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 		.groupBy(spots.addedBy)
 		.all();
 	const spotCountMap = new Map<number, number>();
-	for (const row of spotsByUser) spotCountMap.set(row.uid, Number(row.c));
+	for (const row of spotsByUser) spotCountMap.set(row.uid, asNum(row.c));
 
 	const votesByUser = db
 		.select({ uid: votes.userId, c: sql<number>`count(*)` })
@@ -301,7 +303,7 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 		.groupBy(votes.userId)
 		.all();
 	const voteCountMap = new Map<number, number>();
-	for (const row of votesByUser) voteCountMap.set(row.uid, Number(row.c));
+	for (const row of votesByUser) voteCountMap.set(row.uid, asNum(row.c));
 
 	const monthlyMap = new Map<string, { sessions: number; absences: number }>();
 

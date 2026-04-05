@@ -1,11 +1,13 @@
 import type { RequestEvent } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
-import { users } from '$lib/server/db/schema';
-import { userCoreAuth } from '$lib/server/db/userCoreSelect';
-import { eq } from 'drizzle-orm';
 import { verifyPassword, createSession } from '$lib/server/auth';
+import { getUserCoreByUsername } from '$lib/server/userCoreQuery';
 import { logAudit } from '$lib/server/audit';
-import { getClientIp, rateLimitAuthLogin } from '$lib/server/rateLimitAuth';
+import {
+	getClientIp,
+	assertLoginFailuresBelowLimit,
+	recordLoginAuthFailure,
+	clearLoginAuthFailures
+} from '$lib/server/rateLimitAuth';
 
 export type AttemptLoginResult =
 	| { kind: 'success'; user: { id: number; username: string; role: string } }
@@ -17,12 +19,13 @@ export async function attemptLogin(
 	password: unknown
 ): Promise<AttemptLoginResult> {
 	const ip = getClientIp(event);
-	const limited = rateLimitAuthLogin(ip);
+	const limited = assertLoginFailuresBelowLimit(ip);
 	if (!limited.ok) {
+		const s = limited.retryAfterSec;
 		return {
 			kind: 'error',
 			status: 429,
-			error: 'Zu viele Anmeldeversuche. Bitte kurz warten und erneut versuchen.',
+			error: `Zu viele fehlgeschlagene Anmeldeversuche. Bitte etwa ${s} Sekunde${s === 1 ? '' : 'n'} warten und erneut versuchen.`,
 			retryAfterSec: limited.retryAfterSec
 		};
 	}
@@ -34,8 +37,9 @@ export async function attemptLogin(
 		return { kind: 'error', status: 400, error: 'Username und Passwort erforderlich' };
 	}
 
-	const user = db.select(userCoreAuth).from(users).where(eq(users.username, u)).get();
+	const user = getUserCoreByUsername(u);
 	if (!user) {
+		recordLoginAuthFailure(ip);
 		logAudit({
 			event,
 			action: 'auth.login.failed',
@@ -46,6 +50,7 @@ export async function attemptLogin(
 
 	const valid = await verifyPassword(p, user.passwordHash);
 	if (!valid) {
+		recordLoginAuthFailure(ip);
 		logAudit({
 			event,
 			action: 'auth.login.failed',
@@ -55,6 +60,7 @@ export async function attemptLogin(
 	}
 
 	if (user.deleted) {
+		recordLoginAuthFailure(ip);
 		logAudit({
 			event,
 			action: 'auth.login.failed',
@@ -66,6 +72,7 @@ export async function attemptLogin(
 	}
 
 	if (!user.active) {
+		recordLoginAuthFailure(ip);
 		logAudit({
 			event,
 			action: 'auth.login.failed',
@@ -80,6 +87,7 @@ export async function attemptLogin(
 		};
 	}
 
+	clearLoginAuthFailures(ip);
 	createSession(user, event.cookies);
 	logAudit({
 		event,

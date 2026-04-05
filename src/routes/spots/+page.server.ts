@@ -1,7 +1,8 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { spots, votes, users, spotImages } from '$lib/server/db/schema';
-import { eq, desc, sql, and } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
+import { asNum } from '$lib/server/asSqlNumber';
 
 export const load: PageServerLoad = async () => {
 	const allSpots = db.select({
@@ -30,7 +31,12 @@ export const load: PageServerLoad = async () => {
 			.where(eq(spotImages.spotId, spot.id))
 			.limit(1)
 			.get();
-		return { ...spot, thumbnail: firstImage ? `/uploads/${firstImage.filename}` : null };
+		return {
+			...spot,
+			avgScore: asNum(spot.avgScore),
+			voteCount: asNum(spot.voteCount),
+			thumbnail: firstImage ? `/uploads/${firstImage.filename}` : null
+		};
 	});
 
 	return { spots: spotsWithThumbnail };

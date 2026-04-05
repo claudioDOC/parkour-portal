@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { spots, votes } from '$lib/server/db/schema';
 import { eq, and, sql, desc, inArray, or } from 'drizzle-orm';
 import { getCurrentWeather } from '$lib/server/weather';
+import { asNum } from '$lib/server/asSqlNumber';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
@@ -80,7 +81,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const scored = results.map((spot) => {
 		let bonus = 0;
-		const weather = (spot.goodWeather || '').split(',').map(w => w.trim());
+		const weather = (spot.goodWeather || '').split(',').map((w) => w.trim());
 
 		if (isWet && weather.includes('nass')) bonus += 1;
 		if (isTrocken && weather.includes('trocken')) bonus += 1;
@@ -89,7 +90,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (isDarkFinal && spot.lighting === 'ja') bonus += 2;
 		if (isDarkFinal && spot.lighting === 'teilweise') bonus += 1;
 
-		return { ...spot, finalScore: Number(spot.avgScore) + bonus };
+		const avg = asNum(spot.avgScore);
+		const votes = asNum(spot.voteCount);
+		return { ...spot, avgScore: avg, voteCount: votes, finalScore: avg + bonus };
 	});
 
 	scored.sort((a, b) => b.finalScore - a.finalScore);
