@@ -10,6 +10,7 @@ export default defineConfig({
 		SvelteKitPWA({
 			registerType: 'autoUpdate',
 			manifest: {
+				id: '/',
 				name: 'Mate Portal',
 				short_name: 'Mate',
 				description: 'Parkour training portal and spot finder',
