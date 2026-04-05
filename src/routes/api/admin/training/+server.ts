@@ -22,6 +22,7 @@ import {
 } from '$lib/server/trainingAttendance';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
+import { jsonFromSqliteOrSchemaError } from '$lib/server/sqliteAdminErrors';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -171,97 +172,113 @@ export const POST: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	assertAdmin(locals);
 
-	const { type, sessionId, name } = await request.json();
+	try {
+		const { type, sessionId, name } = await request.json();
 
-	if (type === 'add_guest' && sessionId && name?.trim()) {
-		db.insert(sessionGuests).values({
-			sessionId,
-			name: name.trim()
-		}).run();
-		logAudit({
-			event,
-			action: 'admin.training.guest_add',
-			actorUserId: locals.user!.id,
-			actorUsername: locals.user!.username,
-			detail: { sessionId, guestName: name.trim() }
-		});
-		return json({ success: true });
+		if (type === 'add_guest' && sessionId && name?.trim()) {
+			db.insert(sessionGuests).values({
+				sessionId,
+				name: name.trim()
+			}).run();
+			logAudit({
+				event,
+				action: 'admin.training.guest_add',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				detail: { sessionId, guestName: name.trim() }
+			});
+			return json({ success: true });
+		}
+
+		return json({ error: 'Ungültige Aktion' }, { status: 400 });
+	} catch (e) {
+		console.error('POST /api/admin/training', e);
+		const mapped = jsonFromSqliteOrSchemaError(e);
+		if (mapped) return mapped;
+		return json({ error: 'Training-Aktion fehlgeschlagen.' }, { status: 500 });
 	}
-
-	return json({ error: 'Ungültige Aktion' }, { status: 400 });
 };
 
 export const DELETE: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	assertAdmin(locals);
 
-	const { type, id, userId, sessionId } = await request.json();
+	try {
+		const { type, id, userId, sessionId } = await request.json();
 
-	if (type === 'spot_vote' && id) {
-		db.delete(trainingSpotVotes).where(eq(trainingSpotVotes.id, id)).run();
-		logAudit({
-			event,
-			action: 'admin.training.spot_vote_remove',
-			actorUserId: locals.user!.id,
-			actorUsername: locals.user!.username,
-			detail: { voteId: id }
-		});
-		return json({ success: true });
-	}
-
-	if (type === 'hide_user' && userId && sessionId) {
-		const existing = db.select().from(sessionHiddenUsers)
-			.where(and(eq(sessionHiddenUsers.userId, userId), eq(sessionHiddenUsers.sessionId, sessionId)))
-			.get();
-		if (!existing) {
-			db.insert(sessionHiddenUsers).values({ sessionId, userId }).run();
+		if (type === 'spot_vote' && id) {
+			db.delete(trainingSpotVotes).where(eq(trainingSpotVotes.id, id)).run();
+			logAudit({
+				event,
+				action: 'admin.training.spot_vote_remove',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				detail: { voteId: id }
+			});
+			return json({ success: true });
 		}
-		logAudit({
-			event,
-			action: 'admin.training.hide_user',
-			actorUserId: locals.user!.id,
-			actorUsername: locals.user!.username,
-			targetUserId: userId,
-			detail: { sessionId }
-		});
-		return json({ success: true });
-	}
 
-	if (type === 'unhide_user' && id) {
-		db.delete(sessionHiddenUsers).where(eq(sessionHiddenUsers.id, id)).run();
-		logAudit({
-			event,
-			action: 'admin.training.unhide_user',
-			actorUserId: locals.user!.id,
-			actorUsername: locals.user!.username,
-			detail: { hiddenEntryId: id }
-		});
-		return json({ success: true });
-	}
+		if (type === 'hide_user' && userId && sessionId) {
+			const existing = db
+				.select()
+				.from(sessionHiddenUsers)
+				.where(and(eq(sessionHiddenUsers.userId, userId), eq(sessionHiddenUsers.sessionId, sessionId)))
+				.get();
+			if (!existing) {
+				db.insert(sessionHiddenUsers).values({ sessionId, userId }).run();
+			}
+			logAudit({
+				event,
+				action: 'admin.training.hide_user',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				targetUserId: userId,
+				detail: { sessionId }
+			});
+			return json({ success: true });
+		}
 
-	if (type === 'remove_absence' && id) {
-		db.delete(absences).where(eq(absences.id, id)).run();
-		logAudit({
-			event,
-			action: 'admin.training.remove_absence',
-			actorUserId: locals.user!.id,
-			actorUsername: locals.user!.username,
-			detail: { absenceId: id }
-		});
-		return json({ success: true });
-	}
+		if (type === 'unhide_user' && id) {
+			db.delete(sessionHiddenUsers).where(eq(sessionHiddenUsers.id, id)).run();
+			logAudit({
+				event,
+				action: 'admin.training.unhide_user',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				detail: { hiddenEntryId: id }
+			});
+			return json({ success: true });
+		}
 
-	if (type === 'remove_guest' && id) {
-		db.delete(sessionGuests).where(eq(sessionGuests.id, id)).run();
-		logAudit({
-			event,
-			action: 'admin.training.remove_guest',
-			actorUserId: locals.user!.id,
-			actorUsername: locals.user!.username,
-			detail: { guestId: id }
-		});
-		return json({ success: true });
-	}
+		if (type === 'remove_absence' && id) {
+			db.delete(absences).where(eq(absences.id, id)).run();
+			logAudit({
+				event,
+				action: 'admin.training.remove_absence',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				detail: { absenceId: id }
+			});
+			return json({ success: true });
+		}
 
-	return json({ error: 'Ungültige Aktion' }, { status: 400 });
+		if (type === 'remove_guest' && id) {
+			db.delete(sessionGuests).where(eq(sessionGuests.id, id)).run();
+			logAudit({
+				event,
+				action: 'admin.training.remove_guest',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				detail: { guestId: id }
+			});
+			return json({ success: true });
+		}
+
+		return json({ error: 'Ungültige Aktion' }, { status: 400 });
+	} catch (e) {
+		console.error('DELETE /api/admin/training', e);
+		const mapped = jsonFromSqliteOrSchemaError(e);
+		if (mapped) return mapped;
+		return json({ error: 'Training-Aktion fehlgeschlagen.' }, { status: 500 });
+	}
 };
