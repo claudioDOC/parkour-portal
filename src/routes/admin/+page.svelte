@@ -73,6 +73,7 @@
 	let trainingSessions = $state<TrainingSession[]>([]);
 	let loadingTrainings = $state(false);
 	let trainingMessage = $state('');
+	let trainingError = $state('');
 	let guestName = $state<Record<number, string>>({});
 
 	let spotList = $state<Spot[]>([]);
@@ -461,46 +462,90 @@
 
 	async function loadTrainingSessions() {
 		loadingTrainings = true;
+		trainingError = '';
 		try {
-			const res = await fetch('/api/admin/training');
+			const res = await fetch('/api/admin/training', { credentials: 'include' });
 			if (res.ok) {
 				const data = await res.json();
 				trainingSessions = data.sessions || [];
+			} else {
+				let data: Record<string, unknown> = {};
+				try {
+					data = await res.json();
+				} catch {
+					/* ignore */
+				}
+				const err = typeof data.error === 'string' ? data.error : `Laden fehlgeschlagen (${res.status})`;
+				const det = typeof data.detail === 'string' ? ` ${data.detail}` : '';
+				trainingError = err + det;
 			}
 		} finally {
 			loadingTrainings = false;
 		}
 	}
 
+	function setTrainingErrorFromResponse(res: Response, data: Record<string, unknown>) {
+		if (res.status === 403) {
+			trainingError =
+				'Zugriff verweigert (CSRF/Session). Seite neu laden. Auf dem Server: ORIGIN muss exakt die öffentliche HTTPS-URL sein (siehe README).';
+			return;
+		}
+		const err = typeof data.error === 'string' ? data.error : `Anfrage fehlgeschlagen (${res.status})`;
+		const det = typeof data.detail === 'string' ? ` ${data.detail}` : '';
+		trainingError = err + det;
+	}
+
 	async function deleteTrainingEntry(type: string, payload: Record<string, unknown>) {
 		trainingMessage = '';
+		trainingError = '';
 		const res = await fetch('/api/admin/training', {
 			method: 'DELETE',
+			credentials: 'include',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ type, ...payload })
 		});
-		if (res.ok) {
-			trainingMessage = 'Erfolgreich';
-			await loadTrainingSessions();
-			setTimeout(() => trainingMessage = '', 2000);
+		let data: Record<string, unknown> = {};
+		try {
+			data = await res.json();
+		} catch {
+			trainingError = `Antwort ungültig (${res.status})`;
+			return;
 		}
+		if (!res.ok) {
+			setTrainingErrorFromResponse(res, data);
+			return;
+		}
+		trainingMessage = 'Erfolgreich';
+		await loadTrainingSessions();
+		setTimeout(() => (trainingMessage = ''), 2000);
 	}
 
 	async function addGuest(sessionId: number) {
 		const name = guestName[sessionId]?.trim();
 		if (!name) return;
 		trainingMessage = '';
+		trainingError = '';
 		const res = await fetch('/api/admin/training', {
 			method: 'POST',
+			credentials: 'include',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ type: 'add_guest', sessionId, name })
+			body: JSON.stringify({ type: 'add_guest', sessionId: Number(sessionId), name })
 		});
-		if (res.ok) {
-			guestName[sessionId] = '';
-			trainingMessage = `${name} hinzugefügt`;
-			await loadTrainingSessions();
-			setTimeout(() => trainingMessage = '', 2000);
+		let data: Record<string, unknown> = {};
+		try {
+			data = await res.json();
+		} catch {
+			trainingError = `Antwort ungültig (${res.status})`;
+			return;
 		}
+		if (!res.ok) {
+			setTrainingErrorFromResponse(res, data);
+			return;
+		}
+		guestName[sessionId] = '';
+		trainingMessage = `${name} hinzugefügt`;
+		await loadTrainingSessions();
+		setTimeout(() => (trainingMessage = ''), 2000);
 	}
 
 	async function loadSpots() {
@@ -525,12 +570,27 @@
 
 		const res = await fetch('/api/admin/spots', {
 			method: 'PATCH',
+			credentials: 'include',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ spotId: spot.id, action })
+			body: JSON.stringify({ spotId: Number(spot.id), action })
 		});
 
-		const data = await res.json();
-		spotMessage = data.message || data.error;
+		let data: Record<string, unknown> = {};
+		try {
+			data = await res.json();
+		} catch {
+			spotMessage = `Antwort ungültig (${res.status})`;
+			await loadSpots();
+			await loadTrashedSpots();
+			return;
+		}
+		if (!res.ok) {
+			const err = typeof data.error === 'string' ? data.error : `Fehler ${res.status}`;
+			const det = typeof data.detail === 'string' ? ` — ${data.detail}` : '';
+			spotMessage = err + det;
+		} else {
+			spotMessage = (typeof data.message === 'string' ? data.message : '') || '';
+		}
 		await loadSpots();
 		await loadTrashedSpots();
 	}
@@ -978,6 +1038,9 @@
 
 	{#if activeTab === 'trainings'}
 		<div class="space-y-4">
+			{#if trainingError}
+				<div class="bg-danger/10 border border-danger/30 text-danger rounded-lg p-3 text-sm whitespace-pre-wrap">{trainingError}</div>
+			{/if}
 			{#if trainingMessage}
 				<div class="bg-success/10 border border-success/30 text-success rounded-lg p-3 text-sm">{trainingMessage}</div>
 			{/if}
