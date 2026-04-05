@@ -119,6 +119,7 @@ Wenn die Seite nach einem Deploy **HTTP 500** liefert und in den Logs SQLite-Feh
 - **Ohne Migration 0002/0003**: Die App startet weiter (Login, Spots, Training-Liste im **alten** Modus). Opt-in, Auto-Abmeldung und zugehörige Admin-Aktionen sind erst nach Anwenden der SQL-Migrationen auf der Server-DB aktiv; im Server-Log erscheint ein Hinweis.
 - **Ohne Migration 0004** (`drizzle/0004_user_deleted.sql`): Die Spalte `users.deleted` fehlt — User-Papierkorb und endgültiges Löschen funktionieren erst nach Anwenden auf der Server-DB.
 - **Ohne Migration 0005** (`drizzle/0005_session_version.sql`): Die Spalte `users.session_version` fehlt — App wirft DB-Fehler. Nach Anwenden: JWT enthält `sessionVersion`; nach Passwortänderung (oder Admin-Reset) sind alte Tokens ungültig.
+- **Ohne Migration 0006** (`drizzle/0006_spots_deleted.sql`): Die Spalte `spots.deleted` fehlt — u. a. **Statistik** und Spot-Listen können mit *no such column: deleted* (HTTP 500) abbrechen. Nach `npm run db:migrate` ist der Spot-Papierkorb-Filter konsistent zum Schema.
 - **Trainingszeiten**: Anpassbar in `src/lib/server/db/seed.ts`
 - **Standard-Stadt für Wetter**: Thun (anpassbar in `src/lib/server/weather.ts`)
 

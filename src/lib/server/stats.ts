@@ -13,6 +13,7 @@ import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady
 import { eq, lt, asc, sql } from 'drizzle-orm';
 import { asNum } from '$lib/server/asSqlNumber';
 import { andWithUsersNotDeleted } from '$lib/server/usersWhere';
+import { spotsTableHasDeletedColumn } from '$lib/server/spotsTableColumns';
 
 export type UserTrainingStats = {
 	userId: number;
@@ -54,8 +55,19 @@ export type TrainingStatsPayload = {
 	leaderboard: UserTrainingStats[];
 };
 
-function userStartDate(createdAt: string): string {
-	return createdAt.slice(0, 10);
+function userStartDate(createdAt: string | null | undefined): string {
+	if (!createdAt || typeof createdAt !== 'string') return '1970-01-01';
+	return createdAt.length >= 10 ? createdAt.slice(0, 10) : createdAt;
+}
+
+function buildSpotCountByAddedBy(): Map<number, number> {
+	const sel = db.select({ uid: spots.addedBy, c: sql<number>`count(*)` }).from(spots);
+	const rows = spotsTableHasDeletedColumn()
+		? sel.where(eq(spots.deleted, false)).groupBy(spots.addedBy).all()
+		: sel.groupBy(spots.addedBy).all();
+	const m = new Map<number, number>();
+	for (const row of rows) m.set(asNum(row.uid), asNum(row.c));
+	return m;
 }
 
 export function computeTrainingStats(): TrainingStatsPayload {
@@ -97,14 +109,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		overridePairs.add(`${o.userId}:${o.sessionId}`);
 	}
 
-	const spotsByUser = db
-		.select({ uid: spots.addedBy, c: sql<number>`count(*)` })
-		.from(spots)
-		.where(eq(spots.deleted, false))
-		.groupBy(spots.addedBy)
-		.all();
-	const spotCountMap = new Map<number, number>();
-	for (const row of spotsByUser) spotCountMap.set(row.uid, asNum(row.c));
+	const spotCountMap = buildSpotCountByAddedBy();
 
 	const votesByUser = db
 		.select({ uid: votes.userId, c: sql<number>`count(*)` })
@@ -112,7 +117,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		.groupBy(votes.userId)
 		.all();
 	const voteCountMap = new Map<number, number>();
-	for (const row of votesByUser) voteCountMap.set(row.uid, asNum(row.c));
+	for (const row of votesByUser) voteCountMap.set(asNum(row.uid), asNum(row.c));
 
 	const monthlyMap = new Map<string, { sessions: number; absences: number }>();
 
@@ -176,16 +181,17 @@ export function computeTrainingStats(): TrainingStatsPayload {
 			streak++;
 		}
 
+		const uid = asNum(u.id);
 		leaderboard.push({
-			userId: u.id,
+			userId: uid,
 			username: u.username,
 			eligiblePastSessions: eligible.length,
 			absences: abs,
 			implicitPresent,
 			showUpPercent,
 			streakNoAbsence: streak,
-			spotsSuggested: spotCountMap.get(u.id) ?? 0,
-			spotStarVotes: voteCountMap.get(u.id) ?? 0
+			spotsSuggested: spotCountMap.get(uid) ?? 0,
+			spotStarVotes: voteCountMap.get(uid) ?? 0
 		});
 	}
 
@@ -222,16 +228,17 @@ export function computeTrainingStats(): TrainingStatsPayload {
 				if (isImplicitEffectiveAbsent(u, eligible[i], absencePairs, overridePairs)) break;
 				streak++;
 			}
+			const uidM = asNum(u.id);
 			lb.push({
-				userId: u.id,
+				userId: uidM,
 				username: u.username,
 				eligiblePastSessions: eligible.length,
 				absences: abs,
 				implicitPresent,
 				showUpPercent,
 				streakNoAbsence: streak,
-				spotsSuggested: spotCountMap.get(u.id) ?? 0,
-				spotStarVotes: voteCountMap.get(u.id) ?? 0
+				spotsSuggested: spotCountMap.get(uidM) ?? 0,
+				spotStarVotes: voteCountMap.get(uidM) ?? 0
 			});
 		}
 
@@ -288,14 +295,7 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 		absencePairs.add(`${a.userId}:${a.sessionId}`);
 	}
 
-	const spotsByUser = db
-		.select({ uid: spots.addedBy, c: sql<number>`count(*)` })
-		.from(spots)
-		.where(eq(spots.deleted, false))
-		.groupBy(spots.addedBy)
-		.all();
-	const spotCountMap = new Map<number, number>();
-	for (const row of spotsByUser) spotCountMap.set(row.uid, asNum(row.c));
+	const spotCountMap = buildSpotCountByAddedBy();
 
 	const votesByUser = db
 		.select({ uid: votes.userId, c: sql<number>`count(*)` })
@@ -303,7 +303,7 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 		.groupBy(votes.userId)
 		.all();
 	const voteCountMap = new Map<number, number>();
-	for (const row of votesByUser) voteCountMap.set(row.uid, asNum(row.c));
+	for (const row of votesByUser) voteCountMap.set(asNum(row.uid), asNum(row.c));
 
 	const monthlyMap = new Map<string, { sessions: number; absences: number }>();
 
@@ -355,16 +355,17 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 			streak++;
 		}
 
+		const uidL = asNum(u.id);
 		leaderboard.push({
-			userId: u.id,
+			userId: uidL,
 			username: u.username,
 			eligiblePastSessions: eligible.length,
 			absences: abs,
 			implicitPresent,
 			showUpPercent,
 			streakNoAbsence: streak,
-			spotsSuggested: spotCountMap.get(u.id) ?? 0,
-			spotStarVotes: voteCountMap.get(u.id) ?? 0
+			spotsSuggested: spotCountMap.get(uidL) ?? 0,
+			spotStarVotes: voteCountMap.get(uidL) ?? 0
 		});
 	}
 
@@ -395,16 +396,17 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 				if (absencePairs.has(`${u.id}:${eligible[i].id}`)) break;
 				streak++;
 			}
+			const uidLb = asNum(u.id);
 			lb.push({
-				userId: u.id,
+				userId: uidLb,
 				username: u.username,
 				eligiblePastSessions: eligible.length,
 				absences: abs,
 				implicitPresent,
 				showUpPercent,
 				streakNoAbsence: streak,
-				spotsSuggested: spotCountMap.get(u.id) ?? 0,
-				spotStarVotes: voteCountMap.get(u.id) ?? 0
+				spotsSuggested: spotCountMap.get(uidLb) ?? 0,
+				spotStarVotes: voteCountMap.get(uidLb) ?? 0
 			});
 		}
 

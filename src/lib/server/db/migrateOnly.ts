@@ -7,6 +7,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import * as schema from './schema';
 import { resetUsersTableColumnCache } from '$lib/server/usersTableColumns';
+import { resetSpotsTableColumnCache } from '$lib/server/spotsTableColumns';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 
@@ -21,5 +22,6 @@ sqlite.pragma('foreign_keys = ON');
 const db = drizzle(sqlite, { schema });
 migrate(db, { migrationsFolder: './drizzle' });
 resetUsersTableColumnCache();
+resetSpotsTableColumnCache();
 sqlite.close();
 console.log('Drizzle-Migrationen abgeschlossen.');
