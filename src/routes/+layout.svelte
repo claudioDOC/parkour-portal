@@ -3,8 +3,16 @@
 	import type { LayoutData } from './$types';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+	import { pwaInfo } from 'virtual:pwa-info';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
+
+	onMount(async () => {
+		if (!pwaInfo) return;
+		const { registerSW } = await import('virtual:pwa-register');
+		registerSW({ immediate: true });
+	});
 
 	let mobileMenuOpen = $state(false);
 
@@ -30,6 +38,9 @@
 
 <svelte:head>
 	<title>Mate Portal</title>
+	{#if pwaInfo}
+		{@html pwaInfo.webManifest.linkTag}
+	{/if}
 </svelte:head>
 
 {#if !data.user}
