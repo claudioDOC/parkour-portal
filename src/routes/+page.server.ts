@@ -188,15 +188,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		voteCount: asNum(s.voteCount)
 	}));
 
-	const memberCount = db
-		.select({ count: sql<number>`COUNT(*)` })
-		.from(users)
-		.where(usersNotDeletedCondition())
-		.get();
-
 	return {
 		nextTrainings: trainingsWithDetails,
-		topSpots,
-		memberCount: asNum(memberCount?.count ?? 0)
+		topSpots
 	};
 };

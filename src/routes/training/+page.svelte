@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { formatStimmen } from '$lib/formatStimmen';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -179,7 +180,7 @@
 								<a href="/spots/{session.winnerSpot.spotId}" class="text-text-primary font-semibold text-lg hover:text-accent transition-colors">
 									{session.winnerSpot.name}
 								</a>
-								<p class="text-text-secondary text-sm">{session.winnerSpot.city} &middot; {session.winnerSpot.votes} Stimmen</p>
+								<p class="text-text-secondary text-sm">{session.winnerSpot.city} &middot; {formatStimmen(session.winnerSpot.votes)}</p>
 							</div>
 						{:else if session.autoSpot && session.votingClosed}
 							<div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mb-3">

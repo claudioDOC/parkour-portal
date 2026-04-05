@@ -1,8 +1,9 @@
-import type { PageServerLoad } from './$types';
+import { error, fail, redirect } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { invites } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { error } from '@sveltejs/kit';
+import { registerWithInvite } from '$lib/server/registerWithInvite';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const invite = db.select().from(invites)
@@ -20,3 +21,26 @@ export const load: PageServerLoad = async ({ params }) => {
 
 	return { token: params.token };
 };
+
+export const actions = {
+	default: async (event) => {
+		const fd = await event.request.formData();
+		const username = fd.get('username');
+		const password = fd.get('password');
+		const passwordConfirm = fd.get('passwordConfirm');
+
+		const result = await registerWithInvite(
+			event,
+			username,
+			password,
+			event.params.token,
+			passwordConfirm
+		);
+
+		if (result.kind === 'success') {
+			throw redirect(303, '/');
+		}
+
+		return fail(result.status, { error: result.error });
+	}
+} satisfies Actions;

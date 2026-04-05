@@ -41,7 +41,10 @@
 			<h2 class="text-2xl font-bold text-text-primary">Spots</h2>
 			<p class="text-text-secondary mt-1">{data.spots.length} Spots im Raum Thun - Bern</p>
 		</div>
-		<a href="/spots/suggest" class="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shrink-0">
+		<a
+			href="/spots/suggest"
+			class="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover"
+		>
 			+ Spot hinzufügen
 		</a>
 	</div>

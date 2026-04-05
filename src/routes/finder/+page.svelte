@@ -195,7 +195,7 @@
 		{#each steps as step}
 			<div class="flex items-center gap-2">
 				<div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors
-					{currentStep === step.key ? 'bg-accent text-white' :
+					{currentStep === step.key ? 'bg-accent text-[#0c0c0e]' :
 					 steps.findIndex(s => s.key === currentStep) > steps.findIndex(s => s.key === step.key) ? 'bg-accent/30 text-accent' : 'bg-bg-card text-text-muted border border-border'}">
 					{step.number}
 				</div>
@@ -436,7 +436,7 @@
 				<button
 					onclick={nextStep}
 					disabled={loading}
-					class="bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+					class="cursor-pointer rounded-lg bg-accent px-6 py-2.5 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50"
 				>
 					{#if loading}
 						Suche...
