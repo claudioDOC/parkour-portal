@@ -84,8 +84,17 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		.orderBy(asc(trainingSessions.date))
 		.all();
 
+	// Explizite Spalten: kein `select()` auf ganze Tabelle — sonst schlägt SQLite fehl,
+	// wenn `users.deleted` (Migration 0004) in der DB noch fehlt.
 	const members = db
-		.select()
+		.select({
+			id: users.id,
+			username: users.username,
+			createdAt: users.createdAt,
+			active: users.active,
+			trainingAttendance: users.trainingAttendance,
+			autoAbsentWeekdays: users.autoAbsentWeekdays
+		})
 		.from(users)
 		.where(andWithUsersNotDeleted(eq(users.active, true)))
 		.orderBy(asc(users.username))
