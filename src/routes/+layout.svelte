@@ -5,6 +5,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { pwaInfo } from 'virtual:pwa-info';
+	import PwaInstallBanner from '$lib/components/PwaInstallBanner.svelte';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -141,5 +142,7 @@
 				{@render children()}
 			</div>
 		</main>
+
+		<PwaInstallBanner />
 	</div>
 {/if}

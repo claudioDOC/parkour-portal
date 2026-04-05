@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import PwaInstallBanner from '$lib/components/PwaInstallBanner.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -146,5 +145,3 @@
 		<a href="/spots" class="inline-block text-accent hover:underline text-sm mt-3">Alle Spots anzeigen →</a>
 	</div>
 </div>
-
-<PwaInstallBanner />
