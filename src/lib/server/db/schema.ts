@@ -25,6 +25,8 @@ export const users = sqliteTable('users', {
 	active: integer('active', { mode: 'boolean' }).notNull().default(true),
 	/** Soft-Delete: im Papierkorb, aus normalen Listen ausgeblendet. */
 	deleted: integer('deleted', { mode: 'boolean' }).notNull().default(false),
+	/** Bei jeder Passwortänderung erhöht — JWT muss passen, sonst Session ungültig. */
+	sessionVersion: integer('session_version').notNull().default(0),
 	/** implicit = wie bisher: zieht mit, wenn nicht abgemeldet. opt_in = nur in „Zieht“, wenn explizit zugesagt. */
 	trainingAttendance: text('training_attendance', { enum: ['implicit', 'opt_in'] })
 		.notNull()

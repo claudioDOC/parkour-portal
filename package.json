@@ -31,6 +31,7 @@
 		"bcryptjs": "^3.0.3",
 		"better-sqlite3": "^12.8.0",
 		"drizzle-orm": "^0.45.1",
+		"file-type": "^20.5.0",
 		"jsonwebtoken": "^9.0.3"
 	}
 }

@@ -18,12 +18,9 @@ const config = {
 		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		// adapter-node: Standard-Body-Limit für Produktion ist klein (ohne Env). Bild-Upload bis 5MB → BODY_SIZE_LIMIT setzen (siehe README).
-		adapter: adapter(),
-		// CSRF nur in Prod: hinter nginx ist event.url oft http://127.0.0.1:3000, Browser-Origin https://… → POST-Block.
-		// Sauberer Fix auf dem Server: ORIGIN=https://domain (adapter-node). '*' schaltet Kit-CSRF wie in der Doku beschrieben ab.
-		csrf: {
-			trustedOrigins: ['*']
-		}
+		adapter: adapter()
+		// CSRF: Standard von SvelteKit aktiv (checkOrigin). In Produktion hinter Reverse-Proxy unbedingt
+		// ORIGIN=https://deine-domain auf den Node-Prozess setzen (siehe README), sonst schlagen POST/Upload fehl.
 	}
 };
 

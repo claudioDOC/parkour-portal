@@ -7,25 +7,9 @@ import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { logAudit } from '$lib/server/audit';
 import { getUploadWriteDir } from '$lib/server/uploads';
+import { validateSpotImageBuffer } from '$lib/server/validateSpotImageBuffer';
+
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
-
-const VALID_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const VALID_EXT = new Set(['jpg', 'jpeg', 'png', 'webp']);
-
-function imageAllowed(file: File): boolean {
-	if (file.type && VALID_TYPES.includes(file.type)) return true;
-	const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-	return VALID_EXT.has(ext);
-}
-
-function safeImageExt(file: File): string {
-	const fromName = file.name.split('.').pop()?.toLowerCase() ?? '';
-	if (VALID_EXT.has(fromName)) return fromName === 'jpeg' ? 'jpg' : fromName;
-	if (file.type === 'image/jpeg') return 'jpg';
-	if (file.type === 'image/png') return 'png';
-	if (file.type === 'image/webp') return 'webp';
-	return 'jpg';
-}
 
 export const POST: RequestHandler = async (event) => {
 	const { request, locals } = event;
@@ -44,8 +28,13 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'Bild darf maximal 5MB groß sein' }, { status: 400 });
 		}
 
-		if (!imageAllowed(file)) {
-			return json({ error: 'Nur JPG, PNG und WebP erlaubt' }, { status: 400 });
+		const buffer = Buffer.from(await file.arrayBuffer());
+		const magic = await validateSpotImageBuffer(buffer);
+		if (!magic) {
+			return json(
+				{ error: 'Datei ist kein gültiges JPEG-, PNG- oder WebP-Bild (Inhalt geprüft).' },
+				{ status: 400 }
+			);
 		}
 
 		const spot = db.select().from(spots).where(eq(spots.id, spotId)).get();
@@ -66,11 +55,10 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
-		const ext = safeImageExt(file);
+		const ext = magic.ext;
 		const filename = `${spotId}-${Date.now()}.${ext}`;
 		const filepath = join(uploadDir, filename);
 
-		const buffer = Buffer.from(await file.arrayBuffer());
 		try {
 			writeFileSync(filepath, buffer, { mode: 0o664 });
 		} catch (e) {

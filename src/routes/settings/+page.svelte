@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -20,8 +21,8 @@
 			return;
 		}
 
-		if (newPassword.length < 4) {
-			error = 'Mindestens 4 Zeichen';
+		if (newPassword.length < MIN_PASSWORD_LENGTH) {
+			error = `Mindestens ${MIN_PASSWORD_LENGTH} Zeichen`;
 			return;
 		}
 
@@ -76,8 +77,15 @@
 			</div>
 			<div>
 				<label for="new" class="block text-text-secondary text-sm font-medium mb-2">Neues Passwort</label>
-				<input id="new" type="password" bind:value={newPassword} required
-					class="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors" />
+				<input
+					id="new"
+					type="password"
+					bind:value={newPassword}
+					required
+					minlength={MIN_PASSWORD_LENGTH}
+					placeholder="Mindestens {MIN_PASSWORD_LENGTH} Zeichen"
+					class="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors"
+				/>
 			</div>
 			<div>
 				<label for="confirm" class="block text-text-secondary text-sm font-medium mb-2">Neues Passwort bestätigen</label>

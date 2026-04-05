@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -861,12 +862,12 @@
 						<input
 							type="text"
 							bind:value={resetPassword}
-							placeholder="Neues Passwort (mind. 4 Zeichen)"
+							placeholder="Neues Passwort (mind. {MIN_PASSWORD_LENGTH} Zeichen)"
 							class="flex-1 bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
 						/>
 						<button
 							onclick={resetUserPassword}
-							disabled={resetPassword.length < 4}
+							disabled={resetPassword.length < MIN_PASSWORD_LENGTH}
 							class="bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
 						>
 							Setzen

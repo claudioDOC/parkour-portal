@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -79,9 +80,9 @@
 						type="password"
 						bind:value={password}
 						class="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors"
-						placeholder="Mindestens 6 Zeichen"
+						placeholder="Mindestens {MIN_PASSWORD_LENGTH} Zeichen"
 						required
-						minlength="6"
+						minlength={MIN_PASSWORD_LENGTH}
 					/>
 				</div>
 
