@@ -29,6 +29,16 @@
 		(data.spot.goodWeather || '').split(',').filter(Boolean).map(w => w.trim())
 	);
 
+	/** Eigene Challenge-Erledigungen an diesem Spot (für Fortschrittsbalken). */
+	const myChallengeStats = $derived.by(() => {
+		const uid = data.user?.id;
+		const list = data.challenges;
+		if (!uid || list.length === 0) return null;
+		const done = list.filter((c) => c.doneBy.some((u) => u.userId === uid)).length;
+		const total = list.length;
+		return { done, total, pct: Math.round((done / total) * 100) };
+	});
+
 	let showDeleteConfirm = $state(false);
 	let showImageDeleteConfirm = $state<number | null>(null);
 	let deleting = $state(false);
@@ -170,6 +180,21 @@
 		}
 	}
 
+	async function voteForTraining() {
+		if (!data.nextOpenSessionId) return;
+		trainingVoting = true;
+		try {
+			const res = await fetch('/api/training', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'vote_spot', sessionId: data.nextOpenSessionId, spotId: data.spot.id })
+			});
+			if (res.ok) trainingVoted = true;
+		} finally {
+			trainingVoting = false;
+		}
+	}
+
 	async function uploadImage(e: Event) {
 		const target = e.target as HTMLInputElement;
 		const file = target.files?.[0];
@@ -207,21 +232,6 @@
 		} finally {
 			uploading = false;
 			if (fileInput) fileInput.value = '';
-		}
-	}
-
-	async function voteForTraining() {
-		if (!data.nextOpenSessionId) return;
-		trainingVoting = true;
-		try {
-			const res = await fetch('/api/training', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ action: 'vote_spot', sessionId: data.nextOpenSessionId, spotId: data.spot.id })
-			});
-			if (res.ok) trainingVoted = true;
-		} finally {
-			trainingVoting = false;
 		}
 	}
 
@@ -585,6 +595,14 @@
 					referrerpolicy="no-referrer-when-downgrade"
 				></iframe>
 			</div>
+			<a
+				href="https://www.google.com/maps?q={data.spot.latitude},{data.spot.longitude}"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-bg-secondary px-4 py-3 text-sm font-medium text-text-primary transition-colors hover:bg-bg-hover hover:border-accent/35 sm:inline-flex sm:w-auto"
+			>
+				Google Maps öffnen
+			</a>
 		{/if}
 
 		{#if techniquesArr.length > 0}
@@ -613,21 +631,60 @@
 				</div>
 			</div>
 
-		{#if data.spot.latitude && data.spot.longitude}
-			<div class="mt-6">
-				<a
-					href="https://www.google.com/maps?q={data.spot.latitude},{data.spot.longitude}"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="text-accent hover:underline text-sm"
-				>
-					Auf Google Maps öffnen →
-				</a>
+			<div class="mt-6 pt-6 border-t border-border">
+				<h3 class="text-lg font-semibold text-text-primary mb-3">Deine Bewertung</h3>
+				<div class="flex flex-wrap items-center gap-1">
+					{#each [1, 2, 3, 4, 5] as star}
+						<button
+							type="button"
+							onclick={() => vote(star)}
+							onmouseenter={() => (hoverScore = star)}
+							onmouseleave={() => (hoverScore = 0)}
+							disabled={voting}
+							class="text-3xl transition-transform hover:scale-110 disabled:opacity-50 cursor-pointer"
+						>
+							{#if (hoverScore || data.userVote || 0) >= star}
+								<span class="text-yellow-400">★</span>
+							{:else}
+								<span class="text-text-muted">☆</span>
+							{/if}
+						</button>
+					{/each}
+					{#if data.userVote}
+						<span class="text-text-muted text-sm ml-2 sm:ml-3">Dein Vote: {data.userVote}/5</span>
+						<button
+							type="button"
+							onclick={removeVote}
+							disabled={voting}
+							class="text-text-muted hover:text-danger text-sm ml-1 sm:ml-2 transition-colors disabled:opacity-50 cursor-pointer"
+						>
+							(entfernen)
+						</button>
+					{/if}
+				</div>
 			</div>
-		{/if}
 
 			<div class="mt-6 pt-6 border-t border-border">
-				<h3 class="text-lg font-semibold text-text-primary mb-3">Bilder</h3>
+				<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
+					<h3 class="text-lg font-semibold text-text-primary">Bilder</h3>
+					{#if data.user}
+						<input
+							bind:this={fileInput}
+							type="file"
+							accept="image/jpeg,image/png,image/webp"
+							class="sr-only"
+							onchange={uploadImage}
+						/>
+						<button
+							type="button"
+							onclick={() => fileInput?.click()}
+							disabled={uploading}
+							class="w-full sm:w-auto shrink-0 rounded-xl border border-accent/40 bg-accent/15 px-4 py-2.5 text-sm font-semibold text-accent transition-colors hover:bg-accent/25 disabled:opacity-50 cursor-pointer sm:py-2"
+						>
+							{uploading ? 'Wird hochgeladen…' : '+ Bild hinzufügen'}
+						</button>
+					{/if}
+				</div>
 				{#if data.images.length === 0}
 					<p class="text-text-muted text-sm">Noch keine Bilder.</p>
 				{/if}
@@ -636,13 +693,57 @@
 			<div class="mt-6 pt-6 border-t border-border space-y-4">
 				<div class="flex items-center justify-between gap-3">
 					<h3 class="text-lg font-semibold text-text-primary">Spot-Challenges</h3>
-					<span class="text-xs text-text-muted">{data.challenges.length} insgesamt</span>
+					<span class="text-xs text-text-muted shrink-0">{data.challenges.length} insgesamt</span>
 				</div>
 
 				{#if data.challenges.length === 0}
 					<p class="text-text-muted text-sm">Noch keine Challenges</p>
 				{:else}
-					<div class="space-y-3">
+					{#if myChallengeStats}
+						<div
+							class="rounded-xl border border-border bg-bg-secondary/60 p-3 sm:p-4 mb-2"
+							aria-label="Dein Challenge-Fortschritt an diesem Spot"
+						>
+							<div class="flex items-center justify-between gap-2 text-sm mb-2">
+								<span class="text-text-secondary">Deine Challenges</span>
+								<span class="font-semibold text-text-primary tabular-nums">
+									{myChallengeStats.done}/{myChallengeStats.total}
+									{#if myChallengeStats.done === myChallengeStats.total}
+										<span class="ml-1" aria-hidden="true">🎉</span>
+									{/if}
+								</span>
+							</div>
+							<div
+								class="h-2.5 w-full overflow-hidden rounded-full bg-bg-hover"
+								role="progressbar"
+								aria-valuenow={myChallengeStats.done}
+								aria-valuemin={0}
+								aria-valuemax={myChallengeStats.total}
+							>
+								<div
+									class="h-full rounded-full bg-gradient-to-r from-accent to-success transition-[width] duration-500 ease-out"
+									style="width: {myChallengeStats.pct}%"
+								></div>
+							</div>
+							{#if myChallengeStats.done < myChallengeStats.total}
+								<p class="text-text-muted text-xs mt-2">
+									Noch {myChallengeStats.total - myChallengeStats.done} offen — Details in der Liste unten.
+								</p>
+							{:else}
+								<p class="text-success text-xs font-medium mt-2">Alle Challenges an diesem Spot geschafft.</p>
+							{/if}
+						</div>
+					{/if}
+					{#if data.challenges.length >= 5}
+						<p class="text-text-muted text-xs -mt-1">
+							Viele Einträge — die Challenge-Liste unten ist scrollbar.
+						</p>
+					{/if}
+					<div
+						class="space-y-3 {data.challenges.length >= 5
+							? 'max-h-[min(52vh,26rem)] overflow-y-auto overscroll-y-contain rounded-xl border border-border/70 bg-bg-secondary/30 p-2 sm:max-h-[28rem] sm:p-3'
+							: ''}"
+					>
 						{#each data.challenges as challenge}
 							{@const mineDone = challenge.doneBy.some((u) => u.userId === data.user?.id)}
 							{@const canDeleteChallenge = challenge.createdBy === data.user?.id || canEditSpots}
@@ -676,16 +777,14 @@
 											type="button"
 											onclick={() => setChallengeDone(challenge.id, !mineDone)}
 											disabled={challengeBusy}
-											class="min-h-11 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:opacity-50 sm:min-h-0 sm:rounded-lg sm:px-3 sm:py-1.5 sm:text-xs sm:font-medium {!canDeleteChallenge ? 'w-full sm:w-auto' : ''} {mineDone
+											class="min-h-11 rounded-xl px-2.5 py-2.5 text-center text-sm font-semibold leading-snug transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:opacity-50 max-sm:whitespace-normal sm:min-h-0 sm:whitespace-nowrap sm:rounded-lg sm:px-3 sm:py-1.5 sm:text-xs sm:font-medium {!canDeleteChallenge ? 'w-full sm:w-auto' : ''} {mineDone
 												? 'bg-success/25 text-success shadow-inner ring-1 ring-success/30 hover:bg-success/30'
 												: 'bg-accent/20 text-accent ring-1 ring-accent/25 hover:bg-accent/30'}"
 										>
 											{#if mineDone}
-												<span class="max-sm:hidden">✓ Erledigt</span>
-												<span class="hidden max-sm:inline">✓ Geschafft!</span>
+												✓ Erledigt
 											{:else}
-												<span class="max-sm:hidden">Als erledigt markieren</span>
-												<span class="hidden max-sm:inline">Geschafft!</span>
+												Als erledigt markieren
 											{/if}
 										</button>
 										{#if canDeleteChallenge}
@@ -736,37 +835,6 @@
 						{/each}
 					</div>
 				{/if}
-			</div>
-
-			<div class="mt-6 pt-6 border-t border-border">
-				<h3 class="text-lg font-semibold text-text-primary mb-3">Deine Bewertung</h3>
-				<div class="flex items-center gap-1">
-					{#each [1, 2, 3, 4, 5] as star}
-						<button
-							onclick={() => vote(star)}
-							onmouseenter={() => hoverScore = star}
-							onmouseleave={() => hoverScore = 0}
-							disabled={voting}
-							class="text-3xl transition-transform hover:scale-110 disabled:opacity-50 cursor-pointer"
-						>
-							{#if (hoverScore || data.userVote || 0) >= star}
-								<span class="text-yellow-400">★</span>
-							{:else}
-								<span class="text-text-muted">☆</span>
-							{/if}
-						</button>
-					{/each}
-					{#if data.userVote}
-						<span class="text-text-muted text-sm ml-3">Dein Vote: {data.userVote}/5</span>
-						<button
-							onclick={removeVote}
-							disabled={voting}
-							class="text-text-muted hover:text-danger text-sm ml-2 transition-colors disabled:opacity-50 cursor-pointer"
-						>
-							(entfernen)
-						</button>
-					{/if}
-				</div>
 			</div>
 
 			<div class="mt-6 pt-4 border-t border-border">
