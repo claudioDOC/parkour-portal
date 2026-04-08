@@ -36,6 +36,7 @@
 	let challengeDescription = $state('');
 	let challengeBusy = $state(false);
 	let challengeError = $state('');
+	let challengeDeleteConfirm = $state<null | { id: number; title: string }>(null);
 
 	let editing = $state(false);
 	let editName = $state('');
@@ -253,13 +254,28 @@
 		}
 	}
 
-	async function deleteChallenge(challengeId: number) {
-		const ok = confirm('Challenge wirklich löschen?');
-		if (!ok) return;
+	async function confirmDeleteChallenge() {
+		if (challengeDeleteConfirm === null) return;
+		const challengeId = challengeDeleteConfirm.id;
+		challengeDeleteConfirm = null;
 		challengeBusy = true;
 		try {
 			const res = await fetch('/api/spots/challenges', {
 				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ challengeId })
+			});
+			if (res.ok) await invalidateAll();
+		} finally {
+			challengeBusy = false;
+		}
+	}
+
+	async function restoreChallenge(challengeId: number) {
+		challengeBusy = true;
+		try {
+			const res = await fetch('/api/spots/challenges', {
+				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ challengeId })
 			});
@@ -275,11 +291,7 @@
 	<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70" onclick={() => showDeleteConfirm = false}>
 		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 		<div class="bg-bg-card border border-border rounded-xl p-6 max-w-sm mx-4 shadow-2xl" onclick={(e) => e.stopPropagation()}>
-			<h3 class="text-lg font-semibold text-text-primary mb-2">Spot in Papierkorb?</h3>
-			<p class="text-text-secondary text-sm mb-1">
-				<span class="font-medium text-text-primary">{data.spot.name}</span> wird ausgeblendet.
-			</p>
-			<p class="text-text-muted text-xs mb-4">Alle Daten bleiben erhalten. Du kannst den Spot jederzeit im Admin-Bereich wiederherstellen.</p>
+			<h3 class="text-lg font-semibold text-text-primary mb-4">„{data.spot.name}“ löschen?</h3>
 			<div class="flex gap-2 justify-end">
 				<button onclick={() => showDeleteConfirm = false}
 					class="px-4 py-2 rounded-lg text-sm text-text-secondary bg-bg-secondary hover:bg-bg-hover border border-border transition-colors cursor-pointer">
@@ -287,7 +299,40 @@
 				</button>
 				<button onclick={trashSpot} disabled={deleting}
 					class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-warning hover:bg-warning/80 disabled:opacity-50 transition-colors cursor-pointer">
-					{deleting ? '...' : 'In Papierkorb'}
+					{deleting ? '...' : 'Löschen'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+{#if challengeDeleteConfirm}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70"
+		onclick={() => (challengeDeleteConfirm = null)}
+	>
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<div
+			class="bg-bg-card border border-border rounded-xl p-6 max-w-sm mx-4 shadow-2xl"
+			onclick={(e) => e.stopPropagation()}
+		>
+			<h3 class="text-lg font-semibold text-text-primary mb-4">
+				Challenge „{challengeDeleteConfirm.title}“ löschen?
+			</h3>
+			<div class="flex gap-2 justify-end">
+				<button
+					onclick={() => (challengeDeleteConfirm = null)}
+					class="px-4 py-2 rounded-lg text-sm text-text-secondary bg-bg-secondary hover:bg-bg-hover border border-border transition-colors cursor-pointer"
+				>
+					Abbrechen
+				</button>
+				<button
+					onclick={confirmDeleteChallenge}
+					disabled={challengeBusy}
+					class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-warning hover:bg-warning/80 disabled:opacity-50 transition-colors cursor-pointer"
+				>
+					{challengeBusy ? '…' : 'Löschen'}
 				</button>
 			</div>
 		</div>
@@ -299,8 +344,7 @@
 	<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70" onclick={() => showImageDeleteConfirm = null}>
 		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 		<div class="bg-bg-card border border-border rounded-xl p-6 max-w-sm mx-4 shadow-2xl" onclick={(e) => e.stopPropagation()}>
-			<h3 class="text-lg font-semibold text-text-primary mb-2">Bild löschen?</h3>
-			<p class="text-text-secondary text-sm mb-4">Das Bild wird dauerhaft entfernt.</p>
+			<h3 class="text-lg font-semibold text-text-primary mb-4">Bild löschen?</h3>
 			<div class="flex gap-2 justify-end">
 				<button onclick={() => showImageDeleteConfirm = null}
 					class="px-4 py-2 rounded-lg text-sm text-text-secondary bg-bg-secondary hover:bg-bg-hover border border-border transition-colors cursor-pointer">
@@ -488,7 +532,7 @@
 				{#if isAdmin}
 					<button onclick={() => showDeleteConfirm = true}
 						class="text-xs bg-warning/10 hover:bg-warning/20 border border-warning/30 px-3 py-1.5 rounded-lg text-warning transition-colors cursor-pointer">
-						In Papierkorb
+						Löschen
 					</button>
 				{/if}
 			</div>
@@ -570,35 +614,33 @@
 					<div class="space-y-3">
 						{#each data.challenges as challenge}
 							<div class="bg-bg-secondary rounded-xl border border-border p-4 space-y-3">
-								<div class="flex items-start justify-between gap-3">
-									<div>
-										<p class="text-text-primary font-medium">{challenge.title}</p>
-										{#if challenge.description}
-											<p class="text-text-secondary text-sm mt-1">{challenge.description}</p>
-										{/if}
-										<p class="text-text-muted text-xs mt-2">
-											Von {challenge.createdByName} · {challenge.doneCount} geschafft · {challenge.openCount} offen
-										</p>
-									</div>
-									<div class="flex items-center gap-2">
+								<div class="flex flex-wrap items-start justify-between gap-3">
+									<p class="text-text-primary font-medium min-w-0 flex-1">{challenge.title}</p>
+									<div class="flex shrink-0 items-center gap-2">
 										<button
 											onclick={() => setChallengeDone(challenge.id, !challenge.doneBy.some((u) => u.userId === data.user?.id))}
 											disabled={challengeBusy}
-											class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 {challenge.doneBy.some((u) => u.userId === data.user?.id) ? 'bg-success/15 text-success hover:bg-success/25' : 'bg-accent/15 text-accent hover:bg-accent/25'}"
+											class="whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 {challenge.doneBy.some((u) => u.userId === data.user?.id) ? 'bg-success/15 text-success hover:bg-success/25' : 'bg-accent/15 text-accent hover:bg-accent/25'}"
 										>
 											{challenge.doneBy.some((u) => u.userId === data.user?.id) ? '✓ Erledigt' : 'Als erledigt markieren'}
 										</button>
 										{#if challenge.createdBy === data.user?.id || canEditSpots}
 											<button
-												onclick={() => deleteChallenge(challenge.id)}
+												onclick={() => (challengeDeleteConfirm = { id: challenge.id, title: challenge.title })}
 												disabled={challengeBusy}
-												class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-danger/10 text-danger hover:bg-danger/20 transition-colors cursor-pointer disabled:opacity-50"
+												class="shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-medium bg-danger/10 text-danger hover:bg-danger/20 transition-colors cursor-pointer disabled:opacity-50"
 											>
 												Löschen
 											</button>
 										{/if}
 									</div>
 								</div>
+								{#if challenge.description}
+									<p class="text-text-secondary text-sm">{challenge.description}</p>
+								{/if}
+								<p class="text-text-muted text-xs">
+									Von {challenge.createdByName} · {challenge.doneCount} geschafft · {challenge.openCount} offen
+								</p>
 								<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 									<div>
 										<p class="text-text-muted text-xs uppercase tracking-wide mb-1">Schon erledigt</p>
@@ -625,6 +667,30 @@
 										{/if}
 									</div>
 								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+
+				{#if data.deletedChallenges.length > 0}
+					<div class="rounded-xl border border-dashed border-border bg-bg-secondary/40 p-4 space-y-3">
+						<h4 class="text-xs font-semibold text-text-muted uppercase tracking-wide">Im Papierkorb</h4>
+						{#each data.deletedChallenges as ch}
+							<div class="flex flex-wrap items-start justify-between gap-2">
+								<div class="min-w-0">
+									<p class="text-text-primary font-medium text-sm">{ch.title}</p>
+									{#if ch.description}
+										<p class="text-text-secondary text-xs mt-1 line-clamp-2">{ch.description}</p>
+									{/if}
+									<p class="text-text-muted text-xs mt-1">von {ch.createdByName}</p>
+								</div>
+								<button
+									onclick={() => restoreChallenge(ch.id)}
+									disabled={challengeBusy}
+									class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium bg-success/15 text-success hover:bg-success/25 disabled:opacity-50 cursor-pointer"
+								>
+									Wiederherstellen
+								</button>
 							</div>
 						{/each}
 					</div>

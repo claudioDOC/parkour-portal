@@ -82,6 +82,16 @@
 	let spotList = $state<Spot[]>([]);
 	let trashedSpots = $state<Spot[]>([]);
 	let trashedUserList = $state<User[]>([]);
+	type TrashedChallenge = {
+		id: number;
+		title: string;
+		description: string | null;
+		spotId: number;
+		spotName: string;
+		createdByName: string;
+		deletedAt: string | null;
+	};
+	let trashedChallenges = $state<TrashedChallenge[]>([]);
 	let spotMessage = $state('');
 	let confirmSpot = $state<{ action: string; spot: Spot } | null>(null);
 	let userBinModal = $state<null | { mode: 'to_trash' | 'restore' | 'purge'; user: User }>(null);
@@ -147,6 +157,11 @@
 		'spot.vote.remove': 'Spot-Bewertung entfernt',
 		'spot.image.upload': 'Spot-Bild hochgeladen',
 		'spot.image.delete': 'Spot-Bild gelöscht',
+		'spot.challenge.create': 'Spot-Challenge erstellt',
+		'spot.challenge.complete': 'Spot-Challenge erledigt',
+		'spot.challenge.uncomplete': 'Spot-Challenge Erledigung zurückgenommen',
+		'spot.challenge.delete': 'Spot-Challenge in Papierkorb',
+		'spot.challenge.restore': 'Spot-Challenge wiederhergestellt',
 		'training.absence': 'Training: Zieht nicht',
 		'training.absence.cancel': 'Training: Abmeldung zurückgenommen',
 		'training.rsvp_yes': 'Training: Zusage',
@@ -210,6 +225,7 @@
 		loadSpots();
 		loadTrashedSpots();
 		loadTrashedUsers();
+		loadTrashedChallenges();
 		loadTrainingSessions();
 		loadSystem();
 	});
@@ -619,6 +635,33 @@
 		}
 	}
 
+	async function loadTrashedChallenges() {
+		const res = await fetch('/api/admin/challenges?trashed=true');
+		if (res.ok) {
+			const data = await res.json();
+			trashedChallenges = data.challenges || [];
+		}
+	}
+
+	async function restoreTrashedChallenge(challengeId: number) {
+		userMessage = '';
+		userError = '';
+		const res = await fetch('/api/spots/challenges', {
+			method: 'PUT',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ challengeId })
+		});
+		const data = await res.json().catch(() => ({}));
+		if (!res.ok) {
+			userError = typeof data.error === 'string' ? data.error : `Fehler ${res.status}`;
+			return;
+		}
+		userMessage = 'Challenge wiederhergestellt.';
+		await loadTrashedChallenges();
+		setTimeout(() => (userMessage = ''), 3000);
+	}
+
 	async function spotAction(spot: Spot, action: string) {
 		confirmSpot = null;
 		spotMessage = '';
@@ -706,11 +749,7 @@
 		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 		<div class="bg-bg-card border border-border rounded-xl p-6 max-w-sm mx-4 shadow-2xl" onclick={(e) => e.stopPropagation()}>
 			{#if confirmSpot.action === 'trash'}
-				<h3 class="text-lg font-semibold text-text-primary mb-2">Spot in Papierkorb?</h3>
-				<p class="text-text-secondary text-sm mb-1">
-					<span class="font-medium text-text-primary">{confirmSpot.spot.name}</span> wird ausgeblendet.
-				</p>
-				<p class="text-text-muted text-xs mb-4">Alle Daten bleiben erhalten. Du kannst den Spot jederzeit wiederherstellen.</p>
+				<h3 class="text-lg font-semibold text-text-primary mb-4">„{confirmSpot.spot.name}“ löschen?</h3>
 				<div class="flex gap-2 justify-end">
 					<button onclick={() => confirmSpot = null}
 						class="px-4 py-2 rounded-lg text-sm text-text-secondary bg-bg-secondary hover:bg-bg-hover border border-border transition-colors cursor-pointer">
@@ -718,14 +757,11 @@
 					</button>
 					<button onclick={() => confirmSpot && spotAction(confirmSpot.spot, 'trash')}
 						class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-warning hover:bg-warning/80 transition-colors cursor-pointer">
-						In Papierkorb
+						Löschen
 					</button>
 				</div>
 			{:else}
-				<h3 class="text-lg font-semibold text-text-primary mb-2">Spot wiederherstellen?</h3>
-				<p class="text-text-secondary text-sm mb-4">
-					<span class="font-medium text-text-primary">{confirmSpot.spot.name}</span> wird wieder für alle sichtbar.
-				</p>
+				<h3 class="text-lg font-semibold text-text-primary mb-4">„{confirmSpot.spot.name}“ wiederherstellen?</h3>
 				<div class="flex gap-2 justify-end">
 					<button onclick={() => confirmSpot = null}
 						class="px-4 py-2 rounded-lg text-sm text-text-secondary bg-bg-secondary hover:bg-bg-hover border border-border transition-colors cursor-pointer">
@@ -747,13 +783,9 @@
 		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 		<div class="bg-bg-card border border-border rounded-xl p-6 max-w-sm mx-4 shadow-2xl" onclick={(e) => e.stopPropagation()}>
 			{#if userBinModal.mode === 'to_trash'}
-				<h3 class="text-lg font-semibold text-text-primary mb-2">User in den Papierkorb legen?</h3>
-				<p class="text-text-secondary text-sm mb-1">
-					<span class="font-medium text-text-primary">{userBinModal.user.username}</span> kann sich nicht mehr einloggen und erscheint nicht in normalen Listen.
-				</p>
-				<p class="text-text-muted text-xs mb-4">
-					Daten bleiben vorerst erhalten. Im Papierkorb kannst du wiederherstellen oder endgültig löschen.
-				</p>
+				<h3 class="text-lg font-semibold text-text-primary mb-4">
+					User „{userBinModal.user.username}“ löschen?
+				</h3>
 				<div class="flex gap-2 justify-end">
 					<button
 						onclick={() => (userBinModal = null)}
@@ -769,14 +801,13 @@
 						}}
 						class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-warning hover:bg-warning/80 transition-colors cursor-pointer"
 					>
-						In Papierkorb
+						Löschen
 					</button>
 				</div>
 			{:else if userBinModal.mode === 'restore'}
-				<h3 class="text-lg font-semibold text-text-primary mb-2">User wiederherstellen?</h3>
-				<p class="text-text-secondary text-sm mb-4">
-					<span class="font-medium text-text-primary">{userBinModal.user.username}</span> erscheint wieder in der User-Liste. Login bleibt deaktiviert, bis du den User aktivierst.
-				</p>
+				<h3 class="text-lg font-semibold text-text-primary mb-4">
+					User „{userBinModal.user.username}“ wiederherstellen?
+				</h3>
 				<div class="flex gap-2 justify-end">
 					<button
 						onclick={() => (userBinModal = null)}
@@ -796,11 +827,10 @@
 					</button>
 				</div>
 			{:else}
-				<h3 class="text-lg font-semibold text-text-primary mb-2">Endgültig löschen?</h3>
-				<p class="text-text-secondary text-sm mb-1">
-					<span class="font-medium text-text-primary">{userBinModal.user.username}</span> und alle zugehörigen Daten werden unwiderruflich entfernt (eigene Spots inkl. Bilder, Bewertungen, Trainings-Einträge).
-				</p>
-				<p class="text-danger text-xs font-medium mb-4">Dieser Schritt kann nicht rückgängig gemacht werden.</p>
+				<h3 class="text-lg font-semibold text-text-primary mb-2">
+					User „{userBinModal.user.username}“ endgültig löschen?
+				</h3>
+				<p class="text-danger text-xs font-medium mb-4">Unwiderruflich — alle zugehörigen Daten gehen verloren.</p>
 				<div class="flex gap-2 justify-end">
 					<button
 						onclick={() => (userBinModal = null)}
@@ -835,7 +865,11 @@
 			{ id: 'users' as const, label: 'User', count: userList.length },
 			{ id: 'trainings' as const, label: 'Trainings', count: trainingSessions.length },
 			{ id: 'spots' as const, label: 'Spots', count: spotList.length },
-			{ id: 'trash' as const, label: 'Papierkorb', count: trashedSpots.length + trashedUserList.length },
+			{
+				id: 'trash' as const,
+				label: 'Papierkorb',
+				count: trashedSpots.length + trashedUserList.length + trashedChallenges.length
+			},
 			{ id: 'invites' as const, label: 'Einladungen', count: invites.length },
 			{ id: 'server' as const, label: 'Server', count: null as number | null },
 			{ id: 'audit' as const, label: 'Protokoll', count: null as number | null }
@@ -847,6 +881,7 @@
 					if (tab.id === 'trash') {
 						loadTrashedSpots();
 						loadTrashedUsers();
+						loadTrashedChallenges();
 					}
 				}}
 				class="flex-1 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer {activeTab === tab.id ? 'bg-bg-card text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}"
@@ -966,7 +1001,7 @@
 									onclick={() => (userBinModal = { mode: 'to_trash', user })}
 									class="text-xs bg-danger/10 hover:bg-danger/20 border border-danger/30 px-3 py-1.5 rounded-lg text-danger transition-colors cursor-pointer"
 								>
-									Papierkorb
+									Löschen
 								</button>
 							{/if}
 						</div>
@@ -1079,7 +1114,7 @@
 							onclick={() => confirmSpot = { action: 'trash', spot }}
 							class="text-xs bg-warning/10 hover:bg-warning/20 border border-warning/30 px-3 py-1.5 rounded-lg text-warning transition-colors cursor-pointer"
 						>
-							Papierkorb
+							Löschen
 						</button>
 					</div>
 				</div>
@@ -1351,7 +1386,43 @@
 				{/if}
 			</div>
 
-			{#if trashedUserList.length === 0 && trashedSpots.length === 0}
+			<div>
+				<h3 class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Spot-Challenges</h3>
+				{#if trashedChallenges.length === 0}
+					<p class="text-text-muted text-sm">Keine Challenges im Papierkorb.</p>
+				{:else}
+					<p class="text-text-secondary text-sm mb-3">
+						Gelöschte Challenges sind weiterhin im Protokoll nachvollziehbar. Wiederherstellen blendet sie am Spot wieder ein (Erledigungen bleiben erhalten).
+					</p>
+					<div class="space-y-2">
+						{#each trashedChallenges as ch}
+							<div class="bg-bg-card rounded-xl border border-border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 opacity-90">
+								<div class="min-w-0">
+									<p class="text-text-primary font-medium">{ch.title}</p>
+									<p class="text-text-muted text-xs mt-0.5">
+										<a href="/spots/{ch.spotId}" class="text-accent hover:underline">{ch.spotName}</a>
+										· von {ch.createdByName}
+										{#if ch.deletedAt}
+											· {formatLogTime(ch.deletedAt)}
+										{/if}
+									</p>
+									{#if ch.description}
+										<p class="text-text-secondary text-xs mt-2 line-clamp-2">{ch.description}</p>
+									{/if}
+								</div>
+								<button
+									onclick={() => restoreTrashedChallenge(ch.id)}
+									class="shrink-0 text-xs bg-success/10 hover:bg-success/20 border border-success/30 px-3 py-1.5 rounded-lg text-success transition-colors cursor-pointer"
+								>
+									Wiederherstellen
+								</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			{#if trashedUserList.length === 0 && trashedSpots.length === 0 && trashedChallenges.length === 0}
 				<p class="text-text-muted text-center py-4 text-sm">Papierkorb ist leer.</p>
 			{/if}
 		</div>

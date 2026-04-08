@@ -70,6 +70,11 @@ function repairLegacyMigrationDrift() {
 		{
 			tag: '0006_spots_deleted',
 			schemaAlreadyThere: () => columnExists('spots', 'deleted')
+		},
+		{
+			tag: '0008_spot_challenges_soft_delete',
+			schemaAlreadyThere: () =>
+				columnExists('spot_challenges', 'deleted') && columnExists('spot_challenges', 'deleted_at')
 		}
 	];
 
