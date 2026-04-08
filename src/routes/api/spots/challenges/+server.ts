@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { spots, spotChallenges, spotChallengeCompletions } from '$lib/server/db/schema';
 import { logAudit } from '$lib/server/audit';
@@ -80,10 +80,11 @@ export const PATCH: RequestHandler = async (event) => {
 		.select({
 			id: spotChallenges.id,
 			title: spotChallenges.title,
-			spotId: spotChallenges.spotId
+			spotId: spotChallenges.spotId,
+			deleted: spotChallenges.deleted
 		})
 		.from(spotChallenges)
-		.where(eq(spotChallenges.id, challengeId))
+		.where(and(eq(spotChallenges.id, challengeId), eq(spotChallenges.deleted, false)))
 		.get();
 
 	if (!challenge) {
@@ -135,6 +136,67 @@ export const PATCH: RequestHandler = async (event) => {
 	return json({ success: true });
 };
 
+/** Wiederherstellung nach Soft-Delete (Papierkorb). */
+export const PUT: RequestHandler = async (event) => {
+	const { request, locals } = event;
+	if (!locals.user) throw error(401, 'Nicht angemeldet');
+	if (!isSpotChallengesSchemaReady()) return schemaNotReadyResponse();
+
+	const body = await request.json();
+	const challengeId = Number(body?.challengeId);
+	if (!challengeId) {
+		return json({ error: 'Challenge-ID erforderlich' }, { status: 400 });
+	}
+
+	const challenge = db
+		.select({
+			id: spotChallenges.id,
+			title: spotChallenges.title,
+			description: spotChallenges.description,
+			spotId: spotChallenges.spotId,
+			createdBy: spotChallenges.createdBy,
+			deleted: spotChallenges.deleted
+		})
+		.from(spotChallenges)
+		.where(eq(spotChallenges.id, challengeId))
+		.get();
+
+	if (!challenge || !challenge.deleted) {
+		return json({ error: 'Challenge nicht im Papierkorb' }, { status: 404 });
+	}
+
+	const canRestore =
+		challenge.createdBy === locals.user.id ||
+		locals.user.role === 'admin' ||
+		locals.user.role === 'spotmanager';
+
+	if (!canRestore) {
+		return json({ error: 'Keine Berechtigung zur Wiederherstellung' }, { status: 403 });
+	}
+
+	db.update(spotChallenges)
+		.set({ deleted: false, deletedAt: null })
+		.where(eq(spotChallenges.id, challengeId))
+		.run();
+
+	const spot = db.select({ name: spots.name }).from(spots).where(eq(spots.id, challenge.spotId)).get();
+
+	logAudit({
+		event,
+		action: 'spot.challenge.restore',
+		actorUserId: locals.user.id,
+		actorUsername: locals.user.username,
+		detail: {
+			spotId: challenge.spotId,
+			spotName: spot?.name,
+			challengeId: challenge.id,
+			challengeTitle: challenge.title
+		}
+	});
+
+	return json({ success: true });
+};
+
 export const DELETE: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
@@ -150,8 +212,10 @@ export const DELETE: RequestHandler = async (event) => {
 		.select({
 			id: spotChallenges.id,
 			title: spotChallenges.title,
+			description: spotChallenges.description,
 			spotId: spotChallenges.spotId,
-			createdBy: spotChallenges.createdBy
+			createdBy: spotChallenges.createdBy,
+			deleted: spotChallenges.deleted
 		})
 		.from(spotChallenges)
 		.where(eq(spotChallenges.id, challengeId))
@@ -159,6 +223,10 @@ export const DELETE: RequestHandler = async (event) => {
 
 	if (!challenge) {
 		return json({ error: 'Challenge nicht gefunden' }, { status: 404 });
+	}
+
+	if (challenge.deleted) {
+		return json({ error: 'Challenge ist bereits im Papierkorb' }, { status: 400 });
 	}
 
 	const canDelete =
@@ -170,8 +238,17 @@ export const DELETE: RequestHandler = async (event) => {
 		return json({ error: 'Nur Ersteller, Spotmanager oder Admin dürfen löschen' }, { status: 403 });
 	}
 
-	db.delete(spotChallengeCompletions).where(eq(spotChallengeCompletions.challengeId, challengeId)).run();
-	db.delete(spotChallenges).where(eq(spotChallenges.id, challengeId)).run();
+	const spot = db.select({ name: spots.name }).from(spots).where(eq(spots.id, challenge.spotId)).get();
+
+	db.update(spotChallenges)
+		.set({ deleted: true, deletedAt: sql`(datetime('now'))` })
+		.where(eq(spotChallenges.id, challengeId))
+		.run();
+
+	const descPreview =
+		challenge.description && challenge.description.length > 400
+			? `${challenge.description.slice(0, 400)}…`
+			: challenge.description;
 
 	logAudit({
 		event,
@@ -180,8 +257,10 @@ export const DELETE: RequestHandler = async (event) => {
 		actorUsername: locals.user.username,
 		detail: {
 			spotId: challenge.spotId,
+			spotName: spot?.name,
 			challengeId: challenge.id,
-			challengeTitle: challenge.title
+			challengeTitle: challenge.title,
+			...(descPreview != null ? { challengeDescription: descPreview } : {})
 		}
 	});
 

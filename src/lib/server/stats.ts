@@ -190,6 +190,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 				db
 					.select({ c: sql<number>`count(*)` })
 					.from(spotChallenges)
+					.where(eq(spotChallenges.deleted, false))
 					.get()?.c ?? 0
 			)
 		: 0;
@@ -198,6 +199,8 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		const rows = db
 			.select({ uid: spotChallengeCompletions.userId, c: sql<number>`count(*)` })
 			.from(spotChallengeCompletions)
+			.innerJoin(spotChallenges, eq(spotChallengeCompletions.challengeId, spotChallenges.id))
+			.where(eq(spotChallenges.deleted, false))
 			.groupBy(spotChallengeCompletions.userId)
 			.all();
 		for (const row of rows) challengeCompletionsByUser.set(asNum(row.uid), asNum(row.c));
@@ -429,6 +432,7 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 				db
 					.select({ c: sql<number>`count(*)` })
 					.from(spotChallenges)
+					.where(eq(spotChallenges.deleted, false))
 					.get()?.c ?? 0
 			)
 		: 0;
@@ -437,6 +441,8 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 		const rows = db
 			.select({ uid: spotChallengeCompletions.userId, c: sql<number>`count(*)` })
 			.from(spotChallengeCompletions)
+			.innerJoin(spotChallenges, eq(spotChallengeCompletions.challengeId, spotChallenges.id))
+			.where(eq(spotChallenges.deleted, false))
 			.groupBy(spotChallengeCompletions.userId)
 			.all();
 		for (const row of rows) challengeCompletionsByUser.set(asNum(row.uid), asNum(row.c));

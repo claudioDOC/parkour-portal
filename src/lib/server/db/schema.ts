@@ -123,7 +123,10 @@ export const spotChallenges = sqliteTable('spot_challenges', {
 	title: text('title').notNull(),
 	description: text('description'),
 	createdBy: integer('created_by').notNull().references(() => users.id),
-	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+	/** Soft-Delete: aus Listen ausgeblendet, im Papierkorb wiederherstellbar. */
+	deleted: integer('deleted', { mode: 'boolean' }).notNull().default(false),
+	deletedAt: text('deleted_at')
 });
 
 export const spotChallengeCompletions = sqliteTable(

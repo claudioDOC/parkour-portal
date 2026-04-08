@@ -8,7 +8,7 @@ import {
 	spotChallenges,
 	spotChallengeCompletions
 } from '$lib/server/db/schema';
-import { eq, sql, and, asc, inArray } from 'drizzle-orm';
+import { eq, sql, and, asc, desc, inArray } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import { getNextOpenSessionId } from '$lib/server/training';
 import { asNum } from '$lib/server/asSqlNumber';
@@ -80,10 +80,49 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				})
 				.from(spotChallenges)
 				.innerJoin(users, eq(spotChallenges.createdBy, users.id))
-				.where(and(eq(spotChallenges.spotId, spotId), usersNotDeletedCondition()))
+				.where(
+					and(
+						eq(spotChallenges.spotId, spotId),
+						eq(spotChallenges.deleted, false),
+						usersNotDeletedCondition()
+					)
+				)
 				.orderBy(asc(spotChallenges.createdAt))
 				.all()
 		: [];
+
+	let deletedChallenges: {
+		id: number;
+		title: string;
+		description: string | null;
+		deletedAt: string | null;
+		createdBy: number;
+		createdByName: string;
+	}[] = [];
+	if (challengesSchemaReady && locals.user) {
+		const delConds = [
+			eq(spotChallenges.spotId, spotId),
+			eq(spotChallenges.deleted, true),
+			usersNotDeletedCondition()
+		];
+		if (locals.user.role !== 'admin' && locals.user.role !== 'spotmanager') {
+			delConds.push(eq(spotChallenges.createdBy, locals.user.id));
+		}
+		deletedChallenges = db
+			.select({
+				id: spotChallenges.id,
+				title: spotChallenges.title,
+				description: spotChallenges.description,
+				deletedAt: spotChallenges.deletedAt,
+				createdBy: spotChallenges.createdBy,
+				createdByName: users.username
+			})
+			.from(spotChallenges)
+			.innerJoin(users, eq(spotChallenges.createdBy, users.id))
+			.where(and(...delConds))
+			.orderBy(desc(spotChallenges.deletedAt))
+			.all();
+	}
 
 	const participants = challengesSchemaReady
 		? db
@@ -119,6 +158,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		voteCount: asNum(stats?.voteCount ?? 0),
 		userVote,
 		images: images.map((img) => ({ ...img, url: `/uploads/${img.filename}` })),
+		deletedChallenges,
 		challenges: challenges.map((challenge) => {
 			const doneBy = completions
 				.filter((c) => c.challengeId === challenge.id)
