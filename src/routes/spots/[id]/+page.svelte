@@ -38,6 +38,33 @@
 	let challengeError = $state('');
 	let challengeDeleteConfirm = $state<null | { id: number; title: string }>(null);
 
+	type ConfettiPiece = { id: number; dx: number; dy: number; rot: number; delay: number; color: string };
+	let confettiPieces = $state<ConfettiPiece[]>([]);
+	let confettiSeq = 0;
+
+	function triggerChallengeConfetti() {
+		if (
+			typeof window !== 'undefined' &&
+			window.matchMedia('(prefers-reduced-motion: reduce)').matches
+		) {
+			return;
+		}
+		const colors = ['#b8dd62', '#cfe86a', '#ff7a45', '#f2c55b', '#7dd3fc', '#c4b5fd', '#f9a8d4'];
+		confettiSeq += 1;
+		const base = confettiSeq * 1000;
+		confettiPieces = Array.from({ length: 32 }, (_, i) => ({
+			id: base + i,
+			dx: (Math.random() - 0.5) * 220,
+			dy: -70 - Math.random() * 140,
+			rot: (Math.random() - 0.5) * 540,
+			delay: Math.random() * 0.12,
+			color: colors[i % colors.length] ?? '#b8dd62'
+		}));
+		setTimeout(() => {
+			confettiPieces = [];
+		}, 1100);
+	}
+
 	let editing = $state(false);
 	let editName = $state('');
 	let editCity = $state('');
@@ -248,7 +275,10 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ challengeId, done })
 			});
-			if (res.ok) await invalidateAll();
+			if (res.ok) {
+				if (done) triggerChallengeConfetti();
+				await invalidateAll();
+			}
 		} finally {
 			challengeBusy = false;
 		}
@@ -271,20 +301,21 @@
 		}
 	}
 
-	async function restoreChallenge(challengeId: number) {
-		challengeBusy = true;
-		try {
-			const res = await fetch('/api/spots/challenges', {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ challengeId })
-			});
-			if (res.ok) await invalidateAll();
-		} finally {
-			challengeBusy = false;
-		}
-	}
 </script>
+
+{#if confettiPieces.length > 0}
+	<div
+		class="pointer-events-none fixed inset-0 z-[250] overflow-hidden"
+		aria-hidden="true"
+	>
+		{#each confettiPieces as p (p.id)}
+			<span
+				class="challenge-confetti-dot absolute left-1/2 top-[38%] h-2 w-2 rounded-[2px] sm:top-[35%]"
+				style="background-color: {p.color}; --dx: {p.dx}px; --dy: {p.dy}px; --rot: {p.rot}deg; animation-delay: {p.delay}s;"
+			></span>
+		{/each}
+	</div>
+{/if}
 
 {#if showDeleteConfirm}
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
@@ -613,22 +644,56 @@
 				{:else}
 					<div class="space-y-3">
 						{#each data.challenges as challenge}
-							<div class="bg-bg-secondary rounded-xl border border-border p-4 space-y-3">
-								<div class="flex flex-wrap items-start justify-between gap-3">
-									<p class="text-text-primary font-medium min-w-0 flex-1">{challenge.title}</p>
-									<div class="flex shrink-0 items-center gap-2">
+							{@const mineDone = challenge.doneBy.some((u) => u.userId === data.user?.id)}
+							{@const canDeleteChallenge = challenge.createdBy === data.user?.id || canEditSpots}
+							<div
+								class="rounded-xl border p-4 space-y-3 transition-[box-shadow,background-color,border-color] duration-300 {mineDone
+									? 'bg-gradient-to-br from-success/10 via-bg-secondary to-bg-secondary ring-1 ring-success/35 border-success/30 shadow-[0_0_24px_-8px_rgba(184,221,98,0.35)]'
+									: 'bg-bg-secondary border-border'}"
+							>
+								<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+									<div class="min-w-0 w-full sm:flex-1 sm:min-w-[12rem]">
+										<div class="flex items-start gap-2">
+											{#if mineDone}
+												<span
+													class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success/20 text-lg leading-none"
+													aria-hidden="true"
+												>
+													🏆
+												</span>
+											{/if}
+											<p class="text-text-primary font-semibold text-base leading-snug sm:text-[0.95rem] sm:font-medium">
+												{challenge.title}
+											</p>
+										</div>
+									</div>
+									<div
+										class="w-full gap-2 sm:w-auto sm:shrink-0 {canDeleteChallenge
+											? 'grid grid-cols-2 sm:flex sm:items-center'
+											: 'flex'}"
+									>
 										<button
-											onclick={() => setChallengeDone(challenge.id, !challenge.doneBy.some((u) => u.userId === data.user?.id))}
+											type="button"
+											onclick={() => setChallengeDone(challenge.id, !mineDone)}
 											disabled={challengeBusy}
-											class="whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 {challenge.doneBy.some((u) => u.userId === data.user?.id) ? 'bg-success/15 text-success hover:bg-success/25' : 'bg-accent/15 text-accent hover:bg-accent/25'}"
+											class="min-h-11 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:opacity-50 sm:min-h-0 sm:rounded-lg sm:px-3 sm:py-1.5 sm:text-xs sm:font-medium {!canDeleteChallenge ? 'w-full sm:w-auto' : ''} {mineDone
+												? 'bg-success/25 text-success shadow-inner ring-1 ring-success/30 hover:bg-success/30'
+												: 'bg-accent/20 text-accent ring-1 ring-accent/25 hover:bg-accent/30'}"
 										>
-											{challenge.doneBy.some((u) => u.userId === data.user?.id) ? '✓ Erledigt' : 'Als erledigt markieren'}
+											{#if mineDone}
+												<span class="max-sm:hidden">✓ Erledigt</span>
+												<span class="hidden max-sm:inline">✓ Geschafft!</span>
+											{:else}
+												<span class="max-sm:hidden">Als erledigt markieren</span>
+												<span class="hidden max-sm:inline">Geschafft!</span>
+											{/if}
 										</button>
-										{#if challenge.createdBy === data.user?.id || canEditSpots}
+										{#if canDeleteChallenge}
 											<button
+												type="button"
 												onclick={() => (challengeDeleteConfirm = { id: challenge.id, title: challenge.title })}
 												disabled={challengeBusy}
-												class="shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-medium bg-danger/10 text-danger hover:bg-danger/20 transition-colors cursor-pointer disabled:opacity-50"
+												class="min-h-11 rounded-xl px-3 py-2.5 text-sm font-semibold bg-danger/12 text-danger ring-1 ring-danger/25 hover:bg-danger/20 transition-colors cursor-pointer disabled:opacity-50 sm:min-h-0 sm:rounded-lg sm:px-2.5 sm:py-1.5 sm:text-xs sm:font-medium"
 											>
 												Löschen
 											</button>
@@ -667,30 +732,6 @@
 										{/if}
 									</div>
 								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-
-				{#if data.deletedChallenges.length > 0}
-					<div class="rounded-xl border border-dashed border-border bg-bg-secondary/40 p-4 space-y-3">
-						<h4 class="text-xs font-semibold text-text-muted uppercase tracking-wide">Im Papierkorb</h4>
-						{#each data.deletedChallenges as ch}
-							<div class="flex flex-wrap items-start justify-between gap-2">
-								<div class="min-w-0">
-									<p class="text-text-primary font-medium text-sm">{ch.title}</p>
-									{#if ch.description}
-										<p class="text-text-secondary text-xs mt-1 line-clamp-2">{ch.description}</p>
-									{/if}
-									<p class="text-text-muted text-xs mt-1">von {ch.createdByName}</p>
-								</div>
-								<button
-									onclick={() => restoreChallenge(ch.id)}
-									disabled={challengeBusy}
-									class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-medium bg-success/15 text-success hover:bg-success/25 disabled:opacity-50 cursor-pointer"
-								>
-									Wiederherstellen
-								</button>
 							</div>
 						{/each}
 					</div>
@@ -734,3 +775,24 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	@keyframes challenge-confetti-pop {
+		from {
+			transform: translate(-50%, -50%) rotate(0deg) scale(1);
+			opacity: 1;
+		}
+		to {
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(0.12);
+			opacity: 0;
+		}
+	}
+	.challenge-confetti-dot {
+		animation: challenge-confetti-pop 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.challenge-confetti-dot {
+			animation-duration: 0.01ms;
+		}
+	}
+</style>
