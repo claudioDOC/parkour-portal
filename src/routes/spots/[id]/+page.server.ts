@@ -13,6 +13,7 @@ import { error } from '@sveltejs/kit';
 import { getNextOpenSessionId } from '$lib/server/training';
 import { asNum } from '$lib/server/asSqlNumber';
 import { usersNotDeletedCondition } from '$lib/server/usersWhere';
+import { isSpotChallengesSchemaReady } from '$lib/server/spotChallengesSchemaReady';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const spotId = parseInt(params.id);
@@ -66,34 +67,39 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.where(eq(spotImages.spotId, spotId))
 		.all();
 
-	const challenges = db
-		.select({
-			id: spotChallenges.id,
-			title: spotChallenges.title,
-			description: spotChallenges.description,
-			createdAt: spotChallenges.createdAt,
-			createdBy: spotChallenges.createdBy,
-			createdByName: users.username
-		})
-		.from(spotChallenges)
-		.innerJoin(users, eq(spotChallenges.createdBy, users.id))
-		.where(and(eq(spotChallenges.spotId, spotId), usersNotDeletedCondition()))
-		.orderBy(asc(spotChallenges.createdAt))
-		.all();
+	const challengesSchemaReady = isSpotChallengesSchemaReady();
+	const challenges = challengesSchemaReady
+		? db
+				.select({
+					id: spotChallenges.id,
+					title: spotChallenges.title,
+					description: spotChallenges.description,
+					createdAt: spotChallenges.createdAt,
+					createdBy: spotChallenges.createdBy,
+					createdByName: users.username
+				})
+				.from(spotChallenges)
+				.innerJoin(users, eq(spotChallenges.createdBy, users.id))
+				.where(and(eq(spotChallenges.spotId, spotId), usersNotDeletedCondition()))
+				.orderBy(asc(spotChallenges.createdAt))
+				.all()
+		: [];
 
-	const participants = db
-		.select({
-			id: users.id,
-			username: users.username
-		})
-		.from(users)
-		.where(and(eq(users.active, true), usersNotDeletedCondition()))
-		.orderBy(asc(users.username))
-		.all();
+	const participants = challengesSchemaReady
+		? db
+				.select({
+					id: users.id,
+					username: users.username
+				})
+				.from(users)
+				.where(and(eq(users.active, true), usersNotDeletedCondition()))
+				.orderBy(asc(users.username))
+				.all()
+		: [];
 
 	const challengeIds = challenges.map((c) => c.id);
 	const completions =
-		challengeIds.length > 0
+		challengesSchemaReady && challengeIds.length > 0
 			? db
 					.select({
 						challengeId: spotChallengeCompletions.challengeId,

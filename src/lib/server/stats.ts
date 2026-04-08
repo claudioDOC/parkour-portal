@@ -7,7 +7,9 @@ import {
 	votes,
 	trainingSpotVotes,
 	trainingSessionRsvp,
-	trainingSessionWeekdayOverride
+	trainingSessionWeekdayOverride,
+	spotChallengeCompletions,
+	spotChallenges
 } from '$lib/server/db/schema';
 import { isImplicitEffectiveAbsent } from '$lib/server/trainingAttendance';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
@@ -15,6 +17,7 @@ import { and, asc, eq, gte, lt, sql } from 'drizzle-orm';
 import { asNum } from '$lib/server/asSqlNumber';
 import { andWithUsersNotDeleted } from '$lib/server/usersWhere';
 import { spotsTableHasDeletedColumn } from '$lib/server/spotsTableColumns';
+import { isSpotChallengesSchemaReady } from '$lib/server/spotChallengesSchemaReady';
 
 /** Statistik startet bewusst erst ab April 2026 (März-Testdaten ausblenden). */
 const STATS_START_DATE = '2026-04-01';
@@ -29,6 +32,9 @@ export type UserTrainingStats = {
 	streakNoAbsence: number;
 	spotsSuggested: number;
 	spotStarVotes: number;
+	challengesCompleted: number;
+	totalChallenges: number;
+	challengeProgressPercent: number;
 };
 
 export type MonthGroupRow = {
@@ -178,6 +184,24 @@ export function computeTrainingStats(): TrainingStatsPayload {
 	}
 	const avgPulledPerSession =
 		pastSessionCount > 0 ? Math.round((totalPulled / pastSessionCount) * 10) / 10 : 0;
+	const challengesReady = isSpotChallengesSchemaReady();
+	const totalChallenges = challengesReady
+		? asNum(
+				db
+					.select({ c: sql<number>`count(*)` })
+					.from(spotChallenges)
+					.get()?.c ?? 0
+			)
+		: 0;
+	const challengeCompletionsByUser = new Map<number, number>();
+	if (challengesReady) {
+		const rows = db
+			.select({ uid: spotChallengeCompletions.userId, c: sql<number>`count(*)` })
+			.from(spotChallengeCompletions)
+			.groupBy(spotChallengeCompletions.userId)
+			.all();
+		for (const row of rows) challengeCompletionsByUser.set(asNum(row.uid), asNum(row.c));
+	}
 
 	const leaderboard: UserTrainingStats[] = [];
 
@@ -214,7 +238,13 @@ export function computeTrainingStats(): TrainingStatsPayload {
 			showUpPercent,
 			streakNoAbsence: streak,
 			spotsSuggested: spotCountMap.get(uid) ?? 0,
-			spotStarVotes: voteCountMap.get(uid) ?? 0
+			spotStarVotes: voteCountMap.get(uid) ?? 0,
+			challengesCompleted: challengeCompletionsByUser.get(uid) ?? 0,
+			totalChallenges,
+			challengeProgressPercent:
+				totalChallenges > 0
+					? Math.round(((challengeCompletionsByUser.get(uid) ?? 0) / totalChallenges) * 100)
+					: 0
 		});
 	}
 
@@ -262,7 +292,13 @@ export function computeTrainingStats(): TrainingStatsPayload {
 				showUpPercent,
 				streakNoAbsence: streak,
 				spotsSuggested: spotCountMap.get(uidM) ?? 0,
-				spotStarVotes: voteCountMap.get(uidM) ?? 0
+				spotStarVotes: voteCountMap.get(uidM) ?? 0,
+				challengesCompleted: challengeCompletionsByUser.get(uidM) ?? 0,
+				totalChallenges,
+				challengeProgressPercent:
+					totalChallenges > 0
+						? Math.round(((challengeCompletionsByUser.get(uidM) ?? 0) / totalChallenges) * 100)
+						: 0
 			});
 		}
 
@@ -387,6 +423,24 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 	const totalPulled = Math.max(0, totalPossible - totalAbsences);
 	const avgPulledPerSession =
 		pastSessionCount > 0 ? Math.round((totalPulled / pastSessionCount) * 10) / 10 : 0;
+	const challengesReady = isSpotChallengesSchemaReady();
+	const totalChallenges = challengesReady
+		? asNum(
+				db
+					.select({ c: sql<number>`count(*)` })
+					.from(spotChallenges)
+					.get()?.c ?? 0
+			)
+		: 0;
+	const challengeCompletionsByUser = new Map<number, number>();
+	if (challengesReady) {
+		const rows = db
+			.select({ uid: spotChallengeCompletions.userId, c: sql<number>`count(*)` })
+			.from(spotChallengeCompletions)
+			.groupBy(spotChallengeCompletions.userId)
+			.all();
+		for (const row of rows) challengeCompletionsByUser.set(asNum(row.uid), asNum(row.c));
+	}
 
 	const leaderboard: UserTrainingStats[] = [];
 
@@ -418,7 +472,13 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 			showUpPercent,
 			streakNoAbsence: streak,
 			spotsSuggested: spotCountMap.get(uidL) ?? 0,
-			spotStarVotes: voteCountMap.get(uidL) ?? 0
+			spotStarVotes: voteCountMap.get(uidL) ?? 0,
+			challengesCompleted: challengeCompletionsByUser.get(uidL) ?? 0,
+			totalChallenges,
+			challengeProgressPercent:
+				totalChallenges > 0
+					? Math.round(((challengeCompletionsByUser.get(uidL) ?? 0) / totalChallenges) * 100)
+					: 0
 		});
 	}
 
@@ -460,7 +520,13 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 				showUpPercent,
 				streakNoAbsence: streak,
 				spotsSuggested: spotCountMap.get(uidLb) ?? 0,
-				spotStarVotes: voteCountMap.get(uidLb) ?? 0
+				spotStarVotes: voteCountMap.get(uidLb) ?? 0,
+				challengesCompleted: challengeCompletionsByUser.get(uidLb) ?? 0,
+				totalChallenges,
+				challengeProgressPercent:
+					totalChallenges > 0
+						? Math.round(((challengeCompletionsByUser.get(uidLb) ?? 0) / totalChallenges) * 100)
+						: 0
 			});
 		}
 
