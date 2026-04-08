@@ -32,6 +32,10 @@
 	let showDeleteConfirm = $state(false);
 	let showImageDeleteConfirm = $state<number | null>(null);
 	let deleting = $state(false);
+	let challengeTitle = $state('');
+	let challengeDescription = $state('');
+	let challengeBusy = $state(false);
+	let challengeError = $state('');
 
 	let editing = $state(false);
 	let editName = $state('');
@@ -205,6 +209,65 @@
 		});
 		await invalidateAll();
 	}
+
+	async function createChallenge() {
+		challengeError = '';
+		const title = challengeTitle.trim();
+		const description = challengeDescription.trim();
+		if (!title) {
+			challengeError = 'Bitte einen Challenge-Titel eingeben.';
+			return;
+		}
+
+		challengeBusy = true;
+		try {
+			const res = await fetch('/api/spots/challenges', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ spotId: data.spot.id, title, description })
+			});
+			const result = await res.json();
+			if (!res.ok) {
+				challengeError = result.error || 'Challenge konnte nicht erstellt werden.';
+				return;
+			}
+			challengeTitle = '';
+			challengeDescription = '';
+			await invalidateAll();
+		} finally {
+			challengeBusy = false;
+		}
+	}
+
+	async function setChallengeDone(challengeId: number, done: boolean) {
+		challengeBusy = true;
+		try {
+			const res = await fetch('/api/spots/challenges', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ challengeId, done })
+			});
+			if (res.ok) await invalidateAll();
+		} finally {
+			challengeBusy = false;
+		}
+	}
+
+	async function deleteChallenge(challengeId: number) {
+		const ok = confirm('Challenge wirklich löschen?');
+		if (!ok) return;
+		challengeBusy = true;
+		try {
+			const res = await fetch('/api/spots/challenges', {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ challengeId })
+			});
+			if (res.ok) await invalidateAll();
+		} finally {
+			challengeBusy = false;
+		}
+	}
 </script>
 
 {#if showDeleteConfirm}
@@ -253,7 +316,7 @@
 {/if}
 
 <div class="space-y-6">
-	<a href="/spots" class="text-text-secondary hover:text-accent text-sm transition-colors">← Zurück zu Spots</a>
+	<a href="/spots" class="btn-link btn-link-ghost">← Zurück zu Spots</a>
 
 	{#if data.spot.deleted}
 		<div class="bg-warning/10 border border-warning/30 text-warning rounded-lg p-3 text-sm">
@@ -354,6 +417,32 @@
 				<label for="edit-desc" class="block text-text-secondary text-sm font-medium mb-1">Beschreibung</label>
 				<textarea id="edit-desc" bind:value={editDescription} rows="3"
 					class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-accent resize-none"></textarea>
+			</div>
+
+			<div class="border-t border-border pt-5 space-y-3">
+				<p class="text-text-secondary text-sm font-medium">Spot-Challenges verwalten</p>
+				<input
+					type="text"
+					bind:value={challengeTitle}
+					placeholder="z.B. Drop vom Dach"
+					class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-accent"
+				/>
+				<textarea
+					bind:value={challengeDescription}
+					rows="2"
+					placeholder="Optional: Bitte präziser erklären falls nötig"
+					class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-accent resize-none"
+				></textarea>
+				{#if challengeError}
+					<p class="text-danger text-xs">{challengeError}</p>
+				{/if}
+				<button
+					onclick={createChallenge}
+					disabled={challengeBusy}
+					class="px-4 py-2 rounded-lg text-sm font-medium text-[#0c0c0e] bg-accent hover:bg-accent-hover transition-colors disabled:opacity-50 cursor-pointer"
+				>
+					{challengeBusy ? '...' : '+ Challenge anlegen'}
+				</button>
 			</div>
 
 			<button onclick={saveEdit} disabled={saving}
@@ -463,22 +552,82 @@
 		{/if}
 
 			<div class="mt-6 pt-6 border-t border-border">
-				<div class="flex items-center justify-between mb-3">
-					<h3 class="text-lg font-semibold text-text-primary">Bilder</h3>
-					<label class="bg-bg-secondary hover:bg-bg-hover border border-border px-4 py-2 rounded-lg text-sm text-text-primary transition-colors cursor-pointer {uploading ? 'opacity-50 pointer-events-none' : ''}">
-						{uploading ? 'Wird hochgeladen...' : '+ Bild hochladen'}
-						<input
-							bind:this={fileInput}
-							type="file"
-							accept="image/jpeg,image/png,image/webp"
-							class="hidden"
-							onchange={uploadImage}
-							disabled={uploading}
-						/>
-					</label>
-				</div>
+				<h3 class="text-lg font-semibold text-text-primary mb-3">Bilder</h3>
 				{#if data.images.length === 0}
-					<p class="text-text-muted text-sm">Noch keine Bilder. Sei der Erste!</p>
+					<p class="text-text-muted text-sm">Noch keine Bilder.</p>
+				{/if}
+			</div>
+
+			<div class="mt-6 pt-6 border-t border-border space-y-4">
+				<div class="flex items-center justify-between gap-3">
+					<h3 class="text-lg font-semibold text-text-primary">Spot-Challenges</h3>
+					<span class="text-xs text-text-muted">{data.challenges.length} insgesamt</span>
+				</div>
+
+				{#if data.challenges.length === 0}
+					<p class="text-text-muted text-sm">Noch keine Challenges</p>
+				{:else}
+					<div class="space-y-3">
+						{#each data.challenges as challenge}
+							<div class="bg-bg-secondary rounded-xl border border-border p-4 space-y-3">
+								<div class="flex items-start justify-between gap-3">
+									<div>
+										<p class="text-text-primary font-medium">{challenge.title}</p>
+										{#if challenge.description}
+											<p class="text-text-secondary text-sm mt-1">{challenge.description}</p>
+										{/if}
+										<p class="text-text-muted text-xs mt-2">
+											Von {challenge.createdByName} · {challenge.doneCount} geschafft · {challenge.openCount} offen
+										</p>
+									</div>
+									<div class="flex items-center gap-2">
+										<button
+											onclick={() => setChallengeDone(challenge.id, !challenge.doneBy.some((u) => u.userId === data.user?.id))}
+											disabled={challengeBusy}
+											class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 {challenge.doneBy.some((u) => u.userId === data.user?.id) ? 'bg-success/15 text-success hover:bg-success/25' : 'bg-accent/15 text-accent hover:bg-accent/25'}"
+										>
+											{challenge.doneBy.some((u) => u.userId === data.user?.id) ? '✓ Erledigt' : 'Als erledigt markieren'}
+										</button>
+										{#if challenge.createdBy === data.user?.id || canEditSpots}
+											<button
+												onclick={() => deleteChallenge(challenge.id)}
+												disabled={challengeBusy}
+												class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-danger/10 text-danger hover:bg-danger/20 transition-colors cursor-pointer disabled:opacity-50"
+											>
+												Löschen
+											</button>
+										{/if}
+									</div>
+								</div>
+								<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+									<div>
+										<p class="text-text-muted text-xs uppercase tracking-wide mb-1">Schon erledigt</p>
+										{#if challenge.doneBy.length === 0}
+											<p class="text-text-muted text-xs">Noch niemand.</p>
+										{:else}
+											<div class="flex flex-wrap gap-1.5">
+												{#each challenge.doneBy as user}
+													<span class="bg-success/10 text-success text-xs px-2.5 py-1 rounded-full">{user.username}</span>
+												{/each}
+											</div>
+										{/if}
+									</div>
+									<div>
+										<p class="text-text-muted text-xs uppercase tracking-wide mb-1">Noch offen</p>
+										{#if challenge.openBy.length === 0}
+											<p class="text-success text-xs font-medium">Alle haben es geschafft 🎉</p>
+										{:else}
+											<div class="flex flex-wrap gap-1.5">
+												{#each challenge.openBy as user}
+													<span class="bg-warning/10 text-warning text-xs px-2.5 py-1 rounded-full">{user.username}</span>
+												{/each}
+											</div>
+										{/if}
+									</div>
+								</div>
+							</div>
+						{/each}
+					</div>
 				{/if}
 			</div>
 
