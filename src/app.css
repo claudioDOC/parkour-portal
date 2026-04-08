@@ -56,6 +56,14 @@ html {
 	min-height: 100%;
 }
 
+/* Mobile: Hash-Links (#session-…) unter fixer Top-Bar sichtbar; unten Platz fürs PWA-Install-Banner */
+@media (max-width: 767px) {
+	html {
+		scroll-padding-top: 4.5rem;
+		scroll-padding-bottom: 7rem;
+	}
+}
+
 body {
 	background-color: transparent;
 	color: var(--color-text-primary);

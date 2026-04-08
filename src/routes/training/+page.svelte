@@ -60,7 +60,10 @@
 	<div class="space-y-4">
 		{#each data.sessions as session}
 			{@const past = isPast(session.date)}
-			<div id="session-{session.id}" class="bg-bg-card rounded-xl border border-border overflow-hidden {past ? 'opacity-60' : ''}">
+			<div
+				id="session-{session.id}"
+				class="scroll-mt-[4.5rem] md:scroll-mt-0 bg-bg-card rounded-xl border border-border overflow-hidden {past ? 'opacity-60' : ''}"
+			>
 				<div class="p-5">
 				<div class="flex items-start justify-between gap-4">
 						<div>
