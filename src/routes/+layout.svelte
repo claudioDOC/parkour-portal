@@ -86,7 +86,7 @@
 		<header
 			class="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-border bg-bg-secondary/95 px-4 py-3 backdrop-blur-md"
 		>
-			<div class="flex items-center gap-2.5">
+			<a href="/" class="flex items-center gap-2.5" aria-label="Zum Dashboard">
 				<div
 					class="urban-cut flex h-9 w-9 shrink-0 items-center justify-center bg-gradient-to-br from-accent from-25% to-accent-hot font-display text-lg font-bold leading-none text-[#0c0c0e] shadow-md shadow-accent/35 ring-1 ring-white/20"
 				>
@@ -96,7 +96,7 @@
 					<h1 class="font-display text-xl font-semibold uppercase tracking-[0.14em] text-text-primary">Parkour</h1>
 					<p class="font-display text-[11px] uppercase tracking-[0.28em] text-accent-hot/90">Portal</p>
 				</div>
-			</div>
+			</a>
 			<button
 				type="button"
 				onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
@@ -182,7 +182,7 @@
 			class="max-md:hidden fixed top-0 bottom-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-bg-secondary/95 shadow-[var(--shadow-nav)] backdrop-blur-md"
 		>
 			<div class="border-b border-border bg-gradient-to-b from-white/[0.03] to-transparent px-5 pb-5 pt-7">
-				<div class="flex items-center gap-3">
+				<a href="/" class="flex items-center gap-3" aria-label="Zum Dashboard">
 					<div
 						class="urban-cut flex h-11 w-11 items-center justify-center bg-gradient-to-br from-accent from-25% to-accent-hot font-display text-2xl font-bold leading-none text-[#0c0c0e] shadow-lg shadow-accent/35 ring-1 ring-white/25"
 					>
@@ -192,7 +192,7 @@
 						<h1 class="font-display text-3xl font-semibold uppercase tracking-[0.12em] text-text-primary">Parkour</h1>
 						<p class="font-display text-xs uppercase tracking-[0.32em] text-accent-hot">Portal</p>
 					</div>
-				</div>
+				</a>
 			</div>
 
 			<nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-4">

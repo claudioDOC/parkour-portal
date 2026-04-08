@@ -47,8 +47,15 @@
 		</div>
 		<div class="space-y-3">
 			{#each data.nextTrainings as session}
-				<div class="card-surface card-surface-lift p-5 md:p-6">
-					<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+				<div class="card-surface card-surface-lift relative p-5 md:p-6">
+					<a
+						href="/training#session-{session.id}"
+						class="absolute inset-0 z-0 rounded-[0.625rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-bg-card"
+						aria-label="Training {session.dayOfWeek} {formatDate(session.date)} im Training-Tab öffnen"
+					>
+						<span class="sr-only">Zum Training im Tab öffnen</span>
+					</a>
+					<div class="pointer-events-none relative z-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center gap-2 flex-wrap">
 								<span class="font-semibold text-text-primary">{session.dayOfWeek}</span>
@@ -60,7 +67,10 @@
 							{#if session.topVote}
 								<p class="text-accent text-sm mt-2 font-medium">
 									Spot:
-									<a href="/spots/{session.topVote.spotId}" class="hover:underline">{session.topVote.spotName}</a>
+									<a
+										href="/spots/{session.topVote.spotId}"
+										class="pointer-events-auto relative z-20 hover:underline"
+									>{session.topVote.spotName}</a>
 									({session.topVote.spotCity}) &middot; {formatStimmen(session.topVote.voteCount)}
 								</p>
 							{:else}
@@ -116,7 +126,7 @@
 		</div>
 		<a
 			href="/training"
-			class="inline-flex items-center gap-1 text-sm font-medium text-accent transition-colors hover:text-accent-hover hover:underline"
+			class="btn-link btn-link-secondary"
 		>
 			Alle Trainings &amp; Spot-Voting
 			<span aria-hidden="true">→</span>
@@ -156,7 +166,7 @@
 		</div>
 		<a
 			href="/spots"
-			class="inline-flex items-center gap-1 text-sm font-medium text-accent transition-colors hover:text-accent-hover hover:underline"
+			class="btn-link btn-link-secondary"
 		>
 			Alle Spots anzeigen
 			<span aria-hidden="true">→</span>

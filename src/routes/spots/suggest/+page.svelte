@@ -181,7 +181,7 @@
 
 <div class="space-y-6 max-w-2xl">
 	<div>
-		<a href="/spots" class="text-text-secondary hover:text-accent text-sm transition-colors">← Zurück zu Spots</a>
+		<a href="/spots" class="btn-link btn-link-ghost">← Zurück zu Spots</a>
 		<h2 class="text-2xl font-bold text-text-primary mt-2">Spot hinzufügen</h2>
 		<p class="text-text-secondary mt-1">Neuen Spot für die Gruppe eintragen.</p>
 	</div>

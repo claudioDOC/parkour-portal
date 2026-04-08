@@ -5,15 +5,19 @@ import {
 	absences,
 	spots,
 	votes,
+	trainingSpotVotes,
 	trainingSessionRsvp,
 	trainingSessionWeekdayOverride
 } from '$lib/server/db/schema';
 import { isImplicitEffectiveAbsent } from '$lib/server/trainingAttendance';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
-import { eq, lt, asc, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, lt, sql } from 'drizzle-orm';
 import { asNum } from '$lib/server/asSqlNumber';
 import { andWithUsersNotDeleted } from '$lib/server/usersWhere';
 import { spotsTableHasDeletedColumn } from '$lib/server/spotsTableColumns';
+
+/** Statistik startet bewusst erst ab April 2026 (März-Testdaten ausblenden). */
+const STATS_START_DATE = '2026-04-01';
 
 export type UserTrainingStats = {
 	userId: number;
@@ -47,12 +51,20 @@ export type TrainingStatsPayload = {
 	group: {
 		pastSessionCount: number;
 		totalAbsences: number;
-		avgAbsencesPerSession: number;
+		avgPulledPerSession: number;
 		memberCount: number;
 	};
 	monthly: MonthGroupRow[];
 	monthDetail: MonthLeaderboard[];
 	leaderboard: UserTrainingStats[];
+	spotUsageEvents: {
+		sessionId: number;
+		date: string;
+		spotId: number;
+		spotName: string;
+		spotCity: string;
+		voteCount: number;
+	}[];
 };
 
 function userStartDate(createdAt: string | null | undefined): string {
@@ -80,7 +92,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 	const pastSessions = db
 		.select()
 		.from(trainingSessions)
-		.where(lt(trainingSessions.date, today))
+		.where(and(gte(trainingSessions.date, STATS_START_DATE), lt(trainingSessions.date, today)))
 		.orderBy(asc(trainingSessions.date))
 		.all();
 
@@ -157,13 +169,15 @@ export function computeTrainingStats(): TrainingStatsPayload {
 
 	const pastSessionCount = pastSessions.length;
 	let totalAbsences = 0;
+	let totalPulled = 0;
 	for (const s of pastSessions) {
 		for (const u of members) {
 			if (isImplicitEffectiveAbsent(u, s, absencePairs, overridePairs)) totalAbsences++;
+			else totalPulled++;
 		}
 	}
-	const avgAbsencesPerSession =
-		pastSessionCount > 0 ? Math.round((totalAbsences / pastSessionCount) * 10) / 10 : 0;
+	const avgPulledPerSession =
+		pastSessionCount > 0 ? Math.round((totalPulled / pastSessionCount) * 10) / 10 : 0;
 
 	const leaderboard: UserTrainingStats[] = [];
 
@@ -208,6 +222,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 
 	const monthKeys = [...new Set(pastSessions.map((s) => s.date.slice(0, 7)))].sort();
 	const monthDetail: MonthLeaderboard[] = [];
+	const spotUsageEvents: TrainingStatsPayload['spotUsageEvents'] = [];
 
 	for (const key of monthKeys) {
 		const sessionsInMonth = pastSessions.filter((s) => s.date.startsWith(key));
@@ -261,17 +276,44 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		});
 	}
 
+	for (const s of pastSessions) {
+		const topSpot = db
+			.select({
+				spotId: trainingSpotVotes.spotId,
+				spotName: spots.name,
+				spotCity: spots.city,
+				voteCount: sql<number>`COUNT(${trainingSpotVotes.id})`.as('vote_count')
+			})
+			.from(trainingSpotVotes)
+			.innerJoin(spots, eq(trainingSpotVotes.spotId, spots.id))
+			.where(eq(trainingSpotVotes.sessionId, s.id))
+			.groupBy(trainingSpotVotes.spotId)
+			.orderBy(sql`vote_count DESC`, asc(trainingSpotVotes.spotId))
+			.limit(1)
+			.get();
+		if (!topSpot) continue;
+		spotUsageEvents.push({
+			sessionId: s.id,
+			date: s.date,
+			spotId: topSpot.spotId,
+			spotName: topSpot.spotName,
+			spotCity: topSpot.spotCity,
+			voteCount: asNum(topSpot.voteCount)
+		});
+	}
+
 	return {
 		today,
 		group: {
 			pastSessionCount,
 			totalAbsences,
-			avgAbsencesPerSession,
+			avgPulledPerSession,
 			memberCount: members.length
 		},
 		monthly,
 		monthDetail,
-		leaderboard
+		leaderboard,
+		spotUsageEvents
 	};
 }
 
@@ -282,7 +324,7 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 	const pastSessions = db
 		.select()
 		.from(trainingSessions)
-		.where(lt(trainingSessions.date, today))
+		.where(and(gte(trainingSessions.date, STATS_START_DATE), lt(trainingSessions.date, today)))
 		.orderBy(asc(trainingSessions.date))
 		.all();
 
@@ -341,8 +383,10 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 
 	const pastSessionCount = pastSessions.length;
 	const totalAbsences = allAbsences.filter((a) => pastSessions.some((s) => s.id === a.sessionId)).length;
-	const avgAbsencesPerSession =
-		pastSessionCount > 0 ? Math.round((totalAbsences / pastSessionCount) * 10) / 10 : 0;
+	const totalPossible = pastSessionCount * members.length;
+	const totalPulled = Math.max(0, totalPossible - totalAbsences);
+	const avgPulledPerSession =
+		pastSessionCount > 0 ? Math.round((totalPulled / pastSessionCount) * 10) / 10 : 0;
 
 	const leaderboard: UserTrainingStats[] = [];
 
@@ -382,6 +426,7 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 
 	const monthKeys = [...new Set(pastSessions.map((s) => s.date.slice(0, 7)))].sort();
 	const monthDetail: MonthLeaderboard[] = [];
+	const spotUsageEvents: TrainingStatsPayload['spotUsageEvents'] = [];
 
 	for (const key of monthKeys) {
 		const sessionsInMonth = pastSessions.filter((s) => s.date.startsWith(key));
@@ -429,17 +474,44 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 		});
 	}
 
+	for (const s of pastSessions) {
+		const topSpot = db
+			.select({
+				spotId: trainingSpotVotes.spotId,
+				spotName: spots.name,
+				spotCity: spots.city,
+				voteCount: sql<number>`COUNT(${trainingSpotVotes.id})`.as('vote_count')
+			})
+			.from(trainingSpotVotes)
+			.innerJoin(spots, eq(trainingSpotVotes.spotId, spots.id))
+			.where(eq(trainingSpotVotes.sessionId, s.id))
+			.groupBy(trainingSpotVotes.spotId)
+			.orderBy(sql`vote_count DESC`, asc(trainingSpotVotes.spotId))
+			.limit(1)
+			.get();
+		if (!topSpot) continue;
+		spotUsageEvents.push({
+			sessionId: s.id,
+			date: s.date,
+			spotId: topSpot.spotId,
+			spotName: topSpot.spotName,
+			spotCity: topSpot.spotCity,
+			voteCount: asNum(topSpot.voteCount)
+		});
+	}
+
 	return {
 		today,
 		group: {
 			pastSessionCount,
 			totalAbsences,
-			avgAbsencesPerSession,
+			avgPulledPerSession,
 			memberCount: members.length
 		},
 		monthly,
 		monthDetail,
-		leaderboard
+		leaderboard,
+		spotUsageEvents
 	};
 }
 
