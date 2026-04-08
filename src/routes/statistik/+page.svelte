@@ -197,8 +197,8 @@
 			{/if}
 
 			<div class="rounded-xl border border-border overflow-hidden">
-				<div class="overflow-x-auto">
-					<table class="w-full text-sm text-left min-w-[720px]">
+				<div>
+					<table class="w-full text-sm text-left">
 						<thead class="bg-bg-secondary text-text-muted text-xs uppercase tracking-wide">
 							<tr>
 								<th class="px-3 py-2 font-medium">#</th>
@@ -208,8 +208,7 @@
 								<th class="px-3 py-2 font-medium text-right">Gezogen</th>
 								<th class="px-3 py-2 font-medium text-right">Gezogen %</th>
 								<th class="px-3 py-2 font-medium text-right">Streak</th>
-								<th class="px-3 py-2 font-medium text-right">Spots</th>
-								<th class="px-3 py-2 font-medium text-right">Sterne</th>
+								<th class="px-3 py-2 font-medium">Challenges</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-border">
@@ -228,8 +227,19 @@
 									<td class="px-3 py-2 text-right font-medium text-success">{row.implicitPresent}</td>
 									<td class="px-3 py-2 text-right font-semibold text-accent">{row.showUpPercent}%</td>
 									<td class="px-3 py-2 text-right text-text-secondary">{row.streakNoAbsence}</td>
-									<td class="px-3 py-2 text-right text-text-muted">{row.spotsSuggested}</td>
-									<td class="px-3 py-2 text-right text-text-muted">{row.spotStarVotes}</td>
+									<td class="px-3 py-2">
+										<div class="flex items-center gap-2">
+											<span class="text-text-secondary text-xs whitespace-nowrap">
+												{row.challengesCompleted}/{row.totalChallenges}
+											</span>
+											<div class="h-2 w-24 rounded-full bg-bg-secondary overflow-hidden">
+												<div
+													class="h-full bg-accent transition-all"
+													style="width: {row.challengeProgressPercent}%"
+												></div>
+											</div>
+										</div>
+									</td>
 								</tr>
 							{/each}
 						</tbody>

@@ -4,10 +4,21 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { spots, spotChallenges, spotChallengeCompletions } from '$lib/server/db/schema';
 import { logAudit } from '$lib/server/audit';
+import { isSpotChallengesSchemaReady } from '$lib/server/spotChallengesSchemaReady';
+
+function schemaNotReadyResponse() {
+	return json(
+		{
+			error: 'Challenges sind noch nicht verfügbar. Auf dem Server zuerst `npm run db:migrate` ausführen (Migration 0007).'
+		},
+		{ status: 503 }
+	);
+}
 
 export const POST: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
+	if (!isSpotChallengesSchemaReady()) return schemaNotReadyResponse();
 
 	const body = await request.json();
 	const spotId = Number(body?.spotId);
@@ -55,6 +66,7 @@ export const POST: RequestHandler = async (event) => {
 export const PATCH: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
+	if (!isSpotChallengesSchemaReady()) return schemaNotReadyResponse();
 
 	const body = await request.json();
 	const challengeId = Number(body?.challengeId);
@@ -126,6 +138,7 @@ export const PATCH: RequestHandler = async (event) => {
 export const DELETE: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
+	if (!isSpotChallengesSchemaReady()) return schemaNotReadyResponse();
 
 	const body = await request.json();
 	const challengeId = Number(body?.challengeId);
