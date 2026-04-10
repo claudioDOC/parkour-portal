@@ -1,5 +1,6 @@
 /**
- * Wendet ausstehende SQL-Migrationen aus ./drizzle auf data/parkour.db an.
+ * Wendet ausstehende SQL-Migrationen aus `drizzle/` auf die SQLite-Datei an.
+ * Pfad: `PARKOUR_DATABASE_PATH` oder fest das Repo-`data/parkour.db` (nicht abhängig vom Shell-cwd).
  * Auf dem VPS nach git pull ausführen, wenn die App HTTP 500 wirft (z. B. "no such column: deleted").
  */
 import Database from 'better-sqlite3';
@@ -9,13 +10,22 @@ import * as schema from './schema';
 import { resetUsersTableColumnCache } from '$lib/server/usersTableColumns';
 import { resetSpotsTableColumnCache } from '$lib/server/spotsTableColumns';
 import { existsSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
 import { readFileSync } from 'fs';
 import { createHash } from 'crypto';
+import { drizzleFolderForCli, resolveSqlitePathForCli, SQLITE_PATH_ENV } from './sqlitePath';
 
-const DB_PATH = './data/parkour.db';
+const DB_PATH = resolveSqlitePathForCli(import.meta.url);
+const DRIZZLE_DIR = drizzleFolderForCli(import.meta.url);
 const dir = dirname(DB_PATH);
 if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+console.log(`[db:migrate] SQLite-Datei: ${DB_PATH}`);
+if (!process.env[SQLITE_PATH_ENV]?.trim()) {
+	console.log(
+		`[db:migrate] App-Prozess nutzt cwd/data/parkour.db — bei abweichendem WorkingDirectory bitte ${SQLITE_PATH_ENV} setzen (README).`
+	);
+}
 
 const sqlite = new Database(DB_PATH);
 sqlite.pragma('journal_mode = WAL');
@@ -42,7 +52,7 @@ function repairLegacyMigrationDrift() {
 	type Journal = {
 		entries: { when: number; tag: string }[];
 	};
-	const journal = JSON.parse(readFileSync('./drizzle/meta/_journal.json', 'utf8')) as Journal;
+	const journal = JSON.parse(readFileSync(join(DRIZZLE_DIR, 'meta/_journal.json'), 'utf8')) as Journal;
 	const appliedRows = sqlite
 		.prepare(`SELECT hash FROM __drizzle_migrations`)
 		.all() as { hash: string }[];
@@ -79,7 +89,7 @@ function repairLegacyMigrationDrift() {
 	];
 
 	for (const c of candidates) {
-		const hash = fileHash(`./drizzle/${c.tag}.sql`);
+		const hash = fileHash(join(DRIZZLE_DIR, `${c.tag}.sql`));
 		if (applied.has(hash)) continue;
 		if (!c.schemaAlreadyThere()) continue;
 		const entry = journal.entries.find((e) => e.tag === c.tag);
@@ -94,7 +104,7 @@ function repairLegacyMigrationDrift() {
 repairLegacyMigrationDrift();
 
 const db = drizzle(sqlite, { schema });
-migrate(db, { migrationsFolder: './drizzle' });
+migrate(db, { migrationsFolder: DRIZZLE_DIR });
 resetUsersTableColumnCache();
 resetSpotsTableColumnCache();
 sqlite.close();
