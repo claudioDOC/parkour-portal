@@ -197,8 +197,8 @@
 			{/if}
 
 			<div class="rounded-xl border border-border overflow-hidden">
-				<div>
-					<table class="w-full text-sm text-left">
+				<div class="overflow-x-auto">
+					<table class="w-full text-sm text-left min-w-[760px]">
 						<thead class="bg-bg-secondary text-text-muted text-xs uppercase tracking-wide">
 							<tr>
 								<th class="px-3 py-2 font-medium">#</th>

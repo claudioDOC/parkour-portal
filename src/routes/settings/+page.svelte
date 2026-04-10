@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
 	import type { PageData } from './$types';
 
@@ -8,13 +9,10 @@
 	let newPassword = $state('');
 	let confirmPassword = $state('');
 	let error = $state('');
-	let success = $state('');
 	let loading = $state(false);
 
-	async function changePassword(e: Event) {
-		e.preventDefault();
+	async function changePassword() {
 		error = '';
-		success = '';
 
 		if (newPassword !== confirmPassword) {
 			error = 'Passwörter stimmen nicht überein';
@@ -31,20 +29,30 @@
 			const res = await fetch('/api/auth/change-password', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
+				credentials: 'include',
 				body: JSON.stringify({ currentPassword, newPassword })
 			});
 
-			const result = await res.json();
-
-			if (!res.ok) {
-				error = result.error;
+			const raw = await res.text();
+			let result: { error?: string } = {};
+			try {
+				result = raw ? JSON.parse(raw) : {};
+			} catch {
+				error =
+					res.status >= 400
+						? `Anfrage fehlgeschlagen (${res.status}). Ist die App erreichbar?`
+						: 'Unerwartete Server-Antwort';
 				return;
 			}
 
-			success = 'Passwort erfolgreich geändert!';
-			currentPassword = '';
-			newPassword = '';
-			confirmPassword = '';
+			if (!res.ok) {
+				error =
+					(typeof result.error === 'string' && result.error) ||
+					`Fehler ${res.status}`;
+				return;
+			}
+
+			await goto('/login?pw=changed');
 		} catch {
 			error = 'Verbindungsfehler';
 		} finally {
@@ -60,16 +68,21 @@
 	</div>
 
 	<div class="bg-bg-card rounded-xl border border-border p-6">
-		<h3 class="text-lg font-semibold text-text-primary mb-4">Passwort ändern</h3>
+		<h3 class="text-lg font-semibold text-text-primary mb-2">Passwort ändern</h3>
+		<p class="text-text-muted text-sm mb-4">
+			Nach dem Speichern wirst du abgemeldet und meldest dich mit dem neuen Passwort wieder an.
+		</p>
 
-		<form onsubmit={changePassword} class="space-y-4">
+		<form
+			class="space-y-4"
+			onsubmit={(e) => {
+				e.preventDefault();
+				void changePassword();
+			}}
+		>
 			{#if error}
 				<div class="bg-danger/10 border border-danger/30 text-danger rounded-lg p-3 text-sm">{error}</div>
 			{/if}
-			{#if success}
-				<div class="bg-success/10 border border-success/30 text-success rounded-lg p-3 text-sm">{success}</div>
-			{/if}
-
 			<div>
 				<label for="current" class="block text-text-secondary text-sm font-medium mb-2">Aktuelles Passwort</label>
 				<input id="current" type="password" bind:value={currentPassword} required
@@ -93,8 +106,11 @@
 					class="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors" />
 			</div>
 
-			<button type="submit" disabled={loading}
-				class="w-full cursor-pointer rounded-lg bg-accent px-4 py-3 font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50">
+			<button
+				type="submit"
+				disabled={loading}
+				class="w-full cursor-pointer rounded-lg bg-accent px-4 py-3 font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50"
+			>
 				{loading ? 'Wird geändert...' : 'Passwort ändern'}
 			</button>
 		</form>

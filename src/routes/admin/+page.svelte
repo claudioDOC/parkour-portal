@@ -95,6 +95,7 @@
 	let spotMessage = $state('');
 	let confirmSpot = $state<{ action: string; spot: Spot } | null>(null);
 	let userBinModal = $state<null | { mode: 'to_trash' | 'restore' | 'purge'; user: User }>(null);
+	let challengePurgeModal = $state<TrashedChallenge | null>(null);
 
 	type SystemStats = {
 		hostname: string;
@@ -162,6 +163,7 @@
 		'spot.challenge.uncomplete': 'Spot-Challenge Erledigung zurückgenommen',
 		'spot.challenge.delete': 'Spot-Challenge in Papierkorb',
 		'spot.challenge.restore': 'Spot-Challenge wiederhergestellt',
+		'spot.challenge.purge': 'Spot-Challenge endgültig gelöscht',
 		'training.absence': 'Training: Zieht nicht',
 		'training.absence.cancel': 'Training: Abmeldung zurückgenommen',
 		'training.rsvp_yes': 'Training: Zusage',
@@ -662,6 +664,25 @@
 		setTimeout(() => (userMessage = ''), 3000);
 	}
 
+	async function purgeTrashedChallenge(challengeId: number) {
+		userMessage = '';
+		userError = '';
+		const res = await fetch('/api/admin/challenges', {
+			method: 'DELETE',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ challengeId })
+		});
+		const data = await res.json().catch(() => ({}));
+		if (!res.ok) {
+			userError = typeof data.error === 'string' ? data.error : `Fehler ${res.status}`;
+			return;
+		}
+		userMessage = 'Challenge endgültig gelöscht.';
+		await loadTrashedChallenges();
+		setTimeout(() => (userMessage = ''), 3000);
+	}
+
 	async function spotAction(spot: Spot, action: string) {
 		confirmSpot = null;
 		spotMessage = '';
@@ -850,6 +871,47 @@
 					</button>
 				</div>
 			{/if}
+		</div>
+	</div>
+{/if}
+
+{#if challengePurgeModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70"
+		onclick={() => (challengePurgeModal = null)}
+	>
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<div
+			class="bg-bg-card border border-border rounded-xl p-6 max-w-sm mx-4 shadow-2xl"
+			onclick={(e) => e.stopPropagation()}
+		>
+			<h3 class="text-lg font-semibold text-text-primary mb-2">Challenge endgültig löschen?</h3>
+			<p class="text-text-secondary text-sm mb-1">
+				<span class="font-medium text-text-primary">{challengePurgeModal.title}</span>
+				<span class="text-text-muted"> · {challengePurgeModal.spotName}</span>
+			</p>
+			<p class="text-danger text-xs font-medium mb-4">
+				Unwiderruflich — alle Erledigungen dieser Challenge gehen verloren.
+			</p>
+			<div class="flex gap-2 justify-end">
+				<button
+					onclick={() => (challengePurgeModal = null)}
+					class="px-4 py-2 rounded-lg text-sm text-text-secondary bg-bg-secondary hover:bg-bg-hover border border-border transition-colors cursor-pointer"
+				>
+					Abbrechen
+				</button>
+				<button
+					onclick={async () => {
+						const ch = challengePurgeModal!;
+						challengePurgeModal = null;
+						await purgeTrashedChallenge(ch.id);
+					}}
+					class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-danger hover:bg-danger/80 transition-colors cursor-pointer"
+				>
+					Endgültig löschen
+				</button>
+			</div>
 		</div>
 	</div>
 {/if}
@@ -1392,7 +1454,7 @@
 					<p class="text-text-muted text-sm">Keine Challenges im Papierkorb.</p>
 				{:else}
 					<p class="text-text-secondary text-sm mb-3">
-						Gelöschte Challenges sind weiterhin im Protokoll nachvollziehbar. Wiederherstellen blendet sie am Spot wieder ein (Erledigungen bleiben erhalten).
+						Wiederherstellen blendet die Challenge am Spot wieder ein (Erledigungen bleiben erhalten). Endgültig löschen entfernt Challenge und alle Erledigungen unwiderruflich; im Audit-Protokoll bleibt ein Eintrag.
 					</p>
 					<div class="space-y-2">
 						{#each trashedChallenges as ch}
@@ -1410,12 +1472,20 @@
 										<p class="text-text-secondary text-xs mt-2 line-clamp-2">{ch.description}</p>
 									{/if}
 								</div>
-								<button
-									onclick={() => restoreTrashedChallenge(ch.id)}
-									class="shrink-0 text-xs bg-success/10 hover:bg-success/20 border border-success/30 px-3 py-1.5 rounded-lg text-success transition-colors cursor-pointer"
-								>
-									Wiederherstellen
-								</button>
+								<div class="flex flex-wrap gap-2 shrink-0">
+									<button
+										onclick={() => restoreTrashedChallenge(ch.id)}
+										class="text-xs bg-success/10 hover:bg-success/20 border border-success/30 px-3 py-1.5 rounded-lg text-success transition-colors cursor-pointer"
+									>
+										Wiederherstellen
+									</button>
+									<button
+										onclick={() => (challengePurgeModal = ch)}
+										class="text-xs bg-danger/10 hover:bg-danger/20 border border-danger/30 px-3 py-1.5 rounded-lg text-danger transition-colors cursor-pointer"
+									>
+										Endgültig löschen
+									</button>
+								</div>
 							</div>
 						{/each}
 					</div>
