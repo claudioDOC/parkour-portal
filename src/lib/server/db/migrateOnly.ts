@@ -105,6 +105,40 @@ repairLegacyMigrationDrift();
 
 const db = drizzle(sqlite, { schema });
 migrate(db, { migrationsFolder: DRIZZLE_DIR });
+
+/**
+ * Wenn `__drizzle_migrations` einen Stand vortäuscht, den die Tabelle nicht hat
+ * (Backup, manueller Eingriff), überspringt Drizzle die SQL-Datei — Spalte fehlt trotzdem.
+ */
+function repairMissingColumnsAfterJournalDrift() {
+	if (tableExists('users') && !columnExists('users', 'session_version')) {
+		sqlite.exec(
+			'ALTER TABLE users ADD COLUMN session_version integer DEFAULT 0 NOT NULL'
+		);
+		console.log(
+			'[db:migrate] Schema-Reparatur: users.session_version ergänzt (Journal wich von der Tabelle ab).'
+		);
+	}
+	if (tableExists('spots') && !columnExists('spots', 'deleted')) {
+		sqlite.exec('ALTER TABLE spots ADD COLUMN deleted integer DEFAULT 0 NOT NULL');
+		console.log('[db:migrate] Schema-Reparatur: spots.deleted ergänzt.');
+	}
+	if (tableExists('spot_challenges')) {
+		if (!columnExists('spot_challenges', 'deleted')) {
+			sqlite.exec(
+				'ALTER TABLE spot_challenges ADD COLUMN deleted integer DEFAULT 0 NOT NULL'
+			);
+			console.log('[db:migrate] Schema-Reparatur: spot_challenges.deleted ergänzt.');
+		}
+		if (!columnExists('spot_challenges', 'deleted_at')) {
+			sqlite.exec('ALTER TABLE spot_challenges ADD COLUMN deleted_at text');
+			console.log('[db:migrate] Schema-Reparatur: spot_challenges.deleted_at ergänzt.');
+		}
+	}
+}
+
+repairMissingColumnsAfterJournalDrift();
+
 resetUsersTableColumnCache();
 resetSpotsTableColumnCache();
 sqlite.close();
