@@ -34,7 +34,7 @@
 			});
 
 			const raw = await res.text();
-			let result: { error?: string } = {};
+			let result: { error?: string; detail?: string } = {};
 			try {
 				result = raw ? JSON.parse(raw) : {};
 			} catch {
@@ -46,9 +46,13 @@
 			}
 
 			if (!res.ok) {
-				error =
-					(typeof result.error === 'string' && result.error) ||
-					`Fehler ${res.status}`;
+				const main =
+					(typeof result.error === 'string' && result.error) || `Fehler ${res.status}`;
+				const extra =
+					typeof result.detail === 'string' && result.detail && !main.includes(result.detail)
+						? ` (${result.detail})`
+						: '';
+				error = main + extra;
 				return;
 			}
 

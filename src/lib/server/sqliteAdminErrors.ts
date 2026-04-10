@@ -13,10 +13,12 @@ export function jsonFromSqliteOrSchemaError(e: unknown): ReturnType<typeof json>
 		return json({ error: READONLY_HINT }, { status: 500 });
 	}
 	if (msg.includes('no such column')) {
+		const fix =
+			'Auf dem Server: dieselbe SQLite-Datei wie die App (`PARKOUR_DATABASE_PATH` in systemd) — im Projektordner `npm run db:migrate` (Ausgabe zeigt den Pfad).';
 		return json(
 			{
-				error: 'Datenbank-Schema passt nicht zum Code.',
-				detail: `${msg} — Auf dem Server: npm run db:migrate`
+				error: `${msg.trim()} — Datenbank-Schema passt nicht zum Code. ${fix}`,
+				detail: msg.trim()
 			},
 			{ status: 503 }
 		);
