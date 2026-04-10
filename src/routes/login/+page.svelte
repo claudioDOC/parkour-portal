@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 
-	let { form }: PageProps = $props();
+	let { form, data }: PageProps = $props();
 </script>
 
 <div class="flex min-h-screen items-center justify-center px-4 py-10">
@@ -19,6 +19,11 @@
 
 		<!-- Kein use:enhance: klassischer POST → Browser wendet Set-Cookie zuverlässig an (Redirect 303 → /). -->
 		<form method="POST" class="card-surface rounded-lg p-8 ring-1 ring-white/10">
+			{#if data.flash}
+				<div class="bg-success/10 border border-success/30 text-success rounded-lg p-3 mb-6 text-sm">
+					{data.flash}
+				</div>
+			{/if}
 			{#if form?.error}
 				<div class="bg-danger/10 border border-danger/30 text-danger rounded-lg p-3 mb-6 text-sm">
 					{form.error}

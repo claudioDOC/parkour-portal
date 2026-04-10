@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { getUserCoreById } from '$lib/server/userCoreQuery';
 import { eq, sql } from 'drizzle-orm';
-import { createSession, hashPassword, verifyPassword } from '$lib/server/auth';
+import { clearSession, hashPassword, verifyPassword } from '$lib/server/auth';
 import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
 import { logAudit } from '$lib/server/audit';
 
@@ -12,7 +12,16 @@ export const POST: RequestHandler = async (event) => {
 	const { request, locals, cookies } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
-	const { currentPassword, newPassword } = await request.json();
+	let body: { currentPassword?: unknown; newPassword?: unknown };
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: 'Ungültige Anfrage (kein JSON)' }, { status: 400 });
+	}
+
+	const currentPassword =
+		typeof body.currentPassword === 'string' ? body.currentPassword : '';
+	const newPassword = typeof body.newPassword === 'string' ? body.newPassword : '';
 
 	if (!currentPassword || !newPassword) {
 		return json({ error: 'Aktuelles und neues Passwort erforderlich' }, { status: 400 });
@@ -41,34 +50,26 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const newHash = await hashPassword(newPassword);
-	db.update(users)
-		.set({
-			passwordHash: newHash,
-			sessionVersion: sql`${users.sessionVersion} + 1`
-		})
-		.where(eq(users.id, locals.user.id))
-		.run();
-
-	const fresh = db
-		.select({
-			sessionVersion: users.sessionVersion,
-			username: users.username,
-			role: users.role
-		})
-		.from(users)
-		.where(eq(users.id, locals.user.id))
-		.get();
-	if (fresh) {
-		createSession(
+	try {
+		db.update(users)
+			.set({
+				passwordHash: newHash,
+				sessionVersion: sql`${users.sessionVersion} + 1`
+			})
+			.where(eq(users.id, locals.user.id))
+			.run();
+	} catch (e) {
+		console.error('[change-password] DB-Update fehlgeschlagen', e);
+		return json(
 			{
-				id: locals.user.id,
-				username: fresh.username,
-				role: fresh.role,
-				sessionVersion: fresh.sessionVersion
+				error:
+					'Speichern fehlgeschlagen. Fehlt die Migration für session_version? (`npm run db:migrate`)'
 			},
-			cookies
+			{ status: 500 }
 		);
 	}
+
+	clearSession(cookies);
 
 	logAudit({
 		event,
@@ -77,5 +78,5 @@ export const POST: RequestHandler = async (event) => {
 		actorUsername: locals.user.username
 	});
 
-	return json({ success: true });
+	return json({ success: true, loggedOut: true });
 };
