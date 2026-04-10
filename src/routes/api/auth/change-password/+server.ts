@@ -7,6 +7,7 @@ import { eq, sql } from 'drizzle-orm';
 import { clearSession, hashPassword, verifyPassword } from '$lib/server/auth';
 import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
 import { logAudit } from '$lib/server/audit';
+import { jsonFromSqliteOrSchemaError } from '$lib/server/sqliteAdminErrors';
 
 export const POST: RequestHandler = async (event) => {
 	const { request, locals, cookies } = event;
@@ -60,13 +61,13 @@ export const POST: RequestHandler = async (event) => {
 			.run();
 	} catch (e) {
 		console.error('[change-password] DB-Update fehlgeschlagen', e);
-		return json(
-			{
-				error:
-					'Speichern fehlgeschlagen. Fehlt die Migration für session_version? (`npm run db:migrate`)'
-			},
-			{ status: 500 }
-		);
+		const mapped = jsonFromSqliteOrSchemaError(e);
+		if (mapped) return mapped;
+		const hint =
+			e instanceof Error && e.message.includes('session_version')
+				? 'Spalte session_version fehlt — auf derselben SQLite-Datei wie die App `npm run db:migrate` ausführen oder `PARKOUR_DATABASE_PATH` prüfen (README).'
+				: 'Speichern fehlgeschlagen (Server-Log prüfen). Bei Schema-Problemen: `npm run db:migrate` auf der produktiven Datenbankdatei.';
+		return json({ error: hint }, { status: 500 });
 	}
 
 	clearSession(cookies);

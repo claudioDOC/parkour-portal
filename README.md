@@ -104,7 +104,9 @@ Die App läuft standardmässig auf `http://localhost:5173` (Dev) bzw. `http://lo
 
 **Deployment / VPS:** Nach `git pull` immer **`npm ci`** (oder `npm install`) im Projektordner ausführen, danach **`npm run build`**. Ohne diesen Schritt fehlen neue Dependencies (`package-lock.json` ändert sich) — typischer Build-Fehler: *Rollup failed to resolve import "file-type"* o. Ä.
 
-Wenn die Seite nach einem Deploy **HTTP 500** liefert und in den Logs SQLite-Fehler wie *no such column* stehen: **`npm run db:migrate`** ausführen (wendet `drizzle/*.sql` auf `data/parkour.db` an), danach Dienst neu starten. Alternativ einmalig **`npx tsx src/lib/server/db/seed.ts`** (Migrationen + ggf. Seed-Logik).
+Wenn die Seite nach einem Deploy **HTTP 500** liefert und in den Logs SQLite-Fehler wie *no such column* stehen: **`npm run db:migrate`** ausführen (wendet `drizzle/*.sql` an; die Zieldatei steht zu Beginn in der Konsole). Danach Dienst neu starten. Alternativ einmalig **`npx tsx src/lib/server/db/seed.ts`** (Migrationen + ggf. Seed-Logik).
+
+**Wichtig:** `db:migrate` schreibt standardmässig in **`data/parkour.db` im geklonten Repo** (nicht abhängig vom Shell-`cwd`). Die laufende Node-App öffnet dagegen **`$PWD/data/parkour.db`** — wenn dein systemd-`WorkingDirectory` z. B. `…/build` ist, migrierst du eine andere Datei als die App nutzt. Abhilfe: für App **und** Migration dieselbe absolute Datei setzen: Umgebungsvariable **`PARKOUR_DATABASE_PATH=/pfad/zu/parkour.db`** (in der systemd-Unit und ggf. vor `npm run db:migrate` auf dem Server).
 
 ### Konfiguration
 

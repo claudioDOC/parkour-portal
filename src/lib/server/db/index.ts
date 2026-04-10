@@ -3,8 +3,10 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
+import { resolveSqlitePathForApp } from './sqlitePath';
 
-const DB_PATH = './data/parkour.db';
+/** Siehe `sqlitePath.ts`: optional `PARKOUR_DATABASE_PATH`, sonst `process.cwd()/data/parkour.db`. */
+const DB_PATH = resolveSqlitePathForApp();
 
 const dir = dirname(DB_PATH);
 if (!existsSync(dir)) {

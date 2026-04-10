@@ -4,9 +4,12 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import bcryptjs from 'bcryptjs';
 import * as schema from './schema';
 import { existsSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
+import { drizzleFolderForCli, resolveSqlitePathForCli } from './sqlitePath';
 
-const DB_PATH = './data/parkour.db';
-if (!existsSync('./data')) mkdirSync('./data', { recursive: true });
+const DB_PATH = resolveSqlitePathForCli(import.meta.url);
+const DRIZZLE_DIR = drizzleFolderForCli(import.meta.url);
+if (!existsSync(dirname(DB_PATH))) mkdirSync(dirname(DB_PATH), { recursive: true });
 
 const sqlite = new Database(DB_PATH);
 sqlite.pragma('journal_mode = WAL');
@@ -14,7 +17,7 @@ sqlite.pragma('foreign_keys = ON');
 
 const db = drizzle(sqlite, { schema });
 
-migrate(db, { migrationsFolder: './drizzle' });
+migrate(db, { migrationsFolder: DRIZZLE_DIR });
 
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS audit_logs (
