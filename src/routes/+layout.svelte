@@ -9,7 +9,16 @@
 	import PwaInstallBanner from '$lib/components/PwaInstallBanner.svelte';
 	import AppNavIcon from '$lib/components/AppNavIcon.svelte';
 
-type NavIcon = 'home' | 'training' | 'trip' | 'spots' | 'finder' | 'stats' | 'settings' | 'admin';
+type NavIcon =
+		| 'home'
+		| 'training'
+		| 'trip'
+		| 'spots'
+		| 'finder'
+		| 'stats'
+		| 'challenge'
+		| 'settings'
+		| 'admin';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -61,6 +70,7 @@ let mobileMoreOpen = $state(false);
 	/** Statistik, Konto, Verwaltung — wie Admin abgesetzt */
 	const navMore: { href: string; label: string; icon: NavIcon }[] = [
 		{ href: '/trips', label: 'Trips', icon: 'trip' },
+		{ href: '/challenges', label: 'Challenges', icon: 'challenge' },
 		{ href: '/statistik', label: 'Statistik', icon: 'stats' },
 		{ href: '/settings', label: 'Einstellungen', icon: 'settings' }
 	];
@@ -149,6 +159,14 @@ let mobileMoreOpen = $state(false);
 					<a href="/trips" class={navLinkClass('/trips')} onclick={() => (mobileMoreOpen = false)}>
 						<AppNavIcon name="trip" />
 						<span>Trips</span>
+					</a>
+					<a href="/challenges" class={navLinkClass('/challenges')} onclick={() => (mobileMoreOpen = false)}>
+						<AppNavIcon name="challenge" />
+						<span>Challenges</span>
+					</a>
+					<a href="/statistik" class={navLinkClass('/statistik')} onclick={() => (mobileMoreOpen = false)}>
+						<AppNavIcon name="stats" />
+						<span>Statistik</span>
 					</a>
 					<a href="/settings" class={navLinkClass('/settings')} onclick={() => (mobileMoreOpen = false)}>
 						<AppNavIcon name="settings" />
