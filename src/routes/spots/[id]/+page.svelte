@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll, goto } from '$app/navigation';
+	import { onDestroy, onMount } from 'svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -47,6 +48,13 @@
 	let challengeBusy = $state(false);
 	let challengeError = $state('');
 	let challengeDeleteConfirm = $state<null | { id: number; title: string }>(null);
+	let mapContainer = $state<HTMLDivElement | null>(null);
+	let mapReady = $state(false);
+	let mapError = $state('');
+	let mapMode = $state<'satellite' | 'street'>('satellite');
+	let leafletMap: any = null;
+	let tileStreet: any = null;
+	let tileSatellite: any = null;
 
 	type ConfettiPiece = { id: number; dx: number; dy: number; rot: number; delay: number; color: string };
 	let confettiPieces = $state<ConfettiPiece[]>([]);
@@ -84,6 +92,9 @@
 	let editTechniques = $state<string[]>([]);
 	let editWeather = $state<string[]>([]);
 	let editDescription = $state('');
+	let editIsMicro = $state(false);
+	let editParentSpotId = $state('');
+	let editParkingLocations = $state<Array<{ name: string; latitude: string; longitude: string }>>([]);
 	let editError = $state('');
 	let saving = $state(false);
 
@@ -96,6 +107,13 @@
 		editTechniques = techniquesArr.slice();
 		editWeather = weatherArr.slice();
 		editDescription = data.spot.description || '';
+		editIsMicro = !!data.spot.isMicro;
+		editParentSpotId = data.spot.parentSpotId ? String(data.spot.parentSpotId) : '';
+		editParkingLocations = (data.parkingLocations || []).map((p) => ({
+			name: p.name || '',
+			latitude: String(p.latitude),
+			longitude: String(p.longitude)
+		}));
 		editError = '';
 		editing = true;
 	}
@@ -125,7 +143,16 @@
 					lighting: editLighting,
 					techniques: editTechniques,
 					goodWeather: editWeather,
-					description: editDescription
+					description: editDescription,
+					isMicro: editIsMicro,
+					parentSpotId: editParentSpotId ? Number(editParentSpotId) : null,
+					parkingLocations: editParkingLocations
+						.map((p) => ({
+							name: p.name?.trim() || null,
+							latitude: Number(p.latitude),
+							longitude: Number(p.longitude)
+						}))
+						.filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude))
 				})
 			});
 			const result = await res.json();
@@ -311,6 +338,103 @@
 		}
 	}
 
+	onMount(async () => {
+		if (!mapContainer || !data.mapMarkers || data.mapMarkers.length === 0) return;
+		try {
+			const L = await import('leaflet');
+			await import('leaflet/dist/leaflet.css');
+
+			leafletMap = L.map(mapContainer, {
+				zoomControl: true,
+				scrollWheelZoom: false
+			});
+
+			tileStreet = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+				attribution: '&copy; OpenStreetMap contributors'
+			});
+			tileSatellite = L.tileLayer(
+				'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+				{
+					attribution: 'Tiles &copy; Esri'
+				}
+			);
+
+			tileSatellite.addTo(leafletMap);
+
+			const bounds = L.latLngBounds([]);
+			const iconByKind = (kind: string) =>
+				L.divIcon({
+					className: `spot-map-pin spot-map-pin-${kind}`,
+					iconSize: [16, 16],
+					iconAnchor: [8, 8]
+				});
+
+			microCounter = 0;
+			parkingCounter = 0;
+			for (const marker of data.mapMarkers) {
+				const m = L.marker([marker.lat, marker.lon], { icon: iconByKind(marker.kind) }).addTo(leafletMap);
+				m.bindPopup(`<strong>${marker.name}</strong><br/>${marker.city}`);
+				m.on('click', () => {
+					window.open(
+						`https://www.google.com/maps/dir/?api=1&destination=${marker.lat},${marker.lon}`,
+						'_blank',
+						'noopener,noreferrer'
+					);
+				});
+				if (marker.kind === 'main' || marker.kind === 'micro' || marker.kind === 'parking') {
+					if (marker.kind === 'micro') microCounter += 1;
+					if (marker.kind === 'parking') parkingCounter += 1;
+					const text =
+						marker.kind === 'main'
+							? 'Hauptspot'
+							: marker.kind === 'micro'
+								? `Microspot ${microCounter}`
+								: `Parkplatz ${parkingCounter}`;
+					m.bindTooltip(text, {
+						permanent: true,
+						direction: 'top',
+						offset: [0, -10],
+						className: 'spot-map-label'
+					});
+				}
+				bounds.extend([marker.lat, marker.lon]);
+			}
+
+			if (data.spot.latitude && data.spot.longitude) {
+				leafletMap.setView([data.spot.latitude, data.spot.longitude], 17);
+			} else if (bounds.isValid()) {
+				leafletMap.fitBounds(bounds.pad(0.25));
+			}
+
+			mapReady = true;
+		} catch (e) {
+			console.error('[spot-map] failed', e);
+			mapError = 'Karte konnte nicht geladen werden.';
+		}
+	});
+
+	onDestroy(() => {
+		if (leafletMap) {
+			leafletMap.remove();
+			leafletMap = null;
+		}
+	});
+
+	function setMapMode(mode: 'satellite' | 'street') {
+		mapMode = mode;
+		if (!leafletMap || !tileStreet || !tileSatellite) return;
+		if (mode === 'street') {
+			if (leafletMap.hasLayer(tileSatellite)) leafletMap.removeLayer(tileSatellite);
+			if (!leafletMap.hasLayer(tileStreet)) tileStreet.addTo(leafletMap);
+		} else {
+			if (leafletMap.hasLayer(tileStreet)) leafletMap.removeLayer(tileStreet);
+			if (!leafletMap.hasLayer(tileSatellite)) tileSatellite.addTo(leafletMap);
+		}
+	}
+
+	let microCounter = 0;
+	let parkingCounter = 0;
+
 </script>
 
 {#if confettiPieces.length > 0}
@@ -451,6 +575,55 @@
 				</div>
 			</div>
 
+			<div class="bg-bg-secondary rounded-lg border border-border/70 p-4 space-y-3">
+				<div class="flex items-center justify-between">
+					<p class="text-text-secondary text-sm font-medium">Parkplätze</p>
+					<button
+						type="button"
+						onclick={() =>
+							(editParkingLocations = [...editParkingLocations, { name: '', latitude: '', longitude: '' }])}
+						class="text-xs bg-bg-card border border-border px-2 py-1 rounded-md text-text-secondary hover:text-text-primary hover:border-accent/40 transition-colors cursor-pointer"
+					>
+						+ Parkplatz
+					</button>
+				</div>
+				{#if editParkingLocations.length === 0}
+					<p class="text-text-muted text-xs">Keine Parkplätze hinterlegt.</p>
+				{:else}
+					<div class="space-y-2">
+						{#each editParkingLocations as p, i}
+							<div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
+								<input
+									type="text"
+									bind:value={p.name}
+									placeholder={`Parkplatz ${i + 1}`}
+									class="bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+								/>
+								<input
+									type="text"
+									bind:value={p.latitude}
+									placeholder="Breitengrad"
+									class="bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+								/>
+								<input
+									type="text"
+									bind:value={p.longitude}
+									placeholder="Längengrad"
+									class="bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+								/>
+								<button
+									type="button"
+									onclick={() => (editParkingLocations = editParkingLocations.filter((_, idx) => idx !== i))}
+									class="text-xs bg-danger/10 text-danger border border-danger/30 rounded-lg px-2.5 py-2 hover:bg-danger/20 transition-colors cursor-pointer"
+								>
+									×
+								</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 				<div>
 					<label for="edit-lat" class="block text-text-secondary text-sm font-medium mb-1">Breitengrad</label>
@@ -461,6 +634,35 @@
 					<label for="edit-lng" class="block text-text-secondary text-sm font-medium mb-1">Längengrad</label>
 					<input id="edit-lng" type="text" bind:value={editLongitude}
 						class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-accent" />
+				</div>
+			</div>
+
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+				<div class="bg-bg-secondary rounded-lg p-3 border border-border/70">
+					<label class="inline-flex items-center gap-2 cursor-pointer text-sm text-text-primary">
+						<input
+							type="checkbox"
+							checked={editIsMicro}
+							onchange={(e) => (editIsMicro = (e.currentTarget as HTMLInputElement).checked)}
+							class="h-4 w-4 accent-[var(--color-accent)]"
+						/>
+						Als Microspot markieren
+					</label>
+					<p class="text-text-muted text-xs mt-1">Für kurze Sessions / kleine Gruppen.</p>
+				</div>
+				<div>
+					<label for="edit-parent-spot" class="block text-text-secondary text-sm font-medium mb-1">Hauptspot (optional)</label>
+					<select
+						id="edit-parent-spot"
+						bind:value={editParentSpotId}
+						disabled={!editIsMicro}
+						class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-accent disabled:opacity-50"
+					>
+						<option value="">Kein Hauptspot</option>
+						{#each data.parentCandidates as candidate}
+							<option value={candidate.id}>{candidate.name} ({candidate.city})</option>
+						{/each}
+					</select>
 				</div>
 			</div>
 
@@ -552,6 +754,9 @@
 			</div>
 
 		<div class="mt-4 flex gap-2 flex-wrap items-center">
+				{#if data.spot.isMicro}
+					<span class="text-xs bg-accent-blue/15 text-accent-blue px-3 py-1.5 rounded-lg font-medium">Microspot</span>
+				{/if}
 				{#if data.nextOpenSessionId && !data.spot.deleted}
 					{#if trainingVoted}
 						<span class="text-xs bg-success/15 text-success px-3 py-1.5 rounded-lg font-medium">
@@ -583,26 +788,68 @@
 		{/if}
 
 		{#if data.spot.latitude && data.spot.longitude}
-			<div class="mt-5 rounded-xl overflow-hidden border border-border">
-				<iframe
-					title="Spot-Standort"
-					src="https://maps.google.com/maps?q={data.spot.latitude},{data.spot.longitude}&t=k&z=17&output=embed"
-					width="100%"
-					height="220"
-					style="border:0;"
-					allowfullscreen
-					loading="lazy"
-					referrerpolicy="no-referrer-when-downgrade"
-				></iframe>
+			<div class="mt-5 rounded-xl overflow-hidden border border-border bg-bg-secondary">
+				<div class="flex items-center justify-between border-b border-border px-3 py-2">
+					<p class="text-xs uppercase tracking-wide text-text-muted">Karte</p>
+					<div class="flex gap-1 rounded-lg bg-bg-card p-1">
+						<button
+							type="button"
+							onclick={() => setMapMode('street')}
+							class="px-2 py-1 text-xs rounded-md transition-colors {mapMode === 'street' ? 'bg-bg-hover text-text-primary' : 'text-text-muted hover:text-text-primary'}"
+						>
+							Road
+						</button>
+						<button
+							type="button"
+							onclick={() => setMapMode('satellite')}
+							class="px-2 py-1 text-xs rounded-md transition-colors {mapMode === 'satellite' ? 'bg-bg-hover text-text-primary' : 'text-text-muted hover:text-text-primary'}"
+						>
+							Sat
+						</button>
+					</div>
+				</div>
+				<div bind:this={mapContainer} class="h-[260px] w-full"></div>
+				{#if !mapReady && !mapError}
+					<p class="px-3 py-2 text-xs text-text-muted">Karte lädt…</p>
+				{:else if mapError}
+					<p class="px-3 py-2 text-xs text-warning">{mapError}</p>
+				{/if}
 			</div>
-			<a
-				href="https://www.google.com/maps?q={data.spot.latitude},{data.spot.longitude}"
-				target="_blank"
-				rel="noopener noreferrer"
-				class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-bg-secondary px-4 py-3 text-sm font-medium text-text-primary transition-colors hover:bg-bg-hover hover:border-accent/35 sm:inline-flex sm:w-auto"
-			>
-				Google Maps öffnen
-			</a>
+		{/if}
+
+		{#if data.parentSpot}
+			<div class="mt-5 rounded-xl border border-accent-blue/30 bg-accent-blue/10 p-4">
+				<p class="text-accent-blue text-xs uppercase tracking-wide mb-2">Zugehöriger Hauptspot</p>
+				<a href="/spots/{data.parentSpot.id}" class="inline-flex text-xs bg-bg-card hover:bg-bg-hover text-text-secondary px-2.5 py-1.5 rounded-lg border border-border transition-colors">
+					{data.parentSpot.name}{data.parentSpot.distanceMeters !== null ? ` · ${data.parentSpot.distanceMeters}m` : ''} · {data.parentSpot.city}
+				</a>
+			</div>
+		{/if}
+
+		{#if data.nearbySpots.length > 0}
+			<div class="mt-5 rounded-xl border border-border bg-bg-secondary/60 p-4">
+				<p class="text-text-muted text-xs uppercase tracking-wide mb-2">Spots in der Umgebung (100 m)</p>
+				<div class="flex flex-wrap gap-2">
+					{#each data.nearbySpots as nearby}
+						<a href="/spots/{nearby.id}" class="text-xs bg-bg-card hover:bg-bg-hover text-text-secondary px-2.5 py-1.5 rounded-lg border border-border transition-colors">
+							{nearby.name} · {nearby.distanceMeters}m{nearby.isMicro ? ' · Micro' : ''}
+						</a>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
+		{#if data.childMicroSpots.length > 0}
+			<div class="mt-5 rounded-xl border border-accent-blue/30 bg-accent-blue/10 p-4">
+				<p class="text-accent-blue text-xs uppercase tracking-wide mb-2">Zugehörige Microspots</p>
+				<div class="flex flex-wrap gap-2">
+					{#each data.childMicroSpots as micro}
+						<a href="/spots/{micro.id}" class="text-xs bg-bg-card hover:bg-bg-hover text-text-secondary px-2.5 py-1.5 rounded-lg border border-border transition-colors">
+							{micro.name}{micro.distanceMeters !== null ? ` · ${micro.distanceMeters}m` : ''} · {micro.city}
+						</a>
+					{/each}
+				</div>
+			</div>
 		{/if}
 
 		{#if techniquesArr.length > 0}
@@ -845,6 +1092,42 @@
 </div>
 
 <style>
+:global(.spot-map-pin) {
+	width: 16px;
+	height: 16px;
+	border-radius: 9999px;
+	border: 2px solid rgba(255, 255, 255, 0.9);
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+:global(.spot-map-pin-main) {
+	background: #ff5555;
+}
+:global(.spot-map-pin-micro) {
+	background: #47c5ff;
+}
+:global(.spot-map-pin-parent) {
+	background: #f59e0b;
+}
+:global(.spot-map-pin-nearby) {
+	background: #8b8b95;
+}
+:global(.spot-map-pin-parking) {
+	background: #f2c55b;
+}
+:global(.spot-map-label) {
+	background: rgba(20, 20, 24, 0.92);
+	color: #f0f0f0;
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	border-radius: 9999px;
+	padding: 2px 8px;
+	font-size: 11px;
+	font-weight: 600;
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+:global(.spot-map-label:before) {
+	display: none;
+}
+
 	@keyframes challenge-confetti-pop {
 		from {
 			transform: translate(-50%, -50%) rotate(0deg) scale(1);

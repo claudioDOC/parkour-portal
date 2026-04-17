@@ -8,7 +8,7 @@
 	import PwaInstallBanner from '$lib/components/PwaInstallBanner.svelte';
 	import AppNavIcon from '$lib/components/AppNavIcon.svelte';
 
-	type NavIcon = 'home' | 'training' | 'spots' | 'finder' | 'stats' | 'settings' | 'admin';
+type NavIcon = 'home' | 'training' | 'trip' | 'spots' | 'finder' | 'stats' | 'settings' | 'admin';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -18,7 +18,7 @@
 		registerSW({ immediate: true });
 	});
 
-	let mobileMenuOpen = $state(false);
+let mobileMoreOpen = $state(false);
 
 	/** Täglich genutzt — schlanke Hauptnavigation */
 	const navMain: { href: string; label: string; icon: NavIcon }[] = [
@@ -34,6 +34,7 @@
 
 	/** Statistik, Konto, Verwaltung — wie Admin abgesetzt */
 	const navMore: { href: string; label: string; icon: NavIcon }[] = [
+		{ href: '/trips', label: 'Trips', icon: 'trip' },
 		{ href: '/statistik', label: 'Statistik', icon: 'stats' },
 		{ href: '/settings', label: 'Einstellungen', icon: 'settings' }
 	];
@@ -70,6 +71,13 @@
 		await fetch('/api/auth/logout', { method: 'POST' });
 		goto('/login');
 	}
+
+	const mobilePrimaryNav: { href: string; label: string; icon: NavIcon; emphasize?: boolean }[] = [
+		{ href: '/finder', label: 'Finder', icon: 'finder' },
+		{ href: '/spots', label: 'Spots', icon: 'spots' },
+		{ href: '/training', label: 'Training', icon: 'training', emphasize: true },
+		{ href: '/statistik', label: 'Stats', icon: 'stats' }
+	];
 </script>
 
 <svelte:head>
@@ -84,7 +92,7 @@
 {:else}
 	<div class="min-h-screen">
 		<header
-			class="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-border bg-bg-secondary/95 px-4 py-3 backdrop-blur-md"
+			class="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center border-b border-border bg-bg-secondary/95 px-4 py-3 backdrop-blur-md"
 		>
 			<a href="/" class="flex items-center gap-2.5" aria-label="Zum Dashboard">
 				<div
@@ -97,75 +105,35 @@
 					<p class="font-display text-[11px] uppercase tracking-[0.28em] text-accent-hot/90">Portal</p>
 				</div>
 			</a>
-			<button
-				type="button"
-				onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-				class="focus-ring rounded-lg p-2 text-text-primary"
-				aria-expanded={mobileMenuOpen}
-				aria-label="Menü"
-			>
-				{#if mobileMenuOpen}
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-				{:else}
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-				{/if}
-			</button>
 		</header>
 
-		{#if mobileMenuOpen}
+		{#if mobileMoreOpen}
 			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-			<div class="md:hidden fixed inset-0 z-40 bg-black/60" onclick={() => mobileMenuOpen = false} role="none">
-				<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
-				<nav
-					class="absolute top-[57px] left-0 right-0 space-y-0.5 border-b border-border bg-bg-secondary p-3 shadow-lg"
-					onclick={(e) => e.stopPropagation()}
-				>
-					{#each navMain as item}
-						<a
-							href={item.href}
-							onclick={() => (mobileMenuOpen = false)}
-							class={navLinkClass(item.href)}
-						>
-							<AppNavIcon name={item.icon} />
-							<span>{item.label}</span>
+			<div
+				class="md:hidden fixed inset-x-0 top-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[64] bg-black/55"
+				onclick={() => (mobileMoreOpen = false)}
+			></div>
+			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+			<div
+				class="md:hidden fixed inset-x-2 bottom-[calc(4.95rem+env(safe-area-inset-bottom))] z-[70] rounded-2xl border border-border bg-bg-secondary px-3 py-3 shadow-2xl"
+				onclick={(e) => e.stopPropagation()}
+			>
+				<p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-text-muted">Mehr</p>
+				<div class="space-y-1">
+					<a href="/trips" class={navLinkClass('/trips')} onclick={() => (mobileMoreOpen = false)}>
+						<AppNavIcon name="trip" />
+						<span>Trips</span>
+					</a>
+					<a href="/settings" class={navLinkClass('/settings')} onclick={() => (mobileMoreOpen = false)}>
+						<AppNavIcon name="settings" />
+						<span>Einstellungen</span>
+					</a>
+					{#if data.user?.role === 'admin'}
+						<a href="/admin" class={navLinkClass('/admin')} onclick={() => (mobileMoreOpen = false)}>
+							<AppNavIcon name="admin" />
+							<span>Admin</span>
 						</a>
-					{/each}
-					<div class="mt-2 border-t border-border pt-2">
-						<p class={navSectionLabel('text-accent-hot/90')}>Special Feature</p>
-						{#each navDiscover as item}
-							<a
-								href={item.href}
-								onclick={() => (mobileMenuOpen = false)}
-								class={navLinkClass(item.href, 'feature')}
-							>
-								<AppNavIcon name={item.icon} />
-								<span>{item.label}</span>
-							</a>
-						{/each}
-					</div>
-					<div class="mt-2 border-t border-border pt-2">
-						<p class={navSectionLabel('text-text-muted')}>Mehr</p>
-						{#each navMore as item}
-							<a
-								href={item.href}
-								onclick={() => (mobileMenuOpen = false)}
-								class={navLinkClass(item.href)}
-							>
-								<AppNavIcon name={item.icon} />
-								<span>{item.label}</span>
-							</a>
-						{/each}
-						{#if data.user?.role === 'admin'}
-							<a
-								href="/admin"
-								onclick={() => (mobileMenuOpen = false)}
-								class={navLinkClass('/admin')}
-							>
-								<AppNavIcon name="admin" />
-								<span>Admin</span>
-							</a>
-						{/if}
-					</div>
+					{/if}
 					<button
 						type="button"
 						onclick={handleLogout}
@@ -174,7 +142,7 @@
 						<AppNavIcon name="logout" />
 						<span>Abmelden</span>
 					</button>
-				</nav>
+				</div>
 			</div>
 		{/if}
 
@@ -261,7 +229,7 @@
 			</div>
 		</aside>
 
-		<main class="relative min-h-screen pt-[57px] md:ml-64 md:pt-0">
+		<main class="relative min-h-screen pb-24 pt-[57px] md:ml-64 md:pb-0 md:pt-0">
 			<div
 				class="pointer-events-none absolute right-0 top-16 h-64 w-64 rounded-full bg-accent/[0.09] blur-3xl md:right-8 md:top-24 md:h-80 md:w-80"
 				aria-hidden="true"
@@ -274,6 +242,54 @@
 				{@render children()}
 			</div>
 		</main>
+
+		<nav
+			class="md:hidden fixed inset-x-0 bottom-0 z-[65] border-t border-white/10 bg-bg-secondary/96 px-2 pb-[env(safe-area-inset-bottom)] pt-0 backdrop-blur-md"
+			aria-label="Mobile Navigation"
+		>
+			<div class="grid grid-cols-5 items-stretch gap-1">
+				{#each mobilePrimaryNav as item}
+					{@const mobileActive = !mobileMoreOpen && isActive(item.href)}
+					<a
+						href={item.href}
+						onclick={() => (mobileMoreOpen = false)}
+						class={`group flex h-full flex-col items-center justify-center px-1 py-0 text-[11px] font-semibold transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${
+							mobileActive
+								? 'text-text-primary'
+								: 'text-text-secondary hover:text-text-primary'
+						} ${item.emphasize ? 'rounded-xl pb-0' : ''} ${!item.emphasize && mobileActive ? 'bg-white/[0.07] shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]' : ''}`}
+					>
+						<span
+							class={item.emphasize
+								? `-mt-4 mb-0.5 flex h-12 w-12 items-center justify-center rounded-full border transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${
+										mobileActive
+											? 'border-accent/40 bg-bg-card text-accent shadow-[0_10px_26px_rgb(0_0_0/0.5),0_0_0_1px_rgb(var(--color-accent-rgb)/0.22)] scale-[1.03]'
+											: 'border-border bg-bg-card text-text-secondary shadow-[0_8px_22px_rgb(0_0_0/0.35)] group-active:scale-95'
+									}`
+								: `mb-0.5 transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${mobileActive ? 'scale-105 text-accent drop-shadow-[0_0_10px_rgb(var(--color-accent-rgb)/0.2)]' : 'group-active:scale-95'}`}
+						>
+							<AppNavIcon name={item.icon} class={item.emphasize ? 'h-5 w-5' : 'h-4 w-4'} />
+						</span>
+						<span class={`transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${mobileActive ? 'tracking-[0.01em]' : ''}`}>{item.label}</span>
+					</a>
+				{/each}
+				<button
+					type="button"
+					onclick={() => (mobileMoreOpen = !mobileMoreOpen)}
+					aria-expanded={mobileMoreOpen}
+					class={`group flex h-full flex-col items-center justify-center px-1 py-0 text-[11px] font-semibold transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${
+						mobileMoreOpen
+							? 'text-text-primary bg-white/[0.07] shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]'
+							: 'text-text-secondary hover:text-text-primary'
+					}`}
+				>
+					<span class={`mb-0.5 transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${mobileMoreOpen ? 'scale-105 text-accent drop-shadow-[0_0_10px_rgb(var(--color-accent-rgb)/0.2)]' : 'group-active:scale-95'}`}>
+						<AppNavIcon name="settings" class="h-4 w-4" />
+					</span>
+					<span class={`transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${mobileMoreOpen ? 'tracking-[0.01em]' : ''}`}>Mehr</span>
+				</button>
+			</div>
+		</nav>
 
 		<PwaInstallBanner />
 	</div>

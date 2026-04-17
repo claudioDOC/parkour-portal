@@ -1,10 +1,14 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { spots, users } from '$lib/server/db/schema';
+import { spots, spotParkingLocations, users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
-import { spotsTableHasDeletedColumn } from '$lib/server/spotsTableColumns';
+import {
+	spotsParkingTableExists,
+	spotsTableHasDeletedColumn,
+	spotsTableHasMicrospotColumns
+} from '$lib/server/spotsTableColumns';
 import { jsonFromSqliteOrSchemaError } from '$lib/server/sqliteAdminErrors';
 
 function assertCanManageSpots(locals: App.Locals) {
@@ -23,6 +27,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	assertCanManageSpots(locals);
 
 	const deleted = url.searchParams.get('deleted') === 'true';
+	const hasMicro = spotsTableHasMicrospotColumns();
 
 	if (!spotsTableHasDeletedColumn()) {
 		const rows = db
@@ -36,23 +41,42 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			.from(spots)
 			.leftJoin(users, eq(spots.addedBy, users.id))
 			.all();
-		const allSpots = deleted ? [] : rows.map((r) => ({ ...r, deleted: false }));
+		const allSpots = deleted
+			? []
+			: rows.map((r) => ({ ...r, deleted: false, isMicro: false, parentSpotId: null }));
 		return json({ spots: allSpots });
 	}
 
-	const allSpots = db
-		.select({
-			id: spots.id,
-			name: spots.name,
-			city: spots.city,
-			deleted: spots.deleted,
-			addedByName: users.username,
-			createdAt: spots.createdAt
-		})
-		.from(spots)
-		.leftJoin(users, eq(spots.addedBy, users.id))
-		.where(eq(spots.deleted, deleted))
-		.all();
+	const allSpots = hasMicro
+		? db
+				.select({
+					id: spots.id,
+					name: spots.name,
+					city: spots.city,
+					deleted: spots.deleted,
+					isMicro: spots.isMicro,
+					parentSpotId: spots.parentSpotId,
+					addedByName: users.username,
+					createdAt: spots.createdAt
+				})
+				.from(spots)
+				.leftJoin(users, eq(spots.addedBy, users.id))
+				.where(eq(spots.deleted, deleted))
+				.all()
+		: db
+				.select({
+					id: spots.id,
+					name: spots.name,
+					city: spots.city,
+					deleted: spots.deleted,
+					addedByName: users.username,
+					createdAt: spots.createdAt
+				})
+				.from(spots)
+				.leftJoin(users, eq(spots.addedBy, users.id))
+				.where(eq(spots.deleted, deleted))
+				.all()
+				.map((s) => ({ ...s, isMicro: false, parentSpotId: null }));
 
 	return json({ spots: allSpots });
 };
@@ -119,7 +143,19 @@ export const PATCH: RequestHandler = async (event) => {
 
 		if (action === 'edit') {
 			assertCanManageSpots(locals);
-			const { name, city, latitude, longitude, lighting, techniques, goodWeather, description } = body;
+			const {
+				name,
+				city,
+				latitude,
+				longitude,
+				lighting,
+				techniques,
+				goodWeather,
+				description,
+				isMicro,
+				parentSpotId,
+				parkingLocations
+			} = body;
 
 			if (!name || !city) {
 				return json({ error: 'Name und Stadt sind erforderlich' }, { status: 400 });
@@ -128,16 +164,51 @@ export const PATCH: RequestHandler = async (event) => {
 			const techniquesStr = Array.isArray(techniques) ? techniques.join(',') : (techniques || '');
 			const weatherStr = Array.isArray(goodWeather) ? goodWeather.join(',') : (goodWeather || 'trocken,nass');
 
+			const parentIdNum = parentSpotId ? Number(parentSpotId) : null;
+			if (parentIdNum && parentIdNum === Number(spotId)) {
+				return json({ error: 'Ein Spot kann nicht sein eigener Hauptspot sein' }, { status: 400 });
+			}
+
 			db.update(spots).set({
 				name,
 				city,
 				latitude: latitude || null,
 				longitude: longitude || null,
+				...(spotsTableHasMicrospotColumns()
+					? {
+							isMicro: Boolean(isMicro),
+							parentSpotId: Boolean(isMicro) ? parentIdNum : null
+						}
+					: {}),
 				lighting: lighting || 'teilweise',
 				techniques: techniquesStr,
 				goodWeather: weatherStr,
 				description: description || null
 			}).where(eq(spots.id, spotId)).run();
+
+			const parkingRows = Array.isArray(parkingLocations)
+				? parkingLocations
+						.map((p) => ({
+							name: typeof p?.name === 'string' ? p.name.trim() : '',
+							latitude: Number(p?.latitude),
+							longitude: Number(p?.longitude)
+						}))
+						.filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude))
+				: [];
+
+			if (spotsParkingTableExists()) {
+				db.delete(spotParkingLocations).where(eq(spotParkingLocations.spotId, Number(spotId))).run();
+				for (const p of parkingRows) {
+					db.insert(spotParkingLocations)
+						.values({
+							spotId: Number(spotId),
+							name: p.name || null,
+							latitude: p.latitude,
+							longitude: p.longitude
+						})
+						.run();
+				}
+			}
 
 			logAudit({
 				event,

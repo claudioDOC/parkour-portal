@@ -2,6 +2,7 @@
 	type Name =
 		| 'home'
 		| 'training'
+		| 'trip'
 		| 'spots'
 		| 'finder'
 		| 'stats'
@@ -21,6 +22,11 @@
 {:else if name === 'training'}
 	<svg class={className} fill="none" viewBox="0 0 24 24" stroke={stroke} stroke-width="1.75" aria-hidden="true">
 		<path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5a2.25 2.25 0 0 0 2.25-2.25m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5a2.25 2.25 0 0 1 2.25 2.25v7.5" />
+	</svg>
+{:else if name === 'trip'}
+	<svg class={className} fill="none" viewBox="0 0 24 24" stroke={stroke} stroke-width="1.75" aria-hidden="true">
+		<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6h16.5M6 6V4.875A1.125 1.125 0 0 1 7.125 3.75h9.75A1.125 1.125 0 0 1 18 4.875V6M4.5 6h15a1.5 1.5 0 0 1 1.5 1.5v8.25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7.5A1.5 1.5 0 0 1 4.5 6Z" />
+		<path stroke-linecap="round" stroke-linejoin="round" d="M9 11.25h6M9 14.25h3" />
 	</svg>
 {:else if name === 'spots'}
 	<svg class={className} fill="none" viewBox="0 0 24 24" stroke={stroke} stroke-width="1.75" aria-hidden="true">

@@ -92,10 +92,20 @@
 		deletedAt: string | null;
 	};
 	let trashedChallenges = $state<TrashedChallenge[]>([]);
+	type TrashedTrip = {
+		id: number;
+		title: string;
+		startDate: string;
+		endDate: string;
+		deletedAt: string | null;
+		createdByName: string;
+	};
+	let trashedTrips = $state<TrashedTrip[]>([]);
 	let spotMessage = $state('');
 	let confirmSpot = $state<{ action: string; spot: Spot } | null>(null);
 	let userBinModal = $state<null | { mode: 'to_trash' | 'restore' | 'purge'; user: User }>(null);
 	let challengePurgeModal = $state<TrashedChallenge | null>(null);
+	let tripPurgeModal = $state<TrashedTrip | null>(null);
 
 	type SystemStats = {
 		hostname: string;
@@ -164,6 +174,9 @@
 		'spot.challenge.delete': 'Spot-Challenge in Papierkorb',
 		'spot.challenge.restore': 'Spot-Challenge wiederhergestellt',
 		'spot.challenge.purge': 'Spot-Challenge endgültig gelöscht',
+		'admin.trip.trash': 'Admin: Trip → Papierkorb',
+		'admin.trip.restore': 'Admin: Trip wiederhergestellt',
+		'admin.trip.purge': 'Admin: Trip endgültig gelöscht',
 		'training.absence': 'Training: Zieht nicht',
 		'training.absence.cancel': 'Training: Abmeldung zurückgenommen',
 		'training.rsvp_yes': 'Training: Zusage',
@@ -664,6 +677,52 @@
 		setTimeout(() => (userMessage = ''), 3000);
 	}
 
+	async function loadTrashedTrips() {
+		const res = await fetch('/api/admin/trips?trashed=1', { credentials: 'include' });
+		if (res.ok) {
+			const data = await res.json();
+			trashedTrips = data.trips || [];
+		}
+	}
+
+	async function restoreTrashedTrip(tripId: number) {
+		userMessage = '';
+		userError = '';
+		const res = await fetch('/api/admin/trips', {
+			method: 'PATCH',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ tripId, action: 'restore' })
+		});
+		const data = await res.json().catch(() => ({}));
+		if (!res.ok) {
+			userError = typeof data.error === 'string' ? data.error : `Fehler ${res.status}`;
+			return;
+		}
+		userMessage = 'Trip wiederhergestellt.';
+		await loadTrashedTrips();
+		setTimeout(() => (userMessage = ''), 3000);
+	}
+
+	async function purgeTrashedTrip(tripId: number) {
+		userMessage = '';
+		userError = '';
+		const res = await fetch('/api/admin/trips', {
+			method: 'DELETE',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ tripId })
+		});
+		const data = await res.json().catch(() => ({}));
+		if (!res.ok) {
+			userError = typeof data.error === 'string' ? data.error : `Fehler ${res.status}`;
+			return;
+		}
+		userMessage = 'Trip endgültig gelöscht.';
+		await loadTrashedTrips();
+		setTimeout(() => (userMessage = ''), 3000);
+	}
+
 	async function purgeTrashedChallenge(challengeId: number) {
 		userMessage = '';
 		userError = '';
@@ -875,6 +934,47 @@
 	</div>
 {/if}
 
+{#if tripPurgeModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70"
+		onclick={() => (tripPurgeModal = null)}
+	>
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<div
+			class="bg-bg-card border border-border rounded-xl p-6 max-w-sm mx-4 shadow-2xl"
+			onclick={(e) => e.stopPropagation()}
+		>
+			<h3 class="text-lg font-semibold text-text-primary mb-2">Trip endgültig löschen?</h3>
+			<p class="text-text-secondary text-sm mb-1">
+				<span class="font-medium text-text-primary">{tripPurgeModal.title}</span>
+				<span class="text-text-muted"> · {tripPurgeModal.startDate} – {tripPurgeModal.endDate}</span>
+			</p>
+			<p class="text-danger text-xs font-medium mb-4">
+				Unwiderruflich — alle Anmeldungen, Ablauf-Vorschläge und Votes gehen verloren.
+			</p>
+			<div class="flex gap-2 justify-end">
+				<button
+					onclick={() => (tripPurgeModal = null)}
+					class="px-4 py-2 rounded-lg text-sm text-text-secondary bg-bg-secondary hover:bg-bg-hover border border-border transition-colors cursor-pointer"
+				>
+					Abbrechen
+				</button>
+				<button
+					onclick={async () => {
+						const t = tripPurgeModal!;
+						tripPurgeModal = null;
+						await purgeTrashedTrip(t.id);
+					}}
+					class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-danger hover:bg-danger/80 transition-colors cursor-pointer"
+				>
+					Endgültig löschen
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
 {#if challengePurgeModal}
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 	<div
@@ -930,7 +1030,7 @@
 			{
 				id: 'trash' as const,
 				label: 'Papierkorb',
-				count: trashedSpots.length + trashedUserList.length + trashedChallenges.length
+				count: trashedSpots.length + trashedUserList.length + trashedChallenges.length + trashedTrips.length
 			},
 			{ id: 'invites' as const, label: 'Einladungen', count: invites.length },
 			{ id: 'server' as const, label: 'Server', count: null as number | null },
@@ -944,6 +1044,7 @@
 						loadTrashedSpots();
 						loadTrashedUsers();
 						loadTrashedChallenges();
+						loadTrashedTrips();
 					}
 				}}
 				class="flex-1 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer {activeTab === tab.id ? 'bg-bg-card text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}"
@@ -1492,7 +1593,47 @@
 				{/if}
 			</div>
 
-			{#if trashedUserList.length === 0 && trashedSpots.length === 0 && trashedChallenges.length === 0}
+			<div>
+				<h3 class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Geplante Trips</h3>
+				{#if trashedTrips.length === 0}
+					<p class="text-text-muted text-sm">Keine Trips im Papierkorb.</p>
+				{:else}
+					<p class="text-text-secondary text-sm mb-3">
+						Wiederherstellen blendet den Trip wieder auf der Trips-Seite ein. Endgültig löschen entfernt Trip inkl. Teilnehmer, Ablauf-Vorschläge und Votes.
+					</p>
+					<div class="space-y-2">
+						{#each trashedTrips as tr}
+							<div class="bg-bg-card rounded-xl border border-border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 opacity-90">
+								<div class="min-w-0">
+									<p class="text-text-primary font-medium">{tr.title}</p>
+									<p class="text-text-muted text-xs mt-0.5">
+										{tr.startDate} – {tr.endDate} · von {tr.createdByName}
+										{#if tr.deletedAt}
+											· {formatLogTime(tr.deletedAt)}
+										{/if}
+									</p>
+								</div>
+								<div class="flex flex-wrap gap-2 shrink-0">
+									<button
+										onclick={() => restoreTrashedTrip(tr.id)}
+										class="text-xs bg-success/10 hover:bg-success/20 border border-success/30 px-3 py-1.5 rounded-lg text-success transition-colors cursor-pointer"
+									>
+										Wiederherstellen
+									</button>
+									<button
+										onclick={() => (tripPurgeModal = tr)}
+										class="text-xs bg-danger/10 hover:bg-danger/20 border border-danger/30 px-3 py-1.5 rounded-lg text-danger transition-colors cursor-pointer"
+									>
+										Endgültig löschen
+									</button>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			{#if trashedUserList.length === 0 && trashedSpots.length === 0 && trashedChallenges.length === 0 && trashedTrips.length === 0}
 				<p class="text-text-muted text-center py-4 text-sm">Papierkorb ist leer.</p>
 			{/if}
 		</div>
