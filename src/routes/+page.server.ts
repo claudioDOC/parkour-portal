@@ -22,9 +22,13 @@ import {
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 import { asNum } from '$lib/server/asSqlNumber';
 import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
+import { todayYmdInAppTZ } from '$lib/server/calendarToday';
+import { ensureUpcomingTrainingSessions } from '$lib/server/ensureUpcomingTrainingSessions';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const today = new Date().toISOString().split('T')[0];
+	const today = todayYmdInAppTZ();
+
+	ensureUpcomingTrainingSessions();
 
 	const nextTrainings = db.select().from(trainingSessions)
 		.where(gte(trainingSessions.date, today))
@@ -190,6 +194,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		nextTrainings: trainingsWithDetails,
-		topSpots
+		topSpots,
+		calendarToday: today
 	};
 };

@@ -10,7 +10,7 @@
 	}
 
 	function isToday(dateStr: string): boolean {
-		return dateStr === new Date().toISOString().split('T')[0];
+		return dateStr === data.calendarToday;
 	}
 </script>
 
