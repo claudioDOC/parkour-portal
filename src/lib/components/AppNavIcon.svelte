@@ -6,6 +6,7 @@
 		| 'spots'
 		| 'finder'
 		| 'stats'
+		| 'challenge'
 		| 'settings'
 		| 'admin'
 		| 'logout';
@@ -25,8 +26,14 @@
 	</svg>
 {:else if name === 'trip'}
 	<svg class={className} fill="none" viewBox="0 0 24 24" stroke={stroke} stroke-width="1.75" aria-hidden="true">
-		<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6h16.5M6 6V4.875A1.125 1.125 0 0 1 7.125 3.75h9.75A1.125 1.125 0 0 1 18 4.875V6M4.5 6h15a1.5 1.5 0 0 1 1.5 1.5v8.25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7.5A1.5 1.5 0 0 1 4.5 6Z" />
-		<path stroke-linecap="round" stroke-linejoin="round" d="M9 11.25h6M9 14.25h3" />
+		<path
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"
+		/>
+		<circle cx="7" cy="17" r="2" />
+		<path stroke-linecap="round" stroke-linejoin="round" d="M9 17h6" />
+		<circle cx="17" cy="17" r="2" />
 	</svg>
 {:else if name === 'spots'}
 	<svg class={className} fill="none" viewBox="0 0 24 24" stroke={stroke} stroke-width="1.75" aria-hidden="true">
@@ -40,6 +47,17 @@
 {:else if name === 'stats'}
 	<svg class={className} fill="none" viewBox="0 0 24 24" stroke={stroke} stroke-width="1.75" aria-hidden="true">
 		<path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+	</svg>
+{:else if name === 'challenge'}
+	<svg class={className} fill="none" viewBox="0 0 24 24" stroke={stroke} stroke-width="1.75" aria-hidden="true">
+		<polyline
+			points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		/>
+		<line x1="13" x2="19" y1="19" y2="13" stroke-linecap="round" stroke-linejoin="round" />
+		<line x1="16" x2="20" y1="16" y2="20" stroke-linecap="round" stroke-linejoin="round" />
+		<line x1="19" x2="21" y1="21" y2="19" stroke-linecap="round" stroke-linejoin="round" />
 	</svg>
 {:else if name === 'settings'}
 	<svg class={className} fill="none" viewBox="0 0 24 24" stroke={stroke} stroke-width="1.75" aria-hidden="true">
