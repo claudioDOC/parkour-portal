@@ -57,6 +57,55 @@
       "when": 1775600000000,
       "tag": "0008_spot_challenges_soft_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1775700000000,
+      "tag": "0009_spots_microspots",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1775800000000,
+      "tag": "0010_spot_parking_locations",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1775900000000,
+      "tag": "0011_trip_plans",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1776000000000,
+      "tag": "0012_trip_transport_modes",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1776100000000,
+      "tag": "0013_trip_plans_soft_delete",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1776200000000,
+      "tag": "0014_trip_map",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1776300000000,
+      "tag": "0015_trip_date_options",
+      "breakpoints": true
     }
   ]
 }

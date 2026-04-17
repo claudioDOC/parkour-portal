@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { onDestroy, onMount } from 'svelte';
 	import { formatStimmen } from '$lib/formatStimmen';
 	import type { PageData } from './$types';
 
@@ -7,8 +8,97 @@
 	let loadingSession = $state<number | null>(null);
 	let reasonInput = $state<Record<number, string>>({});
 	let showReason = $state<number | null>(null);
+	let openAbsenceReason = $state<string | null>(null);
 	let showSpotPicker = $state<number | null>(null);
 	let spotSearch = $state('');
+	let liveNotices = $state<{ id: number; text: string }[]>([]);
+
+	type WatchSession = {
+		sessionId: number;
+		date: string;
+		dayOfWeek: string;
+		totalVotes: number;
+		leaderSpotId: number | null;
+		leaderSpotName: string | null;
+		leaderVotes: number;
+		votingClosed: boolean;
+		effectiveSpotId: number | null;
+		effectiveSpotName: string | null;
+		effectiveKind: 'winner' | 'auto' | null;
+	};
+
+	const WATCH_CACHE_KEY = 'training-watch-next-session-v1';
+	let watchTimer: ReturnType<typeof setInterval> | null = null;
+
+	function sessionFromPageData(): WatchSession | null {
+		const s = data.sessions?.[0];
+		if (!s) return null;
+		return {
+			sessionId: s.id,
+			date: s.date,
+			dayOfWeek: s.dayOfWeek,
+			totalVotes: s.spotVotes.reduce((sum, v) => sum + Number(v.voteCount || 0), 0),
+			leaderSpotId: s.spotVotes[0]?.spotId ?? null,
+			leaderSpotName: s.spotVotes[0]?.spotName ?? null,
+			leaderVotes: Number(s.spotVotes[0]?.voteCount || 0),
+			votingClosed: !!s.votingClosed,
+			effectiveSpotId: s.winnerSpot?.spotId ?? s.autoSpot?.spotId ?? null,
+			effectiveSpotName: s.winnerSpot?.name ?? s.autoSpot?.name ?? null,
+			effectiveKind: s.winnerSpot ? 'winner' : s.autoSpot ? 'auto' : null
+		};
+	}
+
+	function pushNotice(text: string) {
+		const id = Date.now() + Math.floor(Math.random() * 1000);
+		liveNotices = [...liveNotices, { id, text }].slice(-3);
+		setTimeout(() => {
+			liveNotices = liveNotices.filter((n) => n.id !== id);
+		}, 6500);
+		if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+			new Notification('Training Update', { body: text });
+		}
+	}
+
+	function compareWatch(oldS: WatchSession | null, newS: WatchSession | null) {
+		if (!oldS || !newS) return;
+		if (oldS.sessionId !== newS.sessionId) return;
+
+		if (newS.totalVotes > oldS.totalVotes) {
+			const leader = newS.leaderSpotName ? ` Aktuell führt ${newS.leaderSpotName}.` : '';
+			pushNotice(`Neues Spot-Vote für ${newS.dayOfWeek}.${leader}`);
+		}
+		if (!oldS.effectiveSpotId && newS.effectiveSpotId && newS.effectiveSpotName) {
+			const kind = newS.effectiveKind === 'auto' ? 'Auto-Spot gewählt' : 'Gewinner-Spot steht fest';
+			pushNotice(`${kind}: ${newS.effectiveSpotName}.`);
+		}
+	}
+
+	async function pollTrainingWatch() {
+		try {
+			const res = await fetch('/api/training/watch', { credentials: 'include' });
+			if (!res.ok) return;
+			const payload = (await res.json()) as { session: WatchSession | null };
+			const prevRaw = localStorage.getItem(WATCH_CACHE_KEY);
+			const prev: WatchSession | null = prevRaw ? (JSON.parse(prevRaw) as WatchSession) : null;
+			const current = payload.session;
+			compareWatch(prev, current);
+			localStorage.setItem(WATCH_CACHE_KEY, JSON.stringify(current));
+		} catch {
+			// Polling-Fehler sind unkritisch
+		}
+	}
+
+	onMount(() => {
+		const initial = sessionFromPageData();
+		localStorage.setItem(WATCH_CACHE_KEY, JSON.stringify(initial));
+		watchTimer = setInterval(() => {
+			void pollTrainingWatch();
+		}, 20000);
+	});
+
+	onDestroy(() => {
+		if (watchTimer) clearInterval(watchTimer);
+	});
 
 	function formatDate(dateStr: string): string {
 		const d = new Date(dateStr + 'T00:00:00');
@@ -52,10 +142,23 @@
 	<div>
 		<h2 class="text-2xl font-bold text-text-primary">Training</h2>
 		<p class="text-text-secondary mt-1">Dienstag & Donnerstag, 18:15 - 20:15</p>
+		<a href="/trips" class="inline-flex mt-2 text-xs bg-accent/15 hover:bg-accent/25 text-accent px-2.5 py-1.5 rounded-lg transition-colors">
+			Zu geplanten Trips
+		</a>
 		{#if data.weather}
 			<p class="text-text-muted text-sm mt-1">Aktuelles Wetter Thun: {data.weather.weatherLabel} ({data.weather.temperature.toFixed(0)}°C)</p>
 		{/if}
 	</div>
+
+	{#if liveNotices.length > 0}
+		<div class="fixed right-3 top-16 z-[72] w-[min(24rem,calc(100vw-1.5rem))] space-y-2 md:right-6 md:top-6">
+			{#each liveNotices as notice (notice.id)}
+				<div class="rounded-lg border border-accent/25 bg-bg-card/95 px-3 py-2 text-sm text-text-primary shadow-lg backdrop-blur">
+					{notice.text}
+				</div>
+			{/each}
+		</div>
+	{/if}
 
 	<div class="space-y-4">
 		{#each data.sessions as session}
@@ -298,10 +401,29 @@
 									Zieht nicht ({session.absences.length})
 								</p>
 								<div class="flex flex-wrap gap-1.5">
-									{#each session.absences as absence}
-										<span class="bg-danger/10 text-danger text-xs px-2.5 py-1 rounded-full" title={absence.reason || ''}>
-											{absence.username}{#if absence.reason} *{/if}
-										</span>
+									{#each session.absences as absence, i}
+										{@const absenceKey = `${session.id}:${absence.username}:${i}`}
+										<div class="flex flex-col items-start">
+											{#if absence.reason}
+												<button
+													type="button"
+													class="bg-danger/10 text-danger text-xs px-2.5 py-1 rounded-full cursor-pointer"
+													title={absence.reason}
+													aria-expanded={openAbsenceReason === absenceKey}
+													onclick={() =>
+														(openAbsenceReason = openAbsenceReason === absenceKey ? null : absenceKey)}
+												>
+													{absence.username} *
+												</button>
+												{#if openAbsenceReason === absenceKey}
+													<p class="mt-1 max-w-56 text-[11px] leading-4 text-danger/90 bg-danger/5 border border-danger/20 rounded-md px-2 py-1">
+														{absence.reason}
+													</p>
+												{/if}
+											{:else}
+												<span class="bg-danger/10 text-danger text-xs px-2.5 py-1 rounded-full">{absence.username}</span>
+											{/if}
+										</div>
 									{/each}
 									{#if session.absences.length === 0}
 										<span class="text-text-muted text-xs">Niemand</span>

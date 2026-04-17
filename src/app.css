@@ -6,27 +6,33 @@
 	/* Schmale Display-Schrift: urban / Sport / „Straße“ */
 	--font-display: 'Teko', ui-sans-serif, system-ui, sans-serif;
 
-	/* Asphalt & Beton — kühler, urban */
-	--color-bg-primary: #191a1f;
-	--color-bg-secondary: #22242b;
-	--color-bg-card: #2a2d35;
-	--color-bg-hover: #353944;
-	/* Neon-Lime (Highlighter / Spot-Markierung) + Orange für Verläufe */
-	--color-accent: #cfe86a;
-	--color-accent-hover: #bdd85b;
-	--color-accent-hot: #ff7a45;
-	--color-accent-dim: #4f5d2b;
-	--color-text-primary: #f4f4f5;
-	--color-text-secondary: #c9ccd6;
-	--color-text-muted: #9aa0ae;
-	--color-border: #454955;
-	--color-danger: #fb9090;
-	--color-warning: #f2c55b;
-	--color-success: #b8dd62;
+	/*
+	 * Farben abgestimmt mit PK-Portal / Mate-APK (Flutter, Doku v3):
+	 * Background #0D0D0F, Surface #141418, Surface2 #1C1C22, Accent #E8FF47,
+	 * Text #F0F0F0, Muted #777777, Erfolg #47FFB3, Fehler #FF5555, Orange #FF9947, Voting-Blau #47C5FF
+	 */
+	--color-bg-primary: #0d0d0f;
+	--color-bg-secondary: #141418;
+	--color-bg-card: #1c1c22;
+	--color-bg-hover: #25252d;
+	--color-accent: #e8ff47;
+	--color-accent-hover: #d4ef3a;
+	--color-accent-hot: #ff9947;
+	--color-accent-dim: #5a6228;
+	--color-accent-blue: #47c5ff;
+	--color-text-primary: #f0f0f0;
+	--color-text-secondary: #a3a3ad;
+	--color-text-muted: #777777;
+	--color-border: rgb(255 255 255 / 0.09);
+	--color-danger: #ff5555;
+	--color-warning: #ff9947;
+	--color-success: #47ffb3;
+	/* Für Verläufe/Schatten (Tailwind rgb-Syntax) */
+	--color-accent-rgb: 232 255 71;
 
 	--shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.06), 0 10px 36px -10px rgb(0 0 0 / 0.55);
 	--shadow-card-hover: 0 1px 0 0 rgb(255 255 255 / 0.08), 0 16px 48px -12px rgb(0 0 0 / 0.6),
-		0 0 0 1px rgb(207 232 106 / 0.18);
+		0 0 0 1px rgb(var(--color-accent-rgb) / 0.2);
 	--shadow-nav: 0 0 0 1px rgb(255 255 255 / 0.05);
 }
 
@@ -39,9 +45,9 @@
 html {
 	background-color: var(--color-bg-primary);
 	background-image:
-		radial-gradient(ellipse 110% 70% at 50% -25%, rgb(207 232 106 / 0.11), transparent 52%),
-		radial-gradient(ellipse 55% 40% at 100% 0%, rgb(255 122 69 / 0.11), transparent 50%),
-		radial-gradient(ellipse 45% 35% at 0% 100%, rgb(207 232 106 / 0.05), transparent 50%),
+		radial-gradient(ellipse 110% 70% at 50% -25%, rgb(var(--color-accent-rgb) / 0.1), transparent 52%),
+		radial-gradient(ellipse 55% 40% at 100% 0%, rgb(255 153 71 / 0.1), transparent 50%),
+		radial-gradient(ellipse 45% 35% at 0% 100%, rgb(var(--color-accent-rgb) / 0.04), transparent 50%),
 		/* Diagonales „Tape“-Raster, sehr leise */
 		repeating-linear-gradient(
 			-42deg,
@@ -78,7 +84,7 @@ body {
 		linear-gradient(180deg, rgb(255 255 255 / 0.07) 0%, transparent 45%),
 		var(--color-bg-card);
 	border: 1px solid var(--color-border);
-	border-radius: 0.625rem;
+	border-radius: 0.75rem;
 	box-shadow: var(--shadow-card);
 	transition:
 		border-color 0.22s ease,
@@ -99,7 +105,7 @@ body {
 @utility focus-ring {
 	outline: none;
 	&:focus-visible {
-		box-shadow: 0 0 0 2px var(--color-bg-primary), 0 0 0 4px rgb(207 232 106 / 0.4);
+		box-shadow: 0 0 0 2px var(--color-bg-primary), 0 0 0 4px rgb(var(--color-accent-rgb) / 0.38);
 	}
 }
 
@@ -136,13 +142,13 @@ select option {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	background: rgb(229 255 61 / 0.35);
+	background: rgb(var(--color-accent-rgb) / 0.35);
 }
 
 /** Karten-Hover (normales CSS — Tailwind @utility :hover wird hier nicht zuverlässig gebündelt) */
 @media (hover: hover) {
 	.card-surface-lift:hover {
-		border-color: rgb(207 232 106 / 0.26);
+		border-color: rgb(var(--color-accent-rgb) / 0.26);
 		box-shadow: var(--shadow-card-hover);
 		transform: translateY(-2px);
 	}
@@ -166,18 +172,18 @@ select option {
 
 .btn-link:focus-visible {
 	outline: none;
-	box-shadow: 0 0 0 2px var(--color-bg-primary), 0 0 0 4px rgb(207 232 106 / 0.4);
+	box-shadow: 0 0 0 2px var(--color-bg-primary), 0 0 0 4px rgb(var(--color-accent-rgb) / 0.38);
 }
 
 .btn-link-secondary {
-	border: 1px solid rgb(207 232 106 / 0.3);
-	background: rgb(207 232 106 / 0.08);
+	border: 1px solid rgb(var(--color-accent-rgb) / 0.32);
+	background: rgb(var(--color-accent-rgb) / 0.08);
 	color: var(--color-accent);
 }
 
 .btn-link-secondary:hover {
-	border-color: rgb(207 232 106 / 0.5);
-	background: rgb(207 232 106 / 0.14);
+	border-color: rgb(var(--color-accent-rgb) / 0.48);
+	background: rgb(var(--color-accent-rgb) / 0.14);
 	color: var(--color-accent-hover);
 }
 
@@ -188,7 +194,7 @@ select option {
 }
 
 .btn-link-ghost:hover {
-	border-color: rgb(207 232 106 / 0.35);
-	background: rgb(207 232 106 / 0.08);
+	border-color: rgb(var(--color-accent-rgb) / 0.34);
+	background: rgb(var(--color-accent-rgb) / 0.08);
 	color: var(--color-accent);
 }

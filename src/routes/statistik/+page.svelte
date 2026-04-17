@@ -176,29 +176,48 @@
 
 		<section>
 			<h3 class="text-lg font-semibold text-text-primary mb-1">Hall of Fame</h3>
-			<p class="text-text-muted text-sm mb-4">Streak = letzte Trainings in Folge gezogen (ohne Abmeldung dazwischen).</p>
+			<p class="text-text-muted text-xs sm:text-sm mb-3 sm:mb-4">
+				Streak = letzte Trainings in Folge gezogen (ohne Abmeldung dazwischen).
+			</p>
 
-			{#if stats.leaderboard.length >= 3}
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-					{#each stats.leaderboard.slice(0, 3) as row, i}
-						<div
-							class="rounded-xl border p-4 text-center {row.userId === myId
-								? 'border-accent bg-accent/10'
-								: 'border-border bg-bg-card'}"
-						>
-							<div class="text-3xl mb-1">{medal(i)}</div>
-							<p class="font-semibold text-text-primary">{row.username}</p>
-							<p class="text-2xl font-bold text-accent mt-2">{row.showUpPercent}%</p>
-							<p class="text-text-secondary text-xs mt-1">{row.implicitPresent}× gezogen</p>
-							<p class="text-text-muted text-xs mt-0.5">Streak {row.streakNoAbsence}</p>
+			<div class="rounded-xl border border-border overflow-hidden">
+				<div class="md:hidden divide-y divide-border bg-bg-card">
+					{#each stats.leaderboard as row, i}
+						<div class="px-3 py-2 space-y-1.5 {row.userId === myId ? 'bg-accent/10' : ''}">
+							<div class="flex items-center justify-between gap-2">
+								<p class="min-w-0 text-base font-bold text-text-primary leading-tight truncate">
+									<span class="text-text-secondary font-semibold text-sm mr-1 tabular-nums"
+										>{medal(i) || `${i + 1}.`}</span
+									>{row.username}{#if row.userId === myId}<span class="text-accent text-[11px] font-semibold ml-0.5">(du)</span>{/if}
+								</p>
+								<p class="shrink-0 text-lg font-bold text-accent tabular-nums leading-none">{row.showUpPercent}%</p>
+							</div>
+							<p class="text-[11px] sm:text-xs text-text-secondary leading-snug">
+								<span class="tabular-nums text-text-primary font-medium">{row.eligiblePastSessions}</span> Trainings
+								<span class="text-text-muted mx-0.5">·</span>
+								<span class="tabular-nums text-warning font-medium">{row.absences}</span> Abmeldungen
+								<span class="text-text-muted mx-0.5">·</span>
+								<span class="tabular-nums text-success font-semibold">{row.implicitPresent}</span> Gezogen
+								<span class="text-text-muted mx-0.5">·</span>
+								🔥 Streak <span class="tabular-nums font-medium text-text-primary">{row.streakNoAbsence}</span>
+							</p>
+							<div class="flex items-center gap-1.5">
+								<span class="text-[11px] text-text-muted shrink-0">Challenges</span>
+								<span class="text-[11px] font-bold text-text-primary tabular-nums shrink-0"
+									>{row.challengesCompleted}/{row.totalChallenges}</span
+								>
+								<div class="h-1.5 flex-1 min-w-0 rounded-full bg-bg-secondary overflow-hidden">
+									<div
+										class="h-full bg-accent transition-all"
+										style="width: {row.challengeProgressPercent}%"
+									></div>
+								</div>
+							</div>
 						</div>
 					{/each}
 				</div>
-			{/if}
-
-			<div class="rounded-xl border border-border overflow-hidden">
-				<div class="overflow-x-auto">
-					<table class="w-full text-sm text-left min-w-[760px]">
+				<div class="hidden md:block overflow-x-auto">
+					<table class="w-full text-sm text-left min-w-[640px]">
 						<thead class="bg-bg-secondary text-text-muted text-xs uppercase tracking-wide">
 							<tr>
 								<th class="px-3 py-2 font-medium">#</th>
@@ -303,8 +322,27 @@
 						{selectedMonthSummary.sessions} Trainings · {selectedMonthSummary.absences} Abmeldungen erfasst
 					</p>
 					<div class="rounded-xl border border-border overflow-hidden">
-						<div class="overflow-x-auto">
-							<table class="w-full text-sm text-left min-w-[600px]">
+						<div class="md:hidden divide-y divide-border bg-bg-card">
+							{#each selectedMonthRows as row}
+								<div class="p-3 space-y-2 {row.userId === myId ? 'bg-accent/10' : ''}">
+									<p class="font-medium text-text-primary">
+										{row.username}{#if row.userId === myId}<span class="text-accent text-xs ml-1">(du)</span>{/if}
+									</p>
+									<div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+										<span class="text-text-muted">Trainings</span>
+										<span class="text-right text-text-secondary tabular-nums">{row.trainings}</span>
+										<span class="text-text-muted">Abmeldungen</span>
+										<span class="text-right text-warning tabular-nums">{row.absences}</span>
+										<span class="text-text-muted">Gezogen</span>
+										<span class="text-right font-medium text-success tabular-nums">{row.pulled}</span>
+										<span class="text-text-muted">Gezogen %</span>
+										<span class="text-right font-semibold text-accent tabular-nums">{row.pulledPercent}%</span>
+									</div>
+								</div>
+							{/each}
+						</div>
+						<div class="hidden md:block overflow-x-auto">
+							<table class="w-full text-sm text-left min-w-[520px]">
 								<thead class="bg-bg-secondary text-text-muted text-xs uppercase tracking-wide">
 									<tr>
 										<th class="px-3 py-2 font-medium">Name</th>
@@ -394,8 +432,31 @@
 					</div>
 
 					<div class="rounded-xl border border-border overflow-hidden">
-						<div class="overflow-x-auto">
-							<table class="w-full text-sm text-left min-w-[560px]">
+						{#if spotUsageRows.length === 0}
+							<p class="md:hidden p-4 text-text-muted text-sm bg-bg-card">Keine Daten für diesen Zeitraum.</p>
+						{:else}
+							<div class="md:hidden divide-y divide-border bg-bg-card">
+								{#each spotUsageRows as row, i}
+									<div class="p-3 space-y-2">
+										<div class="flex items-start justify-between gap-2">
+											<p class="text-text-muted text-xs tabular-nums shrink-0 pt-0.5">{i + 1}.</p>
+											<div class="min-w-0 flex-1">
+												<a href="/spots/{row.spotId}" class="font-medium text-text-primary hover:text-accent transition-colors break-words">{row.spotName}</a>
+												<p class="text-text-muted text-xs mt-0.5">{row.spotCity}</p>
+											</div>
+										</div>
+										<div class="grid grid-cols-2 gap-x-3 text-xs pl-6">
+											<span class="text-text-muted">Gewählt</span>
+											<span class="text-right font-semibold text-accent tabular-nums">{row.timesSelected}×</span>
+											<span class="text-text-muted">Top-Votes</span>
+											<span class="text-right text-text-secondary tabular-nums">{row.totalTopVotes}</span>
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+						<div class="hidden md:block overflow-x-auto">
+							<table class="w-full text-sm text-left min-w-[480px]">
 								<thead class="bg-bg-secondary text-text-muted text-xs uppercase tracking-wide">
 									<tr>
 										<th class="px-3 py-2 font-medium">#</th>

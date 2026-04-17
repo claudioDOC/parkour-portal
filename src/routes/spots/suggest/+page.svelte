@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 
 	const TECHNIQUES = [
 		'Präzisionssprung', 'Schwingen', 'Flow', 'Armsprung',
@@ -17,6 +18,9 @@
 	let selectedTechniques = $state<string[]>([]);
 	let selectedWeather = $state<string[]>(['trocken', 'nass']);
 	let description = $state('');
+	let isMicro = $state(false);
+	let parentSpotId = $state('');
+	let parentCandidates = $state<{ id: number; name: string; city: string }[]>([]);
 	let error = $state('');
 	let loading = $state(false);
 	let success = $state(false);
@@ -32,6 +36,22 @@
 
 	let imageFiles = $state<File[]>([]);
 	let uploadingImages = $state(false);
+
+	onMount(async () => {
+		try {
+			const res = await fetch('/api/spots', { credentials: 'include' });
+			if (!res.ok) return;
+			const data = (await res.json()) as {
+				spots: { id: number; name: string; city: string; isMicro?: boolean }[];
+			};
+			parentCandidates = (data.spots || [])
+				.filter((s) => !s.isMicro)
+				.map((s) => ({ id: s.id, name: s.name, city: s.city }))
+				.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+		} catch {
+			// Optionales Feature: Parent-Liste bleibt leer bei Fehler.
+		}
+	});
 
 	function toggleItem(list: string[], item: string): string[] {
 		if (list.includes(item)) return list.filter(i => i !== item);
@@ -153,7 +173,9 @@
 					lighting,
 					techniques: selectedTechniques,
 					goodWeather: selectedWeather,
-					description
+					description,
+					isMicro,
+					parentSpotId: isMicro && parentSpotId ? Number(parentSpotId) : null
 				})
 			});
 
@@ -209,6 +231,35 @@
 					<input id="city" type="text" bind:value={city} required
 						class="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors"
 						placeholder="z.B. Thun" />
+				</div>
+			</div>
+
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+				<div class="bg-bg-secondary rounded-lg p-3 border border-border/70">
+					<label class="inline-flex items-center gap-2 cursor-pointer text-sm text-text-primary">
+						<input
+							type="checkbox"
+							checked={isMicro}
+							onchange={(e) => (isMicro = (e.currentTarget as HTMLInputElement).checked)}
+							class="h-4 w-4 accent-[var(--color-accent)]"
+						/>
+						Als Microspot markieren
+					</label>
+					<p class="text-text-muted text-xs mt-1">Für kurze Sessions / kleine Gruppen.</p>
+				</div>
+				<div>
+					<label for="parent-spot" class="block text-text-secondary text-sm font-medium mb-2">Hauptspot (optional)</label>
+					<select
+						id="parent-spot"
+						bind:value={parentSpotId}
+						disabled={!isMicro}
+						class="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-accent disabled:opacity-50"
+					>
+						<option value="">Kein Hauptspot</option>
+						{#each parentCandidates as spot}
+							<option value={spot.id}>{spot.name} ({spot.city})</option>
+						{/each}
+					</select>
 				</div>
 			</div>
 

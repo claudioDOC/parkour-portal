@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 export const TECHNIQUES = [
@@ -100,6 +100,10 @@ export const spots = sqliteTable('spots', {
 	city: text('city').notNull(),
 	latitude: real('latitude'),
 	longitude: real('longitude'),
+	/** Kleiner Spot: eher kurzer Technik-Stop, nicht für ganze Gruppe. */
+	isMicro: integer('is_micro', { mode: 'boolean' }).notNull().default(false),
+	/** Optionaler Hauptspot in der Nähe, zu dem dieser Microspot gehört. */
+	parentSpotId: integer('parent_spot_id'),
 	lighting: text('lighting', { enum: ['ja', 'nein', 'teilweise'] }).notNull().default('teilweise'),
 	techniques: text('techniques').notNull().default(''),
 	goodWeather: text('good_weather').notNull().default('trocken,nass'),
@@ -114,6 +118,17 @@ export const spotImages = sqliteTable('spot_images', {
 	spotId: integer('spot_id').notNull().references(() => spots.id),
 	filename: text('filename').notNull(),
 	uploadedBy: integer('uploaded_by').notNull().references(() => users.id),
+	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});
+
+export const spotParkingLocations = sqliteTable('spot_parking_locations', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	spotId: integer('spot_id')
+		.notNull()
+		.references(() => spots.id),
+	name: text('name'),
+	latitude: real('latitude').notNull(),
+	longitude: real('longitude').notNull(),
 	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
 
@@ -173,6 +188,128 @@ export const sessionHiddenUsers = sqliteTable('session_hidden_users', {
 	userId: integer('user_id').notNull().references(() => users.id),
 	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
+
+export const tripPlans = sqliteTable('trip_plans', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	title: text('title').notNull(),
+	startDate: text('start_date').notNull(),
+	endDate: text('end_date').notNull(),
+	notes: text('notes'),
+	/** Kartenziel (Zielort), optional — für Route & Karte. */
+	destinationLatitude: real('destination_latitude'),
+	destinationLongitude: real('destination_longitude'),
+	destinationLabel: text('destination_label'),
+	transportMode: text('transport_mode').notNull().default('auto'),
+	carCount: integer('car_count').notNull().default(0),
+	seatsPerCar: integer('seats_per_car').notNull().default(0),
+	/** Soft-Delete: Papierkorb. */
+	deleted: integer('deleted', { mode: 'boolean' }).notNull().default(false),
+	deletedAt: text('deleted_at'),
+	createdBy: integer('created_by').notNull().references(() => users.id),
+	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});
+
+export const tripStopovers = sqliteTable(
+	'trip_stopovers',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		tripId: integer('trip_id')
+			.notNull()
+			.references(() => tripPlans.id),
+		label: text('label').notNull(),
+		latitude: real('latitude').notNull(),
+		longitude: real('longitude').notNull(),
+		sortOrder: integer('sort_order').notNull().default(0),
+		proposedBy: integer('proposed_by')
+			.notNull()
+			.references(() => users.id),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [index('trip_stopovers_trip_id_idx').on(t.tripId)]
+);
+
+export const tripParticipants = sqliteTable(
+	'trip_participants',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		tripId: integer('trip_id')
+			.notNull()
+			.references(() => tripPlans.id),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		transportMode: text('transport_mode').notNull().default('mitfahrt'),
+		vehicleFrom: text('vehicle_from'),
+		hasCar: integer('has_car', { mode: 'boolean' }).notNull().default(false),
+		seatsOffered: integer('seats_offered').notNull().default(0),
+		note: text('note'),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [uniqueIndex('trip_participants_trip_user').on(t.tripId, t.userId)]
+);
+
+export const tripDestinations = sqliteTable('trip_destinations', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	tripId: integer('trip_id')
+		.notNull()
+		.references(() => tripPlans.id),
+	name: text('name').notNull(),
+	city: text('city').notNull(),
+	note: text('note'),
+	proposedBy: integer('proposed_by').notNull().references(() => users.id),
+	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});
+
+export const tripDestinationVotes = sqliteTable(
+	'trip_destination_votes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		tripId: integer('trip_id')
+			.notNull()
+			.references(() => tripPlans.id),
+		destinationId: integer('destination_id')
+			.notNull()
+			.references(() => tripDestinations.id),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [uniqueIndex('trip_destination_votes_trip_user').on(t.tripId, t.userId)]
+);
+
+/** Alternative Zeiträume für einen Trip (Abstimmung, z. B. einen Tag später abfahren). */
+export const tripDateOptions = sqliteTable('trip_date_options', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	tripId: integer('trip_id')
+		.notNull()
+		.references(() => tripPlans.id),
+	startDate: text('start_date').notNull(),
+	endDate: text('end_date').notNull(),
+	note: text('note'),
+	proposedBy: integer('proposed_by')
+		.notNull()
+		.references(() => users.id),
+	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});
+
+export const tripDateVotes = sqliteTable(
+	'trip_date_votes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		tripId: integer('trip_id')
+			.notNull()
+			.references(() => tripPlans.id),
+		dateOptionId: integer('date_option_id')
+			.notNull()
+			.references(() => tripDateOptions.id),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [uniqueIndex('trip_date_votes_trip_user').on(t.tripId, t.userId)]
+);
 
 export const auditLogs = sqliteTable('audit_logs', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
