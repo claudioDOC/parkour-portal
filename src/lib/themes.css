@@ -1,0 +1,213 @@
+/**
+ * Zusätzliche Farbschemas — Standard bleibt `mate` aus `app.css` (@theme).
+ * Aktivierung: `<html data-theme="urban">` usw. (siehe Einstellungen).
+ */
+
+html[data-theme='urban'] {
+	--color-bg-primary: #1a1a18;
+	--color-bg-secondary: #242320;
+	--color-bg-card: #2e2c28;
+	--color-bg-hover: #3a3834;
+	--color-accent: #5eb5a6;
+	--color-accent-hover: #6fc4b5;
+	--color-accent-hot: #7ec9cf;
+	--color-accent-dim: #3a6b62;
+	--color-accent-blue: #6a92a8;
+	--color-text-primary: #f2f1ee;
+	--color-text-secondary: #c4c2bc;
+	--color-text-muted: #8a8780;
+	--color-border: rgb(255 255 255 / 0.11);
+	--color-danger: #d96a6a;
+	--color-warning: #d4a85e;
+	--color-success: #52b892;
+	--color-accent-rgb: 94 181 166;
+	--shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.06), 0 8px 28px -8px rgb(0 0 0 / 0.5);
+	--shadow-card-hover: 0 1px 0 0 rgb(255 255 255 / 0.08), 0 12px 36px -10px rgb(0 0 0 / 0.55),
+		0 0 0 1px rgb(var(--color-accent-rgb) / 0.22);
+	--shadow-nav: 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
+html[data-theme='urban'] {
+	background-image:
+		radial-gradient(ellipse 100% 65% at 50% -22%, rgb(var(--color-accent-rgb) / 0.08), transparent 52%),
+		radial-gradient(ellipse 45% 32% at 100% 0%, rgb(106 146 168 / 0.06), transparent 48%);
+	background-size: auto;
+}
+
+html[data-theme='nord'] {
+	--color-bg-primary: #2e3440;
+	--color-bg-secondary: #3b4252;
+	--color-bg-card: #434c5e;
+	--color-bg-hover: #4c566a;
+	--color-accent: #88c0d0;
+	--color-accent-hover: #9ac9d6;
+	--color-accent-hot: #81a1c1;
+	--color-accent-dim: #5e81ac;
+	--color-accent-blue: #81a1c1;
+	--color-text-primary: #eceff4;
+	--color-text-secondary: #d8dee9;
+	--color-text-muted: #aeb3c0;
+	--color-border: rgb(236 239 244 / 0.12);
+	--color-danger: #bf616a;
+	--color-warning: #ebcb8b;
+	--color-success: #a3be8c;
+	--color-accent-rgb: 136 192 208;
+	--shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.05), 0 8px 28px -8px rgb(0 0 0 / 0.45);
+	--shadow-card-hover: 0 1px 0 0 rgb(255 255 255 / 0.07), 0 12px 36px -10px rgb(0 0 0 / 0.5),
+		0 0 0 1px rgb(var(--color-accent-rgb) / 0.2);
+	--shadow-nav: inset -1px 0 0 var(--color-border);
+}
+
+html[data-theme='nord'] {
+	background-image:
+		radial-gradient(ellipse 100% 70% at 50% -25%, rgb(var(--color-accent-rgb) / 0.1), transparent 52%),
+		linear-gradient(175deg, #323946 0%, var(--color-bg-primary) 46%, #2a303b 100%);
+	background-size: auto;
+}
+
+html[data-theme='noir'] {
+	--color-bg-primary: #0a0a0c;
+	--color-bg-secondary: #121218;
+	--color-bg-card: #1a1a22;
+	--color-bg-hover: #24242e;
+	--color-accent: #9b8fd9;
+	--color-accent-hover: #aea4e3;
+	--color-accent-hot: #c4b8f0;
+	--color-accent-dim: #5c5480;
+	--color-accent-blue: #7a8fc4;
+	--color-text-primary: #f0eef5;
+	--color-text-secondary: #b8b4c4;
+	--color-text-muted: #7a7688;
+	--color-border: rgb(255 255 255 / 0.08);
+	--color-danger: #e07080;
+	--color-warning: #d9a85e;
+	--color-success: #6bbe9a;
+	--color-accent-rgb: 155 143 217;
+	--shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.05), 0 10px 36px -10px rgb(0 0 0 / 0.58);
+	--shadow-card-hover: 0 1px 0 0 rgb(255 255 255 / 0.07), 0 16px 48px -12px rgb(0 0 0 / 0.62),
+		0 0 0 1px rgb(var(--color-accent-rgb) / 0.22);
+	--shadow-nav: 0 0 0 1px rgb(255 255 255 / 0.04);
+}
+
+html[data-theme='noir'] {
+	background-image:
+		radial-gradient(ellipse 100% 60% at 50% -20%, rgb(var(--color-accent-rgb) / 0.09), transparent 55%),
+		radial-gradient(circle, rgb(255 255 255 / 0.03) 1px, transparent 1px);
+	background-size: auto, 22px 22px;
+}
+
+/* —— Klassisch Dunkel (neutral, kein Gelb) —— */
+html[data-theme='dark'] {
+	--color-bg-primary: #121212;
+	--color-bg-secondary: #1a1a1a;
+	--color-bg-card: #242424;
+	--color-bg-hover: #2f2f2f;
+	--color-accent: #8ab4f8;
+	--color-accent-hover: #a3c2fa;
+	--color-accent-hot: #c58af9;
+	--color-accent-dim: #4a5f8a;
+	--color-accent-blue: #7aa2f7;
+	--color-text-primary: #ececec;
+	--color-text-secondary: #b0b0b0;
+	--color-text-muted: #8a8a8a;
+	--color-border: rgb(255 255 255 / 0.1);
+	--color-danger: #f28b82;
+	--color-warning: #fdd663;
+	--color-success: #81c995;
+	--color-accent-rgb: 138 180 248;
+	--shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.05), 0 6px 24px -6px rgb(0 0 0 / 0.55);
+	--shadow-card-hover: 0 1px 0 0 rgb(255 255 255 / 0.07), 0 10px 32px -8px rgb(0 0 0 / 0.6),
+		0 0 0 1px rgb(var(--color-accent-rgb) / 0.22);
+	--shadow-nav: 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
+html[data-theme='dark'] {
+	background-image: radial-gradient(
+		ellipse 100% 70% at 50% -25%,
+		rgb(var(--color-accent-rgb) / 0.06),
+		transparent 52%
+	);
+	background-size: auto;
+}
+
+/* —— Klassisch Hell —— */
+html[data-theme='light'] {
+	--color-bg-primary: #f3f4f6;
+	--color-bg-secondary: #e5e7eb;
+	--color-bg-card: #ffffff;
+	--color-bg-hover: #eef0f3;
+	--color-accent: #2563eb;
+	--color-accent-hover: #1d4ed8;
+	--color-accent-hot: #3b82f6;
+	--color-accent-dim: #1e3a8a;
+	--color-accent-blue: #0369a1;
+	--color-text-primary: #111827;
+	--color-text-secondary: #4b5563;
+	--color-text-muted: #6b7280;
+	--color-border: rgb(0 0 0 / 0.1);
+	--color-danger: #dc2626;
+	--color-warning: #d97706;
+	--color-success: #059669;
+	--color-accent-rgb: 37 99 235;
+	--shadow-card: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 18px -4px rgb(0 0 0 / 0.1);
+	--shadow-card-hover: 0 1px 2px rgb(0 0 0 / 0.08), 0 8px 24px -6px rgb(0 0 0 / 0.12),
+		0 0 0 1px rgb(var(--color-accent-rgb) / 0.2);
+	--shadow-nav: 0 0 0 1px rgb(0 0 0 / 0.08);
+}
+
+html[data-theme='light'] {
+	background-image: linear-gradient(180deg, #ffffff 0%, var(--color-bg-primary) 35%);
+	background-size: auto;
+}
+
+html[data-theme='light'] select,
+html[data-theme='light'] input,
+html[data-theme='light'] textarea {
+	color-scheme: light;
+}
+
+html[data-theme='light'] .btn-link-ghost {
+	background: rgb(0 0 0 / 0.04);
+}
+
+html[data-theme='light'] .btn-link-ghost:hover {
+	background: rgb(var(--color-accent-rgb) / 0.1);
+}
+
+html[data-theme='light'] .card-surface {
+	background:
+		linear-gradient(180deg, rgb(0 0 0 / 0.03) 0%, transparent 42%),
+		var(--color-bg-card);
+}
+
+/* —— Ocean (tiefblau) —— */
+html[data-theme='ocean'] {
+	--color-bg-primary: #0c1520;
+	--color-bg-secondary: #132535;
+	--color-bg-card: #1a3045;
+	--color-bg-hover: #224056;
+	--color-accent: #2dd4bf;
+	--color-accent-hover: #5eead4;
+	--color-accent-hot: #67e8f9;
+	--color-accent-dim: #0f766e;
+	--color-accent-blue: #38bdf8;
+	--color-text-primary: #f0fdfa;
+	--color-text-secondary: #a8d4ce;
+	--color-text-muted: #6b9a94;
+	--color-border: rgb(165 243 252 / 0.12);
+	--color-danger: #fb7185;
+	--color-warning: #fbbf24;
+	--color-success: #4ade80;
+	--color-accent-rgb: 45 212 191;
+	--shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.05), 0 8px 28px -8px rgb(0 0 0 / 0.55);
+	--shadow-card-hover: 0 1px 0 0 rgb(255 255 255 / 0.08), 0 12px 36px -10px rgb(0 0 0 / 0.58),
+		0 0 0 1px rgb(var(--color-accent-rgb) / 0.25);
+	--shadow-nav: 0 0 0 1px rgb(165 243 252 / 0.08);
+}
+
+html[data-theme='ocean'] {
+	background-image:
+		radial-gradient(ellipse 100% 70% at 50% -20%, rgb(var(--color-accent-rgb) / 0.12), transparent 50%),
+		linear-gradient(165deg, #0f1e2d 0%, var(--color-bg-primary) 50%, #081018 100%);
+	background-size: auto;
+}

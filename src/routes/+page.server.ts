@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const nextTrainings = db.select().from(trainingSessions)
 		.where(gte(trainingSessions.date, today))
 		.orderBy(asc(trainingSessions.date))
-		.limit(2)
+		.limit(3)
 		.all();
 
 	const schemaOk = isTrainingAttendanceSchemaReady();

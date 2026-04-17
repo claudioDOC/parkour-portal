@@ -30,8 +30,13 @@
 	const WATCH_CACHE_KEY = 'training-watch-next-session-v1';
 	let watchTimer: ReturnType<typeof setInterval> | null = null;
 
+	function isSessionEnded(session: { date: string; timeEnd: string }): boolean {
+		const end = new Date(`${session.date}T${session.timeEnd}:00`);
+		return end < new Date();
+	}
+
 	function sessionFromPageData(): WatchSession | null {
-		const s = data.sessions?.[0];
+		const s = data.sessions?.find((x) => !isSessionEnded(x));
 		if (!s) return null;
 		return {
 			sessionId: s.id,
@@ -109,10 +114,14 @@
 		return dateStr === new Date().toISOString().split('T')[0];
 	}
 
-	function isPast(dateStr: string): boolean {
-		const sessionDate = new Date(dateStr + 'T20:15:00');
-		return sessionDate < new Date();
-	}
+	const upcomingRankBySessionId = $derived.by(() => {
+		const ranks: Record<number, number> = {};
+		let rank = 0;
+		for (const s of data.sessions) {
+			if (!isSessionEnded(s)) ranks[s.id] = rank++;
+		}
+		return ranks;
+	});
 
 	const filteredSpots = $derived(
 		data.allSpots.filter((s) =>
@@ -162,16 +171,33 @@
 
 	<div class="space-y-4">
 		{#each data.sessions as session}
-			{@const past = isPast(session.date)}
+			{@const past = isSessionEnded(session)}
+			{@const upcomingRank = upcomingRankBySessionId[session.id]}
+			{@const isNextUpcoming = upcomingRank === 0}
+			{@const isInNextThree = upcomingRank !== undefined && upcomingRank < 3}
 			<div
 				id="session-{session.id}"
-				class="scroll-mt-[4.5rem] md:scroll-mt-0 bg-bg-card rounded-xl border border-border overflow-hidden {past ? 'opacity-60' : ''}"
+				class="scroll-mt-[4.5rem] md:scroll-mt-0 rounded-xl overflow-hidden border bg-bg-card transition-shadow {past
+					? 'opacity-60 border-border'
+					: isNextUpcoming
+						? 'border-2 border-accent shadow-next-training-strong'
+						: isInNextThree
+							? 'border border-accent/40 shadow-md'
+							: 'border-border'}"
 			>
+				{#if isNextUpcoming}
+					<div
+						class="flex items-center justify-between gap-2 bg-gradient-to-r from-accent to-accent-hot px-4 py-2 font-display text-xs font-semibold uppercase tracking-[0.2em] text-black"
+					>
+						<span>Nächstes Training</span>
+						<span class="opacity-90" aria-hidden="true">●</span>
+					</div>
+				{/if}
 				<div class="p-5">
 				<div class="flex items-start justify-between gap-4">
 						<div>
 							<div class="flex items-center gap-2 flex-wrap">
-								<h3 class="font-semibold text-text-primary text-lg">{session.dayOfWeek}</h3>
+								<h3 class="font-semibold text-text-primary {isNextUpcoming ? 'text-lg md:text-xl' : 'text-lg'}">{session.dayOfWeek}</h3>
 								{#if isToday(session.date)}
 									<span class="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full font-medium">Heute</span>
 								{/if}

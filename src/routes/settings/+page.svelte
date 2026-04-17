@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
 	import type { PageData } from './$types';
+	import { UI_THEME_OPTIONS, type UiThemeId } from '$lib/uiThemes';
 
 	let { data }: { data: PageData } = $props();
 
@@ -10,6 +11,35 @@
 	let confirmPassword = $state('');
 	let error = $state('');
 	let loading = $state(false);
+
+	let themeSaving = $state(false);
+	let themeError = $state('');
+	let themeOk = $state('');
+
+	async function saveUiTheme(theme: UiThemeId) {
+		themeError = '';
+		themeOk = '';
+		themeSaving = true;
+		try {
+			const res = await fetch('/api/user/ui-theme', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				credentials: 'include',
+				body: JSON.stringify({ theme })
+			});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok) {
+				themeError = typeof body.error === 'string' ? body.error : `Fehler ${res.status}`;
+				return;
+			}
+			await invalidateAll();
+			themeOk = 'Design gespeichert.';
+		} catch {
+			themeError = 'Verbindungsfehler';
+		} finally {
+			themeSaving = false;
+		}
+	}
 
 	async function changePassword() {
 		error = '';
@@ -65,10 +95,40 @@
 	}
 </script>
 
-<div class="space-y-6 max-w-lg">
+<div class="space-y-6 max-w-2xl">
 	<div>
 		<h2 class="text-2xl font-bold text-text-primary">Einstellungen</h2>
 		<p class="text-text-secondary mt-1">Angemeldet als <span class="text-text-primary font-medium">{data.user?.username}</span></p>
+	</div>
+
+	<div class="bg-bg-card rounded-xl border border-border p-6">
+		<h3 class="text-lg font-semibold text-text-primary mb-1">Design</h3>
+		<p class="text-text-muted text-sm mb-4">
+			Wähle ein Farbschema — wird mit deinem Account gespeichert und auf allen Geräten übernommen.
+		</p>
+		{#if themeError}
+			<div class="bg-danger/10 border border-danger/30 text-danger rounded-lg p-3 text-sm mb-4">{themeError}</div>
+		{/if}
+		{#if themeOk}
+			<div class="bg-success/10 border border-success/30 text-success rounded-lg p-3 text-sm mb-4">{themeOk}</div>
+		{/if}
+		<div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+			{#each UI_THEME_OPTIONS as opt (opt.id)}
+				<button
+					type="button"
+					disabled={themeSaving}
+					onclick={() => saveUiTheme(opt.id)}
+					class={`rounded-xl border px-4 py-3 text-left text-sm transition-colors disabled:opacity-50 ${
+						data.user?.uiTheme === opt.id
+							? 'border-accent bg-accent/10 ring-1 ring-accent/30'
+							: 'border-border bg-bg-secondary hover:border-accent/40 hover:bg-bg-hover'
+					}`}
+				>
+					<span class="font-semibold text-text-primary">{opt.label}</span>
+					<span class="mt-0.5 block text-text-muted text-xs leading-snug">{opt.hint}</span>
+				</button>
+			{/each}
+		</div>
 	</div>
 
 	<div class="bg-bg-card rounded-xl border border-border p-6">

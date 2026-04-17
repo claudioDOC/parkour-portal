@@ -33,6 +33,8 @@ export const users = sqliteTable('users', {
 		.default('implicit'),
 	/** JSON-Array, z. B. ["Donnerstag"] – nur bei implicit: auto. abgemeldet an diesem Wochentag (siehe training_session_weekday_override). */
 	autoAbsentWeekdays: text('auto_absent_weekdays').notNull().default('[]'),
+	/** UI-Farbschema — siehe `src/lib/uiThemes.ts` (UI_THEME_IDS). */
+	uiTheme: text('ui_theme').notNull().default('mate'),
 	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
 

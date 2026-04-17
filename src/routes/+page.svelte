@@ -17,7 +17,7 @@
 <div class="space-y-10">
 	<header class="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-5">
 		<div
-			class="hidden h-14 w-1.5 shrink-0 rounded-sm bg-gradient-to-b from-accent via-accent-hot to-accent-hot/60 shadow-[0_0_22px_-2px_rgb(229_255_61_/_0.5)] sm:block"
+			class="hidden h-14 w-1.5 shrink-0 rounded-sm bg-gradient-to-b from-accent via-accent-hot to-accent-hot/60 shadow-accent-bar-glow sm:block"
 			aria-hidden="true"
 		></div>
 		<div class="min-w-0 space-y-1">
@@ -46,8 +46,21 @@
 			<h3 class="font-display text-xl font-medium uppercase tracking-[0.1em] text-text-primary">Nächste Trainings</h3>
 		</div>
 		<div class="space-y-3">
-			{#each data.nextTrainings as session}
-				<div class="card-surface card-surface-lift relative p-5 md:p-6">
+			{#each data.nextTrainings as session, i}
+				<div
+					class="card-surface card-surface-lift relative overflow-hidden p-5 md:p-6 {i === 0
+						? 'ring-2 ring-accent ring-offset-2 ring-offset-bg-bg-card shadow-next-training-soft'
+						: ''}"
+				>
+					{#if i === 0}
+						<div
+							class="pointer-events-none absolute left-0 right-0 top-0 z-30 flex items-center justify-between gap-2 bg-gradient-to-r from-accent to-accent-hot px-4 py-1.5 font-display text-[10px] font-semibold uppercase tracking-[0.22em] text-black sm:text-xs"
+						>
+							<span>Nächstes Training</span>
+							<span class="opacity-80" aria-hidden="true">●</span>
+						</div>
+						<div class="h-7 sm:h-8" aria-hidden="true"></div>
+					{/if}
 					<a
 						href="/training#session-{session.id}"
 						class="absolute inset-0 z-0 rounded-[0.625rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-bg-card"

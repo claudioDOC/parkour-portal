@@ -109,6 +109,21 @@ body {
 	}
 }
 
+/** Schein für Highlights — folgt `--color-accent-rgb` je nach UI-Theme */
+@utility shadow-accent-bar-glow {
+	box-shadow: 0 0 22px -2px rgb(var(--color-accent-rgb) / 0.5);
+}
+
+@utility shadow-next-training-soft {
+	box-shadow: 0 12px 40px -12px rgb(var(--color-accent-rgb) / 0.22);
+}
+
+@utility shadow-next-training-strong {
+	box-shadow:
+		0 0 0 1px rgb(var(--color-accent-rgb) / 0.35),
+		0 12px 40px -12px rgb(var(--color-accent-rgb) / 0.25);
+}
+
 select,
 input,
 textarea {
@@ -198,3 +213,5 @@ select option {
 	background: rgb(var(--color-accent-rgb) / 0.08);
 	color: var(--color-accent);
 }
+
+@import './lib/themes.css';
