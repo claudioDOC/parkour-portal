@@ -11,6 +11,7 @@ declare global {
 				role: 'admin' | 'spotmanager' | 'member';
 				trainingAttendance: 'implicit' | 'opt_in';
 				autoAbsentWeekdays: string[];
+				uiTheme: import('$lib/uiThemes').UiThemeId;
 			} | null;
 		}
 	}

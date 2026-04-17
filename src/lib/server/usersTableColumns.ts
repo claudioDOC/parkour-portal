@@ -22,3 +22,7 @@ export function usersTableHasDeletedColumn(): boolean {
 export function usersTableHasSessionVersionColumn(): boolean {
 	return getUsersTableColumnNames().has('session_version');
 }
+
+export function usersTableHasUiThemeColumn(): boolean {
+	return getUsersTableColumnNames().has('ui_theme');
+}

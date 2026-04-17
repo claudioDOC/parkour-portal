@@ -60,7 +60,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 				username: session.username,
 				role: session.role,
 				trainingAttendance,
-				autoAbsentWeekdays
+				autoAbsentWeekdays,
+				uiTheme: row.uiTheme
 			};
 		}
 	} else {

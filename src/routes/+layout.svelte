@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	import { pwaInfo } from 'virtual:pwa-info';
 	import PwaInstallBanner from '$lib/components/PwaInstallBanner.svelte';
 	import AppNavIcon from '$lib/components/AppNavIcon.svelte';
@@ -11,6 +12,31 @@
 type NavIcon = 'home' | 'training' | 'trip' | 'spots' | 'finder' | 'stats' | 'settings' | 'admin';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
+
+	$effect(() => {
+		if (!browser) return;
+		const root = document.documentElement;
+		const t = data.user?.uiTheme;
+
+		if (!data.user) {
+			root.removeAttribute('data-theme');
+			root.classList.add('dark');
+			return;
+		}
+
+		if (!t || t === 'mate') {
+			root.removeAttribute('data-theme');
+			root.classList.add('dark');
+			return;
+		}
+
+		root.dataset.theme = t;
+		if (t === 'light') {
+			root.classList.remove('dark');
+		} else {
+			root.classList.add('dark');
+		}
+	});
 
 	onMount(async () => {
 		if (!pwaInfo) return;
