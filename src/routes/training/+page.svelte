@@ -111,7 +111,7 @@
 	}
 
 	function isToday(dateStr: string): boolean {
-		return dateStr === new Date().toISOString().split('T')[0];
+		return dateStr === data.calendarToday;
 	}
 
 	const upcomingRankBySessionId = $derived.by(() => {
@@ -151,9 +151,6 @@
 	<div>
 		<h2 class="text-2xl font-bold text-text-primary">Training</h2>
 		<p class="text-text-secondary mt-1">Dienstag & Donnerstag, 18:15 - 20:15</p>
-		<a href="/trips" class="inline-flex mt-2 text-xs bg-accent/15 hover:bg-accent/25 text-accent px-2.5 py-1.5 rounded-lg transition-colors">
-			Zu geplanten Trips
-		</a>
 		{#if data.weather}
 			<p class="text-text-muted text-sm mt-1">Aktuelles Wetter Thun: {data.weather.weatherLabel} ({data.weather.temperature.toFixed(0)}°C)</p>
 		{/if}
@@ -191,6 +188,20 @@
 					>
 						<span>Nächstes Training</span>
 						<span class="opacity-90" aria-hidden="true">●</span>
+					</div>
+				{:else if upcomingRank === 1}
+					<div
+						class="flex items-center justify-between gap-2 border-b border-accent/30 bg-accent/12 px-4 py-1.5 font-display text-[11px] font-semibold uppercase tracking-[0.18em] text-accent"
+					>
+						<span>Übernächstes Training</span>
+						<span class="text-accent/70" aria-hidden="true">2</span>
+					</div>
+				{:else if upcomingRank === 2}
+					<div
+						class="flex items-center justify-between gap-2 border-b border-accent/20 bg-accent/8 px-4 py-1.5 font-display text-[11px] font-semibold uppercase tracking-[0.18em] text-accent"
+					>
+						<span>Drittes kommendes Training</span>
+						<span class="text-accent/60" aria-hidden="true">3</span>
 					</div>
 				{/if}
 				<div class="p-5">

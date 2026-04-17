@@ -5,11 +5,12 @@ import { trainingSessions, trainingSpotVotes, spots } from '$lib/server/db/schem
 import { and, asc, eq, gte, sql } from 'drizzle-orm';
 import { asNum } from '$lib/server/asSqlNumber';
 import { getCurrentWeather } from '$lib/server/weather';
+import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
-	const today = new Date().toISOString().split('T')[0];
+	const today = todayYmdInAppTZ();
 	const session = db
 		.select()
 		.from(trainingSessions)

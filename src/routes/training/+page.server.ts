@@ -22,15 +22,19 @@ import {
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 import { asNum } from '$lib/server/asSqlNumber';
 import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
+import { todayYmdInAppTZ } from '$lib/server/calendarToday';
+import { ensureUpcomingTrainingSessions } from '$lib/server/ensureUpcomingTrainingSessions';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const viewerAttendance = locals.user?.trainingAttendance ?? null;
-	const today = new Date().toISOString().split('T')[0];
+	const today = todayYmdInAppTZ();
+
+	ensureUpcomingTrainingSessions();
 
 	const sessions = db.select().from(trainingSessions)
 		.where(gte(trainingSessions.date, today))
 		.orderBy(asc(trainingSessions.date))
-		.limit(8)
+		.limit(12)
 		.all();
 
 	const schemaOk = isTrainingAttendanceSchemaReady();
@@ -250,6 +254,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		sessions: sessionsWithDetails,
 		allSpots,
 		weather,
-		viewerTrainingAttendance: viewerAttendance
+		viewerTrainingAttendance: viewerAttendance,
+		calendarToday: today
 	};
 };
