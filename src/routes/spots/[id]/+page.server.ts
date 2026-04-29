@@ -7,14 +7,15 @@ import {
 	spotImages,
 	spotParkingLocations,
 	spotChallenges,
-	spotChallengeCompletions
+	spotChallengeCompletions,
+	spotChallengeImages
 } from '$lib/server/db/schema';
 import { eq, sql, and, asc, inArray } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import { getNextOpenSessionId } from '$lib/server/training';
 import { asNum } from '$lib/server/asSqlNumber';
 import { usersNotDeletedCondition } from '$lib/server/usersWhere';
-import { isSpotChallengesSchemaReady } from '$lib/server/spotChallengesSchemaReady';
+import { isSpotChallengesSchemaReady, isSpotChallengeImagesReady } from '$lib/server/spotChallengesSchemaReady';
 import { spotsParkingTableExists, spotsTableHasMicrospotColumns } from '$lib/server/spotsTableColumns';
 
 function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -147,6 +148,20 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 					.innerJoin(users, eq(spotChallengeCompletions.userId, users.id))
 					.where(and(inArray(spotChallengeCompletions.challengeId, challengeIds), usersNotDeletedCondition()))
 					.orderBy(asc(users.username))
+					.all()
+			: [];
+
+	const challengeImagesRows =
+		challengesSchemaReady && isSpotChallengeImagesReady() && challengeIds.length > 0
+			? db
+					.select({
+						challengeId: spotChallengeImages.challengeId,
+						id: spotChallengeImages.id,
+						filename: spotChallengeImages.filename,
+						uploadedBy: spotChallengeImages.uploadedBy
+					})
+					.from(spotChallengeImages)
+					.where(inArray(spotChallengeImages.challengeId, challengeIds))
 					.all()
 			: [];
 
@@ -357,8 +372,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				.map((c) => ({ userId: c.userId, username: c.username }));
 			const doneIds = new Set(doneBy.map((d) => d.userId));
 			const openBy = participants.filter((p) => !doneIds.has(p.id));
+			const images = challengeImagesRows
+				.filter((r) => r.challengeId === challenge.id)
+				.map((r) => ({
+					id: r.id,
+					url: `/uploads/${r.filename}`,
+					uploadedBy: r.uploadedBy
+				}));
 			return {
 				...challenge,
+				images,
 				doneCount: doneBy.length,
 				openCount: openBy.length,
 				doneBy,

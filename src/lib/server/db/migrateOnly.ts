@@ -319,6 +319,21 @@ function repairMissingColumnsAfterJournalDrift() {
 			console.log('[db:migrate] Schema-Reparatur: spot_challenges.deleted_at ergänzt.');
 		}
 	}
+	if (!tableExists('spot_challenge_images')) {
+		sqlite.exec(`CREATE TABLE spot_challenge_images (
+			id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+			challenge_id integer NOT NULL,
+			filename text NOT NULL,
+			uploaded_by integer NOT NULL,
+			created_at text DEFAULT (datetime('now')) NOT NULL,
+			FOREIGN KEY (challenge_id) REFERENCES spot_challenges(id) ON DELETE CASCADE,
+			FOREIGN KEY (uploaded_by) REFERENCES users(id)
+		)`);
+		sqlite.exec(
+			'CREATE INDEX IF NOT EXISTS spot_challenge_images_challenge_id_idx ON spot_challenge_images (challenge_id)'
+		);
+		console.log('[db:migrate] Schema-Reparatur: spot_challenge_images erstellt.');
+	}
 }
 
 repairMissingColumnsAfterJournalDrift();

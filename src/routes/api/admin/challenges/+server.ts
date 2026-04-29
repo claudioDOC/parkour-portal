@@ -1,9 +1,18 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { desc, eq } from 'drizzle-orm';
+import { unlinkSync } from 'node:fs';
+import { join } from 'node:path';
 import { db } from '$lib/server/db';
-import { spotChallenges, spotChallengeCompletions, spots, users } from '$lib/server/db/schema';
+import {
+	spotChallenges,
+	spotChallengeCompletions,
+	spotChallengeImages,
+	spots,
+	users
+} from '$lib/server/db/schema';
 import { isSpotChallengesSchemaReady } from '$lib/server/spotChallengesSchemaReady';
+import { getUploadWriteDir } from '$lib/server/uploads';
 import { logAudit } from '$lib/server/audit';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
@@ -82,6 +91,24 @@ export const DELETE: RequestHandler = async (event) => {
 	}
 
 	const spot = db.select({ name: spots.name }).from(spots).where(eq(spots.id, ch.spotId)).get();
+
+	const filenames = db
+		.select({ filename: spotChallengeImages.filename })
+		.from(spotChallengeImages)
+		.where(eq(spotChallengeImages.challengeId, challengeId))
+		.all();
+	const uploadDir = getUploadWriteDir();
+	for (const row of filenames) {
+		try {
+			unlinkSync(join(uploadDir, row.filename));
+		} catch {
+			try {
+				unlinkSync(join(process.cwd(), 'static', 'uploads', row.filename));
+			} catch {
+				/* ignore missing */
+			}
+		}
+	}
 
 	db.delete(spotChallengeCompletions).where(eq(spotChallengeCompletions.challengeId, challengeId)).run();
 	db.delete(spotChallenges).where(eq(spotChallenges.id, challengeId)).run();

@@ -161,6 +161,22 @@ export const spotChallengeCompletions = sqliteTable(
 	(t) => [uniqueIndex('spot_challenge_completion_unique').on(t.challengeId, t.userId)]
 );
 
+export const spotChallengeImages = sqliteTable(
+	'spot_challenge_images',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		challengeId: integer('challenge_id')
+			.notNull()
+			.references(() => spotChallenges.id, { onDelete: 'cascade' }),
+		filename: text('filename').notNull(),
+		uploadedBy: integer('uploaded_by')
+			.notNull()
+			.references(() => users.id),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [index('spot_challenge_images_challenge_id_idx').on(t.challengeId)]
+);
+
 export const votes = sqliteTable('votes', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	userId: integer('user_id').notNull().references(() => users.id),

@@ -1,9 +1,15 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { spotChallenges, spotChallengeCompletions, spots, users } from '$lib/server/db/schema';
+import {
+	spotChallenges,
+	spotChallengeCompletions,
+	spotChallengeImages,
+	spots,
+	users
+} from '$lib/server/db/schema';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { andWithUsersNotDeleted } from '$lib/server/usersWhere';
-import { isSpotChallengesSchemaReady } from '$lib/server/spotChallengesSchemaReady';
+import { isSpotChallengesSchemaReady, isSpotChallengeImagesReady } from '$lib/server/spotChallengesSchemaReady';
 import { asNum } from '$lib/server/asSqlNumber';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -73,9 +79,28 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 	}
 
+	const challengeImagesMap = new Map<number, { id: number; url: string }[]>();
+	if (challengeIds.length > 0 && isSpotChallengeImagesReady()) {
+		const imgRows = db
+			.select({
+				challengeId: spotChallengeImages.challengeId,
+				id: spotChallengeImages.id,
+				filename: spotChallengeImages.filename
+			})
+			.from(spotChallengeImages)
+			.where(inArray(spotChallengeImages.challengeId, challengeIds))
+			.all();
+		for (const im of imgRows) {
+			const list = challengeImagesMap.get(im.challengeId) ?? [];
+			list.push({ id: im.id, url: `/uploads/${im.filename}` });
+			challengeImagesMap.set(im.challengeId, list);
+		}
+	}
+
 	const rowsWithCompleters = rows.map((r) => ({
 		...r,
-		completers: completersByChallenge.get(r.id) ?? []
+		completers: completersByChallenge.get(r.id) ?? [],
+		images: challengeImagesMap.get(r.id) ?? []
 	}));
 
 	const bySpot = new Map<

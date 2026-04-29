@@ -2,6 +2,7 @@
 	import { invalidateAll, goto } from '$app/navigation';
 	import { onDestroy, onMount } from 'svelte';
 	import type { PageData } from './$types';
+	import { formatLatLonPair, parseLatLonPair } from '$lib/parseLatLon';
 
 	let { data }: { data: PageData } = $props();
 	let hoverScore = $state(0);
@@ -48,6 +49,8 @@
 	let challengeBusy = $state(false);
 	let challengeError = $state('');
 	let challengeDeleteConfirm = $state<null | { id: number; title: string }>(null);
+	let challengePendingImage = $state<File | null>(null);
+	let challengeNewImageInput = $state<HTMLInputElement | null>(null);
 	let mapContainer = $state<HTMLDivElement | null>(null);
 	let mapReady = $state(false);
 	let mapError = $state('');
@@ -86,23 +89,21 @@
 	let editing = $state(false);
 	let editName = $state('');
 	let editCity = $state('');
-	let editLatitude = $state('');
-	let editLongitude = $state('');
+	let editCoords = $state('');
 	let editLighting = $state('teilweise');
 	let editTechniques = $state<string[]>([]);
 	let editWeather = $state<string[]>([]);
 	let editDescription = $state('');
 	let editIsMicro = $state(false);
 	let editParentSpotId = $state('');
-	let editParkingLocations = $state<Array<{ name: string; latitude: string; longitude: string }>>([]);
+	let editParkingLocations = $state<Array<{ name: string; coords: string }>>([]);
 	let editError = $state('');
 	let saving = $state(false);
 
 	function startEdit() {
 		editName = data.spot.name;
 		editCity = data.spot.city;
-		editLatitude = data.spot.latitude ? String(data.spot.latitude) : '';
-		editLongitude = data.spot.longitude ? String(data.spot.longitude) : '';
+		editCoords = formatLatLonPair(data.spot.latitude ?? undefined, data.spot.longitude ?? undefined);
 		editLighting = data.spot.lighting;
 		editTechniques = techniquesArr.slice();
 		editWeather = weatherArr.slice();
@@ -111,8 +112,7 @@
 		editParentSpotId = data.spot.parentSpotId ? String(data.spot.parentSpotId) : '';
 		editParkingLocations = (data.parkingLocations || []).map((p) => ({
 			name: p.name || '',
-			latitude: String(p.latitude),
-			longitude: String(p.longitude)
+			coords: formatLatLonPair(p.latitude, p.longitude)
 		}));
 		editError = '';
 		editing = true;
@@ -128,6 +128,30 @@
 		if (!editName || !editCity) { editError = 'Name und Stadt erforderlich'; return; }
 		if (editWeather.length === 0) { editError = 'Mindestens eine Wetter-Eignung wählen'; return; }
 
+		const spotCoordsStr = editCoords.trim();
+		let spotLat: number | null = null;
+		let spotLng: number | null = null;
+		if (spotCoordsStr) {
+			const spotParsed = parseLatLonPair(spotCoordsStr);
+			if (!spotParsed) {
+				editError =
+					'Spot-Koordinaten ungültig. Erwartet: Breite, Länge (z. B. 46.90795, 7.50712).';
+				return;
+			}
+			spotLat = spotParsed.latitude;
+			spotLng = spotParsed.longitude;
+		}
+
+		for (let i = 0; i < editParkingLocations.length; i++) {
+			const p = editParkingLocations[i];
+			const c = p.coords.trim();
+			if (!c) continue;
+			if (!parseLatLonPair(c)) {
+				editError = `Parkplatz ${i + 1}: Koordinaten ungültig (Breite, Länge, z. B. 46.9, 7.5).`;
+				return;
+			}
+		}
+
 		saving = true;
 		try {
 			const res = await fetch('/api/admin/spots', {
@@ -138,8 +162,8 @@
 					action: 'edit',
 					name: editName,
 					city: editCity,
-					latitude: editLatitude ? parseFloat(editLatitude) : null,
-					longitude: editLongitude ? parseFloat(editLongitude) : null,
+					latitude: spotLat,
+					longitude: spotLng,
 					lighting: editLighting,
 					techniques: editTechniques,
 					goodWeather: editWeather,
@@ -147,12 +171,16 @@
 					isMicro: editIsMicro,
 					parentSpotId: editParentSpotId ? Number(editParentSpotId) : null,
 					parkingLocations: editParkingLocations
-						.map((p) => ({
-							name: p.name?.trim() || null,
-							latitude: Number(p.latitude),
-							longitude: Number(p.longitude)
-						}))
-						.filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude))
+						.map((p) => {
+							const parsed = parseLatLonPair(p.coords.trim());
+							if (!parsed) return null;
+							return {
+								name: p.name?.trim() || null,
+								latitude: parsed.latitude,
+								longitude: parsed.longitude
+							};
+						})
+						.filter((p): p is { name: string | null; latitude: number; longitude: number } => p !== null)
 				})
 			});
 			const result = await res.json();
@@ -284,6 +312,10 @@
 			return;
 		}
 
+		const fileToUpload = challengePendingImage;
+		challengePendingImage = null;
+		if (challengeNewImageInput) challengeNewImageInput.value = '';
+
 		challengeBusy = true;
 		try {
 			const res = await fetch('/api/spots/challenges', {
@@ -296,8 +328,85 @@
 				challengeError = result.error || 'Challenge konnte nicht erstellt werden.';
 				return;
 			}
+			const newId = result.challenge?.id as number | undefined;
+			if (newId && fileToUpload) {
+				const fd = new FormData();
+				fd.append('image', fileToUpload);
+				fd.append('challengeId', String(newId));
+				const up = await fetch('/api/spots/challenges/images', {
+					method: 'POST',
+					body: fd,
+					credentials: 'include'
+				});
+				let upBody: { error?: string } = {};
+				try {
+					upBody = await up.json();
+				} catch {
+					upBody = {};
+				}
+				if (!up.ok) {
+					alert(upBody.error || 'Challenge-Bild konnte nicht hochgeladen werden.');
+				}
+			}
 			challengeTitle = '';
 			challengeDescription = '';
+			await invalidateAll();
+		} finally {
+			challengeBusy = false;
+		}
+	}
+
+	async function uploadChallengeImage(challengeId: number, file: File) {
+		challengeBusy = true;
+		try {
+			const fd = new FormData();
+			fd.append('image', file);
+			fd.append('challengeId', String(challengeId));
+			const res = await fetch('/api/spots/challenges/images', {
+				method: 'POST',
+				body: fd,
+				credentials: 'include'
+			});
+			const raw = await res.text();
+			let body: { error?: string } = {};
+			try {
+				body = raw ? JSON.parse(raw) : {};
+			} catch {
+				body = {};
+			}
+			if (!res.ok) {
+				const hint =
+					res.status === 413
+						? 'Datei zu gross (Server-Limit).'
+						: body.error || raw?.slice(0, 120) || 'Upload fehlgeschlagen';
+				alert(hint);
+				return;
+			}
+			await invalidateAll();
+		} finally {
+			challengeBusy = false;
+		}
+	}
+
+	async function deleteChallengeImage(imageId: number) {
+		challengeBusy = true;
+		try {
+			const res = await fetch('/api/spots/challenges/images', {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ imageId }),
+				credentials: 'include'
+			});
+			let body: { error?: string } = {};
+			try {
+				body = await res.json();
+			} catch {
+				body = {};
+			}
+			if (!res.ok) {
+				alert(body.error || 'Löschen fehlgeschlagen');
+				return;
+			}
 			await invalidateAll();
 		} finally {
 			challengeBusy = false;
@@ -581,7 +690,7 @@
 					<button
 						type="button"
 						onclick={() =>
-							(editParkingLocations = [...editParkingLocations, { name: '', latitude: '', longitude: '' }])}
+							(editParkingLocations = [...editParkingLocations, { name: '', coords: '' }])}
 						class="text-xs bg-bg-card border border-border px-2 py-1 rounded-md text-text-secondary hover:text-text-primary hover:border-accent/40 transition-colors cursor-pointer"
 					>
 						+ Parkplatz
@@ -592,7 +701,7 @@
 				{:else}
 					<div class="space-y-2">
 						{#each editParkingLocations as p, i}
-							<div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
+							<div class="grid grid-cols-1 sm:grid-cols-[1fr_minmax(0,2fr)_auto] gap-2 items-center">
 								<input
 									type="text"
 									bind:value={p.name}
@@ -601,14 +710,8 @@
 								/>
 								<input
 									type="text"
-									bind:value={p.latitude}
-									placeholder="Breitengrad"
-									class="bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
-								/>
-								<input
-									type="text"
-									bind:value={p.longitude}
-									placeholder="Längengrad"
+									bind:value={p.coords}
+									placeholder="Breite, Länge"
 									class="bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
 								/>
 								<button
@@ -624,17 +727,16 @@
 				{/if}
 			</div>
 
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-				<div>
-					<label for="edit-lat" class="block text-text-secondary text-sm font-medium mb-1">Breitengrad</label>
-					<input id="edit-lat" type="text" bind:value={editLatitude}
-						class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-accent" />
-				</div>
-				<div>
-					<label for="edit-lng" class="block text-text-secondary text-sm font-medium mb-1">Längengrad</label>
-					<input id="edit-lng" type="text" bind:value={editLongitude}
-						class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-accent" />
-				</div>
+			<div>
+				<label for="edit-coords" class="block text-text-secondary text-sm font-medium mb-1">Koordinaten</label>
+				<input
+					id="edit-coords"
+					type="text"
+					bind:value={editCoords}
+					placeholder="z. B. 46.90795, 7.50712"
+					class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-accent"
+				/>
+				<p class="text-text-muted text-xs mt-1">Breitengrad, Längengrad – durch Komma getrennt (wie aus Karten kopiert). Optional.</p>
 			</div>
 
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -720,6 +822,25 @@
 					placeholder="Optional: Bitte präziser erklären falls nötig"
 					class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-accent resize-none"
 				></textarea>
+				<input
+					bind:this={challengeNewImageInput}
+					type="file"
+					accept="image/jpeg,image/png,image/webp"
+					class="sr-only"
+					onchange={(e) => {
+						const f = (e.currentTarget as HTMLInputElement).files?.[0];
+						challengePendingImage = f ?? null;
+					}}
+				/>
+				<button
+					type="button"
+					onclick={() => challengeNewImageInput?.click()}
+					class="w-full rounded-lg border border-border bg-bg-secondary px-3 py-2 text-left text-xs text-text-secondary transition-colors hover:border-accent/40 hover:text-text-primary"
+				>
+					{challengePendingImage
+						? `Bild: ${challengePendingImage.name} (wird nach dem Anlegen hochgeladen)`
+						: 'Optional: Bild für neue Challenge auswählen…'}
+				</button>
 				{#if challengeError}
 					<p class="text-danger text-xs">{challengeError}</p>
 				{/if}
@@ -1048,6 +1169,60 @@
 								</div>
 								{#if challenge.description}
 									<p class="text-text-secondary text-sm">{challenge.description}</p>
+								{/if}
+								{#if (challenge.images ?? []).length > 0}
+									<div class="flex flex-wrap gap-2">
+										{#each challenge.images ?? [] as img}
+											{@const canDelImg =
+												data.user &&
+												(img.uploadedBy === data.user.id ||
+													challenge.createdBy === data.user.id ||
+													canEditSpots)}
+											<div class="relative inline-block">
+												<img
+													src={img.url}
+													alt=""
+													class="h-24 max-w-[min(100%,14rem)] rounded-lg border border-border object-cover"
+													loading="lazy"
+												/>
+												{#if canDelImg}
+													<button
+														type="button"
+														onclick={() => deleteChallengeImage(img.id)}
+														disabled={challengeBusy}
+														class="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-bg-card text-xs font-bold text-danger shadow hover:bg-danger/15 disabled:opacity-50"
+														aria-label="Bild löschen"
+													>
+														×
+													</button>
+												{/if}
+											</div>
+										{/each}
+									</div>
+								{/if}
+								{#if data.user && (challenge.createdBy === data.user.id || canEditSpots)}
+									<div class="flex items-center gap-2 pt-1">
+										<input
+											type="file"
+											accept="image/jpeg,image/png,image/webp"
+											class="sr-only"
+											id="challenge-img-{challenge.id}"
+											onchange={(e) => {
+												const input = e.currentTarget as HTMLInputElement;
+												const f = input.files?.[0];
+												input.value = '';
+												if (f) uploadChallengeImage(challenge.id, f);
+											}}
+										/>
+										<label
+											for="challenge-img-{challenge.id}"
+											class="inline-flex cursor-pointer rounded-lg border border-accent/35 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20 {!challengeBusy
+												? ''
+												: 'pointer-events-none opacity-50'}"
+										>
+											{challengeBusy ? '…' : '+ Bild'}
+										</label>
+									</div>
 								{/if}
 								<p class="text-text-muted text-xs">
 									Von {challenge.createdByName} · {challenge.doneCount} geschafft · {challenge.openCount} offen
