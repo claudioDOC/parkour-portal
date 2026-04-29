@@ -17,6 +17,7 @@ type NavIcon =
 		| 'finder'
 		| 'stats'
 		| 'challenge'
+		| 'map'
 		| 'settings'
 		| 'admin';
 
@@ -71,6 +72,7 @@ let mobileMoreOpen = $state(false);
 	const navMore: { href: string; label: string; icon: NavIcon }[] = [
 		{ href: '/trips', label: 'Trips', icon: 'trip' },
 		{ href: '/challenges', label: 'Challenges', icon: 'challenge' },
+		{ href: '/map', label: 'Map', icon: 'map' },
 		{ href: '/statistik', label: 'Statistik', icon: 'stats' },
 		{ href: '/settings', label: 'Einstellungen', icon: 'settings' }
 	];
@@ -163,6 +165,10 @@ let mobileMoreOpen = $state(false);
 					<a href="/challenges" class={navLinkClass('/challenges')} onclick={() => (mobileMoreOpen = false)}>
 						<AppNavIcon name="challenge" />
 						<span>Challenges</span>
+					</a>
+					<a href="/map" class={navLinkClass('/map')} onclick={() => (mobileMoreOpen = false)}>
+						<AppNavIcon name="map" />
+						<span>Map</span>
 					</a>
 					<a href="/statistik" class={navLinkClass('/statistik')} onclick={() => (mobileMoreOpen = false)}>
 						<AppNavIcon name="stats" />

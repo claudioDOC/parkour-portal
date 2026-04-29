@@ -99,6 +99,14 @@
 												{#if ch.description}
 													<p class="mt-1 text-sm leading-relaxed text-text-secondary">{ch.description}</p>
 												{/if}
+												{#if ch.images && ch.images.length > 0}
+													<img
+														src={ch.images[0].url}
+														alt=""
+														class="mt-2 h-20 w-full max-w-[12rem] rounded-lg border border-border object-cover sm:h-16 sm:w-28"
+														loading="lazy"
+													/>
+												{/if}
 												<p class="mt-2 text-xs text-text-muted">
 													Quest von <span class="text-text-secondary">{ch.createdByName}</span>
 													{#if ch.createdAt}

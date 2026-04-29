@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { trainingSessions, trainingSpotVotes, spots } from '$lib/server/db/schema';
 import { and, asc, eq, gte, sql } from 'drizzle-orm';
 import { asNum } from '$lib/server/asSqlNumber';
-import { getCurrentWeather } from '$lib/server/weather';
+import { getTrainingWindowForecast } from '$lib/server/trainingForecast';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -50,13 +50,17 @@ export const GET: RequestHandler = async ({ locals }) => {
 			effectiveKind = 'winner';
 		} else {
 			try {
-				const weather = await getCurrentWeather();
+				const fc = await getTrainingWindowForecast({
+					date: session.date,
+					timeStart: session.timeStart,
+					timeEnd: session.timeEnd
+				});
 				let query = `SELECT s.id, s.name
 					FROM spots s LEFT JOIN votes v ON s.id = v.spot_id
-					WHERE (s.city = 'Thun' OR s.city = 'Steffisburg')`;
+					WHERE (s.city = 'Thun' OR s.city = 'Steffisburg' OR s.city = 'Hünibach' OR s.city = 'Heimberg')`;
 
-				if (weather.isDark) query += ` AND s.lighting != 'nein'`;
-				if (weather.isWet) query += ` AND s.good_weather LIKE '%nass%'`;
+				if (fc.applyLightingHardFilter) query += ` AND s.lighting != 'nein'`;
+				if (fc.isWet) query += ` AND s.good_weather LIKE '%nass%'`;
 				else query += ` AND s.good_weather LIKE '%trocken%'`;
 
 				query += ` GROUP BY s.id ORDER BY COALESCE(AVG(v.score), 0) DESC LIMIT 1`;
@@ -67,7 +71,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 					effectiveKind = 'auto';
 				}
 			} catch {
-				// Wetterfehler soll Watch-Endpoint nicht brechen.
+				// Prognose-Fehler soll Watch-Endpoint nicht brechen.
 			}
 		}
 	}
@@ -88,4 +92,3 @@ export const GET: RequestHandler = async ({ locals }) => {
 		}
 	});
 };
-

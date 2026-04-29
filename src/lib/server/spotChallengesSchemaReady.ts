@@ -2,6 +2,7 @@ import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 
 let cached: boolean | null = null;
+let cachedImages: boolean | null = null;
 
 export function isSpotChallengesSchemaReady(): boolean {
 	if (cached !== null) return cached;
@@ -22,6 +23,24 @@ export function isSpotChallengesSchemaReady(): boolean {
 	} catch (e) {
 		console.error('[parkour-portal] spotChallengesSchemaReady check failed', e);
 		cached = false;
+		return false;
+	}
+}
+
+/** Bilder-Tabelle (`npm run db:migrate` erzeugt sie bei Bedarf). */
+export function isSpotChallengeImagesReady(): boolean {
+	if (cachedImages !== null) return cachedImages;
+	try {
+		const rows = db.all(
+			sql.raw(
+				`SELECT name FROM sqlite_master WHERE type='table' AND name = 'spot_challenge_images'`
+			)
+		) as { name: string }[];
+		cachedImages = rows.length > 0;
+		return cachedImages;
+	} catch (e) {
+		console.error('[parkour-portal] spotChallengeImagesReady check failed', e);
+		cachedImages = false;
 		return false;
 	}
 }

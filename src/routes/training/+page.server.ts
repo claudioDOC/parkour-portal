@@ -12,7 +12,7 @@ import {
 	trainingSessionWeekdayOverride
 } from '$lib/server/db/schema';
 import { eq, gte, asc, sql, and } from 'drizzle-orm';
-import { getCurrentWeather } from '$lib/server/weather';
+import { getTrainingWindowForecast } from '$lib/server/trainingForecast';
 import {
 	filterAttendingUsers,
 	normalizeUserForAttendance,
@@ -69,10 +69,34 @@ export const load: PageServerLoad = async ({ locals }) => {
 				}));
 	const allSpots = db.select({ id: spots.id, name: spots.name, city: spots.city }).from(spots).all();
 
-	let weather = null;
-	try {
-		weather = await getCurrentWeather();
-	} catch {}
+	const forecastBySessionKey = new Map<
+		string,
+		Awaited<ReturnType<typeof getTrainingWindowForecast>>
+	>();
+
+	for (const session of sessions) {
+		const key = `${session.date}|${session.timeStart}|${session.timeEnd}`;
+		if (forecastBySessionKey.has(key)) continue;
+		try {
+			forecastBySessionKey.set(
+				key,
+				await getTrainingWindowForecast({
+					date: session.date,
+					timeStart: session.timeStart,
+					timeEnd: session.timeEnd
+				})
+			);
+		} catch {
+			// Prognose optional
+		}
+	}
+
+	const trainingForecast =
+		sessions.length > 0
+			? forecastBySessionKey.get(
+					`${sessions[0].date}|${sessions[0].timeStart}|${sessions[0].timeEnd}`
+				) ?? null
+			: null;
 
 	const sessionsWithDetails = sessions.map((session) => {
 		const sessionAbsences = db.select({
@@ -189,6 +213,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const deadline = new Date(trainingStart.getTime() - 2 * 60 * 60 * 1000);
 		const votingClosed = new Date() > deadline;
 
+		const fc = forecastBySessionKey.get(
+			`${session.date}|${session.timeStart}|${session.timeEnd}`
+		);
+
 		let winnerSpot = null;
 		let autoSpot = null;
 
@@ -200,15 +228,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 					spotId: spotVotes[0].spotId,
 					votes: asNum(spotVotes[0].voteCount)
 				};
-			} else if (weather) {
+			} else if (fc) {
 				let query = `SELECT s.id, s.name, s.city, COALESCE(AVG(v.score), 0) as avg_score
 					FROM spots s LEFT JOIN votes v ON s.id = v.spot_id
-					WHERE (s.city = 'Thun' OR s.city = 'Steffisburg')`;
+					WHERE (s.city = 'Thun' OR s.city = 'Steffisburg' OR s.city = 'Hünibach' OR s.city = 'Heimberg')`;
 
-				if (weather.isDark) {
+				if (fc.applyLightingHardFilter) {
 					query += ` AND s.lighting != 'nein'`;
 				}
-				if (weather.isWet) {
+				if (fc.isWet) {
 					query += ` AND s.good_weather LIKE '%nass%'`;
 				} else {
 					query += ` AND s.good_weather LIKE '%trocken%'`;
@@ -253,7 +281,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		sessions: sessionsWithDetails,
 		allSpots,
-		weather,
+		trainingForecast,
 		viewerTrainingAttendance: viewerAttendance,
 		calendarToday: today
 	};

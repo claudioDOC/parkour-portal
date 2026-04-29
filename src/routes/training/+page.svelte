@@ -29,6 +29,7 @@
 
 	const WATCH_CACHE_KEY = 'training-watch-next-session-v1';
 	let watchTimer: ReturnType<typeof setInterval> | null = null;
+	let forecastTimer: ReturnType<typeof setInterval> | null = null;
 
 	function isSessionEnded(session: { date: string; timeEnd: string }): boolean {
 		const end = new Date(`${session.date}T${session.timeEnd}:00`);
@@ -99,10 +100,14 @@
 		watchTimer = setInterval(() => {
 			void pollTrainingWatch();
 		}, 20000);
+		forecastTimer = setInterval(() => {
+			void invalidateAll();
+		}, 10 * 60 * 1000);
 	});
 
 	onDestroy(() => {
 		if (watchTimer) clearInterval(watchTimer);
+		if (forecastTimer) clearInterval(forecastTimer);
 	});
 
 	function formatDate(dateStr: string): string {
@@ -151,8 +156,8 @@
 	<div>
 		<h2 class="text-2xl font-bold text-text-primary">Training</h2>
 		<p class="text-text-secondary mt-1">Dienstag & Donnerstag, 18:15 - 20:15</p>
-		{#if data.weather}
-			<p class="text-text-muted text-sm mt-1">Aktuelles Wetter Thun: {data.weather.weatherLabel} ({data.weather.temperature.toFixed(0)}°C)</p>
+		{#if data.trainingForecast}
+			<p class="text-text-muted text-sm mt-1 leading-relaxed">{data.trainingForecast.summaryLine}</p>
 		{/if}
 	</div>
 

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { parseLatLonPair } from '$lib/parseLatLon';
 
 	const TECHNIQUES = [
 		'Präzisionssprung', 'Schwingen', 'Flow', 'Armsprung',
@@ -14,6 +15,7 @@
 	let city = $state('');
 	let latitude = $state('');
 	let longitude = $state('');
+	let coordsManual = $state('');
 	let lighting = $state('teilweise');
 	let selectedTechniques = $state<string[]>([]);
 	let selectedWeather = $state<string[]>(['trocken', 'nass']);
@@ -95,6 +97,7 @@
 	function clearAddress() {
 		latitude = '';
 		longitude = '';
+		coordsManual = '';
 		selectedAddress = '';
 		addressQuery = '';
 		addressResults = [];
@@ -160,6 +163,25 @@
 			return;
 		}
 
+		let latNum: number | null = null;
+		let lonNum: number | null = null;
+		if (locationMode === 'search') {
+			latNum = latitude ? parseFloat(latitude) : null;
+			lonNum = longitude ? parseFloat(longitude) : null;
+		} else if (locationMode === 'manual') {
+			const t = coordsManual.trim();
+			if (t) {
+				const parsed = parseLatLonPair(t);
+				if (!parsed) {
+					error =
+						'Koordinaten ungültig: Breite, Länge durch Komma (z. B. 46.90795, 7.50712).';
+					return;
+				}
+				latNum = parsed.latitude;
+				lonNum = parsed.longitude;
+			}
+		}
+
 		loading = true;
 
 		try {
@@ -168,8 +190,8 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					name, city,
-					latitude: latitude ? parseFloat(latitude) : null,
-					longitude: longitude ? parseFloat(longitude) : null,
+					latitude: latNum,
+					longitude: lonNum,
 					lighting,
 					techniques: selectedTechniques,
 					goodWeather: selectedWeather,
@@ -330,19 +352,16 @@
 					{/if}
 
 				{:else if locationMode === 'manual'}
-					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-						<div>
-							<label for="lat" class="block text-text-muted text-xs mb-1">Breitengrad</label>
-							<input id="lat" type="text" bind:value={latitude}
-								class="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors"
-								placeholder="z.B. 46.7580" />
-						</div>
-						<div>
-							<label for="lng" class="block text-text-muted text-xs mb-1">Längengrad</label>
-							<input id="lng" type="text" bind:value={longitude}
-								class="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors"
-								placeholder="z.B. 7.6280" />
-						</div>
+					<div>
+						<label for="coords-manual" class="block text-text-muted text-xs mb-1">Koordinaten</label>
+						<input
+							id="coords-manual"
+							type="text"
+							bind:value={coordsManual}
+							class="w-full bg-bg-secondary border border-border rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors"
+							placeholder="z. B. 46.90795, 7.50712"
+						/>
+						<p class="text-text-muted text-xs mt-1.5">Breitengrad, Längengrad – durch Komma getrennt (wie aus Karten kopiert).</p>
 					</div>
 
 				{:else}

@@ -11,7 +11,7 @@
 	let loading = $state(false);
 
 	let answers = $state({
-		useAutoWeather: false,
+		useAutoWeather: true,
 		cityMode: 'all' as 'all' | 'pick',
 		cityPick: [] as string[],
 		weatherCondition: 'egal' as 'trocken' | 'nass' | 'egal',
@@ -37,6 +37,7 @@
 	};
 
 	let results = $state<SpotResult[]>([]);
+	let forecastHint = $state<string | null>(null);
 	let votingSpotId = $state<number | null>(null);
 
 	const steps: { key: Step; label: string; number: number }[] = [
@@ -78,7 +79,7 @@
 
 	function restart() {
 		answers = {
-			useAutoWeather: false,
+			useAutoWeather: true,
 			cityMode: 'all',
 			cityPick: [],
 			weatherCondition: 'egal',
@@ -87,6 +88,7 @@
 			techniquePick: []
 		};
 		results = [];
+		forecastHint = null;
 		currentStep = 'start';
 	}
 
@@ -154,6 +156,7 @@
 			});
 			const json = await res.json();
 			results = json.results;
+			forecastHint = typeof json.forecastHint === 'string' ? json.forecastHint : null;
 			currentStep = 'result';
 		} finally {
 			loading = false;
@@ -208,8 +211,11 @@
 
 	<div class="bg-bg-card rounded-xl border border-border p-6 md:p-8">
 		{#if currentStep === 'start'}
-			<h3 class="text-xl font-semibold text-text-primary mb-2">Wie sollen wir das Wetter bestimmen?</h3>
-			<p class="text-text-secondary text-sm mb-6">Wir können das aktuelle Wetter automatisch abfragen oder du gibst es manuell an.</p>
+			<h3 class="text-xl font-semibold text-text-primary mb-2">Wetter automatisch?</h3>
+			<p class="text-text-secondary text-sm mb-6">
+				Wir nutzen die nächste Prognose für Thun (orientiert am nächsten Trainingstermin), nicht das Wetter gerade jetzt.
+				Oder du gibst trocken/nass/dunkel manuell ein.
+			</p>
 
 			<div class="space-y-3">
 				<button
@@ -218,8 +224,10 @@
 				>
 					<span class="text-2xl">🌤️</span>
 					<div>
-						<p class="font-medium text-text-primary">Aktuelles Wetter verwenden</p>
-						<p class="text-text-muted text-xs">Wetterdaten werden automatisch für Thun abgefragt</p>
+						<p class="font-medium text-text-primary">Prognose verwenden</p>
+						<p class="text-text-muted text-xs">
+							Nächster Termin aus dem Trainingskalender (Thun)
+						</p>
 					</div>
 				</button>
 				<button
@@ -354,7 +362,10 @@
 
 		{:else if currentStep === 'result'}
 			<h3 class="text-xl font-semibold text-text-primary mb-2">Perfekte Spots für dich</h3>
-			<p class="text-text-secondary text-sm mb-6">Basierend auf deinen Antworten</p>
+			<p class="text-text-secondary text-sm mb-4">Basierend auf deinen Antworten — Gewichtung u. a. Ø-Bewertung, Wetter/Beleuchtung, Region Thun.</p>
+			{#if forecastHint && answers.useAutoWeather}
+				<p class="text-text-muted text-xs mb-4 rounded-lg border border-border/80 bg-bg-secondary px-3 py-2 leading-snug">{forecastHint}</p>
+			{/if}
 
 			{#if results.length === 0}
 				<div class="text-center py-8">

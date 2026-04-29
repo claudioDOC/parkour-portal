@@ -7,6 +7,7 @@
 		| 'finder'
 		| 'stats'
 		| 'challenge'
+		| 'map'
 		| 'settings'
 		| 'admin'
 		| 'logout';
@@ -58,6 +59,14 @@
 		<line x1="13" x2="19" y1="19" y2="13" stroke-linecap="round" stroke-linejoin="round" />
 		<line x1="16" x2="20" y1="16" y2="20" stroke-linecap="round" stroke-linejoin="round" />
 		<line x1="19" x2="21" y1="21" y2="19" stroke-linecap="round" stroke-linejoin="round" />
+	</svg>
+{:else if name === 'map'}
+	<svg class={className} fill="none" viewBox="0 0 24 24" stroke={stroke} stroke-width="1.75" aria-hidden="true">
+		<path
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			d="M9 20.125 15 17.125 21 19.125V6.875L15 4.875 9 7.875 3 5.875V18.125l6 2ZM15 17.125V8.875M9 8.875v8.25"
+		/>
 	</svg>
 {:else if name === 'settings'}
 	<svg class={className} fill="none" viewBox="0 0 24 24" stroke={stroke} stroke-width="1.75" aria-hidden="true">
