@@ -80,7 +80,9 @@ export const PATCH: RequestHandler = async (event) => {
 		.select({
 			id: spotChallenges.id,
 			title: spotChallenges.title,
+			description: spotChallenges.description,
 			spotId: spotChallenges.spotId,
+			createdBy: spotChallenges.createdBy,
 			deleted: spotChallenges.deleted
 		})
 		.from(spotChallenges)
@@ -89,6 +91,59 @@ export const PATCH: RequestHandler = async (event) => {
 
 	if (!challenge) {
 		return json({ error: 'Challenge nicht gefunden' }, { status: 404 });
+	}
+
+	const canManageChallenge =
+		challenge.createdBy === locals.user.id ||
+		locals.user.role === 'admin' ||
+		locals.user.role === 'spotmanager';
+
+	const bodyRecord = body as Record<string, unknown>;
+	const hasTitleKey = Object.prototype.hasOwnProperty.call(bodyRecord, 'title');
+	const hasDescKey = Object.prototype.hasOwnProperty.call(bodyRecord, 'description');
+
+	if (hasTitleKey || hasDescKey) {
+		if (!canManageChallenge) {
+			return json({ error: 'Keine Berechtigung zum Bearbeiten' }, { status: 403 });
+		}
+		const newTitle = hasTitleKey ? String(bodyRecord.title ?? '').trim() : challenge.title;
+		const newDesc = hasDescKey
+			? (() => {
+					const raw = bodyRecord.description;
+					if (raw === null || raw === undefined) return null;
+					const s = String(raw).trim();
+					return s.length > 0 ? s : null;
+				})()
+			: challenge.description;
+
+		if (!newTitle || newTitle.length > 120) {
+			return json({ error: 'Titel ist erforderlich (max. 120 Zeichen)' }, { status: 400 });
+		}
+		if (newDesc && newDesc.length > 600) {
+			return json({ error: 'Beschreibung ist zu lang (max. 600 Zeichen)' }, { status: 400 });
+		}
+
+		db.update(spotChallenges)
+			.set({ title: newTitle, description: newDesc })
+			.where(eq(spotChallenges.id, challengeId))
+			.run();
+
+		const spot = db.select({ name: spots.name }).from(spots).where(eq(spots.id, challenge.spotId)).get();
+
+		logAudit({
+			event,
+			action: 'spot.challenge.update',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: {
+				spotId: challenge.spotId,
+				spotName: spot?.name,
+				challengeId: challenge.id,
+				title: newTitle
+			}
+		});
+
+		return json({ success: true });
 	}
 
 	if (done) {
