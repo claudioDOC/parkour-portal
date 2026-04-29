@@ -49,6 +49,8 @@
 	let challengeBusy = $state(false);
 	let challengeError = $state('');
 	let challengeDeleteConfirm = $state<null | { id: number; title: string }>(null);
+	let challengeEditModal = $state<null | { id: number; title: string; description: string }>(null);
+	let challengeEditError = $state('');
 	let challengePendingImage = $state<File | null>(null);
 	let challengeNewImageInput = $state<HTMLInputElement | null>(null);
 	let mapContainer = $state<HTMLDivElement | null>(null);
@@ -447,6 +449,39 @@
 		}
 	}
 
+	async function saveChallengeEdit() {
+		if (challengeEditModal === null) return;
+		challengeEditError = '';
+		const title = challengeEditModal.title.trim();
+		if (!title) {
+			challengeEditError = 'Bitte einen Titel eingeben.';
+			return;
+		}
+
+		challengeBusy = true;
+		try {
+			const res = await fetch('/api/spots/challenges', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					challengeId: challengeEditModal.id,
+					title,
+					description: challengeEditModal.description.trim() ? challengeEditModal.description.trim() : null
+				})
+			});
+			const result = await res.json().catch(() => ({}));
+			if (!res.ok) {
+				challengeEditError =
+					typeof result.error === 'string' ? result.error : 'Speichern fehlgeschlagen.';
+				return;
+			}
+			challengeEditModal = null;
+			await invalidateAll();
+		} finally {
+			challengeBusy = false;
+		}
+	}
+
 	onMount(async () => {
 		if (!mapContainer || !data.mapMarkers || data.mapMarkers.length === 0) return;
 		try {
@@ -574,6 +609,70 @@
 				<button onclick={trashSpot} disabled={deleting}
 					class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-warning hover:bg-warning/80 disabled:opacity-50 transition-colors cursor-pointer">
 					{deleting ? '...' : 'Löschen'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+{#if challengeEditModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4"
+		onclick={() => {
+			challengeEditModal = null;
+			challengeEditError = '';
+		}}
+	>
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<div
+			class="bg-bg-card border border-border rounded-xl p-6 max-w-md w-full shadow-2xl space-y-4"
+			onclick={(e) => e.stopPropagation()}
+		>
+			<h3 class="text-lg font-semibold text-text-primary">Challenge bearbeiten</h3>
+			<div class="space-y-2">
+				<label for="challenge-edit-title" class="block text-xs font-medium text-text-muted">Titel</label>
+				<input
+					id="challenge-edit-title"
+					type="text"
+					bind:value={challengeEditModal.title}
+					maxlength={120}
+					class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-accent"
+				/>
+			</div>
+			<div class="space-y-2">
+				<label for="challenge-edit-desc" class="block text-xs font-medium text-text-muted"
+					>Beschreibung (optional)</label
+				>
+				<textarea
+					id="challenge-edit-desc"
+					bind:value={challengeEditModal.description}
+					rows="3"
+					maxlength={600}
+					class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2.5 text-text-primary text-sm focus:outline-none focus:border-accent resize-none"
+				></textarea>
+			</div>
+			{#if challengeEditError}
+				<p class="text-danger text-xs">{challengeEditError}</p>
+			{/if}
+			<div class="flex gap-2 justify-end pt-1">
+				<button
+					type="button"
+					onclick={() => {
+						challengeEditModal = null;
+						challengeEditError = '';
+					}}
+					class="px-4 py-2 rounded-lg text-sm text-text-secondary bg-bg-secondary hover:bg-bg-hover border border-border transition-colors cursor-pointer"
+				>
+					Abbrechen
+				</button>
+				<button
+					type="button"
+					onclick={saveChallengeEdit}
+					disabled={challengeBusy}
+					class="px-4 py-2 rounded-lg text-sm font-medium text-[#0c0c0e] bg-accent hover:bg-accent-hover disabled:opacity-50 transition-colors cursor-pointer"
+				>
+					{challengeBusy ? '…' : 'Speichern'}
 				</button>
 			</div>
 		</div>
@@ -1137,9 +1236,9 @@
 										</div>
 									</div>
 									<div
-										class="w-full gap-2 sm:w-auto sm:shrink-0 {canDeleteChallenge
-											? 'grid grid-cols-2 sm:flex sm:items-center'
-											: 'flex'}"
+										class="w-full gap-2 sm:w-auto sm:shrink-0 flex flex-wrap items-stretch sm:items-center {canDeleteChallenge
+											? 'sm:justify-end'
+											: ''}"
 									>
 										<button
 											type="button"
@@ -1156,6 +1255,21 @@
 											{/if}
 										</button>
 										{#if canDeleteChallenge}
+											<button
+												type="button"
+												onclick={() => {
+													challengeEditError = '';
+													challengeEditModal = {
+														id: challenge.id,
+														title: challenge.title,
+														description: challenge.description ?? ''
+													};
+												}}
+												disabled={challengeBusy}
+												class="min-h-11 rounded-xl px-3 py-2.5 text-sm font-semibold bg-bg-secondary text-text-primary ring-1 ring-border hover:bg-bg-hover transition-colors cursor-pointer disabled:opacity-50 sm:min-h-0 sm:rounded-lg sm:px-2.5 sm:py-1.5 sm:text-xs sm:font-medium"
+											>
+												Bearbeiten
+											</button>
 											<button
 												type="button"
 												onclick={() => (challengeDeleteConfirm = { id: challenge.id, title: challenge.title })}
