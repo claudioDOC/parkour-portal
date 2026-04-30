@@ -1,7 +1,11 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
 
 	let { data }: { data: PageData } = $props();
+
+	let imageLightboxUrl = $state<string | null>(null);
+	let imageLightboxAlt = $state('');
 
 	function formatShortDate(iso: string): string {
 		const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`);
@@ -100,12 +104,24 @@
 													<p class="mt-1 text-sm leading-relaxed text-text-secondary">{ch.description}</p>
 												{/if}
 												{#if ch.images && ch.images.length > 0}
-													<img
-														src={ch.images[0].url}
-														alt=""
-														class="mt-2 h-20 w-full max-w-[12rem] rounded-lg border border-border object-cover sm:h-16 sm:w-28"
-														loading="lazy"
-													/>
+													<button
+														type="button"
+														class="mt-2 block max-w-[12rem] cursor-zoom-in rounded-lg border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:max-w-[7rem]"
+														onclick={() => {
+															const first = ch.images?.[0];
+															if (!first) return;
+															imageLightboxUrl = first.url;
+															imageLightboxAlt = ch.title;
+														}}
+														aria-label="Challenge-Bild vergrössern"
+													>
+														<img
+															src={ch.images[0].url}
+															alt=""
+															class="pointer-events-none h-20 w-full rounded-lg border border-border object-cover sm:h-16"
+															loading="lazy"
+														/>
+													</button>
 												{/if}
 												<p class="mt-2 text-xs text-text-muted">
 													Quest von <span class="text-text-secondary">{ch.createdByName}</span>
@@ -208,3 +224,12 @@
 		</div>
 	{/if}
 </div>
+
+<ImageLightbox
+	url={imageLightboxUrl}
+	alt={imageLightboxAlt}
+	onClose={() => {
+		imageLightboxUrl = null;
+		imageLightboxAlt = '';
+	}}
+/>
