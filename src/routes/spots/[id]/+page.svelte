@@ -128,10 +128,24 @@
 		return [...list, item];
 	}
 
+	function hasChallengeDraft(): boolean {
+		return (
+			challengeTitle.trim().length > 0 ||
+			challengeDescription.trim().length > 0 ||
+			challengePendingImage !== null
+		);
+	}
+
 	async function saveEdit() {
 		editError = '';
 		if (!editName || !editCity) { editError = 'Name und Stadt erforderlich'; return; }
 		if (editWeather.length === 0) { editError = 'Mindestens eine Wetter-Eignung wählen'; return; }
+
+		if (hasChallengeDraft()) {
+			editError =
+				'Neue Challenge ist noch nicht angelegt: zuerst „+ Challenge anlegen“ klicken — oder Titel, Beschreibung und Bildwahl leeren. „Änderungen speichern“ übernimmt nur die Spot-Daten.';
+			return;
+		}
 
 		const spotCoordsStr = editCoords.trim();
 		let spotLat: number | null = null;
@@ -937,6 +951,9 @@
 
 			<div class="border-t border-border pt-5 space-y-3">
 				<p class="text-text-secondary text-sm font-medium">Spot-Challenges verwalten</p>
+				<p class="text-text-muted text-xs leading-relaxed">
+					Neue Challenge wird nur mit „+ Challenge anlegen“ gespeichert. „Nur Spot-Daten speichern“ übernimmt den Spot ohne die neue Challenge.
+				</p>
 				<input
 					type="text"
 					bind:value={challengeTitle}
@@ -971,19 +988,25 @@
 				{#if challengeError}
 					<p class="text-danger text-xs">{challengeError}</p>
 				{/if}
-				<button
-					onclick={createChallenge}
-					disabled={challengeBusy}
-					class="px-4 py-2 rounded-lg text-sm font-medium text-[#0c0c0e] bg-accent hover:bg-accent-hover transition-colors disabled:opacity-50 cursor-pointer"
-				>
-					{challengeBusy ? '...' : '+ Challenge anlegen'}
-				</button>
+				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3">
+					<button
+						type="button"
+						onclick={createChallenge}
+						disabled={challengeBusy}
+						class="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50 cursor-pointer sm:py-2.5"
+					>
+						{challengeBusy ? '...' : '+ Challenge anlegen'}
+					</button>
+					<button
+						type="button"
+						onclick={saveEdit}
+						disabled={saving}
+						class="w-full cursor-pointer rounded-lg border-2 border-accent bg-bg-secondary px-4 py-3 text-sm font-semibold text-accent transition-colors hover:bg-accent/10 disabled:opacity-50 sm:py-2.5"
+					>
+						{saving ? 'Wird gespeichert...' : 'Nur Spot-Daten speichern'}
+					</button>
+				</div>
 			</div>
-
-			<button onclick={saveEdit} disabled={saving}
-				class="w-full cursor-pointer rounded-lg bg-accent px-4 py-3 font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50">
-				{saving ? 'Wird gespeichert...' : 'Änderungen speichern'}
-			</button>
 		</div>
 
 	{:else}
