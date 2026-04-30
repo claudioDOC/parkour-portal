@@ -3,6 +3,7 @@
 	import { onDestroy, onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import { formatLatLonPair, parseLatLonPair } from '$lib/parseLatLon';
+	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
 
 	let { data }: { data: PageData } = $props();
 	let hoverScore = $state(0);
@@ -53,6 +54,8 @@
 	let challengeEditError = $state('');
 	let challengePendingImage = $state<File | null>(null);
 	let challengeNewImageInput = $state<HTMLInputElement | null>(null);
+	let imageLightboxUrl = $state<string | null>(null);
+	let imageLightboxAlt = $state('');
 	let mapContainer = $state<HTMLDivElement | null>(null);
 	let mapReady = $state(false);
 	let mapError = $state('');
@@ -732,6 +735,15 @@
 	</div>
 {/if}
 
+<ImageLightbox
+	url={imageLightboxUrl}
+	alt={imageLightboxAlt}
+	onClose={() => {
+		imageLightboxUrl = null;
+		imageLightboxAlt = '';
+	}}
+/>
+
 <div class="space-y-6">
 	<a href="/spots" class="btn-link btn-link-ghost">← Zurück zu Spots</a>
 
@@ -745,11 +757,27 @@
 		<div class="grid grid-cols-2 md:grid-cols-3 gap-3">
 			{#each data.images as img}
 				<div class="relative group rounded-xl overflow-hidden bg-bg-secondary">
-					<img src={img.url} alt={data.spot.name} class="w-full h-full object-cover" />
+					<button
+						type="button"
+						class="block w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-card"
+						onclick={() => {
+							imageLightboxUrl = img.url;
+							imageLightboxAlt = data.spot.name;
+						}}
+						aria-label="Bild vergrössern"
+					>
+						<img
+							src={img.url}
+							alt={data.spot.name}
+							class="aspect-video w-full object-cover"
+							loading="lazy"
+						/>
+					</button>
 					{#if img.uploadedBy === data.user?.id || isAdmin}
 						<button
-							onclick={() => showImageDeleteConfirm = img.id}
-							class="absolute top-2 right-2 bg-black/60 hover:bg-danger/80 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity"
+							type="button"
+							onclick={() => (showImageDeleteConfirm = img.id)}
+							class="absolute top-2 right-2 bg-black/60 hover:bg-danger/80 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity z-[1]"
 						>
 							×
 						</button>
@@ -1293,18 +1321,28 @@
 													challenge.createdBy === data.user.id ||
 													canEditSpots)}
 											<div class="relative inline-block">
-												<img
-													src={img.url}
-													alt=""
-													class="h-24 max-w-[min(100%,14rem)] rounded-lg border border-border object-cover"
-													loading="lazy"
-												/>
+												<button
+													type="button"
+													class="block cursor-zoom-in rounded-lg border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+													onclick={() => {
+														imageLightboxUrl = img.url;
+														imageLightboxAlt = challenge.title;
+													}}
+													aria-label="Challenge-Bild vergrössern"
+												>
+													<img
+														src={img.url}
+														alt=""
+														class="h-24 max-w-[min(100%,14rem)] rounded-lg border border-border object-cover pointer-events-none"
+														loading="lazy"
+													/>
+												</button>
 												{#if canDelImg}
 													<button
 														type="button"
 														onclick={() => deleteChallengeImage(img.id)}
 														disabled={challengeBusy}
-														class="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-bg-card text-xs font-bold text-danger shadow hover:bg-danger/15 disabled:opacity-50"
+														class="absolute -right-1 -top-1 z-[1] flex h-6 w-6 items-center justify-center rounded-full border border-border bg-bg-card text-xs font-bold text-danger shadow hover:bg-danger/15 disabled:opacity-50"
 														aria-label="Bild löschen"
 													>
 														×
