@@ -3,16 +3,21 @@ import type { RequestHandler } from './$types';
 import { attemptLogin } from '$lib/server/attemptLogin';
 
 export const POST: RequestHandler = async (event) => {
-	let body: { username?: unknown; password?: unknown } = {};
+	let body: { username?: unknown; password?: unknown; includeToken?: unknown } = {};
 	try {
 		body = await event.request.json();
 	} catch {
 		return json({ error: 'Ungültige Anfrage' }, { status: 400 });
 	}
 
-	const result = await attemptLogin(event, body.username, body.password);
+	const includeToken = Boolean(body?.includeToken);
+	const result = await attemptLogin(event, body.username, body.password, includeToken);
 	if (result.kind === 'success') {
-		return json({ success: true, user: result.user });
+		return json({
+			success: true,
+			user: result.user,
+			...(result.token ? { token: result.token } : {})
+		});
 	}
 
 	const headers: Record<string, string> = {};

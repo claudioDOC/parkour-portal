@@ -1,5 +1,5 @@
 import type { RequestEvent } from '@sveltejs/kit';
-import { verifyPassword, createSession } from '$lib/server/auth';
+import { verifyPassword, createSession, signSessionToken } from '$lib/server/auth';
 import { getUserCoreByUsername } from '$lib/server/userCoreQuery';
 import { logAudit } from '$lib/server/audit';
 import {
@@ -10,13 +10,14 @@ import {
 } from '$lib/server/rateLimitAuth';
 
 export type AttemptLoginResult =
-	| { kind: 'success'; user: { id: number; username: string; role: string } }
+	| { kind: 'success'; user: { id: number; username: string; role: string }; token?: string }
 	| { kind: 'error'; status: number; error: string; retryAfterSec?: number };
 
 export async function attemptLogin(
 	event: RequestEvent,
 	username: unknown,
-	password: unknown
+	password: unknown,
+	includeToken?: boolean
 ): Promise<AttemptLoginResult> {
 	const ip = getClientIp(event);
 	const limited = assertLoginFailuresBelowLimit(ip);
@@ -89,6 +90,7 @@ export async function attemptLogin(
 
 	clearLoginAuthFailures(ip);
 	createSession(user, event.cookies);
+	const token = includeToken ? signSessionToken(user) : undefined;
 	logAudit({
 		event,
 		action: 'auth.login.success',
@@ -99,6 +101,7 @@ export async function attemptLogin(
 
 	return {
 		kind: 'success',
-		user: { id: user.id, username: user.username, role: user.role }
+		user: { id: user.id, username: user.username, role: user.role },
+		...(token ? { token } : {})
 	};
 }
