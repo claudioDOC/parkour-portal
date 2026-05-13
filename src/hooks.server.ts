@@ -1,5 +1,5 @@
 import type { Handle, RequestEvent } from '@sveltejs/kit';
-import { getSession, clearSession } from '$lib/server/auth';
+import { clearSession, getSessionFromCookiesOrBearer } from '$lib/server/auth';
 import { redirect } from '@sveltejs/kit';
 import { parseAutoAbsentWeekdays } from '$lib/server/trainingAttendance';
 import { getSessionUserCheckRow } from '$lib/server/userCoreQuery';
@@ -40,15 +40,15 @@ function redirectHttpToHttpsIfNeeded(event: RequestEvent) {
 export const handle: Handle = async ({ event, resolve }) => {
 	redirectHttpToHttpsIfNeeded(event);
 
-	const session = getSession(event.cookies);
+	const sessionJwt = getSessionFromCookiesOrBearer(event.cookies, event.request);
 
-	if (session) {
-		const row = getSessionUserCheckRow(session.userId);
+	if (sessionJwt) {
+		const row = getSessionUserCheckRow(sessionJwt.userId);
 		if (
 			!row ||
 			!row.active ||
 			row.deleted ||
-			!sessionVersionMatches(session.sessionVersion, row.sessionVersion)
+			!sessionVersionMatches(sessionJwt.sessionVersion, row.sessionVersion)
 		) {
 			clearSession(event.cookies);
 			event.locals.user = null;
@@ -56,9 +56,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 			const trainingAttendance = row.trainingAttendance === 'opt_in' ? 'opt_in' : 'implicit';
 			const autoAbsentWeekdays = parseAutoAbsentWeekdays(row.autoAbsentWeekdays);
 			event.locals.user = {
-				id: session.userId,
-				username: session.username,
-				role: session.role,
+				id: sessionJwt.userId,
+				username: sessionJwt.username,
+				role: sessionJwt.role,
 				trainingAttendance,
 				autoAbsentWeekdays,
 				uiTheme: row.uiTheme

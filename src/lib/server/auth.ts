@@ -6,12 +6,43 @@ import type { Cookies } from '@sveltejs/kit';
 const JWT_SECRET = process.env.JWT_SECRET || 'parkour-portal-secret-change-me';
 const COOKIE_NAME = 'session';
 
-interface JwtPayload {
+export interface JwtPayload {
 	userId: number;
 	username: string;
 	role: 'admin' | 'spotmanager' | 'member';
 	/** Fehlt bei alten Tokens → wird wie 0 behandelt */
 	sessionVersion?: number;
+}
+
+export function signSessionToken(user: {
+	id: number;
+	username: string;
+	role: string;
+	sessionVersion: number;
+}): string {
+	return jwt.sign(
+		{
+			userId: user.id,
+			username: user.username,
+			role: user.role,
+			sessionVersion: user.sessionVersion
+		},
+		JWT_SECRET,
+		{ expiresIn: '30d' }
+	);
+}
+
+export function verifyBearerJwt(authHeader: string | null): JwtPayload | null {
+	if (!authHeader) return null;
+	const v = authHeader.trim();
+	if (!v.toLowerCase().startsWith('bearer ')) return null;
+	const token = v.slice(7).trim();
+	if (!token) return null;
+	try {
+		return jwt.verify(token, JWT_SECRET) as JwtPayload;
+	} catch {
+		return null;
+	}
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -26,16 +57,7 @@ export function createSession(
 	user: { id: number; username: string; role: string; sessionVersion: number },
 	cookies: Cookies
 ) {
-	const token = jwt.sign(
-		{
-			userId: user.id,
-			username: user.username,
-			role: user.role,
-			sessionVersion: user.sessionVersion
-		},
-		JWT_SECRET,
-		{ expiresIn: '30d' }
-	);
+	const token = signSessionToken(user);
 
 	const origin = (process.env.ORIGIN ?? '').toLowerCase();
 	const secure = origin.startsWith('https://');
@@ -58,6 +80,12 @@ export function getSession(cookies: Cookies): JwtPayload | null {
 	} catch {
 		return null;
 	}
+}
+
+export function getSessionFromCookiesOrBearer(cookies: Cookies, request: Request): JwtPayload | null {
+	const fromBearer = verifyBearerJwt(request.headers.get('authorization'));
+	if (fromBearer) return fromBearer;
+	return getSession(cookies);
 }
 
 export function clearSession(cookies: Cookies) {
