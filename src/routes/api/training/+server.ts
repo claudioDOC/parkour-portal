@@ -27,6 +27,9 @@ export const POST: RequestHandler = async (event) => {
 	if (!session) {
 		return json({ error: 'Training nicht gefunden' }, { status: 404 });
 	}
+	if (session.cancelled) {
+		return json({ error: 'Dieses Training ist abgesagt' }, { status: 400 });
+	}
 
 	if (action === 'absence') {
 		if (!reason || reason.trim().length < 10) {

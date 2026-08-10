@@ -23,6 +23,16 @@ import {
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
 import { jsonFromSqliteOrSchemaError } from '$lib/server/sqliteAdminErrors';
+import { sendToUsers } from '$lib/server/push';
+import { attendingUserIds as getAttendingUserIdsForSession } from '$lib/server/pushScheduler';
+
+function formatDateCh(dateStr: string): string {
+	return new Date(dateStr + 'T00:00:00').toLocaleDateString('de-CH', {
+		weekday: 'long',
+		day: 'numeric',
+		month: 'long'
+	});
+}
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -237,6 +247,48 @@ export const POST: RequestHandler = async (event) => {
 				detail: { sessionId, reason }
 			});
 			return json({ success: true });
+		}
+
+		/** Training absagen/aufheben — bei Absage geht ein Push an alle Mitziehenden. */
+		if ((type === 'cancel_session' || type === 'uncancel_session') && sessionId) {
+			const session = db
+				.select()
+				.from(trainingSessions)
+				.where(eq(trainingSessions.id, sessionId))
+				.get();
+			if (!session) {
+				return json({ error: 'Training nicht gefunden' }, { status: 404 });
+			}
+			const cancel = type === 'cancel_session';
+			if (Boolean(session.cancelled) === cancel) {
+				return json({ error: cancel ? 'Bereits abgesagt' : 'Ist nicht abgesagt' }, { status: 400 });
+			}
+			db.update(trainingSessions)
+				.set({ cancelled: cancel })
+				.where(eq(trainingSessions.id, sessionId))
+				.run();
+			logAudit({
+				event,
+				action: cancel ? 'admin.training.cancel' : 'admin.training.uncancel',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				detail: { sessionId, date: session.date, reason: reasonRaw || undefined }
+			});
+
+			let sent = 0;
+			if (cancel) {
+				// Bewusst ohne Einstellungs-Filter: eine Absage muss jeden erreichen.
+				const attending = getAttendingUserIdsForSession(sessionId, session.dayOfWeek);
+				sent = await sendToUsers(attending, {
+					title: `Training abgesagt — ${session.dayOfWeek}`,
+					body:
+						`${formatDateCh(session.date)} findet nicht statt.` +
+						(reasonRaw ? ` Grund: ${reasonRaw}` : ''),
+					url: '/training',
+					tag: `training-cancel-${sessionId}`
+				});
+			}
+			return json({ success: true, sent });
 		}
 
 		return json({ error: 'Ungültige Aktion' }, { status: 400 });

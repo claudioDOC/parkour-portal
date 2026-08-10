@@ -11,7 +11,7 @@
 	let openAbsenceReason = $state<string | null>(null);
 	let showSpotPicker = $state<number | null>(null);
 	let spotSearch = $state('');
-	let liveNotices = $state<{ id: number; text: string }[]>([]);
+	let liveNotices = $state<{ id: number; text: string; kind: 'info' | 'error' }[]>([]);
 
 	type WatchSession = {
 		sessionId: number;
@@ -54,15 +54,17 @@
 		};
 	}
 
-	function pushNotice(text: string) {
+	/**
+	 * In-Page-Toast. Systembenachrichtigungen laufen bewusst NICHT mehr hier —
+	 * dafür gibt es das Push-System (Einstellungen → Benachrichtigungen);
+	 * `new Notification()` würde auf Android ausserdem eine Exception werfen.
+	 */
+	function pushNotice(text: string, kind: 'info' | 'error' = 'info') {
 		const id = Date.now() + Math.floor(Math.random() * 1000);
-		liveNotices = [...liveNotices, { id, text }].slice(-3);
+		liveNotices = [...liveNotices, { id, text, kind }].slice(-3);
 		setTimeout(() => {
 			liveNotices = liveNotices.filter((n) => n.id !== id);
-		}, 6500);
-		if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-			new Notification('Training Update', { body: text });
-		}
+		}, kind === 'error' ? 8000 : 6500);
 	}
 
 	function compareWatch(oldS: WatchSession | null, newS: WatchSession | null) {
@@ -137,12 +139,19 @@
 	async function postAction(action: string, sessionId: number, extra: Record<string, unknown> = {}) {
 		loadingSession = sessionId;
 		try {
-			await fetch('/api/training', {
+			const res = await fetch('/api/training', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ action, sessionId, ...extra })
 			});
+			if (!res.ok) {
+				const body = (await res.json().catch(() => ({}))) as { error?: string };
+				pushNotice(body.error || `Aktion fehlgeschlagen (${res.status})`, 'error');
+			}
+			// Auch nach Fehlern neu laden — der Server-Stand ist die Wahrheit.
 			await invalidateAll();
+		} catch {
+			pushNotice('Keine Verbindung — Aktion wurde nicht gespeichert.', 'error');
 		} finally {
 			loadingSession = null;
 			showReason = null;
@@ -164,7 +173,11 @@
 	{#if liveNotices.length > 0}
 		<div class="fixed right-3 top-16 z-[72] w-[min(24rem,calc(100vw-1.5rem))] space-y-2 md:right-6 md:top-6">
 			{#each liveNotices as notice (notice.id)}
-				<div class="rounded-lg border border-accent/25 bg-bg-card/95 px-3 py-2 text-sm text-text-primary shadow-lg backdrop-blur">
+				<div
+					class="rounded-lg border px-3 py-2 text-sm shadow-lg backdrop-blur {notice.kind === 'error'
+						? 'border-danger/40 bg-danger/15 text-danger'
+						: 'border-accent/25 bg-bg-card/95 text-text-primary'}"
+				>
 					{notice.text}
 				</div>
 			{/each}
@@ -220,12 +233,20 @@
 								{#if past}
 									<span class="text-xs bg-bg-hover text-text-muted px-2 py-0.5 rounded-full">Vergangen</span>
 								{/if}
+								{#if session.cancelled}
+									<span class="text-xs bg-danger/20 text-danger px-2 py-0.5 rounded-full font-semibold">Abgesagt</span>
+								{/if}
 							</div>
 							<p class="text-text-secondary text-sm mt-1">{formatDate(session.date)}</p>
 							<p class="text-text-muted text-sm">{session.timeStart} - {session.timeEnd}</p>
+							{#if session.cancelled}
+								<p class="mt-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+									Dieses Training findet nicht statt.
+								</p>
+							{/if}
 						</div>
 
-						{#if !past}
+						{#if !past && !session.cancelled}
 							<div class="shrink-0 flex flex-col items-end gap-2">
 								{#if session.userDbAbsent}
 									<button
@@ -312,6 +333,7 @@
 						{/if}
 					</div>
 
+				{#if !session.cancelled}
 				<div class="mt-4 pt-4 border-t border-border">
 						<div class="flex items-center justify-between mb-3">
 							<p class="text-text-primary text-sm font-semibold">Spot-Voting</p>
@@ -419,6 +441,7 @@
 							{/if}
 						{/if}
 					</div>
+				{/if}
 
 				<div class="mt-4 pt-4 border-t border-border">
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

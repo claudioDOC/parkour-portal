@@ -63,6 +63,7 @@
 		dayOfWeek: string;
 		timeStart: string;
 		timeEnd: string;
+		cancelled?: boolean | number;
 		absences: { id: number | null; userId: number; username: string; reason: string | null; virtual?: boolean }[];
 		attending: { id: number; username: string }[];
 		spotVotes: { id: number; spotName: string; spotCity: string; username: string; userId: number }[];
@@ -118,6 +119,58 @@
 	};
 	let systemStats = $state<SystemStats | null>(null);
 	let loadingSystem = $state(false);
+
+	/** Push-Überblick + Broadcast (Server-Tab). */
+	let pushInfo = $state<null | {
+		configured: boolean;
+		deviceCount: number;
+		userCount: number;
+		recent: { sessionId: number; kind: string; sentAt: string }[];
+	}>(null);
+	let broadcastTitle = $state('');
+	let broadcastBody = $state('');
+	let broadcastBusy = $state(false);
+	let broadcastMsg = $state('');
+	let broadcastErr = $state('');
+
+	async function loadPushInfo() {
+		try {
+			const res = await fetch('/api/admin/push', { credentials: 'include' });
+			if (res.ok) pushInfo = await res.json();
+		} catch {
+			/* Anzeige bleibt leer */
+		}
+	}
+
+	async function sendBroadcast() {
+		broadcastMsg = '';
+		broadcastErr = '';
+		broadcastBusy = true;
+		try {
+			const res = await fetch('/api/admin/push', {
+				method: 'POST',
+				credentials: 'include',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ title: broadcastTitle, body: broadcastBody })
+			});
+			const data = (await res.json().catch(() => ({}))) as {
+				sent?: number;
+				userTargets?: number;
+				message?: string;
+			};
+			if (!res.ok) {
+				broadcastErr = data.message || `Fehler ${res.status}`;
+				return;
+			}
+			broadcastMsg = `Verschickt an ${data.sent ?? 0} Gerät${(data.sent ?? 0) === 1 ? '' : 'e'} (${data.userTargets ?? 0} User).`;
+			broadcastTitle = '';
+			broadcastBody = '';
+		} catch {
+			broadcastErr = 'Verbindungsfehler';
+		} finally {
+			broadcastBusy = false;
+		}
+	}
 
 	type AuditEntry = {
 		id: number;
@@ -243,6 +296,7 @@
 		loadTrashedChallenges();
 		loadTrainingSessions();
 		loadSystem();
+		loadPushInfo();
 	});
 
 	function formatBytes(n: number): string {
@@ -555,12 +609,81 @@
 		setTimeout(() => (trainingMessage = ''), 2000);
 	}
 
-	function trainingDayIsPast(dateStr: string): boolean {
-		return dateStr < new Date().toISOString().split('T')[0];
+	/** Heutiges Datum als YYYY-MM-DD in lokaler Zeit (nicht UTC) */
+	function localToday(): string {
+		const d = new Date();
+		const m = String(d.getMonth() + 1).padStart(2, '0');
+		const day = String(d.getDate()).padStart(2, '0');
+		return `${d.getFullYear()}-${m}-${day}`;
 	}
+
+	function trainingDayIsPast(dateStr: string): boolean {
+		return dateStr < localToday();
+	}
+
+	/**
+	 * Trainings in drei Gruppen: aktuell (heute, sonst nächster Termin),
+	 * vergangen (neustes zuoberst) und zukünftig (nächstes zuoberst).
+	 */
+	const groupedTrainings = $derived.by(() => {
+		const today = localToday();
+		const past = trainingSessions
+			.filter((s) => s.date < today)
+			.sort((a, b) => b.date.localeCompare(a.date));
+		const future = trainingSessions
+			.filter((s) => s.date > today)
+			.sort((a, b) => a.date.localeCompare(b.date));
+		let current = trainingSessions.filter((s) => s.date === today);
+		let upcoming = future;
+		if (current.length === 0 && future.length > 0) {
+			current = [future[0]];
+			upcoming = future.slice(1);
+		}
+		return { past, current, upcoming };
+	});
+
+	let showPastTrainings = $state(true);
+	let showUpcomingTrainings = $state(true);
 
 	function canAddAdminAbsence(session: TrainingSession, userId: number): boolean {
 		return !session.absences.some((a) => a.userId === userId && a.id != null);
+	}
+
+	/** Session, für die gerade der Absage-Dialog offen ist. */
+	let cancelPickId = $state<number | null>(null);
+	let cancelReason = $state('');
+
+	async function cancelTraining(sessionId: number, cancel: boolean) {
+		trainingMessage = '';
+		trainingError = '';
+		const res = await fetch('/api/admin/training', {
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				type: cancel ? 'cancel_session' : 'uncancel_session',
+				sessionId,
+				...(cancel && cancelReason.trim() ? { reason: cancelReason.trim() } : {})
+			})
+		});
+		let data: Record<string, unknown> = {};
+		try {
+			data = await res.json();
+		} catch {
+			trainingError = `Antwort ungültig (${res.status})`;
+			return;
+		}
+		if (!res.ok) {
+			setTrainingErrorFromResponse(res, data);
+			return;
+		}
+		cancelPickId = null;
+		cancelReason = '';
+		trainingMessage = cancel
+			? `Training abgesagt — Push an ${Number(data.sent ?? 0)} Gerät${Number(data.sent ?? 0) === 1 ? '' : 'e'} verschickt`
+			: 'Absage aufgehoben';
+		await loadTrainingSessions();
+		setTimeout(() => (trainingMessage = ''), 4000);
 	}
 
 	function setAdminAbsencePick(sessionId: number, value: string) {
@@ -1308,10 +1431,12 @@
 					<a href="/statistik" class="text-accent hover:underline">Statistik</a> wie eine normale Abmeldung;
 					„Aufheben“ entfernt den Eintrag wieder.
 				</p>
-				{#each trainingSessions as session}
+				{#snippet trainingCard(session: TrainingSession, highlight = false)}
 					{@const sessionDate = new Date(session.date + 'T00:00:00')}
 					{@const sessionPast = trainingDayIsPast(session.date)}
-					<div class="bg-bg-card rounded-xl border border-border overflow-hidden {sessionPast ? 'opacity-90' : ''}">
+					<div class="bg-bg-card rounded-xl border overflow-hidden {highlight
+						? 'border-accent/60 ring-1 ring-accent/30'
+						: 'border-border'} {sessionPast && !highlight ? 'opacity-90' : ''}">
 						<div class="p-5">
 							<div class="flex flex-wrap items-center gap-2 mb-1">
 								<h3 class="font-semibold text-text-primary">{session.dayOfWeek}</h3>
@@ -1321,6 +1446,39 @@
 								<span class="text-text-muted text-xs">{session.timeStart} – {session.timeEnd}</span>
 								{#if sessionPast}
 									<span class="text-xs rounded-full bg-bg-hover px-2 py-0.5 text-text-muted">Vergangen</span>
+								{/if}
+								{#if session.cancelled}
+									<span class="text-xs rounded-full bg-danger/15 px-2 py-0.5 font-semibold text-danger">Abgesagt</span>
+								{/if}
+								{#if !sessionPast}
+									<div class="ml-auto flex flex-wrap items-center gap-2">
+										{#if session.cancelled}
+											<button
+												onclick={() => cancelTraining(session.id, false)}
+												class="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:text-success"
+											>Absage aufheben</button>
+										{:else if cancelPickId === session.id}
+											<input
+												type="text"
+												bind:value={cancelReason}
+												placeholder="Grund (optional, geht in den Push)"
+												class="w-52 rounded-lg border border-border bg-bg-secondary px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:border-accent"
+											/>
+											<button
+												onclick={() => cancelTraining(session.id, true)}
+												class="cursor-pointer rounded-lg bg-danger/90 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-danger"
+											>Absagen bestätigen</button>
+											<button
+												onclick={() => { cancelPickId = null; cancelReason = ''; }}
+												class="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted hover:text-text-primary"
+											>Abbrechen</button>
+										{:else}
+											<button
+												onclick={() => { cancelPickId = session.id; cancelReason = ''; }}
+												class="cursor-pointer rounded-lg border border-danger/30 px-3 py-1.5 text-xs font-semibold text-danger transition-colors hover:bg-danger/10"
+											>Training absagen…</button>
+										{/if}
+									</div>
 								{/if}
 							</div>
 
@@ -1473,7 +1631,63 @@
 							{/if}
 						</div>
 					</div>
-				{/each}
+				{/snippet}
+
+				{#if groupedTrainings.current.length > 0}
+					<section class="space-y-3">
+						<div class="flex items-center gap-2">
+							<h3 class="text-accent text-sm font-bold uppercase tracking-wide">Aktuell</h3>
+							<span class="text-text-muted text-xs">
+								{groupedTrainings.current[0].date === localToday()
+									? 'Training heute'
+									: 'Nächstes Training'}
+							</span>
+						</div>
+						{#each groupedTrainings.current as session (session.id)}
+							{@render trainingCard(session, true)}
+						{/each}
+					</section>
+				{/if}
+
+				{#if groupedTrainings.past.length > 0}
+					<section class="space-y-3">
+						<button
+							type="button"
+							onclick={() => (showPastTrainings = !showPastTrainings)}
+							class="flex w-full cursor-pointer items-center gap-2 text-left"
+						>
+							<span class="text-text-muted text-xs">{showPastTrainings ? '▾' : '▸'}</span>
+							<h3 class="text-text-secondary text-sm font-bold uppercase tracking-wide">Vergangene</h3>
+							<span class="text-text-muted text-xs">
+								({groupedTrainings.past.length}) – neustes zuoberst
+							</span>
+						</button>
+						{#if showPastTrainings}
+							{#each groupedTrainings.past as session (session.id)}
+								{@render trainingCard(session)}
+							{/each}
+						{/if}
+					</section>
+				{/if}
+
+				{#if groupedTrainings.upcoming.length > 0}
+					<section class="space-y-3">
+						<button
+							type="button"
+							onclick={() => (showUpcomingTrainings = !showUpcomingTrainings)}
+							class="flex w-full cursor-pointer items-center gap-2 text-left"
+						>
+							<span class="text-text-muted text-xs">{showUpcomingTrainings ? '▾' : '▸'}</span>
+							<h3 class="text-text-secondary text-sm font-bold uppercase tracking-wide">Zukünftige</h3>
+							<span class="text-text-muted text-xs">({groupedTrainings.upcoming.length})</span>
+						</button>
+						{#if showUpcomingTrainings}
+							{#each groupedTrainings.upcoming as session (session.id)}
+								{@render trainingCard(session)}
+							{/each}
+						{/if}
+					</section>
+				{/if}
 			{/if}
 		</div>
 	{/if}
@@ -1711,6 +1925,50 @@
 
 	{#if activeTab === 'server'}
 		<div class="space-y-4">
+			<div class="bg-bg-card rounded-xl border border-border p-5">
+				<div class="flex items-center justify-between gap-3 flex-wrap mb-1">
+					<h3 class="font-semibold text-text-primary">Push-Nachricht an alle</h3>
+					{#if pushInfo}
+						<span class="text-text-muted text-xs">
+							{pushInfo.deviceCount} Gerät{pushInfo.deviceCount === 1 ? '' : 'e'} bei {pushInfo.userCount} User{pushInfo.userCount === 1 ? '' : 'n'} registriert
+						</span>
+					{/if}
+				</div>
+				<p class="text-text-muted text-sm mb-3">
+					Geht sofort an alle registrierten Geräte — unabhängig von den Benachrichtigungs-Einstellungen
+					der User. Für Wichtiges: Ausfälle, Treffpunkt-Änderungen.
+				</p>
+				{#if broadcastErr}
+					<div class="bg-danger/10 border border-danger/30 text-danger rounded-lg p-3 text-sm mb-3">{broadcastErr}</div>
+				{/if}
+				{#if broadcastMsg}
+					<div class="bg-success/10 border border-success/30 text-success rounded-lg p-3 text-sm mb-3">{broadcastMsg}</div>
+				{/if}
+				<div class="space-y-2">
+					<input
+						type="text"
+						bind:value={broadcastTitle}
+						maxlength="80"
+						placeholder="Titel (z. B. Training fällt aus)"
+						class="w-full rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+					/>
+					<textarea
+						bind:value={broadcastBody}
+						maxlength="300"
+						rows="2"
+						placeholder="Text der Nachricht"
+						class="w-full rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+					></textarea>
+					<button
+						onclick={sendBroadcast}
+						disabled={broadcastBusy || !broadcastTitle.trim() || !broadcastBody.trim()}
+						class="cursor-pointer rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50"
+					>
+						{broadcastBusy ? 'Sende…' : 'An alle senden'}
+					</button>
+				</div>
+			</div>
+
 			<div class="flex items-center justify-between gap-4 flex-wrap">
 				<p class="text-text-secondary text-sm">
 					Werte beziehen sich auf den Rechner, auf dem die App läuft (VPS oder dein PC bei lokalem Test).

@@ -75,6 +75,9 @@
 								{#if isToday(session.date)}
 									<span class="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full font-medium">Heute</span>
 								{/if}
+								{#if session.cancelled}
+									<span class="text-xs bg-danger/20 text-danger px-2 py-0.5 rounded-full font-semibold">Abgesagt</span>
+								{/if}
 							</div>
 							<p class="text-text-secondary text-sm mt-1">{formatDate(session.date)} &middot; {session.timeStart} - {session.timeEnd}</p>
 							{#if session.topVote}

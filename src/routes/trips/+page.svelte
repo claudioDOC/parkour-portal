@@ -31,12 +31,25 @@
 		return a === b ? a : `${a} - ${b}`;
 	}
 
+	let actionError = $state('');
+
 	async function post(action: string, payload: Record<string, unknown>) {
-		await fetch('/api/trips', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ action, ...payload })
-		});
+		actionError = '';
+		try {
+			const res = await fetch('/api/trips', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action, ...payload })
+			});
+			if (!res.ok) {
+				const body = (await res.json().catch(() => ({}))) as { error?: string };
+				actionError = body.error || `Aktion fehlgeschlagen (${res.status})`;
+				setTimeout(() => (actionError = ''), 8000);
+			}
+		} catch {
+			actionError = 'Keine Verbindung — Aktion wurde nicht gespeichert.';
+			setTimeout(() => (actionError = ''), 8000);
+		}
 		await invalidateAll();
 	}
 
@@ -203,6 +216,12 @@
 			Trip ist fix. Geplant wird: Wer kommt, Anreise, Abstimmung zu Zeitraum und Ablauf — Route unten auf der Karte.
 		</p>
 	</div>
+
+	{#if actionError}
+		<div class="fixed right-3 top-16 z-[72] w-[min(24rem,calc(100vw-1.5rem))] rounded-lg border border-danger/40 bg-danger/15 px-3 py-2 text-sm text-danger shadow-lg backdrop-blur md:right-6 md:top-6">
+			{actionError}
+		</div>
+	{/if}
 
 	<div class="bg-bg-card rounded-xl border border-border p-4 space-y-3">
 		<p class="text-text-primary font-semibold text-sm">Neuen Trip planen</p>

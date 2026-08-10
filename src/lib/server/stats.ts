@@ -100,7 +100,9 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		.from(trainingSessions)
 		.where(and(gte(trainingSessions.date, STATS_START_DATE), lt(trainingSessions.date, today)))
 		.orderBy(asc(trainingSessions.date))
-		.all();
+		.all()
+		// Abgesagte Trainings zählen nicht in die Statistik.
+		.filter((s) => !s.cancelled);
 
 	// Explizite Spalten: kein `select()` auf ganze Tabelle — sonst schlägt SQLite fehl,
 	// wenn `users.deleted` (Migration 0004) in der DB noch fehlt.
@@ -365,7 +367,9 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 		.from(trainingSessions)
 		.where(and(gte(trainingSessions.date, STATS_START_DATE), lt(trainingSessions.date, today)))
 		.orderBy(asc(trainingSessions.date))
-		.all();
+		.all()
+		// Abgesagte Trainings zählen nicht in die Statistik.
+		.filter((s) => !s.cancelled);
 
 	const members = db
 		.select({
