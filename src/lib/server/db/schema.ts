@@ -35,6 +35,8 @@ export const users = sqliteTable('users', {
 	autoAbsentWeekdays: text('auto_absent_weekdays').notNull().default('[]'),
 	/** UI-Farbschema — siehe `src/lib/uiThemes.ts` (UI_THEME_IDS). */
 	uiTheme: text('ui_theme').notNull().default('mate'),
+	/** JSON-Objekt mit Push-Einstellungen — siehe `src/lib/pushPrefs.ts` (DEFAULT_PUSH_PREFS). */
+	pushPrefs: text('push_prefs').notNull().default('{}'),
 	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
 
@@ -53,7 +55,9 @@ export const trainingSessions = sqliteTable('training_sessions', {
 	date: text('date').notNull(),
 	dayOfWeek: text('day_of_week').notNull(),
 	timeStart: text('time_start').notNull().default('18:15'),
-	timeEnd: text('time_end').notNull().default('20:15')
+	timeEnd: text('time_end').notNull().default('20:15'),
+	/** Vom Admin abgesagt — Anmeldungen/Votes bleiben erhalten, zählen aber nicht. */
+	cancelled: integer('cancelled', { mode: 'boolean' }).notNull().default(false)
 });
 
 /** Explizite Zusage für ein Training (nur bei trainingAttendance opt_in relevant). */
@@ -327,6 +331,47 @@ export const tripDateVotes = sqliteTable(
 		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 	},
 	(t) => [uniqueIndex('trip_date_votes_trip_user').on(t.tripId, t.userId)]
+);
+
+/**
+ * Ein Eintrag pro Gerät/Browser, das Push erlaubt hat. `endpoint` ist die vom
+ * Push-Dienst (FCM/Apple/Mozilla) vergebene, eindeutige Zustelladresse.
+ */
+export const pushSubscriptions = sqliteTable(
+	'push_subscriptions',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		endpoint: text('endpoint').notNull(),
+		p256dh: text('p256dh').notNull(),
+		auth: text('auth').notNull(),
+		userAgent: text('user_agent'),
+		/** Zählt Zustellfehler; ab 5 wird das Abo aufgeräumt. */
+		failureCount: integer('failure_count').notNull().default(0),
+		lastSuccessAt: text('last_success_at'),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [
+		uniqueIndex('push_subscriptions_endpoint').on(t.endpoint),
+		index('push_subscriptions_user_idx').on(t.userId)
+	]
+);
+
+/**
+ * Merkt sich verschickte Erinnerungen, damit ein Neustart des Servers keine
+ * zweite Benachrichtigung für denselben Termin auslöst.
+ */
+export const pushReminderLog = sqliteTable(
+	'push_reminder_log',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		sessionId: integer('session_id').notNull(),
+		kind: text('kind').notNull(),
+		sentAt: text('sent_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [uniqueIndex('push_reminder_log_session_kind').on(t.sessionId, t.kind)]
 );
 
 export const auditLogs = sqliteTable('audit_logs', {

@@ -307,6 +307,46 @@ function repairMissingColumnsAfterJournalDrift() {
 		);
 		console.log('[db:migrate] Schema-Reparatur: trip_date_votes erstellt.');
 	}
+	if (tableExists('training_sessions') && !columnExists('training_sessions', 'cancelled')) {
+		sqlite.exec('ALTER TABLE training_sessions ADD COLUMN cancelled integer DEFAULT 0 NOT NULL');
+		console.log('[db:migrate] Schema-Reparatur: training_sessions.cancelled ergänzt.');
+	}
+	if (tableExists('users') && !columnExists('users', 'push_prefs')) {
+		sqlite.exec(`ALTER TABLE users ADD COLUMN push_prefs text DEFAULT '{}' NOT NULL`);
+		console.log('[db:migrate] Schema-Reparatur: users.push_prefs ergänzt.');
+	}
+	if (!tableExists('push_subscriptions')) {
+		sqlite.exec(`CREATE TABLE push_subscriptions (
+			id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+			user_id integer NOT NULL,
+			endpoint text NOT NULL,
+			p256dh text NOT NULL,
+			auth text NOT NULL,
+			user_agent text,
+			failure_count integer DEFAULT 0 NOT NULL,
+			last_success_at text,
+			created_at text DEFAULT (datetime('now')) NOT NULL
+		)`);
+		sqlite.exec(
+			'CREATE UNIQUE INDEX IF NOT EXISTS push_subscriptions_endpoint ON push_subscriptions (endpoint)'
+		);
+		sqlite.exec(
+			'CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON push_subscriptions (user_id)'
+		);
+		console.log('[db:migrate] Schema-Reparatur: push_subscriptions erstellt.');
+	}
+	if (!tableExists('push_reminder_log')) {
+		sqlite.exec(`CREATE TABLE push_reminder_log (
+			id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+			session_id integer NOT NULL,
+			kind text NOT NULL,
+			sent_at text DEFAULT (datetime('now')) NOT NULL
+		)`);
+		sqlite.exec(
+			'CREATE UNIQUE INDEX IF NOT EXISTS push_reminder_log_session_kind ON push_reminder_log (session_id, kind)'
+		);
+		console.log('[db:migrate] Schema-Reparatur: push_reminder_log erstellt.');
+	}
 	if (tableExists('spot_challenges')) {
 		if (!columnExists('spot_challenges', 'deleted')) {
 			sqlite.exec(

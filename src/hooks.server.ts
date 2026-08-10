@@ -3,6 +3,10 @@ import { clearSession, getSessionFromCookiesOrBearer } from '$lib/server/auth';
 import { redirect } from '@sveltejs/kit';
 import { parseAutoAbsentWeekdays } from '$lib/server/trainingAttendance';
 import { getSessionUserCheckRow } from '$lib/server/userCoreQuery';
+import { startPushScheduler } from '$lib/server/pushScheduler';
+
+// Läuft einmal beim Start des Serverprozesses.
+startPushScheduler();
 
 /** JWT vs. DB: gleiche Zahl auch bei BigInt/String-Unterschieden. */
 function sessionVersionMatches(jwtVal: unknown, dbVal: unknown): boolean {
@@ -14,7 +18,12 @@ const publicPaths = [
 	'/register',
 	'/api/auth/login',
 	'/api/auth/register',
-	'/uploads'
+	'/uploads',
+	// Fallback des Service Workers — muss auch ohne gültige Session laden,
+	// sonst landet die Login-Seite im Offline-Cache.
+	'/offline',
+	// Digital Asset Links für die Android-App (Play Store / TWA).
+	'/.well-known/assetlinks.json'
 ];
 
 /** F-09: In Produktion nur HTTPS, wenn der Proxy X-Forwarded-Proto mitsendet. */
