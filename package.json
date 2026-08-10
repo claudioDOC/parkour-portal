@@ -24,7 +24,6 @@
 		"@vite-pwa/sveltekit": "^1.1.0",
 		"drizzle-kit": "^0.31.10",
 		"roughjs": "^4.6.6",
-		"sharp": "^0.35.3",
 		"svelte": "^5.54.0",
 		"svelte-check": "^4.4.2",
 		"tailwindcss": "^4.2.2",
@@ -46,6 +45,7 @@
 		"file-type": "^21.3.4",
 		"jsonwebtoken": "^9.0.3",
 		"leaflet": "^1.9.4",
-		"web-push": "^3.6.7"
+		"web-push": "^3.6.7",
+		"sharp": "^0.35.3"
 	}
 }

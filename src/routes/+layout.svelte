@@ -12,6 +12,7 @@
 	import BrandLogo from '$lib/components/BrandLogo.svelte';
 	import AppSplash from '$lib/components/AppSplash.svelte';
 	import AppNavIcon from '$lib/components/AppNavIcon.svelte';
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 
 type NavIcon =
 		| 'home'
@@ -86,6 +87,18 @@ type NavIcon =
 		document.addEventListener('visibilitychange', onVisible);
 
 		// Kein Cleanup nötig: das Root-Layout lebt so lange wie die Seite.
+
+		// Neuer Service Worker übernimmt (= neues Deployment) → Seite einmal
+		// neu laden, damit sofort das neue UI läuft statt erst beim nächsten
+		// App-Start. Guard verhindert Reload-Schleifen.
+		if ('serviceWorker' in navigator) {
+			let reloaded = false;
+			navigator.serviceWorker.addEventListener('controllerchange', () => {
+				if (reloaded) return;
+				reloaded = true;
+				location.reload();
+			});
+		}
 
 		if (!pwaInfo) return;
 		const { registerSW } = await import('virtual:pwa-register');
@@ -317,11 +330,9 @@ let mobileMoreOpen = $state(false);
 				<div
 					class="flex items-center gap-3 rounded-md border border-white/5 bg-bg-hover/90 px-3 py-3 shadow-inner shadow-black/20"
 				>
-					<div
-						class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent/25 to-accent/5 text-sm font-bold text-accent ring-1 ring-accent/20"
-					>
-						{data.user?.username.charAt(0).toUpperCase()}
-					</div>
+					<a href="/profil" aria-label="Zum Profil">
+						<UserAvatar src={data.user?.avatar} username={data.user?.username ?? '?'} size={40} />
+					</a>
 					<div class="min-w-0 flex-1">
 						<p class="truncate text-sm font-semibold text-text-primary">{data.user?.username}</p>
 						<p class="text-xs text-text-muted">

@@ -311,6 +311,10 @@ function repairMissingColumnsAfterJournalDrift() {
 		sqlite.exec('ALTER TABLE training_sessions ADD COLUMN cancelled integer DEFAULT 0 NOT NULL');
 		console.log('[db:migrate] Schema-Reparatur: training_sessions.cancelled ergänzt.');
 	}
+	if (tableExists('users') && !columnExists('users', 'avatar')) {
+		sqlite.exec('ALTER TABLE users ADD COLUMN avatar text');
+		console.log('[db:migrate] Schema-Reparatur: users.avatar ergänzt.');
+	}
 	if (tableExists('users') && !columnExists('users', 'push_prefs')) {
 		sqlite.exec(`ALTER TABLE users ADD COLUMN push_prefs text DEFAULT '{}' NOT NULL`);
 		console.log('[db:migrate] Schema-Reparatur: users.push_prefs ergänzt.');

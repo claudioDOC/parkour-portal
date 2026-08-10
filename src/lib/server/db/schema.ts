@@ -37,6 +37,8 @@ export const users = sqliteTable('users', {
 	uiTheme: text('ui_theme').notNull().default('mate'),
 	/** JSON-Objekt mit Push-Einstellungen — siehe `src/lib/pushPrefs.ts` (DEFAULT_PUSH_PREFS). */
 	pushPrefs: text('push_prefs').notNull().default('{}'),
+	/** Dateiname des Profilbilds unter /uploads (null = Initialen-Avatar). */
+	avatar: text('avatar'),
 	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
 

@@ -180,7 +180,8 @@ export const PATCH: RequestHandler = async (event) => {
 				})
 				.run();
 
-			// Ersteller informieren, dass jemand seine Challenge geschafft hat.
+			// Ersteller bekommt die persönliche Meldung, alle anderen (mit
+			// Challenge-Benachrichtigung) die allgemeine — der Schaffende keine.
 			if (challenge.createdBy !== locals.user.id) {
 				void sendToUsersWithPref(
 					'challenges',
@@ -193,6 +194,17 @@ export const PATCH: RequestHandler = async (event) => {
 					[challenge.createdBy]
 				).catch(() => undefined);
 			}
+			void sendToUsersWithPref(
+				'challenges',
+				{
+					title: 'Challenge geschafft 💪',
+					body: `${locals.user.username} hat „${challenge.title}“ geschafft.`,
+					url: `/spots/${challenge.spotId}`,
+					tag: `challenge-done-${challengeId}-${locals.user.id}`
+				},
+				undefined,
+				{ excludeUserIds: [locals.user.id, challenge.createdBy] }
+			).catch(() => undefined);
 		}
 	} else {
 		db.delete(spotChallengeCompletions)

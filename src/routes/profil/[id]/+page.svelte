@@ -1,5 +1,6 @@
 <script lang="ts">
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -26,15 +27,23 @@
 </script>
 
 <div class="space-y-8">
-	<PageHeader
-		kicker="Dein Verlauf"
-		title="Profil"
-		sub="Angemeldet als {data.user?.username}"
-	/>
+	<PageHeader kicker={data.isOwn ? 'Dein Verlauf' : 'Mitglied'} title={data.profile.username}>
+		{#snippet actions()}
+			<div class="flex items-center gap-3">
+				<UserAvatar src={data.profile.avatar} username={data.profile.username} size={72} />
+			</div>
+		{/snippet}
+		{#if data.isOwn}
+			<p class="text-text-muted text-sm">
+				Profilbild änderst du in den
+				<a href="/settings" class="text-accent hover:underline">Einstellungen</a>.
+			</p>
+		{/if}
+	</PageHeader>
 
 	{#if !data.me}
 		<div class="bg-bg-card rounded-xl border border-border p-8 text-center">
-			<p class="text-text-muted">Noch keine Trainingsdaten — nach deinem ersten Training gibt es hier Zahlen.</p>
+			<p class="text-text-muted">Noch keine Trainingsdaten.</p>
 		</div>
 	{:else}
 		<section class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">

@@ -201,7 +201,7 @@
 								<p class="min-w-0 text-base font-bold text-text-primary leading-tight truncate">
 									<span class="text-text-secondary font-semibold text-sm mr-1 tabular-nums"
 										>{medal(i) || `${i + 1}.`}</span
-									>{row.username}{#if row.userId === myId}<span class="text-accent text-[11px] font-semibold ml-0.5">(du)</span>{/if}
+									><a href="/profil/{row.userId}" class="hover:text-accent transition-colors">{row.username}</a>{#if row.userId === myId}<span class="text-accent text-[11px] font-semibold ml-0.5">(du)</span>{/if}
 								</p>
 								<p class="shrink-0 text-lg font-bold text-accent tabular-nums leading-none">{row.showUpPercent}%</p>
 							</div>
@@ -253,7 +253,7 @@
 								>
 									<td class="px-3 py-2 text-text-muted whitespace-nowrap">{medal(i) || i + 1}</td>
 									<td class="px-3 py-2 font-medium text-text-primary whitespace-nowrap">
-										{row.username}{#if row.userId === myId}<span class="text-accent text-xs ml-1">(du)</span>{/if}
+										<a href="/profil/{row.userId}" class="hover:text-accent transition-colors">{row.username}</a>{#if row.userId === myId}<span class="text-accent text-xs ml-1">(du)</span>{/if}
 									</td>
 									<td class="px-3 py-2 text-right text-text-secondary">{row.eligiblePastSessions}</td>
 									<td class="px-3 py-2 text-right text-warning">{row.absences}</td>
@@ -347,7 +347,7 @@
 							{#each selectedMonthRows as row}
 								<div class="p-3 space-y-2 {row.userId === myId ? 'bg-accent/10' : ''}">
 									<p class="font-medium text-text-primary">
-										{row.username}{#if row.userId === myId}<span class="text-accent text-xs ml-1">(du)</span>{/if}
+										<a href="/profil/{row.userId}" class="hover:text-accent transition-colors">{row.username}</a>{#if row.userId === myId}<span class="text-accent text-xs ml-1">(du)</span>{/if}
 									</p>
 									<div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
 										<span class="text-text-muted">Trainings</span>
@@ -378,7 +378,7 @@
 									{#each selectedMonthRows as row}
 										<tr class="{row.userId === myId ? 'bg-accent/10' : 'bg-bg-card'}">
 											<td class="px-3 py-2 text-text-primary font-medium whitespace-nowrap">
-												{row.username}{#if row.userId === myId}<span class="text-accent text-xs ml-1">(du)</span>{/if}
+												<a href="/profil/{row.userId}" class="hover:text-accent transition-colors">{row.username}</a>{#if row.userId === myId}<span class="text-accent text-xs ml-1">(du)</span>{/if}
 											</td>
 											<td class="px-3 py-2 text-right text-text-secondary">{row.trainings}</td>
 											<td class="px-3 py-2 text-right text-warning">{row.absences}</td>

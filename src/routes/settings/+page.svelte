@@ -4,6 +4,7 @@
 	import type { PageData } from './$types';
 	import { UI_THEME_OPTIONS, type UiThemeId } from '$lib/uiThemes';
 	import PushSettings from '$lib/components/PushSettings.svelte';
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import {
 		loadDevicePrefs,
 		saveDevicePrefs,
@@ -25,6 +26,63 @@
 	let themeError = $state('');
 	let themeOk = $state('');
 	let calendarCopied = $state(false);
+
+	/** Profilbild-Upload */
+	let avatarBusy = $state(false);
+	let avatarMsg = $state('');
+	let avatarErr = $state('');
+	let avatarPreview = $state<string | null>(null);
+
+	async function uploadAvatar(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		avatarBusy = true;
+		avatarMsg = '';
+		avatarErr = '';
+		try {
+			const fd = new FormData();
+			fd.append('image', file);
+			const res = await fetch('/api/profile/avatar', {
+				method: 'POST',
+				credentials: 'include',
+				body: fd
+			});
+			const body = (await res.json().catch(() => ({}))) as { avatar?: string; error?: string };
+			if (!res.ok) {
+				avatarErr = body.error || `Upload fehlgeschlagen (${res.status})`;
+				return;
+			}
+			avatarPreview = body.avatar ?? null;
+			avatarMsg = 'Profilbild gespeichert.';
+			await invalidateAll();
+		} catch {
+			avatarErr = 'Verbindungsfehler';
+		} finally {
+			avatarBusy = false;
+			input.value = '';
+		}
+	}
+
+	async function removeAvatar() {
+		avatarBusy = true;
+		avatarMsg = '';
+		avatarErr = '';
+		try {
+			const res = await fetch('/api/profile/avatar', { method: 'DELETE', credentials: 'include' });
+			if (!res.ok) {
+				avatarErr = `Entfernen fehlgeschlagen (${res.status})`;
+				return;
+			}
+			avatarPreview = null;
+			avatarMsg = 'Profilbild entfernt.';
+			await invalidateAll();
+		} catch {
+			avatarErr = 'Verbindungsfehler';
+		} finally {
+			avatarBusy = false;
+		}
+	}
 
 	/** Geräte-Einstellungen (localStorage) — Defaults bis onMount lädt. */
 	let device = $state<DevicePrefs>({ fontSize: 'normal', motion: 'an', startPage: '/' });
@@ -120,6 +178,45 @@
 	<div>
 		<h2 class="text-2xl font-bold text-text-primary">Einstellungen</h2>
 		<p class="text-text-secondary mt-1">Angemeldet als <span class="text-text-primary font-medium">{data.user?.username}</span></p>
+	</div>
+
+	<div class="bg-bg-card rounded-xl border border-border p-6">
+		<h3 class="text-lg font-semibold text-text-primary mb-1">Profilbild</h3>
+		<p class="text-text-muted text-sm mb-4">
+			Sichtbar auf deinem <a href="/profil" class="text-accent hover:underline">Profil</a> und in
+			der Seitenleiste. Wird auf 256×256 zugeschnitten.
+		</p>
+		{#if avatarErr}
+			<div class="bg-danger/10 border border-danger/30 text-danger rounded-lg p-3 text-sm mb-4">{avatarErr}</div>
+		{/if}
+		{#if avatarMsg}
+			<div class="bg-success/10 border border-success/30 text-success rounded-lg p-3 text-sm mb-4">{avatarMsg}</div>
+		{/if}
+		<div class="flex items-center gap-4">
+			<UserAvatar
+				src={avatarPreview ?? data.user?.avatar}
+				username={data.user?.username ?? '?'}
+				size={64}
+			/>
+			<div class="flex flex-wrap gap-2">
+				<label
+					class="cursor-pointer rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover {avatarBusy ? 'opacity-50 pointer-events-none' : ''}"
+				>
+					{avatarBusy ? 'Lädt…' : 'Bild wählen'}
+					<input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" onchange={uploadAvatar} />
+				</label>
+				{#if avatarPreview ?? data.user?.avatar}
+					<button
+						type="button"
+						onclick={removeAvatar}
+						disabled={avatarBusy}
+						class="cursor-pointer rounded-lg border border-border px-4 py-2 text-sm font-semibold text-text-secondary transition-colors hover:text-danger disabled:opacity-50"
+					>
+						Entfernen
+					</button>
+				{/if}
+			</div>
+		</div>
 	</div>
 
 	<div class="bg-bg-card rounded-xl border border-border p-6">
