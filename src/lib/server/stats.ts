@@ -227,9 +227,16 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		const showUpPercent =
 			eligible.length > 0 ? Math.round((implicitPresent / eligible.length) * 1000) / 10 : 0;
 
+		// Streak = tatsächlich dabei in Folge. Bei opt_in zählt nur die
+		// ausdrückliche Zusage — „nicht abgemeldet" heisst dort „nicht da".
 		let streak = 0;
 		for (let i = eligible.length - 1; i >= 0; i--) {
-			if (isImplicitEffectiveAbsent(u, eligible[i], absencePairs, overridePairs)) break;
+			const sess = eligible[i];
+			const attended =
+				u.trainingAttendance === 'opt_in'
+					? rsvpPairs.has(`${u.id}:${sess.id}`) && !absencePairs.has(`${u.id}:${sess.id}`)
+					: !isImplicitEffectiveAbsent(u, sess, absencePairs, overridePairs);
+			if (!attended) break;
 			streak++;
 		}
 
@@ -284,7 +291,12 @@ export function computeTrainingStats(): TrainingStatsPayload {
 				eligible.length > 0 ? Math.round((implicitPresent / eligible.length) * 1000) / 10 : 0;
 			let streak = 0;
 			for (let i = eligible.length - 1; i >= 0; i--) {
-				if (isImplicitEffectiveAbsent(u, eligible[i], absencePairs, overridePairs)) break;
+				const sess = eligible[i];
+				const attended =
+					u.trainingAttendance === 'opt_in'
+						? rsvpPairs.has(`${u.id}:${sess.id}`) && !absencePairs.has(`${u.id}:${sess.id}`)
+						: !isImplicitEffectiveAbsent(u, sess, absencePairs, overridePairs);
+				if (!attended) break;
 				streak++;
 			}
 			const uidM = asNum(u.id);
