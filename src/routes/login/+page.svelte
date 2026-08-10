@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
+	import BrandLogo from '$lib/components/BrandLogo.svelte';
 
 	let { form, data }: PageProps = $props();
 </script>
@@ -7,11 +8,10 @@
 <div class="flex min-h-screen items-center justify-center px-4 py-10">
 	<div class="w-full max-w-md">
 		<div class="mb-8 text-center">
-			<div
-				class="urban-cut mx-auto mb-4 flex h-14 w-14 items-center justify-center bg-gradient-to-br from-accent from-20% to-accent-hot font-display text-3xl font-bold leading-none text-[#0c0c0e] shadow-lg shadow-accent/40 ring-1 ring-white/25"
-			>
-				P
-			</div>
+			<BrandLogo
+				size={64}
+				class="mx-auto mb-4 rounded-2xl shadow-lg shadow-accent/30 ring-1 ring-white/15"
+			/>
 			<h1 class="font-display text-4xl font-semibold uppercase tracking-[0.08em] text-text-primary">Parkour</h1>
 			<p class="font-display mt-1 text-sm uppercase tracking-[0.35em] text-accent-hot">Portal</p>
 			<p class="mt-3 text-sm text-text-secondary">Melde dich an, um fortzufahren</p>

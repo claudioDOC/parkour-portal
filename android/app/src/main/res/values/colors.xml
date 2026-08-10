@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<!-- Passt zum theme_color / background_color des Web-Manifests. -->
+	<color name="colorPrimary">#191A1F</color>
+	<color name="navigationColor">#191A1F</color>
+	<color name="backgroundColor">#0F172A</color>
+</resources>

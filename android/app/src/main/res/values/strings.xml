@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<string name="app_name">Parkour Portal</string>
+	<string name="launch_url">https://matetraining.duckdns.org/</string>
+
+	<!--
+		Sagt Android, zu welcher Website die App gehört. Die Website bestätigt das
+		umgekehrt über /.well-known/assetlinks.json — erst wenn beides passt,
+		verschwindet die Adressleiste.
+	-->
+	<string name="asset_statements">
+		[{
+			\"relation\": [\"delegate_permission/common.handle_all_urls\"],
+			\"target\": {
+				\"namespace\": \"web\",
+				\"site\": \"https://matetraining.duckdns.org\"
+			}
+		}]
+	</string>
+</resources>

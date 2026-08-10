@@ -1,0 +1,128 @@
+name: Android-App bauen
+
+# Baut die Android-Hülle (Trusted Web Activity) als APK und AAB.
+# Wird nur gebraucht, wenn sich Name, Icon oder Ziel-URL der App ändern —
+# normale Web-Änderungen landen ohne neuen Build in der App.
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Versionsname, z. B. 1.0.1'
+        required: true
+        default: '1.0.0'
+      version_code:
+        description: 'Versionsnummer (ganze Zahl, muss steigen)'
+        required: true
+        default: '1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android-SDK einrichten
+        uses: android-actions/setup-android@v3
+
+      - name: Signaturschlüssel bereitstellen
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYSTORE_PATH="$RUNNER_TEMP/parkour-release.jks"
+
+          if [ -n "${KEYSTORE_BASE64:-}" ]; then
+            echo "Vorhandenen Schlüssel aus den Secrets verwenden."
+            echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+            echo "generated=false" >> "$GITHUB_OUTPUT"
+            echo "STORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD_VALUE=$KEY_PASSWORD" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Kein ANDROID_KEYSTORE_BASE64-Secret gefunden — es wird ein neuer Schlüssel erzeugt."
+            echo "::warning::Diesen Schlüssel unbedingt sichern: ohne ihn sind keine App-Updates mehr möglich."
+            GEN_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)"
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE_PATH" \
+              -alias parkour \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$GEN_PASSWORD" -keypass "$GEN_PASSWORD" \
+              -dname "CN=Parkour Portal, OU=App, O=Parkour Portal, L=, ST=, C=CH"
+            echo "generated=true" >> "$GITHUB_OUTPUT"
+            echo "STORE_PASSWORD=$GEN_PASSWORD" >> "$GITHUB_ENV"
+            echo "ALIAS=parkour" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD_VALUE=$GEN_PASSWORD" >> "$GITHUB_ENV"
+          fi
+
+          echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+
+      - name: APK und AAB bauen
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ env.KEYSTORE_PATH }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ env.STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ env.ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ env.KEY_PASSWORD_VALUE }}
+          APP_VERSION_NAME: ${{ inputs.version_name }}
+          APP_VERSION_CODE: ${{ inputs.version_code }}
+        run: gradle assembleRelease bundleRelease --no-daemon
+
+      - name: Fingerabdruck der Signatur ausgeben
+        run: |
+          set -euo pipefail
+          echo "### Fingerabdruck für assetlinks.json" >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          FP=$(keytool -list -v -keystore "$KEYSTORE_PATH" -alias "$ALIAS" \
+                -storepass "$STORE_PASSWORD" | grep 'SHA256:' | head -1 | sed 's/.*SHA256: //')
+          echo "Auf dem Server setzen:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "ANDROID_CERT_FINGERPRINTS=$FP" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Neuen Schlüssel zum Sichern anhängen
+        if: steps.keystore.outputs.generated == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/keystore-out"
+          cp "$KEYSTORE_PATH" "$RUNNER_TEMP/keystore-out/parkour-release.jks"
+          {
+            echo "Diesen Schlüssel sicher aufbewahren und als GitHub-Secrets hinterlegen:"
+            echo ""
+            echo "ANDROID_KEYSTORE_BASE64  = (Inhalt von parkour-release.jks, base64-kodiert)"
+            echo "ANDROID_KEYSTORE_PASSWORD= $STORE_PASSWORD"
+            echo "ANDROID_KEY_ALIAS        = $ALIAS"
+            echo "ANDROID_KEY_PASSWORD     = $STORE_PASSWORD"
+            echo ""
+            echo "base64 erzeugen:  base64 -w0 parkour-release.jks"
+          } > "$RUNNER_TEMP/keystore-out/WICHTIG-LESEN.txt"
+          base64 -w0 "$KEYSTORE_PATH" > "$RUNNER_TEMP/keystore-out/parkour-release.jks.base64"
+
+      - name: Signaturschlüssel hochladen (nur beim ersten Lauf)
+        if: steps.keystore.outputs.generated == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: SIGNATURSCHLUESSEL-SICHERN
+          path: ${{ runner.temp }}/keystore-out/
+          retention-days: 7
+
+      - name: APK hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: parkour-portal-apk
+          path: android/app/build/outputs/apk/release/*.apk
+
+      - name: AAB für den Play Store hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: parkour-portal-aab
+          path: android/app/build/outputs/bundle/release/*.aab

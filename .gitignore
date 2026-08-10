@@ -34,3 +34,19 @@ vite.config.ts.timestamp-*
 
 # Cursor / lokale KI-Regeln (nicht ins öffentliche Repo)
 .cursor/
+
+# Lokale Backups (enthalten DB und .env-Kopien)
+/backups
+
+# Lokale Android-Toolchain (SDK + Gradle, ~600 MB)
+/tools
+android/.gradle/
+android/app/build/
+android/build/
+
+# Produktivdaten (SQLite + Uploads) — nie ins Repo
+/data
+
+# Gradle-/Android-Caches vom lokalen APK-Build (Home = Repo-Root)
+/.android
+/.gradle

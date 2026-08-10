@@ -79,6 +79,102 @@ body {
 	-moz-osx-font-smoothing: grayscale;
 }
 
+/* ---------------------------------------------------------- App-Gefühl --- */
+
+/* Kein grauer Blitz beim Antippen — Feedback kommt von den active-States. */
+html {
+	-webkit-tap-highlight-color: transparent;
+}
+
+/* Installiert (Homescreen): kein Gummiband-Overscroll hinter der App. */
+@media (display-mode: standalone) {
+	html,
+	body {
+		overscroll-behavior-y: none;
+	}
+}
+
+/* Direktes Druck-Feedback auf allen Buttons und Karten-Links. */
+@media (hover: none) {
+	button:active,
+	a.card-surface:active {
+		transform: scale(0.97);
+		transition: transform 0.06s ease;
+	}
+}
+
+/* Schriftgrösse (Einstellungen → App): rem-basiert skaliert alles mit. */
+html[data-fontsize='klein'] {
+	font-size: 14.5px;
+}
+html[data-fontsize='gross'] {
+	font-size: 17.5px;
+}
+
+/* Animationen aus (Einstellung oder Systemvorgabe). */
+html[data-motion='aus'] *,
+html[data-motion='aus'] *::before,
+html[data-motion='aus'] *::after {
+	animation-duration: 0.001s !important;
+	transition-duration: 0.001s !important;
+}
+
+/* Seitenwechsel: kurzer Fade + minimales Anheben — schnell, nicht verspielt. */
+@keyframes vt-out {
+	to {
+		opacity: 0;
+	}
+}
+@keyframes vt-in {
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+}
+::view-transition-old(root) {
+	animation: vt-out 90ms ease both;
+}
+::view-transition-new(root) {
+	animation: vt-in 170ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation: none;
+	}
+}
+
+/* Lade-Balken oben während der Navigation. */
+@keyframes nav-progress-slide {
+	0% {
+		transform: translateX(-100%);
+	}
+	50% {
+		transform: translateX(30%);
+	}
+	100% {
+		transform: translateX(110%);
+	}
+}
+.nav-progress {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 2.5px;
+	z-index: 100;
+	pointer-events: none;
+	overflow: hidden;
+}
+.nav-progress::after {
+	content: '';
+	display: block;
+	height: 100%;
+	width: 55%;
+	background: linear-gradient(90deg, transparent, var(--color-accent), var(--color-accent-hot));
+	animation: nav-progress-slide 1s ease-in-out infinite;
+}
+
 @utility card-surface {
 	background:
 		linear-gradient(180deg, rgb(255 255 255 / 0.07) 0%, transparent 45%),

@@ -1,12 +1,16 @@
 <script lang="ts">
 	import '../app.css';
 	import type { LayoutData } from './$types';
-	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
+	import { page, navigating } from '$app/stores';
+	import { goto, invalidateAll, onNavigate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { pwaInfo } from 'virtual:pwa-info';
+	import { loadDevicePrefs, applyDevicePrefs, motionDisabled } from '$lib/devicePrefs';
 	import PwaInstallBanner from '$lib/components/PwaInstallBanner.svelte';
+	import OfflineIndicator from '$lib/components/OfflineIndicator.svelte';
+	import BrandLogo from '$lib/components/BrandLogo.svelte';
+	import AppSplash from '$lib/components/AppSplash.svelte';
 	import AppNavIcon from '$lib/components/AppNavIcon.svelte';
 
 type NavIcon =
@@ -49,9 +53,65 @@ type NavIcon =
 	});
 
 	onMount(async () => {
+		const prefs = loadDevicePrefs();
+		applyDevicePrefs(prefs);
+
+		// Installierte App: gewählte Start-Seite öffnen — nur beim App-Start,
+		// nicht bei jeder Rückkehr aufs Dashboard.
+		const standalone =
+			window.matchMedia('(display-mode: standalone)').matches ||
+			(window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+		if (
+			standalone &&
+			prefs.startPage !== '/' &&
+			location.pathname === '/' &&
+			!sessionStorage.getItem('app-launched')
+		) {
+			sessionStorage.setItem('app-launched', '1');
+			goto(prefs.startPage, { replaceState: true });
+		} else {
+			sessionStorage.setItem('app-launched', '1');
+		}
+
+		// App aus dem Hintergrund zurück → Daten auffrischen. Gedrosselt, damit
+		// schnelles Tab-Wechseln nicht bei jedem Fokus den Server abfragt.
+		let lastRefresh = Date.now();
+		const onVisible = () => {
+			if (document.hidden) return;
+			if (Date.now() - lastRefresh < 60_000) return;
+			lastRefresh = Date.now();
+			void invalidateAll();
+		};
+		document.addEventListener('visibilitychange', onVisible);
+
+		// Kein Cleanup nötig: das Root-Layout lebt so lange wie die Seite.
+
 		if (!pwaInfo) return;
 		const { registerSW } = await import('virtual:pwa-register');
 		registerSW({ immediate: true });
+	});
+
+	/** Weiche Seitenwechsel über die View-Transitions-API (wo verfügbar). */
+	onNavigate((navigation) => {
+		if (!document.startViewTransition) return;
+		if (motionDisabled()) return;
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
+
+	/** Lade-Balken erst nach 120 ms — schnelle Wechsel bleiben balkenfrei. */
+	let showNavProgress = $state(false);
+	$effect(() => {
+		if (!$navigating) {
+			showNavProgress = false;
+			return;
+		}
+		const t = setTimeout(() => (showNavProgress = true), 120);
+		return () => clearTimeout(t);
 	});
 
 let mobileMoreOpen = $state(false);
@@ -125,19 +185,22 @@ let mobileMoreOpen = $state(false);
 	{/if}
 </svelte:head>
 
+<AppSplash />
+
+{#if showNavProgress}
+	<div class="nav-progress" aria-hidden="true"></div>
+{/if}
+
 {#if !data.user}
 	{@render children()}
 {:else}
 	<div class="min-h-screen">
+		<!-- pt rechnet die Statusleiste/Notch dazu, sonst klebt das Logo darunter. -->
 		<header
-			class="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center border-b border-border bg-bg-secondary/95 px-4 py-3 backdrop-blur-md"
+			class="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center border-b border-border bg-bg-secondary/95 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-md"
 		>
 			<a href="/" class="flex items-center gap-2.5" aria-label="Zum Dashboard">
-				<div
-					class="urban-cut flex h-9 w-9 shrink-0 items-center justify-center bg-gradient-to-br from-accent from-25% to-accent-hot font-display text-lg font-bold leading-none text-[#0c0c0e] shadow-md shadow-accent/35 ring-1 ring-white/20"
-				>
-					P
-				</div>
+				<BrandLogo size={36} class="shrink-0 rounded-lg shadow-md shadow-accent/25 ring-1 ring-white/15" />
 				<div class="leading-none">
 					<h1 class="font-display text-xl font-semibold uppercase tracking-[0.14em] text-text-primary">Parkour</h1>
 					<p class="font-display text-[11px] uppercase tracking-[0.28em] text-accent-hot/90">Portal</p>
@@ -201,11 +264,7 @@ let mobileMoreOpen = $state(false);
 		>
 			<div class="border-b border-border bg-gradient-to-b from-white/[0.03] to-transparent px-5 pb-5 pt-7">
 				<a href="/" class="flex items-center gap-3" aria-label="Zum Dashboard">
-					<div
-						class="urban-cut flex h-11 w-11 items-center justify-center bg-gradient-to-br from-accent from-25% to-accent-hot font-display text-2xl font-bold leading-none text-[#0c0c0e] shadow-lg shadow-accent/35 ring-1 ring-white/25"
-					>
-						P
-					</div>
+					<BrandLogo size={44} class="shrink-0 rounded-xl shadow-lg shadow-accent/25 ring-1 ring-white/15" />
 					<div>
 						<h1 class="font-display text-3xl font-semibold uppercase tracking-[0.12em] text-text-primary">Parkour</h1>
 						<p class="font-display text-xs uppercase tracking-[0.32em] text-accent-hot">Portal</p>
@@ -279,7 +338,9 @@ let mobileMoreOpen = $state(false);
 			</div>
 		</aside>
 
-		<main class="relative min-h-screen pb-24 pt-[57px] md:ml-64 md:pb-0 md:pt-0">
+		<main
+			class="relative min-h-screen pb-24 pt-[calc(57px+env(safe-area-inset-top))] md:ml-64 md:pb-0 md:pt-0"
+		>
 			<div
 				class="pointer-events-none absolute right-0 top-16 h-64 w-64 rounded-full bg-accent/[0.09] blur-3xl md:right-8 md:top-24 md:h-80 md:w-80"
 				aria-hidden="true"
@@ -341,6 +402,7 @@ let mobileMoreOpen = $state(false);
 			</div>
 		</nav>
 
+		<OfflineIndicator />
 		<PwaInstallBanner />
 	</div>
 {/if}

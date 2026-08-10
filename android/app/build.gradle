@@ -1,0 +1,52 @@
+plugins {
+	id 'com.android.application' version '8.5.2'
+}
+
+/*
+ * Trusted Web Activity: die App ist eine Hülle, die matetraining.duckdns.org
+ * im Vollbild öffnet. Deshalb muss die App bei Web-Änderungen NICHT neu gebaut
+ * werden — nur bei Änderungen an dieser Hülle (Name, Icon, Ziel-URL).
+ */
+android {
+	namespace 'org.duckdns.matetraining.twa'
+	compileSdk 34
+
+	defaultConfig {
+		applicationId 'org.duckdns.matetraining.twa'
+		minSdk 21
+		targetSdk 34
+		// Von der CI gesetzt, damit jede Veröffentlichung eine höhere Nummer hat.
+		versionCode System.getenv('APP_VERSION_CODE') ? System.getenv('APP_VERSION_CODE').toInteger() : 1
+		versionName System.getenv('APP_VERSION_NAME') ?: '1.0.0'
+	}
+
+	signingConfigs {
+		release {
+			def storePath = System.getenv('ANDROID_KEYSTORE_PATH')
+			if (storePath) {
+				storeFile file(storePath)
+				storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+				keyAlias System.getenv('ANDROID_KEY_ALIAS')
+				keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+			}
+		}
+	}
+
+	buildTypes {
+		release {
+			minifyEnabled false
+			if (System.getenv('ANDROID_KEYSTORE_PATH')) {
+				signingConfig signingConfigs.release
+			}
+		}
+	}
+
+	compileOptions {
+		sourceCompatibility JavaVersion.VERSION_1_8
+		targetCompatibility JavaVersion.VERSION_1_8
+	}
+}
+
+dependencies {
+	implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}
