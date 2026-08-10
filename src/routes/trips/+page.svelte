@@ -223,8 +223,12 @@
 		</div>
 	{/if}
 
-	<div class="bg-bg-card rounded-xl border border-border p-4 space-y-3">
-		<p class="text-text-primary font-semibold text-sm">Neuen Trip planen</p>
+	<details class="group bg-bg-card rounded-xl border border-border overflow-hidden">
+		<summary class="flex cursor-pointer list-none items-center justify-between px-4 py-3 [&::-webkit-details-marker]:hidden">
+			<span class="text-text-primary font-semibold text-sm">+ Neuen Trip planen</span>
+			<span class="text-text-muted transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+		</summary>
+		<div class="border-t border-border p-4 space-y-3">
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 			<input bind:value={createTitle} type="text" placeholder="Titel (z. B. Fontainebleau)" class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent" />
 			<input bind:value={createStartDate} type="date" class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent" />
@@ -288,7 +292,8 @@
 		>
 			{creating ? '...' : 'Trip erstellen'}
 		</button>
-	</div>
+		</div>
+	</details>
 
 	<div class="space-y-4">
 		{#each data.trips as trip}

@@ -67,33 +67,33 @@
 						<a href="/spots" class="btn-link btn-link-secondary mt-4 inline-flex">Zu den Spots</a>
 					</div>
 				{:else}
-					{#each data.spotsWithChallenges as group (group.spotId)}
-						<section
-							class="overflow-hidden rounded-xl border border-border bg-bg-card shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]"
+				{#each data.spotsWithChallenges as group, gi (group.spotId)}
+					<details
+						class="group overflow-hidden rounded-xl border border-border bg-bg-card shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]"
+						open={gi < 2}
+					>
+						<summary
+							class="flex cursor-pointer list-none items-center justify-between gap-3 bg-bg-secondary/60 px-4 py-3 sm:px-5 [&::-webkit-details-marker]:hidden"
 						>
-							<div
-								class="flex flex-col gap-2 border-b border-border bg-bg-secondary/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5"
-							>
-								<div class="min-w-0">
-									<a
-										href="/spots/{group.spotId}"
-										class="font-display text-lg font-semibold uppercase tracking-wide text-text-primary transition-colors hover:text-accent"
-									>
-										{group.spotName}
-									</a>
-									<p class="text-sm text-text-muted">
-										{group.spotCity}{#if group.isMicro}
-											<span class="text-accent-blue"> · Microspot</span>
-										{/if}
-									</p>
-								</div>
-								<a
-									href="/spots/{group.spotId}"
-									class="shrink-0 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-accent transition-colors hover:bg-accent/20"
-								>
-									Zum Spot
-								</a>
+							<div class="min-w-0">
+								<span class="font-display text-lg font-semibold uppercase tracking-wide text-text-primary">
+									{group.spotName}
+								</span>
+								<p class="text-sm text-text-muted">
+									{group.spotCity}{#if group.isMicro}<span class="text-accent-blue"> · Microspot</span>{/if}
+									<span class="text-accent"> · {group.challenges.length} Challenge{group.challenges.length === 1 ? '' : 's'}</span>
+								</p>
 							</div>
+							<span class="shrink-0 text-text-muted transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+						</summary>
+						<div class="border-t border-border px-4 py-2 sm:px-5">
+							<a
+								href="/spots/{group.spotId}"
+								class="inline-block rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-accent transition-colors hover:bg-accent/20"
+							>
+								Zum Spot →
+							</a>
+						</div>
 							<ul class="divide-y divide-border">
 								{#each group.challenges as ch (ch.id)}
 									<li class="px-4 py-4 sm:px-5">
@@ -162,7 +162,7 @@
 									</li>
 								{/each}
 							</ul>
-						</section>
+						</details>
 					{/each}
 				{/if}
 			</div>

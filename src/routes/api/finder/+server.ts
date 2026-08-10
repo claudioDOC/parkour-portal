@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { spots, votes, trainingSessions } from '$lib/server/db/schema';
+import { spots, votes, trainingSessions, trainingSpotVotes } from '$lib/server/db/schema';
 import { eq, and, sql, desc, inArray, or, gte, asc } from 'drizzle-orm';
 import { getTrainingWindowForecast } from '$lib/server/trainingForecast';
 import { asNum } from '$lib/server/asSqlNumber';
@@ -106,8 +106,50 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		.where(whereClause)
 		.groupBy(spots.id)
 		.orderBy(desc(sql`avg_score`))
-		.limit(5)
 		.all();
+
+	/**
+	 * Abwechslung: Wo zuletzt trainiert wurde (Voting-Sieger der letzten
+	 * Sessions), gibt es einen abklingenden Malus — sonst gewinnt ewig
+	 * derselbe Top-Spot.
+	 */
+	const recentWinnerRank = new Map<number, number>();
+	{
+		const today = todayYmdInAppTZ();
+		const recent = db
+			.select({
+				sessionId: trainingSpotVotes.sessionId,
+				spotId: trainingSpotVotes.spotId,
+				date: trainingSessions.date,
+				c: sql<number>`COUNT(*)`.as('c')
+			})
+			.from(trainingSpotVotes)
+			.innerJoin(trainingSessions, eq(trainingSessions.id, trainingSpotVotes.sessionId))
+			.where(sql`${trainingSessions.date} < ${today}`)
+			.groupBy(trainingSpotVotes.sessionId, trainingSpotVotes.spotId)
+			.orderBy(desc(trainingSessions.date), desc(sql`c`))
+			.limit(60)
+			.all();
+		const winnerBySession = new Map<number, { spotId: number; date: string }>();
+		for (const r of recent) {
+			if (!winnerBySession.has(r.sessionId)) {
+				winnerBySession.set(r.sessionId, { spotId: r.spotId, date: r.date });
+			}
+		}
+		const winners = [...winnerBySession.values()].sort((a, b) => b.date.localeCompare(a.date));
+		winners.slice(0, 6).forEach((w, i) => {
+			if (!recentWinnerRank.has(w.spotId)) recentWinnerRank.set(w.spotId, i);
+		});
+	}
+
+	/** Tages-Jitter: bei ähnlichen Scores rotiert die Empfehlung täglich. */
+	const daySeed = todayYmdInAppTZ();
+	function dailyJitter(spotId: number): number {
+		let h = 0;
+		const s = `${daySeed}:${spotId}`;
+		for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+		return ((h % 1000) / 1000) * 0.5; // 0 … 0.5
+	}
 
 	const scored = results.map((spot) => {
 		let weatherBonus = 0;
@@ -135,9 +177,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		const avg = asNum(spot.avgScore);
 		const voteCount = asNum(spot.voteCount);
-		const finalScore = avg * 1.12 + weatherBonus + lightingBonus + regionBonus;
 
-		return { ...spot, avgScore: avg, voteCount, finalScore };
+		// Kürzlich dran gewesen → abklingender Malus (letztes Training am stärksten).
+		const rank = recentWinnerRank.get(spot.id);
+		const varietyMalus = rank !== undefined ? 1.6 * Math.pow(0.6, rank) : 0;
+
+		const finalScore =
+			avg * 1.12 + weatherBonus + lightingBonus + regionBonus - varietyMalus + dailyJitter(spot.id);
+
+		return { ...spot, avgScore: avg, voteCount, finalScore, recentlyUsed: rank !== undefined };
 	});
 
 	scored.sort((a, b) => b.finalScore - a.finalScore);

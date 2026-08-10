@@ -100,14 +100,14 @@
 								</div>
 							</div>
 
+							<!-- Bewusst wenige Tags — Details stehen auf der Spot-Seite. -->
 							<div class="flex flex-wrap gap-1.5 mt-3">
-								<span class="text-xs bg-bg-hover text-text-secondary px-2 py-0.5 rounded-full">Licht: {lightingLabels[spot.lighting]}</span>
-								{#each weatherTags(spot.goodWeather) as w}
-									<span class="text-xs bg-amber-500/15 text-amber-400 px-2 py-0.5 rounded-full capitalize">{w}</span>
-								{/each}
-								{#each (spot.techniques || '').split(',').filter(Boolean).slice(0, 3) as tech}
-									<span class="text-xs bg-accent/15 text-accent px-2 py-0.5 rounded-full">{tech.trim()}</span>
-								{/each}
+								{#if weatherTags(spot.goodWeather).includes('nass')}
+									<span class="text-xs bg-sky-500/15 text-sky-400 px-2 py-0.5 rounded-full">☂ regentauglich</span>
+								{/if}
+								{#if spot.lighting === 'ja'}
+									<span class="text-xs bg-bg-hover text-text-secondary px-2 py-0.5 rounded-full">💡 beleuchtet</span>
+								{/if}
 							</div>
 						</div>
 					</a>

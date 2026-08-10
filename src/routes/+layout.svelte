@@ -234,45 +234,51 @@ let mobileMoreOpen = $state(false);
 				class="md:hidden fixed inset-x-2 bottom-[calc(4.95rem+env(safe-area-inset-bottom))] z-[70] rounded-2xl border border-border bg-bg-secondary px-3 py-3 shadow-2xl"
 				onclick={(e) => e.stopPropagation()}
 			>
-				<p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-text-muted">Mehr</p>
-				<div class="space-y-1">
-					<a href="/trips" class={navLinkClass('/trips')} onclick={() => (mobileMoreOpen = false)}>
-						<AppNavIcon name="trip" />
-						<span>Trips</span>
-					</a>
-					<a href="/challenges" class={navLinkClass('/challenges')} onclick={() => (mobileMoreOpen = false)}>
-						<AppNavIcon name="challenge" />
-						<span>Challenges</span>
-					</a>
-					<a href="/map" class={navLinkClass('/map')} onclick={() => (mobileMoreOpen = false)}>
-						<AppNavIcon name="map" />
-						<span>Map</span>
-					</a>
-					<a href="/statistik" class={navLinkClass('/statistik')} onclick={() => (mobileMoreOpen = false)}>
-						<AppNavIcon name="stats" />
-						<span>Statistik</span>
-					</a>
-					<a href="/profil" class={navLinkClass('/profil')} onclick={() => (mobileMoreOpen = false)}>
-						<AppNavIcon name="user" />
-						<span>Profil</span>
-					</a>
-					<a href="/settings" class={navLinkClass('/settings')} onclick={() => (mobileMoreOpen = false)}>
-						<AppNavIcon name="settings" />
-						<span>Einstellungen</span>
-					</a>
+				<!-- Grabber wie bei nativen Sheets -->
+				<div class="mx-auto mb-3 h-1 w-10 rounded-full bg-white/15" aria-hidden="true"></div>
+
+				<!-- App-Grid: grosse Kacheln statt Liste -->
+				<div class="grid grid-cols-3 gap-2">
+					{#each [
+						{ href: '/profil', label: 'Profil', icon: 'user' as const },
+						{ href: '/challenges', label: 'Challenges', icon: 'challenge' as const },
+						{ href: '/trips', label: 'Trips', icon: 'trip' as const },
+						{ href: '/map', label: 'Map', icon: 'map' as const },
+						{ href: '/statistik', label: 'Statistik', icon: 'stats' as const },
+						{ href: '/settings', label: 'Settings', icon: 'settings' as const }
+					] as item (item.href)}
+						{@const active = isActive(item.href)}
+						<a
+							href={item.href}
+							onclick={() => (mobileMoreOpen = false)}
+							class="flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3.5 text-center transition-all active:scale-95 {active
+								? 'border-accent/50 bg-accent/12 text-accent'
+								: 'border-white/5 bg-bg-hover/60 text-text-secondary'}"
+						>
+							<AppNavIcon name={item.icon} class="h-6 w-6 {active ? 'text-accent' : 'text-text-primary'}" />
+							<span class="text-[11px] font-semibold leading-tight">{item.label}</span>
+						</a>
+					{/each}
+				</div>
+
+				<div class="mt-2 flex gap-2">
 					{#if data.user?.role === 'admin'}
-						<a href="/admin" class={navLinkClass('/admin')} onclick={() => (mobileMoreOpen = false)}>
-							<AppNavIcon name="admin" />
-							<span>Admin</span>
+						<a
+							href="/admin"
+							onclick={() => (mobileMoreOpen = false)}
+							class="flex flex-1 items-center justify-center gap-2 rounded-xl border border-accent-hot/30 bg-accent-hot/10 px-3 py-2.5 text-sm font-semibold text-accent-hot transition-all active:scale-95"
+						>
+							<AppNavIcon name="admin" class="h-4 w-4" />
+							Admin
 						</a>
 					{/if}
 					<button
 						type="button"
 						onclick={handleLogout}
-						class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium text-danger transition-colors hover:bg-danger/10"
+						class="flex flex-1 items-center justify-center gap-2 rounded-xl border border-danger/25 bg-danger/10 px-3 py-2.5 text-sm font-semibold text-danger transition-all active:scale-95"
 					>
-						<AppNavIcon name="logout" />
-						<span>Abmelden</span>
+						<AppNavIcon name="logout" class="h-4 w-4" />
+						Abmelden
 					</button>
 				</div>
 			</div>

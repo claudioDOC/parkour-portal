@@ -5,7 +5,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	type Step = 'start' | 'city' | 'weather' | 'technique' | 'result';
+	type Step = 'start' | 'city' | 'weather' | 'result';
 
 	let currentStep = $state<Step>('start');
 	let loading = $state(false);
@@ -44,8 +44,7 @@
 		{ key: 'start', label: 'Start', number: 1 },
 		{ key: 'city', label: 'Stadt', number: 2 },
 		{ key: 'weather', label: 'Wetter', number: 3 },
-		{ key: 'technique', label: 'Technik', number: 4 },
-		{ key: 'result', label: 'Ergebnis', number: 5 }
+		{ key: 'result', label: 'Ergebnis', number: 4 }
 	];
 
 	function nextStep() {
@@ -57,13 +56,11 @@
 			}
 		} else if (currentStep === 'city') {
 			if (answers.useAutoWeather) {
-				currentStep = 'technique';
+				findSpots();
 			} else {
 				currentStep = 'weather';
 			}
 		} else if (currentStep === 'weather') {
-			currentStep = 'technique';
-		} else if (currentStep === 'technique') {
 			findSpots();
 		}
 	}
@@ -71,10 +68,9 @@
 	function prevStep() {
 		if (currentStep === 'city') currentStep = 'start';
 		else if (currentStep === 'weather') currentStep = 'city';
-		else if (currentStep === 'technique') {
+		else if (currentStep === 'result') {
 			currentStep = answers.useAutoWeather ? 'city' : 'weather';
 		}
-		else if (currentStep === 'result') currentStep = 'technique';
 	}
 
 	function restart() {
@@ -121,22 +117,6 @@
 			if (next.length === 0) answers.cityMode = 'all';
 		} else {
 			answers.cityPick = [...new Set([...answers.cityPick, ...regionCities])];
-		}
-	}
-
-	function setTechniqueAll() {
-		answers.techniqueMode = 'all';
-		answers.techniquePick = [];
-	}
-
-	function toggleTechnique(tech: string) {
-		answers.techniqueMode = 'pick';
-		if (answers.techniquePick.includes(tech)) {
-			const next = answers.techniquePick.filter((x) => x !== tech);
-			answers.techniquePick = next;
-			if (next.length === 0) answers.techniqueMode = 'all';
-		} else {
-			answers.techniquePick = [...answers.techniquePick, tech];
 		}
 	}
 
@@ -334,32 +314,6 @@
 				</button>
 			</div>
 
-		{:else if currentStep === 'technique'}
-			<h3 class="text-xl font-semibold text-text-primary mb-2">Welche Kerntechnik?</h3>
-			<p class="text-text-secondary text-sm mb-6">Mehrfachauswahl: Spot passt, wenn mindestens eine Technik vorkommt. Oder „Egal“.</p>
-
-			<div class="grid grid-cols-2 gap-3">
-				<button
-					onclick={setTechniqueAll}
-					class="p-4 rounded-xl border-2 text-left transition-all {answers.techniqueMode === 'all' ? 'border-accent bg-accent/10' : 'border-border bg-bg-secondary hover:border-text-muted'}"
-				>
-					<span class="text-lg">🤸</span>
-					<p class="font-medium text-text-primary mt-1">Egal</p>
-					<p class="text-text-muted text-xs">Kein Technik-Filter</p>
-				</button>
-				{#each data.techniques as tech}
-					<button
-						onclick={() => toggleTechnique(tech)}
-						class="p-4 rounded-xl border-2 text-left transition-all {answers.techniqueMode === 'pick' && answers.techniquePick.includes(tech) ? 'border-accent bg-accent/10' : 'border-border bg-bg-secondary hover:border-text-muted'}"
-					>
-						<p class="font-medium text-text-primary">{tech}</p>
-						{#if answers.techniquePick.includes(tech)}
-							<p class="text-accent text-xs mt-1">Ausgewählt</p>
-						{/if}
-					</button>
-				{/each}
-			</div>
-
 		{:else if currentStep === 'result'}
 			<h3 class="text-xl font-semibold text-text-primary mb-2">Perfekte Spots für dich</h3>
 			<p class="text-text-secondary text-sm mb-4">Basierend auf deinen Antworten — Gewichtung u. a. Ø-Bewertung, Wetter/Beleuchtung, Region Thun.</p>
@@ -451,7 +405,7 @@
 				>
 					{#if loading}
 						Suche...
-					{:else if currentStep === 'technique'}
+					{:else if currentStep === 'weather' || (currentStep === 'city' && answers.useAutoWeather)}
 						Spot finden!
 					{:else}
 						Weiter →
