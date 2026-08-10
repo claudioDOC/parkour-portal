@@ -1,9 +1,13 @@
 <script lang="ts">
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+
+	/** Profilbild vergrössert anzeigen (nur wenn eines gesetzt ist). */
+	let avatarLightbox = $state<string | null>(null);
 
 	function monthLabel(key: string): string {
 		const [y, m] = key.split('-').map(Number);
@@ -30,7 +34,18 @@
 	<PageHeader kicker={data.isOwn ? 'Dein Verlauf' : 'Mitglied'} title={data.profile.username}>
 		{#snippet actions()}
 			<div class="flex items-center gap-3">
-				<UserAvatar src={data.profile.avatar} username={data.profile.username} size={72} />
+				{#if data.profile.avatar}
+					<button
+						type="button"
+						onclick={() => (avatarLightbox = data.profile.avatar)}
+						class="cursor-zoom-in rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+						aria-label="Profilbild vergrössern"
+					>
+						<UserAvatar src={data.profile.avatar} username={data.profile.username} size={72} />
+					</button>
+				{:else}
+					<UserAvatar src={null} username={data.profile.username} size={72} />
+				{/if}
 			</div>
 		{/snippet}
 		{#if data.isOwn}
@@ -133,3 +148,9 @@
 		</div>
 	</section>
 </div>
+
+<ImageLightbox
+	url={avatarLightbox}
+	alt="Profilbild von {data.profile.username}"
+	onClose={() => (avatarLightbox = null)}
+/>
