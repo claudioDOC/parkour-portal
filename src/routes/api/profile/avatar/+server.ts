@@ -55,7 +55,7 @@ export const POST: RequestHandler = async (event) => {
 		const base = sharp(buffer).rotate(); // EXIF-Orientierung anwenden (Handyfotos)
 		square = await base
 			.clone()
-			.resize(256, 256, { fit: 'cover', position: 'attention' })
+			.resize(256, 256, { fit: 'cover', position: 'centre' })
 			.webp({ quality: 82 })
 			.toBuffer();
 		full = await base

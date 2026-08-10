@@ -39,7 +39,7 @@
 		<img
 			src={url}
 			alt={alt}
-			class="relative z-[10051] max-h-[min(92vh,920px)] max-w-[min(96vw,1200px)] cursor-default rounded-lg object-contain shadow-2xl"
+			class="relative z-[10051] m-auto max-h-[min(92vh,920px)] max-w-[min(96vw,1200px)] cursor-default rounded-lg object-contain shadow-2xl"
 			onclick={(e) => e.stopPropagation()}
 		/>
 	</div>
