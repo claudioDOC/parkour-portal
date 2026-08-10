@@ -37,7 +37,7 @@
 				{#if data.profile.avatar}
 					<button
 						type="button"
-						onclick={() => (avatarLightbox = data.profile.avatar)}
+						onclick={() => (avatarLightbox = data.profile.avatarFull ?? data.profile.avatar)}
 						class="cursor-zoom-in rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
 						aria-label="Profilbild vergrössern"
 					>

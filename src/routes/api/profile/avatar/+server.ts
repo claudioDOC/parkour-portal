@@ -9,6 +9,7 @@ import { users } from '$lib/server/db/schema';
 import { getUploadWriteDir } from '$lib/server/uploads';
 import { validateSpotImageBuffer } from '$lib/server/validateSpotImageBuffer';
 import { logAudit } from '$lib/server/audit';
+import { avatarFullFilename } from '$lib/server/avatar';
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
@@ -21,11 +22,13 @@ function currentAvatar(userId: number): string | null {
 
 function deleteAvatarFile(filename: string | null) {
 	if (!filename) return;
-	try {
-		const path = join(getUploadWriteDir(), filename);
-		if (existsSync(path)) unlinkSync(path);
-	} catch {
-		/* Datei weg ist kein Drama */
+	for (const f of [filename, avatarFullFilename(filename)]) {
+		try {
+			const path = join(getUploadWriteDir(), f);
+			if (existsSync(path)) unlinkSync(path);
+		} catch {
+			/* Datei weg ist kein Drama */
+		}
 	}
 }
 
@@ -45,12 +48,20 @@ export const POST: RequestHandler = async (event) => {
 		return json({ error: 'Datei ist kein gültiges JPEG-, PNG- oder WebP-Bild.' }, { status: 400 });
 	}
 
-	let processed: Buffer;
+	// Quadrat für die kleinen Anzeigen + unbeschnittene Vollansicht für die Lightbox.
+	let square: Buffer;
+	let full: Buffer;
 	try {
-		processed = await sharp(buffer)
-			.rotate() // EXIF-Orientierung anwenden (Handyfotos)
+		const base = sharp(buffer).rotate(); // EXIF-Orientierung anwenden (Handyfotos)
+		square = await base
+			.clone()
 			.resize(256, 256, { fit: 'cover', position: 'attention' })
 			.webp({ quality: 82 })
+			.toBuffer();
+		full = await base
+			.clone()
+			.resize(1280, 1280, { fit: 'inside', withoutEnlargement: true })
+			.webp({ quality: 84 })
 			.toBuffer();
 	} catch {
 		return json({ error: 'Bild konnte nicht verarbeitet werden.' }, { status: 400 });
@@ -60,7 +71,8 @@ export const POST: RequestHandler = async (event) => {
 	if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true, mode: 0o775 });
 
 	const filename = `avatar-${locals.user.id}-${Date.now()}.webp`;
-	writeFileSync(join(uploadDir, filename), processed);
+	writeFileSync(join(uploadDir, filename), square);
+	writeFileSync(join(uploadDir, avatarFullFilename(filename)), full);
 
 	const old = currentAvatar(locals.user.id);
 	db.update(users).set({ avatar: filename }).where(eq(users.id, locals.user.id)).run();

@@ -4,6 +4,7 @@ import { spotChallengeCompletions, spotChallenges, spots, users } from './db/sch
 import { computeTrainingStats } from './stats';
 import { isSpotChallengesSchemaReady } from './spotChallengesSchemaReady';
 import { usersNotDeletedCondition } from './usersWhere';
+import { avatarFullUrl } from './avatar';
 import { and } from 'drizzle-orm';
 
 export type ProfilePayload = NonNullable<ReturnType<typeof buildProfilePayload>>;
@@ -88,7 +89,8 @@ export function buildProfilePayload(userId: number) {
 		profile: {
 			id: target.id,
 			username: target.username,
-			avatar: target.avatar ? `/uploads/${target.avatar}` : null
+			avatar: target.avatar ? `/uploads/${target.avatar}` : null,
+			avatarFull: avatarFullUrl(target.avatar)
 		},
 		me,
 		myRank: rank,
