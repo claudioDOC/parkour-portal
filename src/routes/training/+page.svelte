@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { onDestroy, onMount } from 'svelte';
 	import { formatStimmen } from '$lib/formatStimmen';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -162,13 +163,11 @@
 </script>
 
 <div class="space-y-6">
-	<div>
-		<h2 class="text-2xl font-bold text-text-primary">Training</h2>
-		<p class="text-text-secondary mt-1">Dienstag & Donnerstag, 18:15 - 20:15</p>
+	<PageHeader kicker="Zieht zäme" title="Training" sub="Dienstag & Donnerstag, 18:15 – 20:15">
 		{#if data.trainingForecast}
-			<p class="text-text-muted text-sm mt-1 leading-relaxed">{data.trainingForecast.summaryLine}</p>
+			<p class="text-text-muted text-sm leading-relaxed">{data.trainingForecast.summaryLine}</p>
 		{/if}
-	</div>
+	</PageHeader>
 
 	{#if liveNotices.length > 0}
 		<div class="fixed right-3 top-16 z-[72] w-[min(24rem,calc(100vw-1.5rem))] space-y-2 md:right-6 md:top-6">

@@ -10,7 +10,8 @@ import {
 	sessionGuests,
 	sessionHiddenUsers,
 	trainingSessionRsvp,
-	trainingSessionWeekdayOverride
+	trainingSessionWeekdayOverride,
+	spotImages
 } from '$lib/server/db/schema';
 import { eq, gte, asc, desc, sql, and } from 'drizzle-orm';
 import {
@@ -23,6 +24,7 @@ import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady
 import { asNum } from '$lib/server/asSqlNumber';
 import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
+import { getTrainingWindowForecast } from '$lib/server/trainingForecast';
 import { ensureUpcomingTrainingSessions } from '$lib/server/ensureUpcomingTrainingSessions';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -181,19 +183,45 @@ export const load: PageServerLoad = async ({ locals }) => {
 		})
 		.from(spots)
 		.leftJoin(votes, eq(spots.id, votes.spotId))
+		.where(eq(spots.deleted, false))
 		.groupBy(spots.id)
 		.orderBy(desc(sql`avg_score`))
 		.limit(5)
 		.all();
 
-	const topSpots = topSpotsRaw.map((s) => ({
-		...s,
-		avgScore: asNum(s.avgScore),
-		voteCount: asNum(s.voteCount)
-	}));
+	const topSpots = topSpotsRaw.map((s) => {
+		const firstImage = db
+			.select({ filename: spotImages.filename })
+			.from(spotImages)
+			.where(eq(spotImages.spotId, s.id))
+			.orderBy(asc(spotImages.id))
+			.get();
+		return {
+			...s,
+			avgScore: asNum(s.avgScore),
+			voteCount: asNum(s.voteCount),
+			thumbnail: firstImage ? `/uploads/${firstImage.filename}` : null
+		};
+	});
+
+	// Wetter-Prognose fürs nächste Training — optional, Fehler sind egal.
+	let trainingForecast: Awaited<ReturnType<typeof getTrainingWindowForecast>> | null = null;
+	const firstUpcoming = nextTrainings[0];
+	if (firstUpcoming) {
+		try {
+			trainingForecast = await getTrainingWindowForecast({
+				date: firstUpcoming.date,
+				timeStart: firstUpcoming.timeStart,
+				timeEnd: firstUpcoming.timeEnd
+			});
+		} catch {
+			trainingForecast = null;
+		}
+	}
 
 	return {
 		nextTrainings: trainingsWithDetails,
+		trainingForecast,
 		topSpots,
 		calendarToday: today
 	};

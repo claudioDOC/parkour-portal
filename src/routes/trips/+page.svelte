@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import TripRouteMap from '$lib/components/TripRouteMap.svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -210,12 +211,11 @@
 </script>
 
 <div class="space-y-6">
-	<div>
-		<h2 class="text-2xl font-bold text-text-primary">Geplante Trips</h2>
-		<p class="text-text-secondary mt-1">
-			Trip ist fix. Geplant wird: Wer kommt, Anreise, Abstimmung zu Zeitraum und Ablauf — Route unten auf der Karte.
-		</p>
-	</div>
+	<PageHeader
+		kicker="Unterwegs"
+		title="Trips"
+		sub="Trip ist fix. Geplant wird: Wer kommt, Anreise, Abstimmung zu Zeitraum und Ablauf."
+	/>
 
 	{#if actionError}
 		<div class="fixed right-3 top-16 z-[72] w-[min(24rem,calc(100vw-1.5rem))] rounded-lg border border-danger/40 bg-danger/15 px-3 py-2 text-sm text-danger shadow-lg backdrop-blur md:right-6 md:top-6">

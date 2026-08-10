@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -44,18 +45,16 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-start justify-between gap-4 flex-wrap">
-		<div>
-			<h2 class="text-2xl font-bold text-text-primary">Spots</h2>
-			<p class="text-text-secondary mt-1">{data.spots.length} Spots im Raum Thun - Bern</p>
-		</div>
-		<a
-			href="/spots/suggest"
-			class="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover"
-		>
-			+ Spot hinzufügen
-		</a>
-	</div>
+	<PageHeader kicker="Raum Thun – Bern" title="Spots" sub="{data.spots.length} Spots zum Ziehen">
+		{#snippet actions()}
+			<a
+				href="/spots/suggest"
+				class="inline-block shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover"
+			>
+				+ Spot hinzufügen
+			</a>
+		{/snippet}
+	</PageHeader>
 
 	<div class="flex gap-3 flex-wrap">
 		<input

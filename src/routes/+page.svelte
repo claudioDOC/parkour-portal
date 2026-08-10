@@ -12,6 +12,16 @@
 	function isToday(dateStr: string): boolean {
 		return dateStr === data.calendarToday;
 	}
+
+	/** „Heute“, „Morgen“, sonst „in N Tagen“ — fürs schnelle Einordnen. */
+	function countdownLabel(dateStr: string): string {
+		const target = new Date(dateStr + 'T00:00:00');
+		const today = new Date(data.calendarToday + 'T00:00:00');
+		const days = Math.round((target.getTime() - today.getTime()) / 86_400_000);
+		if (days <= 0) return 'Heute';
+		if (days === 1) return 'Morgen';
+		return `in ${days} Tagen`;
+	}
 </script>
 
 <div class="space-y-10">
@@ -71,15 +81,22 @@
 					<div class="pointer-events-none relative z-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center gap-2 flex-wrap">
-								<span class="font-semibold text-text-primary">{session.dayOfWeek}</span>
-								{#if isToday(session.date)}
-									<span class="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full font-medium">Heute</span>
-								{/if}
+								<span class="font-semibold text-text-primary {i === 0 ? 'text-lg' : ''}">{session.dayOfWeek}</span>
+								<span
+									class="text-xs px-2 py-0.5 rounded-full font-medium {isToday(session.date)
+										? 'bg-accent/20 text-accent'
+										: 'bg-bg-hover text-text-secondary'}"
+								>
+									{countdownLabel(session.date)}
+								</span>
 								{#if session.cancelled}
 									<span class="text-xs bg-danger/20 text-danger px-2 py-0.5 rounded-full font-semibold">Abgesagt</span>
 								{/if}
 							</div>
 							<p class="text-text-secondary text-sm mt-1">{formatDate(session.date)} &middot; {session.timeStart} - {session.timeEnd}</p>
+							{#if i === 0 && data.trainingForecast}
+								<p class="text-text-muted text-sm mt-1">{data.trainingForecast.summaryLine}</p>
+							{/if}
 							{#if session.topVote}
 								<p class="text-accent text-sm mt-2 font-medium">
 									Spot:
@@ -126,11 +143,17 @@
 								</div>
 							</div>
 						</div>
-						{#if session.userEffectivelyAbsent}
+						{#if !session.cancelled}
 							<div class="flex shrink-0 items-center gap-3">
-								<span class="rounded-full bg-danger/20 px-3 py-1 text-xs font-medium text-danger">
-									Abgemeldet
-								</span>
+								{#if session.userEffectivelyAbsent}
+									<span class="rounded-full bg-danger/20 px-3 py-1 text-xs font-medium text-danger">
+										Abgemeldet
+									</span>
+								{:else}
+									<span class="rounded-full bg-success/15 px-3 py-1 text-xs font-medium text-success">
+										✓ Du ziehst mit
+									</span>
+								{/if}
 							</div>
 						{/if}
 					</div>
@@ -161,17 +184,34 @@
 			{#each data.topSpots as spot, i}
 				<a
 					href="/spots/{spot.id}"
-					class="card-surface card-surface-lift block p-5 md:p-6"
+					class="card-surface card-surface-lift group block overflow-hidden"
 				>
-					<div class="flex items-start justify-between">
-						<div>
-							<span class="text-text-muted text-xs">#{i + 1}</span>
-							<h4 class="font-semibold text-text-primary">{spot.name}</h4>
-							<p class="text-text-secondary text-sm">{spot.city}</p>
+					{#if spot.thumbnail}
+						<div class="relative h-32 overflow-hidden">
+							<img
+								src={spot.thumbnail}
+								alt={spot.name}
+								loading="lazy"
+								class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+							/>
+							<span
+								class="absolute left-3 top-3 rounded-full bg-black/60 px-2 py-0.5 font-display text-xs font-semibold text-white backdrop-blur-sm"
+							>#{i + 1}</span>
 						</div>
-						<div class="text-right">
-							<p class="text-accent font-bold">{Number(spot.avgScore).toFixed(1)}</p>
-							<p class="text-text-muted text-xs">{spot.voteCount} Votes</p>
+					{/if}
+					<div class="p-5 {spot.thumbnail ? 'pt-4' : 'md:p-6'}">
+						<div class="flex items-start justify-between gap-2">
+							<div class="min-w-0">
+								{#if !spot.thumbnail}
+									<span class="text-text-muted text-xs">#{i + 1}</span>
+								{/if}
+								<h4 class="font-semibold text-text-primary truncate group-hover:text-accent transition-colors">{spot.name}</h4>
+								<p class="text-text-secondary text-sm">{spot.city}</p>
+							</div>
+							<div class="text-right shrink-0">
+								<p class="text-accent font-bold text-lg">{Number(spot.avgScore).toFixed(1)}</p>
+								<p class="text-text-muted text-xs">{spot.voteCount} Votes</p>
+							</div>
 						</div>
 					</div>
 				</a>

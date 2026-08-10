@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -134,17 +135,29 @@
 		if (i === 2) return '🥉';
 		return '';
 	}
+
+	/** Balkenbreite: 0–100 geklemmt, damit kaputte Werte nicht überlaufen. */
+	function barWidth(percent: number): number {
+		return Math.max(0, Math.min(100, Number(percent) || 0));
+	}
 </script>
 
+{#snippet percentBar(percent: number)}
+	<div class="h-1.5 w-full overflow-hidden rounded-full bg-bg-hover" aria-hidden="true">
+		<div
+			class="h-full rounded-full bg-gradient-to-r from-accent to-accent-hot"
+			style="width: {barWidth(percent)}%"
+		></div>
+	</div>
+{/snippet}
+
 <div class="space-y-10 pb-8">
-	<section class="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-accent/10 via-bg-card to-bg-card p-6 md:p-8">
-		<div class="absolute -right-8 -top-8 text-8xl opacity-[0.07] select-none pointer-events-none" aria-hidden="true">📊</div>
-		<h2 class="text-2xl md:text-3xl font-bold text-text-primary tracking-tight">Statistik</h2>
-		<p class="text-text-muted text-sm mt-2 max-w-xl">
+	<PageHeader kicker="Wer zieht wie oft" title="Statistik">
+		<p class="text-text-muted text-sm max-w-xl">
 			<strong class="text-text-secondary font-medium">Gezogen</strong> = wie oft ohne Abmeldung zum Training (geschätzt, ab Registrierung).
 			<strong class="text-text-secondary font-medium">Gezogen %</strong> = Anteil „gezogen“ an allen relevanten Trainings.
 		</p>
-	</section>
+	</PageHeader>
 
 	{#if stats.group.pastSessionCount === 0}
 		<div class="bg-bg-card rounded-xl border border-border p-8 text-center">
@@ -192,6 +205,7 @@
 								</p>
 								<p class="shrink-0 text-lg font-bold text-accent tabular-nums leading-none">{row.showUpPercent}%</p>
 							</div>
+							{@render percentBar(row.showUpPercent)}
 							<p class="text-[11px] sm:text-xs text-text-secondary leading-snug">
 								<span class="tabular-nums text-text-primary font-medium">{row.eligiblePastSessions}</span> Trainings
 								<span class="text-text-muted mx-0.5">·</span>
@@ -244,7 +258,14 @@
 									<td class="px-3 py-2 text-right text-text-secondary">{row.eligiblePastSessions}</td>
 									<td class="px-3 py-2 text-right text-warning">{row.absences}</td>
 									<td class="px-3 py-2 text-right font-medium text-success">{row.implicitPresent}</td>
-									<td class="px-3 py-2 text-right font-semibold text-accent">{row.showUpPercent}%</td>
+									<td class="px-3 py-2 text-right font-semibold text-accent">
+										<div class="flex items-center justify-end gap-2">
+											<div class="h-1.5 w-16 overflow-hidden rounded-full bg-bg-hover" aria-hidden="true">
+												<div class="h-full rounded-full bg-gradient-to-r from-accent to-accent-hot" style="width: {barWidth(row.showUpPercent)}%"></div>
+											</div>
+											<span class="tabular-nums">{row.showUpPercent}%</span>
+										</div>
+									</td>
 									<td class="px-3 py-2 text-right text-text-secondary">{row.streakNoAbsence}</td>
 									<td class="px-3 py-2">
 										<div class="flex items-center gap-2">
@@ -337,6 +358,7 @@
 										<span class="text-right font-medium text-success tabular-nums">{row.pulled}</span>
 										<span class="text-text-muted">Gezogen %</span>
 										<span class="text-right font-semibold text-accent tabular-nums">{row.pulledPercent}%</span>
+										<span class="col-span-2">{@render percentBar(row.pulledPercent)}</span>
 									</div>
 								</div>
 							{/each}
@@ -361,7 +383,14 @@
 											<td class="px-3 py-2 text-right text-text-secondary">{row.trainings}</td>
 											<td class="px-3 py-2 text-right text-warning">{row.absences}</td>
 											<td class="px-3 py-2 text-right font-medium text-success">{row.pulled}</td>
-											<td class="px-3 py-2 text-right font-medium text-accent">{row.pulledPercent}%</td>
+											<td class="px-3 py-2 text-right font-medium text-accent">
+												<div class="flex items-center justify-end gap-2">
+													<div class="h-1.5 w-16 overflow-hidden rounded-full bg-bg-hover" aria-hidden="true">
+														<div class="h-full rounded-full bg-gradient-to-r from-accent to-accent-hot" style="width: {barWidth(row.pulledPercent)}%"></div>
+													</div>
+													<span class="tabular-nums">{row.pulledPercent}%</span>
+												</div>
+											</td>
 										</tr>
 									{/each}
 								</tbody>
