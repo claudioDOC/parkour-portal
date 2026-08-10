@@ -191,7 +191,7 @@
 										>
 											{rank + 1}
 										</span>
-										<span class="truncate font-medium text-text-primary">{row.username}</span>
+										<a href="/profil/{row.userId}" class="truncate font-medium text-text-primary transition-colors hover:text-accent">{row.username}</a>
 									</div>
 									<span class="shrink-0 font-display text-lg font-semibold text-accent">{row.clears}</span>
 								</li>

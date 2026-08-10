@@ -70,6 +70,20 @@ export function buildProfilePayload(userId: number) {
 		openChallengeCount = Math.max(0, Number(totalActive) - completedChallenges.length);
 	}
 
+	// Alle Mitglieder für die Übersicht unten auf der Profilseite.
+	const members = db
+		.select({ id: users.id, username: users.username, avatar: users.avatar, active: users.active })
+		.from(users)
+		.where(usersNotDeletedCondition())
+		.all()
+		.filter((u) => u.active !== false)
+		.map((u) => ({
+			id: u.id,
+			username: u.username,
+			avatar: u.avatar ? `/uploads/${u.avatar}` : null
+		}))
+		.sort((a, b) => a.username.localeCompare(b.username, 'de'));
+
 	return {
 		profile: {
 			id: target.id,
@@ -81,6 +95,7 @@ export function buildProfilePayload(userId: number) {
 		totalMembers: stats.leaderboard.length,
 		monthly,
 		completedChallenges,
-		openChallengeCount
+		openChallengeCount,
+		members
 	};
 }

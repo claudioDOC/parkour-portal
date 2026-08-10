@@ -1,6 +1,7 @@
 /** Gespeichert in `users.ui_theme`, per `data-theme` auf `<html>` angewendet. */
 export const UI_THEME_IDS = [
 	'mate',
+	'night',
 	'dark',
 	'light',
 	'urban',
@@ -24,6 +25,7 @@ export const UI_THEME_OPTIONS: {
 	swatch: [string, string, string];
 }[] = [
 	{ id: 'mate', label: 'PK / Mate', hint: 'Neon-Gelb, Original-Stil', swatch: ['#0d0d0f', '#e8ff47', '#ff9947'] },
+	{ id: 'night', label: 'Night', hint: 'Kühles Blau-Violett — passend zum Logo', swatch: ['#0e1015', '#8ba2ff', '#a78bfa'] },
 	{ id: 'dark', label: 'Klassisch Dunkel', hint: 'Grautöne, dezentes Blau — ohne Neon', swatch: ['#121212', '#8ab4f8', '#c58af9'] },
 	{ id: 'light', label: 'Klassisch Hell', hint: 'Helles UI, dunkler Text', swatch: ['#f3f4f6', '#2563eb', '#3b82f6'] },
 	{ id: 'urban', label: 'Urban', hint: 'Warmes Dunkel, Petrol-Akzent', swatch: ['#1a1a18', '#5eb5a6', '#7ec9cf'] },

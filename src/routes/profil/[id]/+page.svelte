@@ -115,4 +115,21 @@
 			{/if}
 		</section>
 	{/if}
+
+	<section class="bg-bg-card rounded-xl border border-border p-5 md:p-6">
+		<h3 class="text-lg font-semibold text-text-primary mb-3">Alle Mitglieder</h3>
+		<div class="flex flex-wrap gap-2">
+			{#each data.members as m (m.id)}
+				<a
+					href="/profil/{m.id}"
+					class="flex items-center gap-2 rounded-full border px-2.5 py-1.5 transition-colors {m.id === data.profile.id
+						? 'border-accent/50 bg-accent/10'
+						: 'border-border bg-bg-secondary hover:border-accent/40 hover:bg-bg-hover'}"
+				>
+					<UserAvatar src={m.avatar} username={m.username} size={24} />
+					<span class="text-sm font-medium text-text-primary">{m.username}</span>
+				</a>
+			{/each}
+		</div>
+	</section>
 </div>

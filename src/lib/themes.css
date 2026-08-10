@@ -211,3 +211,36 @@ html[data-theme='ocean'] {
 		linear-gradient(165deg, #0f1e2d 0%, var(--color-bg-primary) 50%, #081018 100%);
 	background-size: auto;
 }
+
+/* Night — kühles Monochrom mit Blau-Violett, passend zum App-Logo. */
+html[data-theme='night'] {
+	--color-bg-primary: #0e1015;
+	--color-bg-secondary: #14161c;
+	--color-bg-card: #1a1d24;
+	--color-bg-hover: #232733;
+	--color-accent: #8ba2ff;
+	--color-accent-hover: #a3b5ff;
+	--color-accent-hot: #a78bfa;
+	--color-accent-dim: #3b4470;
+	--color-accent-blue: #38bdf8;
+	--color-text-primary: #eef1f6;
+	--color-text-secondary: #a8aeba;
+	--color-text-muted: #767d8a;
+	--color-border: rgb(255 255 255 / 0.08);
+	--color-danger: #f27285;
+	--color-warning: #e5a960;
+	--color-success: #5fc99a;
+	--color-accent-rgb: 139 162 255;
+	--shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.05), 0 10px 36px -10px rgb(0 0 0 / 0.58);
+	--shadow-card-hover: 0 1px 0 0 rgb(255 255 255 / 0.07), 0 16px 48px -12px rgb(0 0 0 / 0.62),
+		0 0 0 1px rgb(var(--color-accent-rgb) / 0.22);
+	--shadow-nav: 0 0 0 1px rgb(255 255 255 / 0.04);
+}
+
+html[data-theme='night'] {
+	background-image:
+		radial-gradient(ellipse 100% 60% at 50% -20%, rgb(var(--color-accent-rgb) / 0.08), transparent 55%),
+		radial-gradient(ellipse 50% 35% at 100% 0%, rgb(167 139 250 / 0.06), transparent 50%),
+		radial-gradient(circle, rgb(255 255 255 / 0.03) 1px, transparent 1px);
+	background-size: auto, auto, 22px 22px;
+}
