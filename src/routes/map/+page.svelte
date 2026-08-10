@@ -9,6 +9,58 @@
 	let mapError = $state('');
 	let leafletMap: import('leaflet').Map | null = null;
 
+	/** Filter: alles / nur Hauptspots / nur gut bewertete (Ø ≥ 4). */
+	let mapFilter = $state<'alle' | 'haupt' | 'top'>('alle');
+	let allMarkers: { marker: import('leaflet').Marker; spot: (typeof data.spots)[number] }[] = [];
+	let locating = $state(false);
+	let locateError = $state('');
+
+	function applyFilter() {
+		if (!leafletMap) return;
+		for (const { marker, spot } of allMarkers) {
+			const visible =
+				mapFilter === 'alle' ||
+				(mapFilter === 'haupt' && !spot.isMicro) ||
+				(mapFilter === 'top' && spot.avgScore >= 4 && spot.voteCount > 0);
+			if (visible && !leafletMap.hasLayer(marker)) marker.addTo(leafletMap);
+			if (!visible && leafletMap.hasLayer(marker)) marker.removeFrom(leafletMap);
+		}
+	}
+
+	function setFilter(f: 'alle' | 'haupt' | 'top') {
+		mapFilter = f;
+		applyFilter();
+	}
+
+	/** Eigener Standort: blauer Punkt + hinzoomen. */
+	async function locateMe() {
+		if (!leafletMap || !navigator.geolocation) return;
+		locating = true;
+		locateError = '';
+		const L = await import('leaflet');
+		navigator.geolocation.getCurrentPosition(
+			(pos) => {
+				locating = false;
+				const { latitude, longitude } = pos.coords;
+				L.circleMarker([latitude, longitude], {
+					radius: 9,
+					color: '#fff',
+					weight: 2.5,
+					fillColor: '#3b82f6',
+					fillOpacity: 1
+				})
+					.addTo(leafletMap!)
+					.bindPopup('Du bist hier');
+				leafletMap!.setView([latitude, longitude], 14, { animate: true });
+			},
+			() => {
+				locating = false;
+				locateError = 'Standort nicht verfügbar — Freigabe im Browser prüfen.';
+			},
+			{ enableHighAccuracy: true, timeout: 8000 }
+		);
+	}
+
 	function escapeHtml(s: string): string {
 		return s
 			.replace(/&/g, '&amp;')
@@ -46,10 +98,8 @@
 				scrollWheelZoom: false
 			});
 
-			L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-				attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-				subdomains: 'abcd',
-				maxZoom: 20
+			L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+				attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 			}).addTo(leafletMap);
 
 			const bounds = L.latLngBounds([]);
@@ -59,11 +109,14 @@
 			for (const spot of data.spots) {
 				const lat = spot.latitude!;
 				const lon = spot.longitude!;
-				const { fill, stroke, fg } = pinPalette(spot.avgScore, spot.voteCount);
-				const label = pinLabel(spot.avgScore, spot.voteCount);
+				const isTrainingSpot = spot.id === data.nextTrainingSpotId;
+				const { fill, stroke, fg } = isTrainingSpot
+					? { fill: 'var(--color-accent)', stroke: 'var(--color-accent-hot)', fg: '#0c0c0e' }
+					: pinPalette(spot.avgScore, spot.voteCount);
+				const label = isTrainingSpot ? '🚂' : pinLabel(spot.avgScore, spot.voteCount);
 
 				const html = `
-					<div class="spots-map-pin" style="--pin-fill:${fill};--pin-stroke:${stroke};--pin-fg:${fg}">
+					<div class="spots-map-pin ${isTrainingSpot ? 'spots-map-pin-training' : ''}" style="--pin-fill:${fill};--pin-stroke:${stroke};--pin-fg:${fg}">
 						<div class="spots-map-pin-bubble">${label}</div>
 						<div class="spots-map-pin-point"></div>
 					</div>`;
@@ -77,6 +130,7 @@
 				});
 
 				const m = L.marker([lat, lon], { icon }).addTo(leafletMap);
+				allMarkers.push({ marker: m, spot });
 
 				const title = escapeHtml(spot.name);
 				const city = escapeHtml(spot.city);
@@ -84,10 +138,16 @@
 					spot.voteCount === 0
 						? 'Noch keine Bewertung'
 						: `Ø ${spot.avgScore.toFixed(1)} · ${spot.voteCount} Stimme${spot.voteCount === 1 ? '' : 'n'}`;
+				const trainingLine = isTrainingSpot
+					? `<div style="margin:4px 0;font-size:11px;font-weight:700;color:#b45309">🚂 Führt im Voting fürs nächste Training</div>`
+					: '';
+				const img = spot.thumbnail
+					? `<img src="${spot.thumbnail}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:6px" loading="lazy"/>`
+					: '';
 
 				m.bindPopup(
-					`<div class="spots-map-popup"><strong>${title}</strong><br/><span style="opacity:0.88;font-size:12px">${city}</span><br/><span style="font-size:12px;margin-top:4px;display:inline-block">${ratingLine}</span><br/><a href="/spots/${spot.id}">Spot öffnen</a></div>`,
-					{ maxWidth: 260 }
+					`<div class="spots-map-popup" style="min-width:180px">${img}<strong>${title}</strong><br/><span style="opacity:0.88;font-size:12px">${city}${spot.isMicro ? ' · Microspot' : ''}</span><br/><span style="font-size:12px;margin-top:2px;display:inline-block">${ratingLine}</span>${trainingLine}<a href="/spots/${spot.id}" style="display:inline-block;margin-top:6px;font-weight:600">Spot öffnen →</a></div>`,
+					{ maxWidth: 280 }
 				);
 				bounds.extend([lat, lon]);
 			}
@@ -131,6 +191,35 @@
 		<div class="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{mapError}</div>
 	{/if}
 
+	<div class="flex flex-wrap items-center gap-2">
+		{#each [
+			{ id: 'alle' as const, label: 'Alle Spots' },
+			{ id: 'haupt' as const, label: 'Nur Hauptspots' },
+			{ id: 'top' as const, label: '⭐ Top bewertet' }
+		] as f (f.id)}
+			<button
+				type="button"
+				onclick={() => setFilter(f.id)}
+				class="cursor-pointer rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors {mapFilter === f.id
+					? 'border-accent bg-accent/15 text-accent'
+					: 'border-border bg-bg-card text-text-secondary hover:text-text-primary'}"
+			>
+				{f.label}
+			</button>
+		{/each}
+		<button
+			type="button"
+			onclick={locateMe}
+			disabled={locating}
+			class="ml-auto cursor-pointer rounded-full border border-border bg-bg-card px-3.5 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50"
+		>
+			{locating ? '…' : '📍 Mein Standort'}
+		</button>
+	</div>
+	{#if locateError}
+		<p class="text-xs text-danger">{locateError}</p>
+	{/if}
+
 	{#if data.spots.length === 0}
 		<div
 			class="rounded-xl border border-border bg-bg-card px-6 py-12 text-center text-text-secondary text-sm"
@@ -151,6 +240,15 @@
 	:global(.spots-map-marker-leaflet) {
 		background: transparent !important;
 		border: none !important;
+	}
+
+	:global(.spots-map-pin-training .spots-map-pin-bubble) {
+		animation: training-pin-pulse 1.6s ease-in-out infinite;
+		font-size: 12px;
+	}
+	@keyframes training-pin-pulse {
+		0%, 100% { box-shadow: 0 0 0 0 rgb(var(--color-accent-rgb) / 0.55); }
+		50% { box-shadow: 0 0 0 9px rgb(var(--color-accent-rgb) / 0); }
 	}
 
 	:global(.spots-map-pin) {

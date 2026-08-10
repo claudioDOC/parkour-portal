@@ -291,10 +291,8 @@
 			await import('leaflet/dist/leaflet.css');
 
 			leafletMap = L.map(mapContainer, { zoomControl: true, scrollWheelZoom: false });
-			tileStreet = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-				attribution: '&copy; OpenStreetMap &copy; CARTO',
-				subdomains: 'abcd',
-				maxZoom: 20
+			tileStreet = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+				attribution: '&copy; OpenStreetMap'
 			});
 			tileSatellite = L.tileLayer(
 				'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',

@@ -158,6 +158,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.limit(1)
 			.get();
 
+		// Bild des führenden Spots — Hintergrund fürs Dashboard-Hero.
+		let topVoteThumbnail: string | null = null;
+		if (topVote) {
+			const img = db
+				.select({ filename: spotImages.filename })
+				.from(spotImages)
+				.where(eq(spotImages.spotId, topVote.spotId))
+				.orderBy(asc(spotImages.id))
+				.get();
+			topVoteThumbnail = img ? `/uploads/${img.filename}` : null;
+		}
+
 		return {
 			...session,
 			absences: absencesForList,
@@ -167,7 +179,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			topVote: topVote
 				? {
 						...topVote,
-						voteCount: asNum(topVote.voteCount)
+						voteCount: asNum(topVote.voteCount),
+						thumbnail: topVoteThumbnail
 					}
 				: null
 		};

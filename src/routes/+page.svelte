@@ -58,11 +58,23 @@
 		<div class="space-y-3">
 			{#each data.nextTrainings as session, i}
 				<div
-					class="card-surface card-surface-lift relative overflow-hidden p-5 md:p-6 {i === 0
-						? 'ring-2 ring-accent ring-offset-2 ring-offset-bg-bg-card shadow-next-training-soft'
-						: ''}"
+					class="card-surface card-surface-lift relative overflow-hidden {i === 0
+						? 'p-6 md:p-8 ring-2 ring-accent ring-offset-2 ring-offset-bg-bg-card shadow-next-training-soft'
+						: 'p-5 md:p-6'}"
 				>
 					{#if i === 0}
+						<!-- Hero: Spot-Foto als Bühne, dunkler Verlauf für Lesbarkeit -->
+						{#if session.topVote?.thumbnail && !session.cancelled}
+							<div class="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+								<img
+									src={session.topVote.thumbnail}
+									alt=""
+									class="h-full w-full object-cover opacity-35"
+								/>
+								<div class="absolute inset-0 bg-gradient-to-r from-bg-card via-bg-card/85 to-bg-card/40"></div>
+								<div class="absolute inset-0 bg-gradient-to-t from-bg-card via-transparent to-transparent"></div>
+							</div>
+						{/if}
 						<div
 							class="pointer-events-none absolute left-0 right-0 top-0 z-30 flex items-center justify-between gap-2 bg-gradient-to-r from-accent to-accent-hot px-4 py-1.5 font-display text-[10px] font-semibold uppercase tracking-[0.22em] text-black sm:text-xs"
 						>
@@ -80,11 +92,15 @@
 					</a>
 					<div class="pointer-events-none relative z-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
 						<div class="min-w-0 flex-1">
-							<div class="flex items-center gap-2 flex-wrap">
-								<span class="font-semibold text-text-primary {i === 0 ? 'text-lg' : ''}">{session.dayOfWeek}</span>
+							<div class="flex items-center gap-2.5 flex-wrap">
 								<span
-									class="text-xs px-2 py-0.5 rounded-full font-medium {isToday(session.date)
-										? 'bg-accent/20 text-accent'
+									class="{i === 0
+										? 'font-display text-3xl md:text-4xl font-semibold uppercase tracking-[0.05em]'
+										: 'font-semibold'} text-text-primary"
+								>{session.dayOfWeek}</span>
+								<span
+									class="{i === 0 ? 'text-sm px-2.5 py-1' : 'text-xs px-2 py-0.5'} rounded-full font-semibold {isToday(session.date)
+										? 'bg-accent/25 text-accent'
 										: 'bg-bg-hover text-text-secondary'}"
 								>
 									{countdownLabel(session.date)}
