@@ -5,6 +5,7 @@ import { db } from '$lib/server/db';
 import { spots, spotChallenges, spotChallengeCompletions } from '$lib/server/db/schema';
 import { logAudit } from '$lib/server/audit';
 import { isSpotChallengesSchemaReady } from '$lib/server/spotChallengesSchemaReady';
+import { sendToUsersWithPref } from '$lib/server/push';
 
 function schemaNotReadyResponse() {
 	return json(
@@ -59,6 +60,20 @@ export const POST: RequestHandler = async (event) => {
 		actorUsername: locals.user.username,
 		detail: { spotId, spotName: spot.name, challengeId: created.id, title }
 	});
+
+	// Push an alle mit aktivierter Challenge-Benachrichtigung — ausser dem Ersteller.
+	// Fehler dürfen die Antwort nicht verzögern/kippen.
+	void sendToUsersWithPref(
+		'challenges',
+		{
+			title: `Neue Challenge — ${spot.name}`,
+			body: `${locals.user.username}: „${title}“`,
+			url: `/spots/${spotId}`,
+			tag: `challenge-new-${created.id}`
+		},
+		undefined,
+		{ excludeUserIds: [locals.user.id] }
+	).catch(() => undefined);
 
 	return json({ success: true, challenge: created });
 };
@@ -164,6 +179,20 @@ export const PATCH: RequestHandler = async (event) => {
 					userId: locals.user.id
 				})
 				.run();
+
+			// Ersteller informieren, dass jemand seine Challenge geschafft hat.
+			if (challenge.createdBy !== locals.user.id) {
+				void sendToUsersWithPref(
+					'challenges',
+					{
+						title: 'Challenge geschafft 💪',
+						body: `${locals.user.username} hat deine Challenge „${challenge.title}“ geschafft.`,
+						url: `/spots/${challenge.spotId}`,
+						tag: `challenge-done-${challengeId}-${locals.user.id}`
+					},
+					[challenge.createdBy]
+				).catch(() => undefined);
+			}
 		}
 	} else {
 		db.delete(spotChallengeCompletions)

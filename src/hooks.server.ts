@@ -23,7 +23,9 @@ const publicPaths = [
 	// sonst landet die Login-Seite im Offline-Cache.
 	'/offline',
 	// Digital Asset Links für die Android-App (Play Store / TWA).
-	'/.well-known/assetlinks.json'
+	'/.well-known/assetlinks.json',
+	// Kalender-Abo — Key-geschützt in der Route selbst.
+	'/calendar.ics'
 ];
 
 /** F-09: In Produktion nur HTTPS, wenn der Proxy X-Forwarded-Proto mitsendet. */

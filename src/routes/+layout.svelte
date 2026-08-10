@@ -23,7 +23,8 @@ type NavIcon =
 		| 'challenge'
 		| 'map'
 		| 'settings'
-		| 'admin';
+		| 'admin'
+		| 'user';
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -134,6 +135,7 @@ let mobileMoreOpen = $state(false);
 		{ href: '/challenges', label: 'Challenges', icon: 'challenge' },
 		{ href: '/map', label: 'Map', icon: 'map' },
 		{ href: '/statistik', label: 'Statistik', icon: 'stats' },
+		{ href: '/profil', label: 'Profil', icon: 'user' },
 		{ href: '/settings', label: 'Einstellungen', icon: 'settings' }
 	];
 
@@ -236,6 +238,10 @@ let mobileMoreOpen = $state(false);
 					<a href="/statistik" class={navLinkClass('/statistik')} onclick={() => (mobileMoreOpen = false)}>
 						<AppNavIcon name="stats" />
 						<span>Statistik</span>
+					</a>
+					<a href="/profil" class={navLinkClass('/profil')} onclick={() => (mobileMoreOpen = false)}>
+						<AppNavIcon name="user" />
+						<span>Profil</span>
 					</a>
 					<a href="/settings" class={navLinkClass('/settings')} onclick={() => (mobileMoreOpen = false)}>
 						<AppNavIcon name="settings" />

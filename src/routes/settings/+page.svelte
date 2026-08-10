@@ -24,6 +24,7 @@
 	let themeSaving = $state(false);
 	let themeError = $state('');
 	let themeOk = $state('');
+	let calendarCopied = $state(false);
 
 	/** Geräte-Einstellungen (localStorage) — Defaults bis onMount lädt. */
 	let device = $state<DevicePrefs>({ fontSize: 'normal', motion: 'an', startPage: '/' });
@@ -227,6 +228,44 @@
 			</label>
 		</div>
 	</div>
+
+	{#if data.calendarUrl}
+		<div class="bg-bg-card rounded-xl border border-border p-6">
+			<h3 class="text-lg font-semibold text-text-primary mb-1">Kalender-Abo</h3>
+			<p class="text-text-muted text-sm mb-3">
+				Trainings und Trips direkt in deiner Kalender-App — aktualisiert sich selbst, Absagen
+				erscheinen als abgesagte Termine.
+			</p>
+			<div class="flex flex-wrap items-center gap-2">
+				<input
+					type="text"
+					readonly
+					value={data.calendarUrl}
+					onclick={(e) => e.currentTarget.select()}
+					class="min-w-0 flex-1 rounded-lg border border-border bg-bg-secondary px-3 py-2 text-xs text-text-secondary focus:outline-none focus:border-accent"
+				/>
+				<button
+					type="button"
+					onclick={async () => {
+						try {
+							await navigator.clipboard.writeText(data.calendarUrl ?? '');
+							calendarCopied = true;
+							setTimeout(() => (calendarCopied = false), 2000);
+						} catch {
+							/* Auswahl per Klick aufs Feld bleibt als Fallback */
+						}
+					}}
+					class="cursor-pointer rounded-lg border border-accent/40 px-4 py-2 text-sm font-semibold text-accent transition-colors hover:bg-accent/10"
+				>
+					{calendarCopied ? 'Kopiert ✓' : 'Link kopieren'}
+				</button>
+			</div>
+			<p class="text-text-muted text-xs mt-2">
+				iPhone: Einstellungen → Kalender → Accounts → Kalenderabo. Google Kalender: Weitere
+				Kalender → Per URL. Link einfügen, fertig.
+			</p>
+		</div>
+	{/if}
 
 	<PushSettings />
 

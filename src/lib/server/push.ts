@@ -118,12 +118,14 @@ export async function sendToUsers(userIds: number[], payload: PushPayload): Prom
 
 /**
  * Wie `sendToUsers`, aber nur an User, die diese Benachrichtigungsart aktiviert
- * haben. `candidateUserIds` grenzt zusätzlich ein (leer = alle aktiven User).
+ * haben. `candidateUserIds` grenzt zusätzlich ein (leer = alle aktiven User),
+ * `opts.excludeUserIds` nimmt Einzelne aus (z. B. den Auslöser selbst).
  */
 export async function sendToUsersWithPref(
 	pref: keyof PushPrefs,
 	payload: PushPayload,
-	candidateUserIds?: number[]
+	candidateUserIds?: number[],
+	opts?: { excludeUserIds?: number[] }
 ): Promise<number> {
 	if (!isPushConfigured()) return 0;
 	const rows = db
@@ -131,9 +133,11 @@ export async function sendToUsersWithPref(
 		.from(users)
 		.where(usersNotDeletedCondition())
 		.all();
+	const excluded = new Set(opts?.excludeUserIds ?? []);
 	const allowed = rows
 		.filter((r) => parsePushPrefs(r.pushPrefs)[pref])
 		.map((r) => r.id)
-		.filter((id) => !candidateUserIds || candidateUserIds.includes(id));
+		.filter((id) => !candidateUserIds || candidateUserIds.includes(id))
+		.filter((id) => !excluded.has(id));
 	return sendToUsers(allowed, payload);
 }
