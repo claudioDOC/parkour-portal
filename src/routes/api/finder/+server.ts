@@ -19,6 +19,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const body = await request.json();
 	const { city, cities, weatherCondition, isDark, technique, techniques, useAutoWeather } = body;
+	/** Freitext-Wunsch, z. B. „hohe Mauern", „schattig", „Bahnhof" — matcht gegen Spot-Daten. */
+	const wish = typeof body.wish === 'string' ? body.wish.trim().toLowerCase().slice(0, 120) : '';
 
 	let isWet = weatherCondition === 'nass';
 	let isTrocken = weatherCondition === 'trocken';
@@ -142,15 +144,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 	}
 
-	/** Tages-Jitter: bei ähnlichen Scores rotiert die Empfehlung täglich. */
-	const daySeed = todayYmdInAppTZ();
-	function dailyJitter(spotId: number): number {
-		let h = 0;
-		const s = `${daySeed}:${spotId}`;
-		for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-		return ((h % 1000) / 1000) * 0.5; // 0 … 0.5
-	}
-
 	const scored = results.map((spot) => {
 		let weatherBonus = 0;
 		const weatherTags = (spot.goodWeather || '').split(',').map((w) => w.trim());
@@ -182,13 +175,56 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const rank = recentWinnerRank.get(spot.id);
 		const varietyMalus = rank !== undefined ? 1.6 * Math.pow(0.6, rank) : 0;
 
-		const finalScore =
-			avg * 1.12 + weatherBonus + lightingBonus + regionBonus - varietyMalus + dailyJitter(spot.id);
+		// Freitext-Wunsch: jedes Wort, das in Name/Stadt/Beschreibung/Techniken
+		// vorkommt, gibt einen kräftigen Bonus.
+		let wishHits = 0;
+		if (wish) {
+			const haystack =
+				`${spot.name} ${spot.city} ${spot.description ?? ''} ${spot.techniques ?? ''}`.toLowerCase();
+			for (const word of wish.split(/[\s,]+/).filter((w: string) => w.length >= 3)) {
+				if (haystack.includes(word)) wishHits++;
+			}
+		}
+		const wishBonus = wishHits * 2.2;
 
-		return { ...spot, avgScore: avg, voteCount, finalScore, recentlyUsed: rank !== undefined };
+		const finalScore =
+			avg * 1.12 + weatherBonus + lightingBonus + regionBonus - varietyMalus + wishBonus;
+
+		// Begründungen — machen den Vorschlag nachvollziehbar und geben Vorfreude.
+		const reasons: string[] = [];
+		if (wishHits > 0) reasons.push('✨ passt zu deinem Wunsch');
+		if (avg >= 4.2 && voteCount >= 2) reasons.push(`⭐ Favorit der Gruppe (${avg.toFixed(1)})`);
+		else if (avg >= 3.5) reasons.push(`⭐ beliebt (${avg.toFixed(1)})`);
+		if (rank === undefined && voteCount > 0) reasons.push('🔮 lange nicht besucht');
+		if (rank === undefined && voteCount === 0) reasons.push('🆕 noch nie im Voting — Entdeckung?');
+		if (isWet && (spot.goodWeather || '').includes('nass')) reasons.push('☂ regentauglich');
+		if (lightingBonus >= 2) reasons.push('💡 beleuchtet');
+
+		return { ...spot, avgScore: avg, voteCount, finalScore, reasons };
 	});
 
+	/**
+	 * Gewichtete Zufallsauswahl statt sturem Maximum: gute Spots kommen öfter,
+	 * aber jeder Wurf kann überraschen — dafür gibt es den Würfel-Knopf.
+	 * Gewicht = exp(score) über die Top-Kandidaten, Ziehen ohne Zurücklegen.
+	 */
 	scored.sort((a, b) => b.finalScore - a.finalScore);
+	const pool = scored.slice(0, 8);
+	const picked: typeof pool = [];
+	while (picked.length < Math.min(3, pool.length)) {
+		const weights = pool.map((s) => Math.exp((s.finalScore - pool[0].finalScore) / 1.4));
+		let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+		let idx = 0;
+		for (let i = 0; i < pool.length; i++) {
+			r -= weights[i];
+			if (r <= 0) {
+				idx = i;
+				break;
+			}
+		}
+		picked.push(pool[idx]);
+		pool.splice(idx, 1);
+	}
 
-	return json({ results: scored.slice(0, 3), forecastHint: fc?.summaryLine ?? null });
+	return json({ results: picked, forecastHint: fc?.summaryLine ?? null });
 };

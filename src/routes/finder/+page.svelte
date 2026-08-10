@@ -17,7 +17,8 @@
 		weatherCondition: 'egal' as 'trocken' | 'nass' | 'egal',
 		isDark: false,
 		techniqueMode: 'all' as 'all' | 'pick',
-		techniquePick: [] as string[]
+		techniquePick: [] as string[],
+		wish: ''
 	});
 
 	const voteSessionId = $derived(data.voteSessionId ?? data.nextOpenSessionId ?? null);
@@ -34,6 +35,7 @@
 		avgScore: number;
 		voteCount: number;
 		finalScore: number;
+		reasons?: string[];
 	};
 
 	let results = $state<SpotResult[]>([]);
@@ -81,7 +83,8 @@
 			weatherCondition: 'egal',
 			isDark: false,
 			techniqueMode: 'all',
-			techniquePick: []
+			techniquePick: [],
+			wish: ''
 		};
 		results = [];
 		forecastHint = null;
@@ -131,7 +134,8 @@
 					weatherCondition: answers.weatherCondition,
 					isDark: answers.isDark,
 					cities: answers.cityMode === 'all' ? [] : answers.cityPick,
-					techniques: answers.techniqueMode === 'all' ? [] : answers.techniquePick
+					techniques: answers.techniqueMode === 'all' ? [] : answers.techniquePick,
+					wish: answers.wish
 				})
 			});
 			const json = await res.json();
@@ -220,6 +224,24 @@
 						<p class="text-text-muted text-xs">Du sagst uns wie das Wetter ist</p>
 					</div>
 				</button>
+
+				<!-- Freitext-Wunsch: fliesst als Bonus in die Bewertung ein -->
+				<div class="rounded-xl border border-dashed border-accent/30 bg-accent/[0.04] p-4">
+					<label for="finder-wish" class="mb-1.5 block text-sm font-medium text-text-primary">
+						✨ Wünsche? <span class="text-text-muted font-normal">(optional)</span>
+					</label>
+					<input
+						id="finder-wish"
+						type="text"
+						bind:value={answers.wish}
+						maxlength="120"
+						placeholder="z. B. hohe Mauern, Bahnhof, schattig, Flips üben …"
+						class="w-full rounded-lg border border-border bg-bg-secondary px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
+					/>
+					<p class="mt-1.5 text-xs text-text-muted">
+						Wird gegen Name, Ort, Beschreibung und Techniken der Spots gematcht.
+					</p>
+				</div>
 			</div>
 
 		{:else if currentStep === 'city'}
@@ -339,6 +361,13 @@
 										<div>
 											<a href="/spots/{spot.id}" class="font-semibold text-text-primary hover:text-accent transition-colors">{spot.name}</a>
 											<p class="text-text-secondary text-sm">{spot.city}</p>
+											{#if spot.reasons && spot.reasons.length > 0}
+												<div class="mt-1.5 flex flex-wrap gap-1.5">
+													{#each spot.reasons as reason (reason)}
+														<span class="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">{reason}</span>
+													{/each}
+												</div>
+											{/if}
 										</div>
 										<div class="text-right shrink-0">
 											<p class="text-accent font-bold">{Number(spot.avgScore).toFixed(1)}</p>
@@ -384,6 +413,14 @@
 						← Zurück
 					</button>
 					{#if currentStep === 'result'}
+						<button
+							type="button"
+							onclick={() => findSpots()}
+							disabled={loading}
+							class="cursor-pointer rounded-lg border border-accent/40 px-4 py-1.5 text-sm font-semibold text-accent transition-all hover:bg-accent/10 active:scale-95 disabled:opacity-50 text-left"
+						>
+							{loading ? '…' : '🎲 Neu würfeln'}
+						</button>
 						<button
 							type="button"
 							onclick={restart}

@@ -31,10 +31,20 @@
 			{kicker}
 		</p>
 		<div class="space-y-2">
+			<!-- Letztes Wort im Akzentverlauf — kleiner Kniff, grosser Effekt. -->
 			<h2
 				class="font-display text-4xl font-semibold uppercase tracking-[0.06em] text-text-primary md:text-5xl"
 			>
-				{title}
+				{#if title.includes(' ')}
+					{title.slice(0, title.lastIndexOf(' '))}
+					<span class="bg-gradient-to-r from-accent to-accent-hot bg-clip-text text-transparent"
+						>{title.slice(title.lastIndexOf(' ') + 1)}</span
+					>
+				{:else}
+					<span class="bg-gradient-to-r from-accent to-accent-hot bg-clip-text text-transparent"
+						>{title}</span
+					>
+				{/if}
 			</h2>
 			<div
 				class="h-1.5 w-16 rounded-sm bg-gradient-to-r from-accent to-accent-hot sm:hidden"

@@ -163,7 +163,7 @@
 </script>
 
 <div class="space-y-6">
-	<PageHeader kicker="Zieht zäme" title="Training" sub="Dienstag & Donnerstag, 18:15 – 20:15">
+	<PageHeader kicker="Zieht" title="Training" sub="Dienstag & Donnerstag, 18:15 – 20:15">
 		{#if data.trainingForecast}
 			<p class="text-text-muted text-sm leading-relaxed">{data.trainingForecast.summaryLine}</p>
 		{/if}
