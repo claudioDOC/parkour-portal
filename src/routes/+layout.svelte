@@ -103,6 +103,26 @@ type NavIcon =
 		if (!pwaInfo) return;
 		const { registerSW } = await import('virtual:pwa-register');
 		registerSW({ immediate: true });
+
+		// Selbstheilung: lokales Push-Abo beim Server neu anmelden. Geht das
+		// Server-Abo verloren (Datenbank-Cleanup, gelöschte Browserdaten auf
+		// anderem Gerät), repariert sich das beim nächsten App-Start von selbst.
+		try {
+			if ('PushManager' in window && Notification.permission === 'granted' && data.user) {
+				const reg = await navigator.serviceWorker.ready;
+				const sub = await reg.pushManager.getSubscription();
+				if (sub) {
+					void fetch('/api/push/subscribe', {
+						method: 'POST',
+						credentials: 'include',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(sub.toJSON())
+					}).catch(() => undefined);
+				}
+			}
+		} catch {
+			/* Selbstheilung ist optional */
+		}
 	});
 
 	/** Weiche Seitenwechsel über die View-Transitions-API (wo verfügbar). */
