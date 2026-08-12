@@ -288,14 +288,22 @@
 			</div>
 		</section>
 
-		{#if data.solo.leaderboard.length > 0}
-			<section>
-				<h3 class="text-lg font-semibold text-text-primary mb-1">🏃 Solo-Trainings</h3>
-				<p class="text-text-muted text-xs sm:text-sm mb-3">
-					Selbst eingetragen — Eigeninitiative ausserhalb der Gruppentrainings.
-					Zählt bewusst <strong class="text-text-secondary">nicht</strong> in „Gezogen %".
-					Eintragen auf der <a href="/training" class="text-accent hover:underline">Training-Seite</a>.
-				</p>
+		<section>
+			<h3 class="text-lg font-semibold text-text-primary mb-1">🏃 Solo-Trainings</h3>
+			<p class="text-text-muted text-xs sm:text-sm mb-3">
+				Selbst eingetragen — Eigeninitiative ausserhalb der Gruppentrainings.
+				Zählt bewusst <strong class="text-text-secondary">nicht</strong> in „Gezogen %".
+				Eintragen auf der <a href="/training" class="text-accent hover:underline">Training-Seite</a>.
+			</p>
+			{#if data.solo.leaderboard.length === 0}
+				<div class="rounded-xl border border-dashed border-border bg-bg-card px-5 py-6 text-center">
+					<p class="text-text-secondary text-sm">
+						Noch keine Solo-Trainings eingetragen. Alleine gezogen?
+						<a href="/training" class="text-accent hover:underline font-medium">Trag's ein</a> —
+						hier entsteht die Rangliste.
+					</p>
+				</div>
+			{:else}
 				<div class="grid gap-4 lg:grid-cols-[1fr_minmax(16rem,22rem)]">
 					<div class="rounded-xl border border-border bg-bg-card divide-y divide-border">
 						{#each data.solo.leaderboard as row, i (row.userId)}
@@ -325,8 +333,8 @@
 						</ul>
 					</div>
 				</div>
-			</section>
-		{/if}
+			{/if}
+		</section>
 
 		{#if stats.monthDetail.length > 0}
 			<section>
