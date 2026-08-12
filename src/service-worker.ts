@@ -74,12 +74,13 @@ registerRoute(
 	})
 );
 
-/** JSON-Daten: frisch bevorzugt, offline die letzte Antwort. */
+/** JSON-Daten: frisch bevorzugt, offline die letzte Antwort. (SSE-Stream nie anfassen.) */
 registerRoute(
 	({ url, request }) =>
 		request.method === 'GET' &&
 		url.origin === self.location.origin &&
-		url.pathname.startsWith('/api/'),
+		url.pathname.startsWith('/api/') &&
+		url.pathname !== '/api/live',
 	new NetworkFirst({
 		cacheName: 'api',
 		networkTimeoutSeconds: 5,

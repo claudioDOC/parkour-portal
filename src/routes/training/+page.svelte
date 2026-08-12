@@ -3,6 +3,7 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { formatStimmen } from '$lib/formatStimmen';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import { tapFeedback } from '$lib/haptics';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -169,6 +170,7 @@
 	}
 
 	async function postAction(action: string, sessionId: number, extra: Record<string, unknown> = {}) {
+		tapFeedback();
 		loadingSession = sessionId;
 		try {
 			const res = await fetch('/api/training', {

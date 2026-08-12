@@ -4,6 +4,7 @@ import { redirect } from '@sveltejs/kit';
 import { parseAutoAbsentWeekdays } from '$lib/server/trainingAttendance';
 import { getSessionUserCheckRow } from '$lib/server/userCoreQuery';
 import { startPushScheduler } from '$lib/server/pushScheduler';
+import { broadcastDataChanged } from '$lib/server/liveBus';
 
 // Läuft einmal beim Start des Serverprozesses.
 startPushScheduler();
@@ -48,6 +49,9 @@ function redirectHttpToHttpsIfNeeded(event: RequestEvent) {
 	throw redirect(308, `https://${publicHost}${event.url.pathname}${event.url.search}`);
 }
 
+/** Mutationen, die keinen Live-Reload bei allen auslösen sollen. */
+const LIVE_IGNORED_PATHS = ['/api/live', '/api/push/beacon', '/api/auth/'];
+
 export const handle: Handle = async ({ event, resolve }) => {
 	redirectHttpToHttpsIfNeeded(event);
 
@@ -85,5 +89,19 @@ export const handle: Handle = async ({ event, resolve }) => {
 		throw redirect(303, '/login');
 	}
 
-	return resolve(event);
+	const response = await resolve(event);
+
+	// Erfolgreiche API-Mutation → alle verbundenen Apps laden ihre Daten neu.
+	// Global hier statt in jedem Endpunkt — neue Endpunkte sind automatisch live.
+	if (
+		event.request.method !== 'GET' &&
+		event.request.method !== 'HEAD' &&
+		event.url.pathname.startsWith('/api/') &&
+		response.status < 400 &&
+		!LIVE_IGNORED_PATHS.some((p) => event.url.pathname.startsWith(p))
+	) {
+		broadcastDataChanged();
+	}
+
+	return response;
 };

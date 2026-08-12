@@ -7,6 +7,7 @@
 	import { browser } from '$app/environment';
 	import { pwaInfo } from 'virtual:pwa-info';
 	import { loadDevicePrefs, applyDevicePrefs, motionDisabled } from '$lib/devicePrefs';
+	import { tapFeedback } from '$lib/haptics';
 	import PwaInstallBanner from '$lib/components/PwaInstallBanner.svelte';
 	import OfflineIndicator from '$lib/components/OfflineIndicator.svelte';
 	import BrandLogo from '$lib/components/BrandLogo.svelte';
@@ -76,14 +77,46 @@ type NavIcon =
 			sessionStorage.setItem('app-launched', '1');
 		}
 
-		// App aus dem Hintergrund zurück → Daten auffrischen. Gedrosselt, damit
-		// schnelles Tab-Wechseln nicht bei jedem Fokus den Server abfragt.
+		// Live-Verbindung: Der Server meldet Datenänderungen sofort — die App
+		// lädt dann ihre Daten neu. Kein Pull-to-Refresh, kein Warten.
+		// Im Hintergrund wird die Verbindung getrennt (Akku), bei Rückkehr neu
+		// aufgebaut plus einmal frisch geladen.
+		let liveSource: EventSource | null = null;
 		let lastRefresh = Date.now();
-		const onVisible = () => {
-			if (document.hidden) return;
-			if (Date.now() - lastRefresh < 60_000) return;
+		const refreshNow = () => {
 			lastRefresh = Date.now();
 			void invalidateAll();
+		};
+		const connectLive = () => {
+			if (!data.user || liveSource) return;
+			try {
+				liveSource = new EventSource('/api/live');
+				liveSource.onmessage = (ev) => {
+					if (ev.data !== 'data') return;
+					// Mini-Drossel: Ereignis-Salven bündeln
+					if (Date.now() - lastRefresh < 1500) return;
+					refreshNow();
+				};
+				liveSource.onerror = () => {
+					// EventSource verbindet selbst neu; nichts zu tun.
+				};
+			} catch {
+				liveSource = null;
+			}
+		};
+		const disconnectLive = () => {
+			liveSource?.close();
+			liveSource = null;
+		};
+		connectLive();
+
+		const onVisible = () => {
+			if (document.hidden) {
+				disconnectLive();
+				return;
+			}
+			connectLive();
+			if (Date.now() - lastRefresh >= 30_000) refreshNow();
 		};
 		document.addEventListener('visibilitychange', onVisible);
 
@@ -407,7 +440,7 @@ let mobileMoreOpen = $state(false);
 					{@const mobileActive = !mobileMoreOpen && isActive(item.href)}
 					<a
 						href={item.href}
-						onclick={() => (mobileMoreOpen = false)}
+						onclick={() => { mobileMoreOpen = false; tapFeedback(); }}
 						class={`group flex h-full flex-col items-center justify-center px-1 py-0 text-[11px] font-semibold transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${
 							mobileActive
 								? 'text-text-primary'
