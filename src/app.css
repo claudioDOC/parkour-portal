@@ -311,3 +311,53 @@ select option {
 }
 
 @import './lib/themes.css';
+
+/* ------------------------------------------------- Native-Feel-Schicht --- */
+
+/* Kein Doppeltipp-Zoom, sofortige Tap-Reaktion. */
+html {
+	touch-action: manipulation;
+	-webkit-touch-callout: none;
+}
+
+/* UI-Elemente sind keine markierbaren Texte — Long-Press fühlt sich sonst
+   nach Webseite an. Inhalte (Absätze, Tabellen, Eingaben) bleiben markierbar. */
+button,
+summary,
+nav,
+header a,
+.font-display {
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+/* Seitenwechsel wie native Apps: vorwärts schiebt von rechts rein,
+   zurück von links — Richtung setzt das Layout via data-navdir. */
+@keyframes slide-in-right {
+	from { transform: translateX(28px); opacity: 0; }
+	to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slide-out-left {
+	from { transform: translateX(0); opacity: 1; }
+	to { transform: translateX(-18px); opacity: 0; }
+}
+@keyframes slide-in-left {
+	from { transform: translateX(-28px); opacity: 0; }
+	to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slide-out-right {
+	from { transform: translateX(0); opacity: 1; }
+	to { transform: translateX(18px); opacity: 0; }
+}
+html[data-navdir='fwd']::view-transition-old(root) {
+	animation: slide-out-left 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html[data-navdir='fwd']::view-transition-new(root) {
+	animation: slide-in-right 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html[data-navdir='back']::view-transition-old(root) {
+	animation: slide-out-right 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html[data-navdir='back']::view-transition-new(root) {
+	animation: slide-in-left 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}

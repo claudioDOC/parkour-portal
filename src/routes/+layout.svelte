@@ -158,10 +158,16 @@ type NavIcon =
 		}
 	});
 
-	/** Weiche Seitenwechsel über die View-Transitions-API (wo verfügbar). */
+	/**
+	 * Seitenwechsel wie in nativen Apps: vorwärts schiebt von rechts rein,
+	 * zurück (Browser-/Gesten-Back) von links. Richtung via data-navdir,
+	 * Animationen in app.css.
+	 */
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
 		if (motionDisabled()) return;
+		document.documentElement.dataset.navdir =
+			navigation.delta !== undefined && navigation.delta < 0 ? 'back' : 'fwd';
 		return new Promise((resolve) => {
 			document.startViewTransition(async () => {
 				resolve();
@@ -348,7 +354,7 @@ let mobileMoreOpen = $state(false);
 				</a>
 			</div>
 
-			<nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-4">
+			<nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-4" data-sveltekit-preload-data="viewport">
 				{#each navMain as item}
 					<a href={item.href} class={navLinkClass(item.href)}>
 						<AppNavIcon name={item.icon} />
@@ -431,6 +437,7 @@ let mobileMoreOpen = $state(false);
 		<nav
 			class="md:hidden fixed inset-x-0 bottom-0 z-[65] border-t border-white/10 bg-bg-secondary/96 px-2 pb-[env(safe-area-inset-bottom)] pt-0 backdrop-blur-md"
 			aria-label="Mobile Navigation"
+			data-sveltekit-preload-data="viewport"
 		>
 			<div class="grid grid-cols-5 items-stretch gap-1">
 				{#each mobilePrimaryNav as item}
