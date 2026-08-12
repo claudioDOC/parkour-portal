@@ -13,6 +13,7 @@
 	import AppSplash from '$lib/components/AppSplash.svelte';
 	import AppNavIcon from '$lib/components/AppNavIcon.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import PushOnboarding from '$lib/components/PushOnboarding.svelte';
 
 type NavIcon =
 		| 'home'
@@ -447,5 +448,6 @@ let mobileMoreOpen = $state(false);
 
 		<OfflineIndicator />
 		<PwaInstallBanner />
+		<PushOnboarding />
 	</div>
 {/if}

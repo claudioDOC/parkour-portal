@@ -26,6 +26,7 @@ import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/us
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 import { getTrainingWindowForecast } from '$lib/server/trainingForecast';
 import { ensureUpcomingTrainingSessions } from '$lib/server/ensureUpcomingTrainingSessions';
+import { computeTrainingStats } from '$lib/server/stats';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const today = todayYmdInAppTZ();
@@ -232,10 +233,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 	}
 
+	// Persönliche Streak für die Begrüssung — 🔥 motiviert.
+	let myStreak = 0;
+	if (locals.user) {
+		try {
+			const row = computeTrainingStats().leaderboard.find((r) => r.userId === locals.user!.id);
+			myStreak = row?.streakNoAbsence ?? 0;
+		} catch {
+			myStreak = 0;
+		}
+	}
+
 	return {
 		nextTrainings: trainingsWithDetails,
 		trainingForecast,
 		topSpots,
+		myStreak,
 		calendarToday: today
 	};
 };
