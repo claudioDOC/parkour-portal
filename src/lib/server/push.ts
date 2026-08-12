@@ -65,7 +65,12 @@ async function deliver(sub: SubscriptionRow, payload: PushPayload): Promise<bool
 				keys: { p256dh: sub.p256dh, auth: sub.auth }
 			},
 			JSON.stringify(payload),
-			{ TTL: 60 * 60 * 12 }
+			{
+				TTL: 60 * 60 * 12,
+				// Weckt Android auch im Stromsparmodus (Doze) — mit normaler
+				// Priorität werden Nachrichten dort verzögert oder verworfen.
+				urgency: 'high'
+			}
 		);
 		db.update(pushSubscriptions)
 			.set({ failureCount: 0, lastSuccessAt: sql`(datetime('now'))` })
