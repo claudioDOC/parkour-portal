@@ -297,6 +297,7 @@
 		loadTrainingSessions();
 		loadSystem();
 		loadPushInfo();
+		loadSoloEntries();
 	});
 
 	function formatBytes(n: number): string {
@@ -647,6 +648,71 @@
 
 	function canAddAdminAbsence(session: TrainingSession, userId: number): boolean {
 		return !session.absences.some((a) => a.userId === userId && a.id != null);
+	}
+
+	/** Solo-Trainings verwalten (Admin: löschen, für andere eintragen). */
+	type SoloEntry = { id: number; userId: number; username: string; date: string; note: string | null };
+	let soloEntries = $state<SoloEntry[]>([]);
+	let soloAddUserId = $state('');
+	let soloAddDate = $state('');
+	let soloAddNote = $state('');
+	let soloAdminBusy = $state(false);
+
+	async function loadSoloEntries() {
+		try {
+			const res = await fetch('/api/admin/solo', { credentials: 'include' });
+			if (res.ok) soloEntries = ((await res.json()) as { entries: SoloEntry[] }).entries;
+		} catch {
+			/* Liste bleibt leer */
+		}
+	}
+
+	async function adminAddSolo() {
+		trainingMessage = '';
+		trainingError = '';
+		soloAdminBusy = true;
+		try {
+			const res = await fetch('/api/admin/solo', {
+				method: 'POST',
+				credentials: 'include',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					userId: Number(soloAddUserId),
+					...(soloAddDate ? { date: soloAddDate } : {}),
+					...(soloAddNote.trim() ? { note: soloAddNote.trim() } : {})
+				})
+			});
+			const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+			if (!res.ok) {
+				setTrainingErrorFromResponse(res, data);
+				return;
+			}
+			trainingMessage = 'Solo-Training eingetragen';
+			soloAddNote = '';
+			await loadSoloEntries();
+			setTimeout(() => (trainingMessage = ''), 2500);
+		} finally {
+			soloAdminBusy = false;
+		}
+	}
+
+	async function adminDeleteSolo(id: number) {
+		trainingMessage = '';
+		trainingError = '';
+		const res = await fetch('/api/admin/solo', {
+			method: 'DELETE',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ id })
+		});
+		const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+		if (!res.ok) {
+			setTrainingErrorFromResponse(res, data);
+			return;
+		}
+		trainingMessage = 'Solo-Eintrag gelöscht';
+		await loadSoloEntries();
+		setTimeout(() => (trainingMessage = ''), 2500);
 	}
 
 	/** Session, für die gerade der Absage-Dialog offen ist. */
@@ -1431,6 +1497,74 @@
 					<a href="/statistik" class="text-accent hover:underline">Statistik</a> wie eine normale Abmeldung;
 					„Aufheben“ entfernt den Eintrag wieder.
 				</p>
+
+				<!-- Solo-Trainings verwalten -->
+				<details class="group rounded-xl border border-border bg-bg-card overflow-hidden">
+					<summary class="flex cursor-pointer list-none items-center justify-between px-5 py-3 [&::-webkit-details-marker]:hidden">
+						<span class="font-semibold text-text-primary">🏃 Solo-Trainings verwalten ({soloEntries.length})</span>
+						<span class="text-text-muted transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+					</summary>
+					<div class="border-t border-border p-5 space-y-4">
+						<div class="rounded-lg border border-dashed border-accent/25 bg-bg-secondary/40 p-3">
+							<p class="text-text-secondary text-xs font-semibold uppercase tracking-wide mb-2">
+								Für User eintragen
+							</p>
+							<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+								<select
+									bind:value={soloAddUserId}
+									class="min-w-[9rem] rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+								>
+									<option value="">User wählen …</option>
+									{#each userList as u (u.id)}
+										<option value={String(u.id)}>{u.username}</option>
+									{/each}
+								</select>
+								<input
+									type="date"
+									bind:value={soloAddDate}
+									class="rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+								/>
+								<input
+									type="text"
+									bind:value={soloAddNote}
+									maxlength="200"
+									placeholder="Notiz (optional)"
+									class="flex-1 rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+								/>
+								<button
+									type="button"
+									onclick={adminAddSolo}
+									disabled={soloAdminBusy || !soloAddUserId}
+									class="cursor-pointer rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50"
+								>
+									{soloAdminBusy ? '…' : 'Eintragen'}
+								</button>
+							</div>
+							<p class="text-text-muted text-xs mt-1.5">Ohne Datum = heute. Admin darf beliebig weit zurück.</p>
+						</div>
+
+						{#if soloEntries.length === 0}
+							<p class="text-text-muted text-sm">Noch keine Solo-Einträge.</p>
+						{:else}
+							<div class="space-y-1">
+								{#each soloEntries as e (e.id)}
+									<div class="flex items-center justify-between gap-3 rounded-lg bg-bg-secondary px-3 py-2">
+										<div class="min-w-0 text-sm">
+											<span class="font-medium text-text-primary">{e.username}</span>
+											<span class="text-text-muted"> · {new Date(e.date + 'T12:00:00').toLocaleDateString('de-CH', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+											{#if e.note}<span class="text-text-secondary text-xs"> — {e.note}</span>{/if}
+										</div>
+										<button
+											onclick={() => adminDeleteSolo(e.id)}
+											class="shrink-0 cursor-pointer px-2 text-sm text-text-muted transition-colors hover:text-danger"
+											aria-label="Solo-Eintrag löschen"
+										>×</button>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</details>
 				{#snippet trainingCard(session: TrainingSession, highlight = false)}
 					{@const sessionDate = new Date(session.date + 'T00:00:00')}
 					{@const sessionPast = trainingDayIsPast(session.date)}
