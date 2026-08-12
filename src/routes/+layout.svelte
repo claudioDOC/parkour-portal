@@ -11,7 +11,6 @@
 	import PwaInstallBanner from '$lib/components/PwaInstallBanner.svelte';
 	import OfflineIndicator from '$lib/components/OfflineIndicator.svelte';
 	import BrandLogo from '$lib/components/BrandLogo.svelte';
-	import AppSplash from '$lib/components/AppSplash.svelte';
 	import AppNavIcon from '$lib/components/AppNavIcon.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import PushOnboarding from '$lib/components/PushOnboarding.svelte';
@@ -253,8 +252,6 @@ let mobileMoreOpen = $state(false);
 		{@html pwaInfo.webManifest.linkTag}
 	{/if}
 </svelte:head>
-
-<AppSplash />
 
 {#if showNavProgress}
 	<div class="nav-progress" aria-hidden="true"></div>
