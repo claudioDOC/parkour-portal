@@ -137,6 +137,37 @@
 		)
 	);
 
+	/** Solo-Training eintragen (separate Statistik). */
+	let soloDate = $state('');
+	let soloNote = $state('');
+	let soloBusy = $state(false);
+	$effect(() => {
+		if (!soloDate) soloDate = data.calendarToday;
+	});
+
+	async function logSolo() {
+		soloBusy = true;
+		try {
+			const res = await fetch('/api/solo', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ date: soloDate, note: soloNote })
+			});
+			const body = (await res.json().catch(() => ({}))) as { error?: string };
+			if (!res.ok) {
+				pushNotice(body.error || `Eintragen fehlgeschlagen (${res.status})`, 'error');
+				return;
+			}
+			pushNotice('💪 Solo-Training eingetragen!');
+			soloNote = '';
+			await invalidateAll();
+		} catch {
+			pushNotice('Keine Verbindung — nicht gespeichert.', 'error');
+		} finally {
+			soloBusy = false;
+		}
+	}
+
 	async function postAction(action: string, sessionId: number, extra: Record<string, unknown> = {}) {
 		loadingSession = sessionId;
 		try {
@@ -168,6 +199,48 @@
 			<p class="text-text-muted text-sm leading-relaxed">{data.trainingForecast.summaryLine}</p>
 		{/if}
 	</PageHeader>
+
+	<!-- Solo-Training: zählt in die eigene Solo-Statistik, nicht in „Gezogen %" -->
+	<details class="group rounded-xl border border-dashed border-accent-hot/30 bg-accent-hot/[0.04] overflow-hidden">
+		<summary class="flex cursor-pointer list-none items-center justify-between px-4 py-3 [&::-webkit-details-marker]:hidden">
+			<span class="text-sm font-semibold text-text-primary">
+				🏃 Solo gezogen? Trag's ein
+				{#if data.mySolo.countMonth > 0}
+					<span class="ml-1 text-xs font-medium text-accent-hot">({data.mySolo.countMonth}× diesen Monat)</span>
+				{/if}
+			</span>
+			<span class="text-text-muted transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+		</summary>
+		<div class="border-t border-border/60 p-4">
+			<p class="mb-3 text-xs text-text-muted">
+				Alleine oder ausserhalb der Gruppenzeiten trainiert? Zählt in die separate
+				<a href="/statistik" class="text-accent hover:underline">Solo-Statistik</a> — nicht in „Gezogen %".
+			</p>
+			<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+				<input
+					type="date"
+					bind:value={soloDate}
+					max={data.calendarToday}
+					class="rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+				/>
+				<input
+					type="text"
+					bind:value={soloNote}
+					maxlength="200"
+					placeholder="Optional: was/wo (z. B. Morgenrunde Flips)"
+					class="flex-1 rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+				/>
+				<button
+					type="button"
+					onclick={logSolo}
+					disabled={soloBusy || (soloDate === data.calendarToday && data.mySolo.todayLogged)}
+					class="cursor-pointer rounded-lg bg-accent-hot/90 px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hot disabled:opacity-50"
+				>
+					{soloBusy ? '…' : data.mySolo.todayLogged && soloDate === data.calendarToday ? 'Heute schon drin ✓' : 'Eintragen'}
+				</button>
+			</div>
+		</div>
+	</details>
 
 	{#if liveNotices.length > 0}
 		<div class="fixed right-3 top-16 z-[72] w-[min(24rem,calc(100vw-1.5rem))] space-y-2 md:right-6 md:top-6">

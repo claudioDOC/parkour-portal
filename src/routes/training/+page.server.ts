@@ -9,7 +9,8 @@ import {
 	sessionGuests,
 	sessionHiddenUsers,
 	trainingSessionRsvp,
-	trainingSessionWeekdayOverride
+	trainingSessionWeekdayOverride,
+	soloTrainings
 } from '$lib/server/db/schema';
 import { eq, gte, asc, sql, and } from 'drizzle-orm';
 import { getTrainingWindowForecast } from '$lib/server/trainingForecast';
@@ -278,11 +279,27 @@ export const load: PageServerLoad = async ({ locals }) => {
 		};
 	});
 
+	// Solo-Trainings des Viewers — fürs Eintragen-Widget.
+	let mySolo: { todayLogged: boolean; countMonth: number } = { todayLogged: false, countMonth: 0 };
+	if (locals.user) {
+		const monthPrefix = today.slice(0, 7);
+		const rows = db
+			.select({ date: soloTrainings.date })
+			.from(soloTrainings)
+			.where(eq(soloTrainings.userId, locals.user.id))
+			.all();
+		mySolo = {
+			todayLogged: rows.some((r) => r.date === today),
+			countMonth: rows.filter((r) => r.date.startsWith(monthPrefix)).length
+		};
+	}
+
 	return {
 		sessions: sessionsWithDetails,
 		allSpots,
 		trainingForecast,
 		viewerTrainingAttendance: viewerAttendance,
+		mySolo,
 		calendarToday: today
 	};
 };

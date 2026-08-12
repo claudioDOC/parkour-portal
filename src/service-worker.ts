@@ -139,26 +139,49 @@ type PushPayload = {
 	tag?: string;
 };
 
+/** Diagnose ans Portal — Fehler hier sind egal. */
+function beacon(stage: string, detail?: string) {
+	return fetch('/api/push/beacon', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ stage, detail })
+	}).catch(() => undefined);
+}
+
 self.addEventListener('push', (event) => {
-	let payload: PushPayload = {};
-	try {
-		payload = event.data?.json() ?? {};
-	} catch {
-		payload = { body: event.data?.text() };
-	}
+	event.waitUntil(
+		(async () => {
+			let payload: PushPayload = {};
+			try {
+				payload = event.data?.json() ?? {};
+			} catch {
+				payload = { body: event.data?.text() };
+			}
 
-	const title = payload.title || 'Parkour Portal';
-	const options: NotificationOptions = {
-		body: payload.body || '',
-		// ?v= muss zur Icon-Version in app.html passen, sonst zeigt der Browser
-		// ein altes gecachtes Logo (oder gar keins).
-		icon: '/pwa-192x192.png?v=7',
-		badge: '/notification-badge.png?v=7',
-		tag: payload.tag || 'parkour-portal',
-		data: { url: payload.url || '/' }
-	};
-
-	event.waitUntil(self.registration.showNotification(title, options));
+			const title = payload.title || 'Parkour Portal';
+			try {
+				await self.registration.showNotification(title, {
+					body: payload.body || '',
+					// ?v= muss zur Icon-Version in app.html passen, sonst zeigt der
+					// Browser ein altes gecachtes Logo (oder gar keins).
+					icon: '/pwa-192x192.png?v=7',
+					badge: '/notification-badge.png?v=7',
+					tag: payload.tag || 'parkour-portal',
+					data: { url: payload.url || '/' }
+				});
+				await beacon('angezeigt', title);
+			} catch (err) {
+				// Notfall: nackte Meldung ohne Icons — besser als gar nichts.
+				await beacon('anzeige-fehler', String(err));
+				try {
+					await self.registration.showNotification(title, { body: payload.body || '' });
+					await beacon('fallback-angezeigt');
+				} catch (err2) {
+					await beacon('fallback-fehler', String(err2));
+				}
+			}
+		})()
+	);
 });
 
 self.addEventListener('notificationclick', (event) => {

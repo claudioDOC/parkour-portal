@@ -376,6 +376,25 @@ export const pushReminderLog = sqliteTable(
 	(t) => [uniqueIndex('push_reminder_log_session_kind').on(t.sessionId, t.kind)]
 );
 
+/**
+ * Solo-Trainings: selbst eingetragen, bewusst GETRENNT von der
+ * Anwesenheits-Statistik — zeigt Eigeninitiative, verwässert aber nicht
+ * „wer ist beim Gruppentraining dabei". Ein Eintrag pro Tag und User.
+ */
+export const soloTrainings = sqliteTable(
+	'solo_trainings',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		date: text('date').notNull(),
+		note: text('note'),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [uniqueIndex('solo_trainings_user_date').on(t.userId, t.date)]
+);
+
 export const auditLogs = sqliteTable('audit_logs', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),

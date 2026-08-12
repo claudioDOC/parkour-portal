@@ -1,6 +1,6 @@
 import { desc, eq, sql } from 'drizzle-orm';
 import { db } from './db';
-import { spotChallengeCompletions, spotChallenges, spots, users } from './db/schema';
+import { soloTrainings, spotChallengeCompletions, spotChallenges, spots, users } from './db/schema';
 import { computeTrainingStats } from './stats';
 import { isSpotChallengesSchemaReady } from './spotChallengesSchemaReady';
 import { usersNotDeletedCondition } from './usersWhere';
@@ -71,6 +71,20 @@ export function buildProfilePayload(userId: number) {
 		openChallengeCount = Math.max(0, Number(totalActive) - completedChallenges.length);
 	}
 
+	// Solo-Trainings (separate Statistik)
+	let soloCount = 0;
+	try {
+		soloCount =
+			db
+				.select({ c: sql<number>`COUNT(*)` })
+				.from(soloTrainings)
+				.where(eq(soloTrainings.userId, userId))
+				.get()?.c ?? 0;
+		soloCount = Number(soloCount);
+	} catch {
+		/* Tabelle fehlt — 0 reicht */
+	}
+
 	// Alle Mitglieder für die Übersicht unten auf der Profilseite.
 	const members = db
 		.select({ id: users.id, username: users.username, avatar: users.avatar, active: users.active })
@@ -98,6 +112,7 @@ export function buildProfilePayload(userId: number) {
 		monthly,
 		completedChallenges,
 		openChallengeCount,
+		soloCount,
 		members
 	};
 }

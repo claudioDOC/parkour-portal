@@ -288,6 +288,46 @@
 			</div>
 		</section>
 
+		{#if data.solo.leaderboard.length > 0}
+			<section>
+				<h3 class="text-lg font-semibold text-text-primary mb-1">🏃 Solo-Trainings</h3>
+				<p class="text-text-muted text-xs sm:text-sm mb-3">
+					Selbst eingetragen — Eigeninitiative ausserhalb der Gruppentrainings.
+					Zählt bewusst <strong class="text-text-secondary">nicht</strong> in „Gezogen %".
+					Eintragen auf der <a href="/training" class="text-accent hover:underline">Training-Seite</a>.
+				</p>
+				<div class="grid gap-4 lg:grid-cols-[1fr_minmax(16rem,22rem)]">
+					<div class="rounded-xl border border-border bg-bg-card divide-y divide-border">
+						{#each data.solo.leaderboard as row, i (row.userId)}
+							<div class="flex items-center justify-between gap-3 px-4 py-2.5 {row.userId === myId ? 'bg-accent/10' : ''}">
+								<p class="min-w-0 truncate font-medium text-text-primary">
+									<span class="text-text-secondary text-sm mr-1 tabular-nums">{medal(i) || `${i + 1}.`}</span>
+									<a href="/profil/{row.userId}" class="hover:text-accent transition-colors">{row.username}</a>
+								</p>
+								<p class="shrink-0 text-sm tabular-nums">
+									<span class="font-bold text-accent-hot">{row.last90}</span>
+									<span class="text-text-muted text-xs"> / 90 Tage</span>
+									<span class="text-text-muted text-xs ml-2">({row.total} gesamt)</span>
+								</p>
+							</div>
+						{/each}
+					</div>
+					<div class="rounded-xl border border-border bg-bg-card p-4">
+						<p class="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">Zuletzt</p>
+						<ul class="space-y-1.5">
+							{#each data.solo.recent as e (`${e.username}-${e.date}`)}
+								<li class="text-xs leading-snug">
+									<span class="font-semibold text-text-primary">{e.username}</span>
+									<span class="text-text-muted"> · {new Date(e.date + 'T12:00:00').toLocaleDateString('de-CH', { day: 'numeric', month: 'short' })}</span>
+									{#if e.note}<span class="text-text-secondary"> — {e.note}</span>{/if}
+								</li>
+							{/each}
+						</ul>
+					</div>
+				</div>
+			</section>
+		{/if}
+
 		{#if stats.monthDetail.length > 0}
 			<section>
 				<h3 class="text-lg font-semibold text-text-primary mb-1">Nach Zeitraum</h3>
