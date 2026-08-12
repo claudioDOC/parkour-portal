@@ -333,31 +333,32 @@ header a,
 
 /* Seitenwechsel wie native Apps: vorwärts schiebt von rechts rein,
    zurück von links — Richtung setzt das Layout via data-navdir. */
-@keyframes slide-in-right {
-	from { transform: translateX(28px); opacity: 0; }
-	to { transform: translateX(0); opacity: 1; }
+@keyframes slide-cover-in-right {
+	from { transform: translateX(100%); }
+	to { transform: translateX(0); }
 }
-@keyframes slide-out-left {
-	from { transform: translateX(0); opacity: 1; }
-	to { transform: translateX(-18px); opacity: 0; }
+@keyframes slide-parallax-left {
+	from { transform: translateX(0); }
+	to { transform: translateX(-24%); }
 }
-@keyframes slide-in-left {
-	from { transform: translateX(-28px); opacity: 0; }
-	to { transform: translateX(0); opacity: 1; }
+@keyframes slide-cover-in-left {
+	from { transform: translateX(-100%); }
+	to { transform: translateX(0); }
 }
-@keyframes slide-out-right {
-	from { transform: translateX(0); opacity: 1; }
-	to { transform: translateX(18px); opacity: 0; }
+@keyframes slide-parallax-right {
+	from { transform: translateX(0); }
+	to { transform: translateX(24%); }
 }
-html[data-navdir='fwd']::view-transition-old(root) {
-	animation: slide-out-left 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+/* Neue Seite liegt ÜBER der alten und schiebt sie deckend zu (iOS-Stil) —
+   ohne Opacity-Crossfade kann nichts durchscheinen oder flashen. */
+html[data-navdir]::view-transition-old(root),
+html[data-navdir]::view-transition-new(root) {
+	animation-duration: 240ms;
+	animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+	animation-fill-mode: both;
+	mix-blend-mode: normal;
 }
-html[data-navdir='fwd']::view-transition-new(root) {
-	animation: slide-in-right 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-html[data-navdir='back']::view-transition-old(root) {
-	animation: slide-out-right 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-html[data-navdir='back']::view-transition-new(root) {
-	animation: slide-in-left 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
+html[data-navdir='fwd']::view-transition-old(root) { animation-name: slide-parallax-left; }
+html[data-navdir='fwd']::view-transition-new(root) { animation-name: slide-cover-in-right; }
+html[data-navdir='back']::view-transition-old(root) { animation-name: slide-parallax-right; }
+html[data-navdir='back']::view-transition-new(root) { animation-name: slide-cover-in-left; }

@@ -176,14 +176,14 @@ type NavIcon =
 		});
 	});
 
-	/** Lade-Balken erst nach 120 ms — schnelle Wechsel bleiben balkenfrei. */
+	/** Lade-Balken erst nach 400 ms — normale Wechsel bleiben balkenfrei. */
 	let showNavProgress = $state(false);
 	$effect(() => {
 		if (!$navigating) {
 			showNavProgress = false;
 			return;
 		}
-		const t = setTimeout(() => (showNavProgress = true), 120);
+		const t = setTimeout(() => (showNavProgress = true), 400);
 		return () => clearTimeout(t);
 	});
 

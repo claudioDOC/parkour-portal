@@ -201,6 +201,22 @@ export async function getTrainingWindowForecast(params: {
 	const now = Date.now();
 	const hit = cache.get(cacheKey);
 	if (hit && hit.expires > now) return hit.forecast;
+	// Abgelaufener Eintrag: sofort den alten Stand liefern und im Hintergrund
+	// auffrischen — Seitenwechsel warten nie auf die Wetter-API.
+	if (hit) {
+		hit.expires = now + CACHE_TTL_MS; // verhindert Refresh-Stürme
+		void refreshForecast(params, cacheKey).catch(() => undefined);
+		return hit.forecast;
+	}
+	return refreshForecast(params, cacheKey);
+}
+
+async function refreshForecast(
+	params: { date: string; timeStart: string; timeEnd: string },
+	cacheKey: string
+): Promise<TrainingForecast> {
+	const { date, timeStart, timeEnd } = params;
+	const now = Date.now();
 
 	const ws = parseHmToMinutes(timeStart);
 	const we = parseHmToMinutes(timeEnd);
@@ -217,7 +233,7 @@ export async function getTrainingWindowForecast(params: {
 	let sunsetIso = '';
 
 	try {
-		const res = await fetch(url);
+		const res = await fetch(url, { signal: AbortSignal.timeout(1200) });
 		if (!res.ok) throw new Error(String(res.status));
 		const data = (await res.json()) as OpenMeteoJson;
 		hourly = data.hourly;
