@@ -54,3 +54,16 @@ android/build/
 # Abnahme-Umgebung (git worktree + eigene DB)
 /staging
 /staging-data
+
+# Agent-/Shell-Dateien — nie ins Repo
+/.claude
+/.claude.json
+/.bashrc
+/.bash_history
+/.config
+/.cache
+/.local
+/.npm
+/.android
+/.gradle
+/tools
