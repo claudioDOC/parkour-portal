@@ -159,13 +159,31 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.limit(1)
 			.get();
 
+		// Admin-Spot schlägt das Voting — auch im Dashboard.
+		let effectiveVote = topVote;
+		if (session.overrideSpotId) {
+			const os = db
+				.select({ id: spots.id, name: spots.name, city: spots.city })
+				.from(spots)
+				.where(eq(spots.id, session.overrideSpotId))
+				.get();
+			if (os) {
+				effectiveVote = {
+					spotId: os.id,
+					spotName: os.name,
+					spotCity: os.city,
+					voteCount: 0
+				} as typeof topVote;
+			}
+		}
+
 		// Bild des führenden Spots — Hintergrund fürs Dashboard-Hero.
 		let topVoteThumbnail: string | null = null;
-		if (topVote) {
+		if (effectiveVote) {
 			const img = db
 				.select({ filename: spotImages.filename })
 				.from(spotImages)
-				.where(eq(spotImages.spotId, topVote.spotId))
+				.where(eq(spotImages.spotId, effectiveVote.spotId))
 				.orderBy(asc(spotImages.id))
 				.get();
 			topVoteThumbnail = img ? `/uploads/${img.filename}` : null;
@@ -177,11 +195,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 			attending,
 			guests,
 			userEffectivelyAbsent,
-			topVote: topVote
+			topVote: effectiveVote
 				? {
-						...topVote,
-						voteCount: asNum(topVote.voteCount),
-						thumbnail: topVoteThumbnail
+						...effectiveVote,
+						voteCount: asNum(effectiveVote.voteCount),
+						thumbnail: topVoteThumbnail,
+						fixedByAdmin: Boolean(session.overrideSpotId)
 					}
 				: null
 		};

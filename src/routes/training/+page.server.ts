@@ -220,6 +220,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		let winnerSpot = null;
 		let autoSpot = null;
+		/** Vom Admin gesetzter Spot — schlägt Voting und Auto-Wahl. */
+		let overrideSpot: { spotId: number; name: string; city: string } | null = null;
+		if (session.overrideSpotId) {
+			const os = db
+				.select({ id: spots.id, name: spots.name, city: spots.city })
+				.from(spots)
+				.where(eq(spots.id, session.overrideSpotId))
+				.get();
+			if (os) overrideSpot = { spotId: os.id, name: os.name, city: os.city };
+		}
 
 		if (votingClosed) {
 			if (spotVotes.length > 0) {
@@ -259,6 +269,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		return {
 			...session,
+			overrideSpot,
 			absences: absencesForList,
 			attending,
 			guests,

@@ -64,6 +64,7 @@
 		timeStart: string;
 		timeEnd: string;
 		cancelled?: boolean | number;
+		overrideSpotId?: number | null;
 		absences: { id: number | null; userId: number; username: string; reason: string | null; virtual?: boolean }[];
 		attending: { id: number; username: string }[];
 		spotVotes: { id: number; spotName: string; spotCity: string; username: string; userId: number }[];
@@ -713,6 +714,34 @@
 		trainingMessage = 'Solo-Eintrag gelöscht';
 		await loadSoloEntries();
 		setTimeout(() => (trainingMessage = ''), 2500);
+	}
+
+	/** Spot-Override: Admin legt den Trainingsspot fest (schlägt das Voting). */
+	let spotPickSessionId = $state<number | null>(null);
+	let spotPickValue = $state('');
+
+	async function setTrainingSpot(sessionId: number, spotId: number | null) {
+		trainingMessage = '';
+		trainingError = '';
+		const res = await fetch('/api/admin/training', {
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ type: 'set_spot', sessionId, spotId })
+		});
+		const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+		if (!res.ok) {
+			setTrainingErrorFromResponse(res, data);
+			return;
+		}
+		spotPickSessionId = null;
+		spotPickValue = '';
+		trainingMessage =
+			spotId === null
+				? 'Spot zurückgesetzt — es gilt wieder das Voting'
+				: `Spot gesetzt — Push an ${Number(data.sent ?? 0)} Gerät${Number(data.sent ?? 0) === 1 ? '' : 'e'}`;
+		await loadTrainingSessions();
+		setTimeout(() => (trainingMessage = ''), 4000);
 	}
 
 	/** Session, für die gerade der Absage-Dialog offen ist. */
@@ -1611,6 +1640,37 @@
 												onclick={() => { cancelPickId = session.id; cancelReason = ''; }}
 												class="cursor-pointer rounded-lg border border-danger/30 px-3 py-1.5 text-xs font-semibold text-danger transition-colors hover:bg-danger/10"
 											>Training absagen…</button>
+										{/if}
+										{#if spotPickSessionId === session.id}
+											<select
+												bind:value={spotPickValue}
+												class="min-w-[10rem] rounded-lg border border-border bg-bg-secondary px-2 py-1.5 text-xs text-text-primary focus:border-accent focus:outline-none"
+											>
+												<option value="">Spot wählen …</option>
+												{#each spotList.filter((sp) => !sp.deleted) as sp (sp.id)}
+													<option value={String(sp.id)}>{sp.name} ({sp.city})</option>
+												{/each}
+											</select>
+											<button
+												onclick={() => setTrainingSpot(session.id, Number(spotPickValue))}
+												disabled={!spotPickValue}
+												class="cursor-pointer rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50"
+											>Spot setzen</button>
+											<button
+												onclick={() => { spotPickSessionId = null; spotPickValue = ''; }}
+												class="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted hover:text-text-primary"
+											>Abbrechen</button>
+										{:else}
+											<button
+												onclick={() => { spotPickSessionId = session.id; spotPickValue = String(session.overrideSpotId ?? ''); }}
+												class="cursor-pointer rounded-lg border border-accent/30 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/10"
+											>{session.overrideSpotId ? 'Spot ändern…' : 'Spot festlegen…'}</button>
+											{#if session.overrideSpotId}
+												<button
+													onclick={() => setTrainingSpot(session.id, null)}
+													class="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted transition-colors hover:text-text-primary"
+												>Zurück zum Voting</button>
+											{/if}
 										{/if}
 									</div>
 								{/if}

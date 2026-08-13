@@ -59,7 +59,9 @@ export const trainingSessions = sqliteTable('training_sessions', {
 	timeStart: text('time_start').notNull().default('18:15'),
 	timeEnd: text('time_end').notNull().default('20:15'),
 	/** Vom Admin abgesagt — Anmeldungen/Votes bleiben erhalten, zählen aber nicht. */
-	cancelled: integer('cancelled', { mode: 'boolean' }).notNull().default(false)
+	cancelled: integer('cancelled', { mode: 'boolean' }).notNull().default(false),
+	/** Vom Admin festgelegter Spot — übersteuert das Voting-Ergebnis. */
+	overrideSpotId: integer('override_spot_id')
 });
 
 /** Explizite Zusage für ein Training (nur bei trainingAttendance opt_in relevant). */

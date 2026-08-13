@@ -143,12 +143,12 @@
 							{/if}
 							{#if session.topVote}
 								<p class="text-accent text-sm mt-2 font-medium">
-									Spot:
+									{session.topVote.fixedByAdmin ? 'Spot steht fest:' : 'Spot:'}
 									<a
 										href="/spots/{session.topVote.spotId}"
 										class="pointer-events-auto relative z-20 hover:underline"
 									>{session.topVote.spotName}</a>
-									({session.topVote.spotCity}) &middot; {formatStimmen(session.topVote.voteCount)}
+									({session.topVote.spotCity}){#if !session.topVote.fixedByAdmin} &middot; {formatStimmen(session.topVote.voteCount)}{/if}
 								</p>
 							{:else}
 								<p class="text-text-muted text-xs mt-2">Noch kein Spot vorgeschlagen</p>

@@ -311,6 +311,10 @@ function repairMissingColumnsAfterJournalDrift() {
 		sqlite.exec('ALTER TABLE training_sessions ADD COLUMN cancelled integer DEFAULT 0 NOT NULL');
 		console.log('[db:migrate] Schema-Reparatur: training_sessions.cancelled ergänzt.');
 	}
+	if (tableExists('training_sessions') && !columnExists('training_sessions', 'override_spot_id')) {
+		sqlite.exec('ALTER TABLE training_sessions ADD COLUMN override_spot_id integer');
+		console.log('[db:migrate] Schema-Reparatur: training_sessions.override_spot_id ergänzt.');
+	}
 	if (!tableExists('activity_events')) {
 		sqlite.exec(`CREATE TABLE activity_events (
 			id integer PRIMARY KEY AUTOINCREMENT NOT NULL,

@@ -260,6 +260,30 @@ async function runSpotFixNotification(now: Date): Promise<void> {
 		// Fenster: ab Voting-Schluss bis Trainingsbeginn (verpasst = zu spät)
 		if (nowMin < fixMin || nowMin >= startMin) continue;
 
+		// Admin-Spot gesetzt? Dann den melden statt des Voting-Ergebnisses.
+		if (session.overrideSpotId) {
+			if (!claimReminder(session.id, 'spot')) continue;
+			const os = db
+				.select({ name: spots.name, city: spots.city })
+				.from(spots)
+				.where(eq(spots.id, session.overrideSpotId))
+				.get();
+			if (!os) continue;
+			const candidates = attendingUserIds(session.id, session.dayOfWeek);
+			if (candidates.length === 0) continue;
+			await sendToUsersWithPref(
+				'spotFix',
+				{
+					title: 'Spot fix für heute',
+					body: `${os.name} (${os.city}) — Training ${session.timeStart} Uhr.`,
+					url: '/training',
+					tag: `spot-fix-${session.id}`
+				},
+				candidates
+			);
+			continue;
+		}
+
 		const votes = db
 			.select({ spotId: trainingSpotVotes.spotId, name: spots.name, city: spots.city })
 			.from(trainingSpotVotes)

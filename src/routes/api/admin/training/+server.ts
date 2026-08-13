@@ -303,6 +303,70 @@ export const POST: RequestHandler = async (event) => {
 			return json({ success: true, sent });
 		}
 
+		/** Spot festlegen/zurücksetzen — übersteuert das Voting (auch nach Schluss). */
+		if (type === 'set_spot' && sessionId) {
+			const session = db
+				.select()
+				.from(trainingSessions)
+				.where(eq(trainingSessions.id, sessionId))
+				.get();
+			if (!session) return json({ error: 'Training nicht gefunden' }, { status: 404 });
+
+			const rawSpotId = body.spotId;
+			const spotId =
+				rawSpotId === null || rawSpotId === '' || rawSpotId === undefined ? null : Number(rawSpotId);
+			if (spotId !== null && (!Number.isFinite(spotId) || spotId <= 0)) {
+				return json({ error: 'Spot ungültig' }, { status: 400 });
+			}
+
+			let spotName: string | null = null;
+			let spotCity: string | null = null;
+			if (spotId !== null) {
+				const spot = db
+					.select({ name: spots.name, city: spots.city })
+					.from(spots)
+					.where(and(eq(spots.id, spotId), eq(spots.deleted, false)))
+					.get();
+				if (!spot) return json({ error: 'Spot nicht gefunden' }, { status: 404 });
+				spotName = spot.name;
+				spotCity = spot.city;
+			}
+
+			db.update(trainingSessions)
+				.set({ overrideSpotId: spotId })
+				.where(eq(trainingSessions.id, sessionId))
+				.run();
+
+			logAudit({
+				event,
+				action: spotId === null ? 'admin.training.spot_reset' : 'admin.training.spot_override',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				detail: { sessionId, date: session.date, spotId, spotName }
+			});
+
+			let sent = 0;
+			if (spotId !== null && !session.cancelled) {
+				recordEvent({
+					kind: 'training.spot_fixed',
+					actorUserId: locals.user!.id,
+					actorName: locals.user!.username,
+					title: `Spot geändert: ${spotName}`,
+					body: `${formatDateCh(session.date)} · ${spotCity}`,
+					url: '/training'
+				});
+				// Spot-Änderung muss jeden erreichen — bewusst ohne Einstellungs-Filter.
+				const attending = getAttendingUserIdsForSession(sessionId, session.dayOfWeek);
+				sent = await sendToUsers(attending, {
+					title: `Neuer Spot — ${formatDateCh(session.date)}`,
+					body: `${spotName} (${spotCity}). Training ${session.timeStart} Uhr.`,
+					url: '/training',
+					tag: `training-spot-${sessionId}`
+				});
+			}
+			return json({ success: true, sent });
+		}
+
 		return json({ error: 'Ungültige Aktion' }, { status: 400 });
 	} catch (e) {
 		console.error('POST /api/admin/training', e);

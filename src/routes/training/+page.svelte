@@ -50,8 +50,8 @@
 			leaderSpotName: s.spotVotes[0]?.spotName ?? null,
 			leaderVotes: Number(s.spotVotes[0]?.voteCount || 0),
 			votingClosed: !!s.votingClosed,
-			effectiveSpotId: s.winnerSpot?.spotId ?? s.autoSpot?.spotId ?? null,
-			effectiveSpotName: s.winnerSpot?.name ?? s.autoSpot?.name ?? null,
+			effectiveSpotId: s.overrideSpot?.spotId ?? s.winnerSpot?.spotId ?? s.autoSpot?.spotId ?? null,
+			effectiveSpotName: s.overrideSpot?.name ?? s.winnerSpot?.name ?? s.autoSpot?.name ?? null,
 			effectiveKind: s.winnerSpot ? 'winner' : s.autoSpot ? 'auto' : null
 		};
 	}
@@ -418,7 +418,17 @@
 							{/if}
 						</div>
 
-						{#if session.winnerSpot}
+						{#if session.overrideSpot}
+							<div class="bg-accent/10 border border-accent/40 rounded-lg p-4 mb-3">
+								<p class="text-accent text-xs font-medium uppercase tracking-wide">
+									Spot steht fest (vom Admin gesetzt)
+								</p>
+								<a href="/spots/{session.overrideSpot.spotId}" class="text-text-primary font-semibold text-lg hover:text-accent transition-colors">
+									{session.overrideSpot.name}
+								</a>
+								<p class="text-text-secondary text-sm">{session.overrideSpot.city}</p>
+							</div>
+						{:else if session.winnerSpot}
 							<div class="bg-accent/10 border border-accent/30 rounded-lg p-4 mb-3">
 								<p class="text-accent text-xs font-medium uppercase tracking-wide">Gewinner-Spot</p>
 								<a href="/spots/{session.winnerSpot.spotId}" class="text-text-primary font-semibold text-lg hover:text-accent transition-colors">
