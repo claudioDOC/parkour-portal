@@ -50,3 +50,7 @@ android/build/
 # Gradle-/Android-Caches vom lokalen APK-Build (Home = Repo-Root)
 /.android
 /.gradle
+
+# Abnahme-Umgebung (git worktree + eigene DB)
+/staging
+/staging-data
