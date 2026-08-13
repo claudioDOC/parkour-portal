@@ -31,6 +31,9 @@
 	let imageLightboxUrl = $state<string | null>(null);
 	let imageLightboxAlt = $state('');
 
+	/** Video oder Bild? Entscheidet die Dateiendung. */
+	const isVideoUrl = (u: string) => /\.(mp4|mov|webm)(\?|$)/i.test(u);
+
 	function formatShortDate(iso: string): string {
 		const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`);
 		if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
@@ -147,7 +150,16 @@
 												{#if ch.description}
 													<p class="mt-1 text-sm leading-relaxed text-text-secondary">{ch.description}</p>
 												{/if}
-												{#if ch.images && ch.images.length > 0}
+												{#if ch.images && ch.images.length > 0 && isVideoUrl(ch.images[0].url)}
+													<!-- svelte-ignore a11y_media_has_caption -->
+													<video
+														src={ch.images[0].url}
+														controls
+														playsinline
+														preload="metadata"
+														class="mt-2 h-28 w-full max-w-[16rem] rounded-lg border border-border bg-black object-cover"
+													></video>
+												{:else if ch.images && ch.images.length > 0}
 													<button
 														type="button"
 														class="mt-2 block max-w-[12rem] cursor-zoom-in rounded-lg border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:max-w-[7rem]"

@@ -7,11 +7,13 @@ import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { logAudit } from '$lib/server/audit';
 import { getUploadWriteDir } from '$lib/server/uploads';
-import { validateSpotImageBuffer } from '$lib/server/validateSpotImageBuffer';
+import { validateChallengeMediaBuffer } from '$lib/server/validateChallengeMedia';
 import { isSpotChallengesSchemaReady, isSpotChallengeImagesReady } from '$lib/server/spotChallengesSchemaReady';
 
-const MAX_SIZE = 5 * 1024 * 1024;
-const MAX_IMAGES_PER_CHALLENGE = 5;
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+/** Videos dürfen grösser sein — Handy-Clips von ein paar Sekunden. */
+const MAX_VIDEO_SIZE = 60 * 1024 * 1024;
+const MAX_IMAGES_PER_CHALLENGE = 8;
 
 function canManageChallenge(
 	userId: number,
@@ -36,20 +38,26 @@ export const POST: RequestHandler = async (event) => {
 		const challengeId = parseInt(String(formData.get('challengeId') ?? ''), 10);
 
 		if (!file || !challengeId) {
-			return json({ error: 'Bild und Challenge-ID erforderlich' }, { status: 400 });
+			return json({ error: 'Datei und Challenge-ID erforderlich' }, { status: 400 });
 		}
 
-		if (file.size > MAX_SIZE) {
-			return json({ error: 'Bild darf maximal 5MB groß sein' }, { status: 400 });
+		if (file.size > MAX_VIDEO_SIZE) {
+			return json({ error: 'Datei ist zu gross (max. 60 MB)' }, { status: 400 });
 		}
 
 		const buffer = Buffer.from(await file.arrayBuffer());
-		const magic = await validateSpotImageBuffer(buffer);
+		const magic = await validateChallengeMediaBuffer(buffer);
 		if (!magic) {
 			return json(
-				{ error: 'Datei ist kein gültiges JPEG-, PNG- oder WebP-Bild (Inhalt geprüft).' },
+				{
+					error:
+						'Nicht unterstützt. Erlaubt: JPEG, PNG, WebP, MP4, MOV, WebM (Inhalt wird geprüft).'
+				},
 				{ status: 400 }
 			);
+		}
+		if (!magic.isVideo && file.size > MAX_IMAGE_SIZE) {
+			return json({ error: 'Bild darf maximal 5 MB gross sein' }, { status: 400 });
 		}
 
 		const challenge = db
@@ -79,7 +87,7 @@ export const POST: RequestHandler = async (event) => {
 			.where(eq(spotChallengeImages.challengeId, challengeId))
 			.all();
 		if (existing.length >= MAX_IMAGES_PER_CHALLENGE) {
-			return json({ error: `Maximal ${MAX_IMAGES_PER_CHALLENGE} Bilder pro Challenge` }, { status: 400 });
+			return json({ error: `Maximal ${MAX_IMAGES_PER_CHALLENGE} Dateien pro Challenge` }, { status: 400 });
 		}
 
 		const uploadDir = getUploadWriteDir();

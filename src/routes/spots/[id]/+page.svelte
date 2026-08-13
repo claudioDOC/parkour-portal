@@ -21,6 +21,9 @@
 	const WEATHER = ['trocken', 'nass'];
 
 	const lightingLabels: Record<string, string> = { ja: 'Ja', nein: 'Nein', teilweise: 'Teilweise' };
+	/** Video oder Bild? Entscheidet die Dateiendung. */
+	const isVideoUrl = (u: string) => /\.(mp4|mov|webm)(\?|$)/i.test(u);
+
 	const isAdmin = $derived(data.user?.role === 'admin');
 	const canEditSpots = $derived(data.user?.role === 'admin' || data.user?.role === 'spotmanager');
 
@@ -1360,29 +1363,40 @@
 													challenge.createdBy === data.user.id ||
 													canEditSpots)}
 											<div class="relative inline-block">
-												<button
-													type="button"
-													class="block cursor-zoom-in rounded-lg border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-													onclick={() => {
-														imageLightboxUrl = img.url;
-														imageLightboxAlt = challenge.title;
-													}}
-													aria-label="Challenge-Bild vergrössern"
-												>
-													<img
+												{#if isVideoUrl(img.url)}
+													<!-- svelte-ignore a11y_media_has_caption -->
+													<video
 														src={img.url}
-														alt=""
-														class="h-24 max-w-[min(100%,14rem)] rounded-lg border border-border object-cover pointer-events-none"
-														loading="lazy"
-													/>
-												</button>
+														controls
+														playsinline
+														preload="metadata"
+														class="h-32 max-w-[min(100%,18rem)] rounded-lg border border-border bg-black object-cover"
+													></video>
+												{:else}
+													<button
+														type="button"
+														class="block cursor-zoom-in rounded-lg border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+														onclick={() => {
+															imageLightboxUrl = img.url;
+															imageLightboxAlt = challenge.title;
+														}}
+														aria-label="Challenge-Bild vergrössern"
+													>
+														<img
+															src={img.url}
+															alt=""
+															class="h-24 max-w-[min(100%,14rem)] rounded-lg border border-border object-cover pointer-events-none"
+															loading="lazy"
+														/>
+													</button>
+												{/if}
 												{#if canDelImg}
 													<button
 														type="button"
 														onclick={() => deleteChallengeImage(img.id)}
 														disabled={challengeBusy}
 														class="absolute -right-1 -top-1 z-[1] flex h-6 w-6 items-center justify-center rounded-full border border-border bg-bg-card text-xs font-bold text-danger shadow hover:bg-danger/15 disabled:opacity-50"
-														aria-label="Bild löschen"
+														aria-label="Datei löschen"
 													>
 														×
 													</button>
@@ -1395,7 +1409,7 @@
 									<div class="flex items-center gap-2 pt-1">
 										<input
 											type="file"
-											accept="image/jpeg,image/png,image/webp"
+											accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
 											class="sr-only"
 											id="challenge-img-{challenge.id}"
 											onchange={(e) => {
