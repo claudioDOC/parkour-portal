@@ -474,6 +474,12 @@
 							Offiziell im Trip: <span class="text-text-secondary font-medium">{formatDateRange(trip.startDate, trip.endDate)}</span>
 							— hier alternative Daten vorschlagen und abstimmen (z. B. einen Tag später).
 						</p>
+						{#if trip.votesNeeded > 0}
+							<p class="text-[11px] text-sky-400/90">
+								Ab <strong>{trip.votesNeeded}</strong> von {trip.eligibleVoters} Stimmen wird ein Vorschlag
+								automatisch zum neuen Trip-Termin.
+							</p>
+						{/if}
 						<div class="space-y-1.5">
 							{#each trip.dateOptions as opt}
 								<div class="flex items-start justify-between gap-3 rounded-lg border border-border bg-bg-card px-3 py-2 text-xs">
@@ -485,8 +491,18 @@
 											{opt.voteCount} Stimmen · {opt.proposedByName}
 											{#if opt.sameAsPlanned}
 												<span class="text-sky-400/90"> · wie Trip geplant</span>
+											{:else if trip.votesNeeded > 0 && opt.voteCount < trip.votesNeeded}
+												<span> · noch {trip.votesNeeded - opt.voteCount} bis zur Mehrheit</span>
 											{/if}
 										</p>
+										{#if trip.votesNeeded > 0 && !opt.sameAsPlanned}
+											<div class="mt-1.5 h-1.5 w-full max-w-[12rem] overflow-hidden rounded-full bg-bg-hover" aria-hidden="true">
+												<div
+													class="h-full rounded-full bg-sky-400 transition-[width] duration-500"
+													style="width: {Math.min(100, Math.round((opt.voteCount / trip.votesNeeded) * 100))}%"
+												></div>
+											</div>
+										{/if}
 										{#if opt.note}
 											<p class="text-text-secondary mt-1 whitespace-pre-wrap break-words">{opt.note}</p>
 										{/if}

@@ -21,6 +21,79 @@ function parseCoord(v: unknown): number | null {
 	return Number.isFinite(n) ? n : null;
 }
 
+
+/**
+ * Terminabstimmung: Erreicht ein Vorschlag mehr als 50 % der stimmberechtigten
+ * Teilnehmer (alle ausser abgemeldet/enthalten), wird er zum neuen Trip-Termin.
+ * Der bisherige Termin wandert als Option zurück in die Liste, damit man
+ * zurückwechseln kann. Gibt den übernommenen Vorschlag zurück, sonst null.
+ */
+function applyDateOptionIfMajority(tripId: number): { startDate: string; endDate: string } | null {
+	const trip = db.select().from(tripPlans).where(eq(tripPlans.id, tripId)).get();
+	if (!trip) return null;
+
+	const eligible = db
+		.select({ transportMode: tripParticipants.transportMode })
+		.from(tripParticipants)
+		.where(eq(tripParticipants.tripId, tripId))
+		.all()
+		.filter((p) => p.transportMode !== 'abgemeldet' && p.transportMode !== 'enthalten').length;
+	if (eligible === 0) return null;
+
+	const votes = db
+		.select({ dateOptionId: tripDateVotes.dateOptionId })
+		.from(tripDateVotes)
+		.where(eq(tripDateVotes.tripId, tripId))
+		.all();
+	const tally = new Map<number, number>();
+	for (const v of votes) tally.set(v.dateOptionId, (tally.get(v.dateOptionId) ?? 0) + 1);
+
+	for (const [optionId, count] of tally) {
+		if (count * 2 <= eligible) continue; // echte Mehrheit verlangt
+		const option = db
+			.select()
+			.from(tripDateOptions)
+			.where(and(eq(tripDateOptions.id, optionId), eq(tripDateOptions.tripId, tripId)))
+			.get();
+		if (!option) continue;
+		if (option.startDate === trip.startDate && option.endDate === trip.endDate) continue;
+
+		db.update(tripPlans)
+			.set({ startDate: option.startDate, endDate: option.endDate })
+			.where(eq(tripPlans.id, tripId))
+			.run();
+
+		// Alten Termin als Option erhalten, neuen aus der Liste nehmen —
+		// sonst stimmt man über den bereits gültigen Termin ab.
+		db.delete(tripDateVotes).where(eq(tripDateVotes.tripId, tripId)).run();
+		db.delete(tripDateOptions).where(eq(tripDateOptions.id, optionId)).run();
+		const oldStillListed = db
+			.select({ id: tripDateOptions.id })
+			.from(tripDateOptions)
+			.where(
+				and(
+					eq(tripDateOptions.tripId, tripId),
+					eq(tripDateOptions.startDate, trip.startDate),
+					eq(tripDateOptions.endDate, trip.endDate)
+				)
+			)
+			.get();
+		if (!oldStillListed) {
+			db.insert(tripDateOptions)
+				.values({
+					tripId,
+					startDate: trip.startDate,
+					endDate: trip.endDate,
+					note: 'Vorheriger Termin',
+					proposedBy: trip.createdBy
+				})
+				.run();
+		}
+		return { startDate: option.startDate, endDate: option.endDate };
+	}
+	return null;
+}
+
 export const POST: RequestHandler = async (event) => {
 	const { locals, request } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
@@ -487,6 +560,38 @@ export const POST: RequestHandler = async (event) => {
 			actorUsername: locals.user.username,
 			detail: { tripId, dateOptionId }
 		});
+
+		const adopted = applyDateOptionIfMajority(tripId);
+		if (adopted) {
+			const fmt = (d: string) =>
+				new Date(d + 'T12:00:00').toLocaleDateString('de-CH', { day: 'numeric', month: 'short' });
+			const range =
+				adopted.startDate === adopted.endDate
+					? fmt(adopted.startDate)
+					: `${fmt(adopted.startDate)} – ${fmt(adopted.endDate)}`;
+			logAudit({
+				event,
+				action: 'trip.date.adopted',
+				actorUserId: locals.user.id,
+				actorUsername: locals.user.username,
+				detail: { tripId, ...adopted }
+			});
+			recordEvent({
+				kind: 'trip.new',
+				actorUserId: null,
+				actorName: null,
+				title: `Neuer Termin: ${trip.title}`,
+				body: `${range} — Mehrheit hat entschieden.`,
+				url: `/trips?trip=${tripId}`
+			});
+			void sendToUsersWithPref('trips', {
+				title: `Trip-Termin geändert: ${trip.title}`,
+				body: `Neuer Termin: ${range}`,
+				url: `/trips?trip=${tripId}`,
+				tag: `trip-date-${tripId}`
+			}).catch(() => undefined);
+			return json({ success: true, adopted });
+		}
 		return json({ success: true });
 	}
 

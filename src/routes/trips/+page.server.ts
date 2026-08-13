@@ -150,6 +150,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 		for (const v of dateVotesRaw) {
 			voteCountByDateOption.set(v.dateOptionId, (voteCountByDateOption.get(v.dateOptionId) || 0) + 1);
 		}
+		// Stimmberechtigt: alle Teilnehmer ausser abgemeldet/enthalten.
+		// Über 50 % davon ersetzen den Trip-Termin (siehe API).
+		const eligibleVoters = participants.filter(
+			(p) => p.transportMode !== 'abgemeldet' && p.transportMode !== 'enthalten'
+		).length;
+		const votesNeeded = eligibleVoters > 0 ? Math.floor(eligibleVoters / 2) + 1 : 0;
+
 		const dateOptionsWithVotes = dateOptionsRaw
 			.map((d) => ({
 				...d,
@@ -200,6 +207,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			memberStates,
 			destinations: destinationsWithVotes,
 			dateOptions: dateOptionsWithVotes,
+			eligibleVoters,
+			votesNeeded,
 			stopovers,
 			myParticipation,
 			myVoteDestinationId: myVote?.destinationId ?? null,
