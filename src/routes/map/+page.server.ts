@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { spotImages, spots, trainingSessions, trainingSpotVotes, votes } from '$lib/server/db/schema';
+import { spotChallenges, spotImages, spots, trainingSessions, trainingSpotVotes, votes } from '$lib/server/db/schema';
 import { asNum } from '$lib/server/asSqlNumber';
 import { and, asc, desc, eq, gte, isNotNull, sql } from 'drizzle-orm';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
@@ -58,6 +58,18 @@ export const load: PageServerLoad = async () => {
 				Number.isFinite(s.longitude)
 		)
 		.map((s) => {
+			let challengeCount = 0;
+			try {
+				challengeCount = Number(
+					db
+						.select({ c: sql<number>`COUNT(*)` })
+						.from(spotChallenges)
+						.where(and(eq(spotChallenges.spotId, s.id), eq(spotChallenges.deleted, false)))
+						.get()?.c ?? 0
+				);
+			} catch {
+				/* Challenge-Schema evtl. nicht bereit */
+			}
 			const firstImage = db
 				.select({ filename: spotImages.filename })
 				.from(spotImages)
@@ -73,7 +85,8 @@ export const load: PageServerLoad = async () => {
 				isMicro: Boolean(s.isMicro),
 				avgScore: asNum(s.avgScore),
 				voteCount: asNum(s.voteCount),
-				thumbnail: firstImage ? `/uploads/${firstImage.filename}` : null
+				thumbnail: firstImage ? `/uploads/${firstImage.filename}` : null,
+				challengeCount
 			};
 		});
 

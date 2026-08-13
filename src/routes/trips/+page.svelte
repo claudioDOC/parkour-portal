@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 	import TripRouteMap from '$lib/components/TripRouteMap.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import type { PageData } from './$types';
@@ -33,6 +34,39 @@
 	}
 
 	let actionError = $state('');
+
+	/** Deep-Link aus ?trip= — Karte hervorheben und hinscrollen. */
+	const highlightTripId = $derived(Number($page.url.searchParams.get('trip')) || null);
+	$effect(() => {
+		const id = highlightTripId;
+		if (!id) return;
+		queueMicrotask(() => {
+			document.getElementById(`trip-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		});
+	});
+
+	/** Teilbarer Link für den Chat — Web-Share, sonst Zwischenablage. */
+	let sharedTripId = $state<number | null>(null);
+	async function shareTrip(trip: { id: number; title: string; startDate: string; endDate: string }) {
+		const url = `${location.origin}/trips?trip=${trip.id}`;
+		const text = `${trip.title} (${formatDateRange(trip.startDate, trip.endDate)}) — bist du dabei?`;
+		try {
+			if (navigator.share) {
+				await navigator.share({ title: trip.title, text, url });
+				return;
+			}
+		} catch {
+			return; // Nutzer hat abgebrochen
+		}
+		try {
+			await navigator.clipboard.writeText(`${text}\n${url}`);
+			sharedTripId = trip.id;
+			setTimeout(() => (sharedTripId = null), 2500);
+		} catch {
+			actionError = 'Kopieren nicht möglich — Link: ' + url;
+			setTimeout(() => (actionError = ''), 10000);
+		}
+	}
 
 	async function post(action: string, payload: Record<string, unknown>) {
 		actionError = '';
@@ -297,7 +331,12 @@
 
 	<div class="space-y-4">
 		{#each data.trips as trip}
-			<div class="bg-bg-card rounded-xl border border-border p-5 space-y-4">
+			<div
+				id="trip-{trip.id}"
+				class="bg-bg-card rounded-xl border p-5 space-y-4 scroll-mt-24 {highlightTripId === trip.id
+					? 'border-accent ring-2 ring-accent/40'
+					: 'border-border'}"
+			>
 				<div class="flex items-start justify-between gap-3 flex-wrap">
 					<div>
 						<h3 class="text-lg font-semibold text-text-primary">{trip.title}</h3>
@@ -307,6 +346,13 @@
 						{/if}
 					</div>
 					<div class="flex flex-wrap items-center gap-2">
+						<button
+							type="button"
+							onclick={() => shareTrip(trip)}
+							class="cursor-pointer rounded-lg border border-accent/35 bg-accent/10 px-3 py-2 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
+						>
+							{sharedTripId === trip.id ? 'Link kopiert ✓' : 'Link teilen'}
+						</button>
 						<div class="text-xs bg-bg-secondary border border-border rounded-lg px-3 py-2 text-text-secondary">
 							Trip fix · Teilnehmerplanung aktiv
 						</div>

@@ -9,6 +9,7 @@
 	import { activityStore, refreshActivity, markActivitySeen } from '$lib/activityStore.svelte';
 	import { tapFeedback } from '$lib/haptics';
 
+	let { placement = 'auto' }: { placement?: 'auto' | 'sidebar' } = $props();
 	let open = $state(false);
 
 	function timeAgo(iso: string): string {
@@ -61,7 +62,10 @@
 		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 		<div class="fixed inset-0 z-[85]" onclick={() => (open = false)}></div>
 		<div
-			class="absolute right-0 z-[86] mt-2 max-h-[70vh] w-[min(22rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-border bg-bg-card shadow-2xl"
+			class="z-[86] max-h-[70vh] w-[min(22rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-border bg-bg-card shadow-2xl {placement ===
+			'sidebar'
+				? 'fixed bottom-4 left-[calc(16rem+0.75rem)] top-auto max-h-[min(70vh,32rem)]'
+				: 'absolute right-0 mt-2'}"
 		>
 			<div class="sticky top-0 flex items-center justify-between border-b border-border bg-bg-card px-4 py-2.5">
 				<p class="font-semibold text-text-primary">Aktivität</p>

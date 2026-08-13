@@ -117,7 +117,7 @@
 
 				const html = `
 					<div class="spots-map-pin ${isTrainingSpot ? 'spots-map-pin-training' : ''}" style="--pin-fill:${fill};--pin-stroke:${stroke};--pin-fg:${fg}">
-						<div class="spots-map-pin-bubble">${label}</div>
+						<div class="spots-map-pin-bubble">${label}${spot.challengeCount > 0 ? `<span class="spots-map-pin-badge">${spot.challengeCount}</span>` : ''}</div>
 						<div class="spots-map-pin-point"></div>
 					</div>`;
 
@@ -141,12 +141,16 @@
 				const trainingLine = isTrainingSpot
 					? `<div style="margin:4px 0;font-size:11px;font-weight:700;color:#b45309">🚂 Führt im Voting fürs nächste Training</div>`
 					: '';
+				const challengeLine =
+					spot.challengeCount > 0
+						? `<div style="margin-top:6px"><a href="/spots/${spot.id}#challenges" style="font-weight:600">${spot.challengeCount} Challenge${spot.challengeCount === 1 ? '' : 's'} ansehen →</a></div>`
+						: '';
 				const img = spot.thumbnail
 					? `<img src="${spot.thumbnail}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:6px" loading="lazy"/>`
 					: '';
 
 				m.bindPopup(
-					`<div class="spots-map-popup" style="min-width:180px">${img}<strong>${title}</strong><br/><span style="opacity:0.88;font-size:12px">${city}${spot.isMicro ? ' · Microspot' : ''}</span><br/><span style="font-size:12px;margin-top:2px;display:inline-block">${ratingLine}</span>${trainingLine}<a href="/spots/${spot.id}" style="display:inline-block;margin-top:6px;font-weight:600">Spot öffnen →</a></div>`,
+					`<div class="spots-map-popup" style="min-width:180px">${img}<strong>${title}</strong><br/><span style="opacity:0.88;font-size:12px">${city}${spot.isMicro ? ' · Microspot' : ''}</span><br/><span style="font-size:12px;margin-top:2px;display:inline-block">${ratingLine}</span>${trainingLine}<a href="/spots/${spot.id}" style="display:inline-block;margin-top:6px;font-weight:600">Spot öffnen →</a>${challengeLine}</div>`,
 					{ maxWidth: 280 }
 				);
 				bounds.extend([lat, lon]);
@@ -240,6 +244,26 @@
 	:global(.spots-map-marker-leaflet) {
 		background: transparent !important;
 		border: none !important;
+	}
+
+	:global(.spots-map-pin-badge) {
+		position: absolute;
+		top: -5px;
+		right: -6px;
+		min-width: 14px;
+		height: 14px;
+		padding: 0 3px;
+		border-radius: 9999px;
+		background: var(--color-accent-hot);
+		color: #0c0c0e;
+		font-size: 8px;
+		font-weight: 800;
+		line-height: 14px;
+		text-align: center;
+		box-shadow: 0 0 0 1.5px rgb(0 0 0 / 0.35);
+	}
+	:global(.spots-map-pin-bubble) {
+		position: relative;
 	}
 
 	:global(.spots-map-pin-training .spots-map-pin-bubble) {

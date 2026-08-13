@@ -1226,7 +1226,7 @@
 
 			<div class="mt-6 pt-6 border-t border-border space-y-4">
 				<div class="flex items-center justify-between gap-3">
-					<h3 class="text-lg font-semibold text-text-primary">Spot-Challenges</h3>
+					<h3 id="challenges" class="scroll-mt-24 text-lg font-semibold text-text-primary">Spot-Challenges</h3>
 					<span class="text-xs text-text-muted shrink-0">{data.challenges.length} insgesamt</span>
 				</div>
 

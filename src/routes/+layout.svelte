@@ -363,7 +363,7 @@ let mobileMoreOpen = $state(false);
 						<p class="font-display text-xs uppercase tracking-[0.32em] text-accent-hot">Portal</p>
 					</div>
 				</a>
-				<div class="mt-3 flex justify-end"><ActivityBell /></div>
+				<div class="mt-3 flex justify-end"><ActivityBell placement="sidebar" /></div>
 			</div>
 
 			<nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-4" data-sveltekit-preload-data="viewport">
