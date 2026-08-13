@@ -263,6 +263,8 @@ export const tripParticipants = sqliteTable(
 			.notNull()
 			.references(() => users.id),
 		transportMode: text('transport_mode').notNull().default('mitfahrt'),
+		/** Zeitpunkt der letzten Entscheidung — „enthalten" wird danach erneut gefragt. */
+		decidedAt: text('decided_at'),
 		vehicleFrom: text('vehicle_from'),
 		hasCar: integer('has_car', { mode: 'boolean' }).notNull().default(false),
 		seatsOffered: integer('seats_offered').notNull().default(0),
@@ -394,6 +396,35 @@ export const soloTrainings = sqliteTable(
 	},
 	(t) => [uniqueIndex('solo_trainings_user_date').on(t.userId, t.date)]
 );
+
+
+/**
+ * Aktivitäts-Feed: jedes relevante Ereignis (neue Challenge, geschafft, neuer
+ * Spot, Trip, Absage …). Speist Glocke, roten Punkt und Live-Popups.
+ */
+export const activityEvents = sqliteTable(
+	'activity_events',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		kind: text('kind').notNull(),
+		actorUserId: integer('actor_user_id'),
+		actorName: text('actor_name'),
+		title: text('title').notNull(),
+		body: text('body'),
+		url: text('url'),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [index('activity_events_created_idx').on(t.createdAt)]
+);
+
+/** Bis wohin ein User den Feed gesehen hat (roter Punkt / Zähler). */
+export const activitySeen = sqliteTable('activity_seen', {
+	userId: integer('user_id')
+		.primaryKey()
+		.references(() => users.id),
+	lastSeenEventId: integer('last_seen_event_id').notNull().default(0),
+	updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`)
+});
 
 export const auditLogs = sqliteTable('audit_logs', {
 	id: integer('id').primaryKey({ autoIncrement: true }),

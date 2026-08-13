@@ -24,6 +24,7 @@ import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady
 import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
 import { jsonFromSqliteOrSchemaError } from '$lib/server/sqliteAdminErrors';
 import { sendToUsers } from '$lib/server/push';
+import { recordEvent } from '$lib/server/activity';
 import { attendingUserIds as getAttendingUserIdsForSession } from '$lib/server/pushScheduler';
 
 function formatDateCh(dateStr: string): string {
@@ -273,6 +274,17 @@ export const POST: RequestHandler = async (event) => {
 				actorUserId: locals.user!.id,
 				actorUsername: locals.user!.username,
 				detail: { sessionId, date: session.date, reason: reasonRaw || undefined }
+			});
+
+			recordEvent({
+				kind: cancel ? 'training.cancelled' : 'training.spot_fixed',
+				actorUserId: locals.user!.id,
+				actorName: locals.user!.username,
+				title: cancel
+					? `Training abgesagt — ${formatDateCh(session.date)}`
+					: `Absage aufgehoben — ${formatDateCh(session.date)}`,
+				body: cancel && reasonRaw ? reasonRaw : null,
+				url: '/training'
 			});
 
 			let sent = 0;

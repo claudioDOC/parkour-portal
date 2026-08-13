@@ -5,6 +5,7 @@ import { spots, users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
 import { spotsTableHasMicrospotColumns } from '$lib/server/spotsTableColumns';
+import { recordEvent } from '$lib/server/activity';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
@@ -81,6 +82,15 @@ export const POST: RequestHandler = async (event) => {
 		actorUserId: locals.user.id,
 		actorUsername: locals.user.username,
 		detail: { spotId: result.id, name: result.name, city: result.city }
+	});
+
+	recordEvent({
+		kind: 'spot.new',
+		actorUserId: locals.user.id,
+		actorName: locals.user.username,
+		title: `Neuer Spot: ${result.name}`,
+		body: result.city,
+		url: `/spots/${result.id}`
 	});
 
 	return json({ success: true, spot: result });

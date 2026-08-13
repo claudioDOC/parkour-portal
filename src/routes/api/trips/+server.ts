@@ -12,6 +12,8 @@ import {
 	tripStopovers
 } from '$lib/server/db/schema';
 import { logAudit } from '$lib/server/audit';
+import { recordEvent } from '$lib/server/activity';
+import { sendToUsersWithPref } from '$lib/server/push';
 
 function parseCoord(v: unknown): number | null {
 	if (v === null || v === undefined || v === '') return null;
@@ -78,6 +80,27 @@ export const POST: RequestHandler = async (event) => {
 			actorUsername: locals.user.username,
 			detail: { tripId: created.id, title, startDate, endDate }
 		});
+		void sendToUsersWithPref(
+			'trips',
+			{
+				title: `Neuer Trip: ${title}`,
+				body: `${startDate} – ${endDate}. Bist du dabei?`,
+				url: '/trips',
+				tag: `trip-new-${created.id}`
+			},
+			undefined,
+			{ excludeUserIds: [locals.user.id] }
+		).catch(() => undefined);
+
+		recordEvent({
+			kind: 'trip.new',
+			actorUserId: locals.user.id,
+			actorName: locals.user.username,
+			title: `Neuer Trip: ${title}`,
+			body: `${startDate} – ${endDate} · von ${locals.user.username}`,
+			url: '/trips'
+		});
+
 		return json({ success: true, tripId: created.id });
 	}
 
@@ -211,6 +234,7 @@ export const POST: RequestHandler = async (event) => {
 			db.update(tripParticipants)
 				.set({
 					transportMode,
+					decidedAt: sql`(datetime('now'))`,
 					vehicleFrom: null,
 					hasCar: transportMode === 'auto_owner',
 					seatsOffered: 0,
@@ -224,6 +248,7 @@ export const POST: RequestHandler = async (event) => {
 					tripId,
 					userId: locals.user.id,
 					transportMode,
+					decidedAt: sql`(datetime('now'))`,
 					vehicleFrom: null,
 					hasCar: transportMode === 'auto_owner',
 					seatsOffered: 0,
@@ -241,6 +266,37 @@ export const POST: RequestHandler = async (event) => {
 		return json({ success: true });
 	}
 
+	if (action === 'abstain_trip') {
+		const existing = db
+			.select({ id: tripParticipants.id })
+			.from(tripParticipants)
+			.where(and(eq(tripParticipants.tripId, tripId), eq(tripParticipants.userId, locals.user.id)))
+			.get();
+		if (existing) {
+			db.update(tripParticipants)
+				.set({ transportMode: 'enthalten', decidedAt: sql`(datetime('now'))` })
+				.where(eq(tripParticipants.id, existing.id))
+				.run();
+		} else {
+			db.insert(tripParticipants)
+				.values({
+					tripId,
+					userId: locals.user.id,
+					transportMode: 'enthalten',
+					decidedAt: sql`(datetime('now'))`
+				})
+				.run();
+		}
+		logAudit({
+			event,
+			action: 'trip.abstain',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: { tripId }
+		});
+		return json({ success: true });
+	}
+
 	if (action === 'decline_trip') {
 		const note = String(body?.note || '').trim();
 		const existing = db
@@ -252,6 +308,7 @@ export const POST: RequestHandler = async (event) => {
 			db.update(tripParticipants)
 				.set({
 					transportMode: 'abgemeldet',
+					decidedAt: sql`(datetime('now'))`,
 					vehicleFrom: null,
 					hasCar: false,
 					seatsOffered: 0,

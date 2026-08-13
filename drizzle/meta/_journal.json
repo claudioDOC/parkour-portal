@@ -141,6 +141,13 @@
       "when": 1776800000000,
       "tag": "0020_solo_trainings",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1776900000000,
+      "tag": "0021_activity_feed",
+      "breakpoints": true
     }
   ]
 }

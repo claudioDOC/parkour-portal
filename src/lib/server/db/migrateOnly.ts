@@ -311,6 +311,32 @@ function repairMissingColumnsAfterJournalDrift() {
 		sqlite.exec('ALTER TABLE training_sessions ADD COLUMN cancelled integer DEFAULT 0 NOT NULL');
 		console.log('[db:migrate] Schema-Reparatur: training_sessions.cancelled ergänzt.');
 	}
+	if (!tableExists('activity_events')) {
+		sqlite.exec(`CREATE TABLE activity_events (
+			id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+			kind text NOT NULL,
+			actor_user_id integer,
+			actor_name text,
+			title text NOT NULL,
+			body text,
+			url text,
+			created_at text DEFAULT (datetime('now')) NOT NULL
+		)`);
+		sqlite.exec('CREATE INDEX IF NOT EXISTS activity_events_created_idx ON activity_events (created_at)');
+		console.log('[db:migrate] Schema-Reparatur: activity_events erstellt.');
+	}
+	if (!tableExists('activity_seen')) {
+		sqlite.exec(`CREATE TABLE activity_seen (
+			user_id integer PRIMARY KEY NOT NULL,
+			last_seen_event_id integer DEFAULT 0 NOT NULL,
+			updated_at text DEFAULT (datetime('now')) NOT NULL
+		)`);
+		console.log('[db:migrate] Schema-Reparatur: activity_seen erstellt.');
+	}
+	if (tableExists('trip_participants') && !columnExists('trip_participants', 'decided_at')) {
+		sqlite.exec('ALTER TABLE trip_participants ADD COLUMN decided_at text');
+		console.log('[db:migrate] Schema-Reparatur: trip_participants.decided_at ergänzt.');
+	}
 	if (!tableExists('solo_trainings')) {
 		sqlite.exec(`CREATE TABLE solo_trainings (
 			id integer PRIMARY KEY AUTOINCREMENT NOT NULL,

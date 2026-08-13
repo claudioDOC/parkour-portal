@@ -14,6 +14,10 @@
 	import AppNavIcon from '$lib/components/AppNavIcon.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import PushOnboarding from '$lib/components/PushOnboarding.svelte';
+	import ActivityBell from '$lib/components/ActivityBell.svelte';
+	import ActivityToasts from '$lib/components/ActivityToasts.svelte';
+	import TripDecisionGate from '$lib/components/TripDecisionGate.svelte';
+	import { refreshActivity, setActivitySelf } from '$lib/activityStore.svelte';
 
 type NavIcon =
 		| 'home'
@@ -82,9 +86,12 @@ type NavIcon =
 		// aufgebaut plus einmal frisch geladen.
 		let liveSource: EventSource | null = null;
 		let lastRefresh = Date.now();
+		setActivitySelf(data.user?.id ?? null);
+		void refreshActivity();
 		const refreshNow = () => {
 			lastRefresh = Date.now();
 			void invalidateAll();
+			void refreshActivity();
 		};
 		const connectLive = () => {
 			if (!data.user || liveSource) return;
@@ -92,9 +99,12 @@ type NavIcon =
 				liveSource = new EventSource('/api/live');
 				liveSource.onmessage = (ev) => {
 					if (ev.data !== 'data') return;
-					// Mini-Drossel: Ereignis-Salven bündeln
+					// Feed sofort — davon leben Popups und roter Punkt.
+					void refreshActivity();
+					// Seiten-Daten gedrosselt (Salven bündeln).
 					if (Date.now() - lastRefresh < 1500) return;
-					refreshNow();
+					lastRefresh = Date.now();
+					void invalidateAll();
 				};
 				liveSource.onerror = () => {
 					// EventSource verbindet selbst neu; nichts zu tun.
@@ -278,6 +288,7 @@ let mobileMoreOpen = $state(false);
 					<p class="font-display text-[11px] uppercase tracking-[0.28em] text-accent-hot/90">Portal</p>
 				</div>
 			</a>
+			<div class="ml-auto"><ActivityBell /></div>
 		</header>
 
 		{#if mobileMoreOpen}
@@ -352,6 +363,7 @@ let mobileMoreOpen = $state(false);
 						<p class="font-display text-xs uppercase tracking-[0.32em] text-accent-hot">Portal</p>
 					</div>
 				</a>
+				<div class="mt-3 flex justify-end"><ActivityBell /></div>
 			</div>
 
 			<nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-4" data-sveltekit-preload-data="viewport">
@@ -484,6 +496,8 @@ let mobileMoreOpen = $state(false);
 		</nav>
 
 		<OfflineIndicator />
+		<ActivityToasts />
+		<TripDecisionGate />
 		<PwaInstallBanner />
 		<PushOnboarding />
 	</div>

@@ -432,6 +432,22 @@
 		}
 	}
 
+	/** Admin/Spotmanager: Erledigt-Markierung bei jemand anderem entfernen. */
+	async function removeCompletion(challengeId: number, userId: number, username: string) {
+		if (!confirm(`Erledigt-Markierung von ${username} wirklich entfernen?`)) return;
+		challengeBusy = true;
+		try {
+			const res = await fetch('/api/spots/challenges', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ challengeId, removeUserId: userId })
+			});
+			if (res.ok) await invalidateAll();
+		} finally {
+			challengeBusy = false;
+		}
+	}
+
 	async function setChallengeDone(challengeId: number, done: boolean) {
 		challengeBusy = true;
 		try {
@@ -1410,7 +1426,17 @@
 										{:else}
 											<div class="flex flex-wrap gap-1.5">
 												{#each challenge.doneBy as user}
-													<span class="bg-success/10 text-success text-xs px-2.5 py-1 rounded-full">{user.username}</span>
+													<span class="inline-flex items-center gap-1 bg-success/10 text-success text-xs px-2.5 py-1 rounded-full">
+														{user.username}
+														{#if canEditSpots && user.userId !== data.user?.id}
+															<button
+																type="button"
+																onclick={() => removeCompletion(challenge.id, user.userId, user.username)}
+																class="cursor-pointer text-success/60 transition-colors hover:text-danger"
+																aria-label="Erledigt-Markierung von {user.username} entfernen"
+															>×</button>
+														{/if}
+													</span>
 												{/each}
 											</div>
 										{/if}

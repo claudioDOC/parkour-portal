@@ -4,6 +4,30 @@
 
 	let { data }: { data: PageData } = $props();
 
+	/** Vereinfachte Suche: Textfeld + „nur was ich noch nicht habe". */
+	let query = $state('');
+	let onlyMine = $state(false);
+	const myId = $derived(data.user?.id);
+
+	const visibleGroups = $derived.by(() => {
+		const q = query.trim().toLowerCase();
+		return data.spotsWithChallenges
+			.map((g) => ({
+				...g,
+				challenges: g.challenges.filter((c) => {
+					if (onlyMine && myId && c.completers.some((x) => x.username === data.user?.username)) return false;
+					if (!q) return true;
+					return (
+						c.title.toLowerCase().includes(q) ||
+						(c.description ?? '').toLowerCase().includes(q) ||
+						g.spotName.toLowerCase().includes(q) ||
+						g.spotCity.toLowerCase().includes(q)
+					);
+				})
+			}))
+			.filter((g) => g.challenges.length > 0);
+	});
+
 	let imageLightboxUrl = $state<string | null>(null);
 	let imageLightboxAlt = $state('');
 
@@ -59,18 +83,38 @@
 			</div>
 		</header>
 
+		<div class="flex flex-wrap items-center gap-2">
+			<input
+				type="search"
+				bind:value={query}
+				placeholder="Challenge, Spot oder Ort suchen"
+				class="min-w-[12rem] flex-1 rounded-lg border border-border bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
+			/>
+			<button
+				type="button"
+				onclick={() => (onlyMine = !onlyMine)}
+				class="cursor-pointer rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors {onlyMine
+					? 'border-accent bg-accent/15 text-accent'
+					: 'border-border bg-bg-card text-text-secondary hover:text-text-primary'}"
+			>
+				Nur meine offenen
+			</button>
+		</div>
+
 		<div class="grid gap-8 lg:grid-cols-[1fr_minmax(16rem,22rem)]">
 			<div class="space-y-6">
-				{#if data.spotsWithChallenges.length === 0}
+				{#if visibleGroups.length === 0}
 					<div class="rounded-xl border border-border bg-bg-card px-6 py-12 text-center">
-						<p class="text-text-secondary">Noch keine Quests in der Arena — Spot-Challenges anlegen und Gas geben.</p>
+						<p class="text-text-secondary">
+							{query || onlyMine ? 'Nichts gefunden — Filter anpassen.' : 'Noch keine Quests in der Arena — Spot-Challenges anlegen und Gas geben.'}
+						</p>
 						<a href="/spots" class="btn-link btn-link-secondary mt-4 inline-flex">Zu den Spots</a>
 					</div>
 				{:else}
-				{#each data.spotsWithChallenges as group, gi (group.spotId)}
+				{#each visibleGroups as group, gi (group.spotId)}
 					<details
 						class="group overflow-hidden rounded-xl border border-border bg-bg-card shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]"
-						open={gi < 2}
+						open={gi < 2 || !!query || onlyMine}
 					>
 						<summary
 							class="flex cursor-pointer list-none items-center justify-between gap-3 bg-bg-secondary/60 px-4 py-3 sm:px-5 [&::-webkit-details-marker]:hidden"

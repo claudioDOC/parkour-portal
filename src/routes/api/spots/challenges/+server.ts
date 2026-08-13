@@ -6,6 +6,7 @@ import { spots, spotChallenges, spotChallengeCompletions } from '$lib/server/db/
 import { logAudit } from '$lib/server/audit';
 import { isSpotChallengesSchemaReady } from '$lib/server/spotChallengesSchemaReady';
 import { sendToUsersWithPref } from '$lib/server/push';
+import { recordEvent } from '$lib/server/activity';
 
 function schemaNotReadyResponse() {
 	return json(
@@ -59,6 +60,15 @@ export const POST: RequestHandler = async (event) => {
 		actorUserId: locals.user.id,
 		actorUsername: locals.user.username,
 		detail: { spotId, spotName: spot.name, challengeId: created.id, title }
+	});
+
+	recordEvent({
+		kind: 'challenge.new',
+		actorUserId: locals.user.id,
+		actorName: locals.user.username,
+		title: `Neue Challenge: ${title}`,
+		body: `${spot.name} · von ${locals.user.username}`,
+		url: `/spots/${spotId}`
 	});
 
 	// Push an alle mit aktivierter Challenge-Benachrichtigung — ausser dem Ersteller.
@@ -161,6 +171,31 @@ export const PATCH: RequestHandler = async (event) => {
 		return json({ success: true });
 	}
 
+	/** Admin/Spotmanager: Erledigt-Markierung bei einem ANDEREN User entfernen. */
+	const removeUserId = Number((body as Record<string, unknown>)?.removeUserId);
+	if (Number.isFinite(removeUserId) && removeUserId > 0) {
+		if (locals.user.role !== 'admin' && locals.user.role !== 'spotmanager') {
+			return json({ error: 'Nur Admin/Spotmanager' }, { status: 403 });
+		}
+		db.delete(spotChallengeCompletions)
+			.where(
+				and(
+					eq(spotChallengeCompletions.challengeId, challengeId),
+					eq(spotChallengeCompletions.userId, removeUserId)
+				)
+			)
+			.run();
+		logAudit({
+			event,
+			action: 'admin.challenge.uncomplete',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			targetUserId: removeUserId,
+			detail: { challengeId, title: challenge.title }
+		});
+		return json({ success: true });
+	}
+
 	if (done) {
 		const existing = db
 			.select({ id: spotChallengeCompletions.id })
@@ -179,6 +214,15 @@ export const PATCH: RequestHandler = async (event) => {
 					userId: locals.user.id
 				})
 				.run();
+
+			recordEvent({
+				kind: 'challenge.done',
+				actorUserId: locals.user.id,
+				actorName: locals.user.username,
+				title: `${locals.user.username} hat „${challenge.title}" geschafft`,
+				body: null,
+				url: `/spots/${challenge.spotId}`
+			});
 
 			// Ersteller bekommt die persönliche Meldung, alle anderen (mit
 			// Challenge-Benachrichtigung) die allgemeine — der Schaffende keine.
