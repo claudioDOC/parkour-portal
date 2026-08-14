@@ -41,10 +41,10 @@
 	<div class="rounded-xl border border-dashed border-border p-5 text-sm leading-relaxed text-text-muted">
 		<p class="font-semibold text-text-secondary">Warum es fast nie ein APK-Update braucht</p>
 		<p class="mt-1">
-			Die App ist eine Hülle um das Portal: Alle Inhalte und Funktionen kommen live vom Server.
-			Neue Features sind sofort da — ohne Update. Eine neue APK ist nur nötig, wenn sich
-			<strong class="text-text-secondary">Name, Icon oder die Adresse</strong> der App ändern.
-			Passiert das, erscheint in der App automatisch ein Hinweis mit Download-Link.
+			Die App prüft bei jedem Start auf unserem Server, ob es eine neue Version gibt, lädt sie
+			im Hintergrund und startet direkt damit — <strong class="text-text-secondary">alle haben
+			immer den gleichen, aktuellen Stand</strong>, ohne Play Store und ohne Zutun. Nur bei
+			grösseren Umbauten (z.&nbsp;B. neue Berechtigungen) braucht es einmal diese APK neu.
 		</p>
 	</div>
 
