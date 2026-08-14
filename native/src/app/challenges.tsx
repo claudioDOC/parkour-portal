@@ -78,7 +78,7 @@ export default function Challenges() {
 			{data?.leaderboard.length ? (
 				<>
 					<SectionTitle>Leaderboard</SectionTitle>
-					<Card style={{ gap: 10 }}>
+					<Card style={{ gap: 8 }}>
 						{data.leaderboard.slice(0, 5).map((row, i) => (
 							<View key={row.userId} style={styles.lbRow}>
 								<Text style={[styles.lbRank, i === 0 && { color: colors.accent }]}>{i + 1}</Text>
@@ -136,12 +136,12 @@ export default function Challenges() {
 			{data?.recentClears.length ? (
 				<>
 					<SectionTitle>Zuletzt geschafft</SectionTitle>
-					<Card style={{ gap: 9 }}>
+					<Card style={{ gap: 8 }}>
 						{data.recentClears.slice(0, 6).map((rc, i) => (
 							<View key={i} style={styles.clearRow}>
 								<Ionicons name="checkmark-circle" size={15} color={colors.success} />
 								<Text style={styles.clearText} numberOfLines={1}>
-									<Text style={{ fontWeight: '700', color: colors.text }}>{rc.username}</Text>
+									<Text style={{ fontFamily: fonts.sansBold, color: colors.text }}>{rc.username}</Text>
 									{'  '}
 									{rc.challengeTitle ?? rc.title ?? ''} · {rc.spotName}
 								</Text>
@@ -156,41 +156,41 @@ export default function Challenges() {
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-	statsRow: { flexDirection: 'row', gap: 10 },
+	statsRow: { flexDirection: 'row', gap: 8 },
 	statBox: {
 		flex: 1,
 		backgroundColor: colors.card,
-		borderRadius: 18,
-		paddingVertical: 14,
+		borderRadius: 20,
+		paddingVertical: 12,
 		alignItems: 'center'
 	},
 	statNum: { color: colors.text, fontFamily: fonts.display, fontSize: 28, lineHeight: 30 },
-	statLabel: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+	statLabel: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 4 },
 	search: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		gap: 8,
 		backgroundColor: colors.card,
-		borderRadius: 16,
-		paddingHorizontal: 14
+		borderRadius: 12,
+		paddingHorizontal: 12
 	},
-	searchInput: { flex: 1, color: colors.text, paddingVertical: 11, fontSize: 15, fontFamily: fonts.sans },
+	searchInput: { flex: 1, color: colors.text, paddingVertical: 12, fontSize: 15, lineHeight: 21, fontFamily: fonts.sans },
 	filterRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
 		paddingHorizontal: 4
 	},
-	filterLabel: { color: colors.textSecondary, fontSize: 14 },
-	lbRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-	lbRank: { color: colors.textMuted, fontSize: 14, fontWeight: '800', width: 18 },
-	lbName: { color: colors.text, fontSize: 14, fontFamily: fonts.sansSemi, flex: 1 },
-	lbClears: { color: colors.textSecondary, fontSize: 13 },
+	filterLabel: { color: colors.textSecondary, fontSize: 15, lineHeight: 21 },
+	lbRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+	lbRank: { color: colors.textMuted, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold, width: 18 },
+	lbName: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi, flex: 1 },
+	lbClears: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
 	spotHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	spotName: { color: colors.text, fontSize: 15.5, fontFamily: fonts.sansBold },
-	spotCity: { color: colors.textMuted, fontSize: 12.5 },
-	spotCount: { color: colors.accent, fontSize: 14, fontWeight: '800' },
-	challengeList: { color: colors.textMuted, fontSize: 12.5, lineHeight: 18 },
+	spotName: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold },
+	spotCity: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+	spotCount: { color: colors.accent, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold },
+	challengeList: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
 	clearRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	clearText: { color: colors.textSecondary, fontSize: 13, flex: 1 }
+	clearText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, flex: 1 }
 });

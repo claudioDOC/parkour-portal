@@ -98,18 +98,18 @@ export default function Finder() {
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-		hint: { color: colors.accentBlue, fontFamily: fonts.sans, fontSize: 13.5 },
+		hint: { color: colors.accentBlue, fontFamily: fonts.sans, fontSize: 13, lineHeight: 18 },
 		head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-		name: { color: colors.text, fontSize: 16.5, fontFamily: fonts.sansBold },
-		city: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.sans },
-		scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-		score: { color: colors.textMuted, fontSize: 12.5, fontFamily: fonts.sans },
-		reasonWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+		name: { color: colors.text, fontSize: 16, lineHeight: 21, fontFamily: fonts.sansBold },
+		city: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans },
+		scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+		score: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans },
+		reasonWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 		reason: {
 			backgroundColor: colors.hover,
 			borderRadius: 999,
-			paddingHorizontal: 11,
-			paddingVertical: 5
+			paddingHorizontal: 12,
+			paddingVertical: 4
 		},
-		reasonText: { color: colors.textSecondary, fontSize: 12.5, fontFamily: fonts.sansMedium }
+		reasonText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansMedium }
 	});

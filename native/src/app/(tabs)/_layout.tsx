@@ -27,7 +27,7 @@ export default function TabsLayout() {
 				},
 				tabBarActiveTintColor: colors.accent,
 				tabBarInactiveTintColor: colors.textMuted,
-				tabBarLabelStyle: { fontSize: 10.5, fontFamily: fonts.sansSemi }
+				tabBarLabelStyle: { fontSize: 13, lineHeight: 15, fontFamily: fonts.sansSemi }
 			}}
 		>
 			<Tabs.Screen
@@ -58,7 +58,7 @@ export default function TabsLayout() {
 							style={{
 								width: 54,
 								height: 54,
-								borderRadius: 27,
+								borderRadius: 999,
 								marginTop: -26,
 								backgroundColor: colors.card,
 								borderWidth: 1,

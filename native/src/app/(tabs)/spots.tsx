@@ -60,7 +60,7 @@ export default function Spots() {
 									<Ionicons name="image-outline" size={20} color={colors.textMuted} />
 								</View>
 							)}
-							<View style={{ flex: 1, gap: 3 }}>
+							<View style={{ flex: 1, gap: 4 }}>
 								<Text style={styles.name} numberOfLines={1}>
 									{s.name}
 									{s.isMicro ? <Text style={styles.micro}>  · Micro</Text> : null}
@@ -93,24 +93,24 @@ const makeStyles = (colors: ThemeColors) =>
 		alignItems: 'center',
 		gap: 8,
 		backgroundColor: colors.card,
-		borderRadius: 16,
-		paddingHorizontal: 14
+		borderRadius: 12,
+		paddingHorizontal: 12
 	},
-	searchInput: { flex: 1, color: colors.text, paddingVertical: 11, fontSize: 15, fontFamily: fonts.sans },
+	searchInput: { flex: 1, color: colors.text, paddingVertical: 12, fontSize: 15, lineHeight: 21, fontFamily: fonts.sans },
 	row: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		gap: 12,
 		backgroundColor: colors.card,
 		borderRadius: 20,
-		padding: 10,
+		padding: 8,
 		paddingRight: 14
 	},
-	thumb: { width: 70, height: 70, borderRadius: 14, backgroundColor: colors.hover },
+	thumb: { width: 70, height: 70, borderRadius: 12, backgroundColor: colors.hover },
 	thumbEmpty: { alignItems: 'center', justifyContent: 'center' },
-	name: { color: colors.text, fontSize: 15.5, fontFamily: fonts.sansBold },
-	micro: { color: colors.accentBlue, fontSize: 12, fontWeight: '700' },
-	city: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.sans },
-	scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 },
-	voteCount: { color: colors.textMuted, fontSize: 12 }
+	name: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold },
+	micro: { color: colors.accentBlue, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold },
+	city: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans },
+	scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 0 },
+	voteCount: { color: colors.textMuted, fontSize: 13, lineHeight: 18 }
 });

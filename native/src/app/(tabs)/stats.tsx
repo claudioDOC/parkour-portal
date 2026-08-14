@@ -40,7 +40,7 @@ export default function Stats() {
 			<SectionTitle>Anwesenheit</SectionTitle>
 			<Card style={{ gap: 12 }}>
 				{lb.map((row, i) => (
-					<View key={row.userId} style={{ gap: 5 }}>
+					<View key={row.userId} style={{ gap: 4 }}>
 						<View style={styles.lbRow}>
 							<Text style={[styles.lbRank, i < 3 && { color: colors.accent }]}>{i + 1}</Text>
 							<Text style={[styles.lbName, me?.id === row.userId && { color: colors.accent }]}>
@@ -62,7 +62,7 @@ export default function Stats() {
 			{data?.solo.leaderboard.length ? (
 				<>
 					<SectionTitle>Solo-Training (getrennt gezählt)</SectionTitle>
-					<Card style={{ gap: 10 }}>
+					<Card style={{ gap: 8 }}>
 						{data.solo.leaderboard.map((row, i) => (
 							<View key={row.userId} style={styles.lbRow}>
 								<Text style={[styles.lbRank, i === 0 && { color: colors.accent }]}>{i + 1}</Text>
@@ -80,12 +80,12 @@ export default function Stats() {
 			{data?.solo.recent.length ? (
 				<>
 					<SectionTitle>Zuletzt solo trainiert</SectionTitle>
-					<Card style={{ gap: 9 }}>
+					<Card style={{ gap: 8 }}>
 						{data.solo.recent.map((r, i) => (
 							<View key={i} style={styles.recentRow}>
 								<Ionicons name="flash-outline" size={14} color={colors.accent} />
 								<Text style={styles.recentText} numberOfLines={1}>
-									<Text style={{ fontWeight: '700', color: colors.text }}>{r.username}</Text>
+									<Text style={{ fontFamily: fonts.sansBold, color: colors.text }}>{r.username}</Text>
 									{'  '}
 									{new Date(`${r.date}T12:00:00`).toLocaleDateString('de-CH', {
 										day: 'numeric',
@@ -104,23 +104,23 @@ export default function Stats() {
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-	statsRow: { flexDirection: 'row', gap: 10 },
+	statsRow: { flexDirection: 'row', gap: 8 },
 	statBox: {
 		flex: 1,
 		backgroundColor: colors.card,
-		borderRadius: 18,
-		paddingVertical: 14,
+		borderRadius: 20,
+		paddingVertical: 12,
 		alignItems: 'center'
 	},
 	statNum: { color: colors.text, fontFamily: fonts.display, fontSize: 28, lineHeight: 30 },
-	statLabel: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
-	lbRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-	lbRank: { color: colors.textMuted, fontSize: 13, fontWeight: '800', width: 18 },
-	lbName: { color: colors.text, fontSize: 14, fontFamily: fonts.sansSemi, flex: 1 },
-	lbPercent: { color: colors.textSecondary, fontSize: 13.5, fontWeight: '800' },
-	streak: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-	streakText: { color: colors.warning, fontSize: 12, fontWeight: '800' },
-	soloMeta: { color: colors.textMuted, fontSize: 12 },
+	statLabel: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 4 },
+	lbRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+	lbRank: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold, width: 18 },
+	lbName: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi, flex: 1 },
+	lbPercent: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold },
+	streak: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+	streakText: { color: colors.warning, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold },
+	soloMeta: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
 	recentRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	recentText: { color: colors.textSecondary, fontSize: 13, flex: 1 }
+	recentText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, flex: 1 }
 });

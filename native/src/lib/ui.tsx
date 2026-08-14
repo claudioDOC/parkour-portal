@@ -39,11 +39,11 @@ export function AppHeader() {
 		<View
 			style={{
 				paddingTop: insets.top + 8,
-				paddingBottom: 10,
+				paddingBottom: 8,
 				paddingHorizontal: 16,
 				flexDirection: 'row',
 				alignItems: 'center',
-				gap: 11,
+				gap: 12,
 				backgroundColor: colors.bgSecondary,
 				borderBottomWidth: StyleSheet.hairlineWidth,
 				borderBottomColor: colors.border
@@ -63,7 +63,7 @@ export function AppHeader() {
 			>
 				<Image
 					source={require('../../assets/images/icon.png')}
-					style={{ width: 26, height: 26, borderRadius: 7 }}
+					style={{ width: 26, height: 26, borderRadius: 12 }}
 					contentFit="contain"
 				/>
 			</View>
@@ -72,9 +72,8 @@ export function AppHeader() {
 					style={{
 						color: colors.text,
 						fontFamily: fonts.display,
-						fontSize: 23,
+						fontSize: 28, lineHeight: 30,
 						letterSpacing: 1.5,
-						lineHeight: 24
 					}}
 				>
 					PARKOUR
@@ -83,9 +82,9 @@ export function AppHeader() {
 					style={{
 						color: colors.accent,
 						fontFamily: fonts.displayMedium,
-						fontSize: 12,
+						fontSize: 13,
+						lineHeight: 14,
 						letterSpacing: 4,
-						lineHeight: 14
 					}}
 				>
 					PORTAL
@@ -101,7 +100,7 @@ export function AppHeader() {
 							right: 2,
 							width: 9,
 							height: 9,
-							borderRadius: 5,
+							borderRadius: 999,
 							backgroundColor: colors.danger,
 							borderWidth: 1.5,
 							borderColor: colors.bgSecondary
@@ -139,7 +138,7 @@ export function Screen({
 					paddingHorizontal: 20,
 					paddingTop: header ? 18 : insets.top + 16,
 					paddingBottom: insets.bottom + 32,
-					gap: 14
+					gap: 12
 				}}
 				refreshControl={
 					onRefresh ? (
@@ -161,25 +160,24 @@ export function Screen({
 
 const makeTopBar = (colors: ThemeColors) =>
 	StyleSheet.create({
-		row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 6 },
+		row: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
 		kicker: {
 			color: colors.accentHot,
 			fontFamily: fonts.displayMedium,
-			fontSize: 15,
+			fontSize: 15, lineHeight: 21,
 			letterSpacing: 4.5,
 			marginBottom: -2
 		},
 		title: {
 			color: colors.text,
 			fontFamily: fonts.display,
-			fontSize: 40,
+			fontSize: 40, lineHeight: 42,
 			letterSpacing: 1.5,
-			lineHeight: 44,
-			marginBottom: 2
+			marginBottom: 4
 		},
 		accent: { color: colors.accent },
 		bar: { width: 64, height: 6, borderRadius: 2 },
-		sub: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: 15, marginTop: 6 },
+		sub: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: 15, lineHeight: 21, marginTop: 8 },
 		circleBtn: {
 			width: 40,
 			height: 40,
@@ -197,7 +195,7 @@ const makeTopBar = (colors: ThemeColors) =>
 			right: 9,
 			width: 9,
 			height: 9,
-			borderRadius: 5,
+			borderRadius: 999,
 			backgroundColor: colors.danger,
 			borderWidth: 1.5,
 			borderColor: colors.bg
@@ -261,7 +259,7 @@ export function Card({ children, style }: { children: ReactNode; style?: object 
 				{
 					backgroundColor: colors.card,
 					borderRadius: 20,
-					padding: 18,
+					padding: 16,
 					borderWidth: 1,
 					borderColor: colors.border,
 					borderTopColor: colors.dark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.04)',
@@ -291,7 +289,7 @@ export function Pill({
 		<View
 			style={{
 				borderRadius: 999,
-				paddingHorizontal: 11,
+				paddingHorizontal: 12,
 				paddingVertical: 4,
 				alignSelf: 'flex-start',
 				backgroundColor: filled ? color : color + '26'
@@ -299,7 +297,7 @@ export function Pill({
 		>
 			<Text
 				style={{
-					fontSize: 11.5,
+					fontSize: 13, lineHeight: 18,
 					fontFamily: fonts.sansBold,
 					letterSpacing: 0.2,
 					color: filled ? colors.onAccent : color
@@ -319,14 +317,14 @@ export function NameChip({ name, tone }: { name: string; tone?: string }) {
 		<View
 			style={{
 				borderRadius: 999,
-				paddingHorizontal: 13,
-				paddingVertical: 6,
+				paddingHorizontal: 12,
+				paddingVertical: 8,
 				backgroundColor: color + '1c',
 				borderWidth: 1,
 				borderColor: color + '33'
 			}}
 		>
-			<Text style={{ color: colors.text, fontSize: 13.5, fontFamily: fonts.sansMedium }}>
+			<Text style={{ color: colors.text, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansMedium }}>
 				{name}
 			</Text>
 		</View>
@@ -387,7 +385,7 @@ export function InitialsRow({ names }: { names: string[] }) {
 				<View
 					key={`${n}-${i}`}
 					style={{
-						borderRadius: 17,
+						borderRadius: 999,
 						borderWidth: 2,
 						borderColor: colors.card,
 						marginLeft: i === 0 ? 0 : -8
@@ -401,7 +399,7 @@ export function InitialsRow({ names }: { names: string[] }) {
 					style={{
 						width: 30,
 						height: 30,
-						borderRadius: 15,
+						borderRadius: 999,
 						backgroundColor: colors.hover,
 						alignItems: 'center',
 						justifyContent: 'center',
@@ -410,7 +408,7 @@ export function InitialsRow({ names }: { names: string[] }) {
 						borderColor: colors.card
 					}}
 				>
-					<Text style={{ color: colors.textSecondary, fontSize: 11, fontFamily: fonts.sansBold }}>
+					<Text style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold }}>
 						+{rest}
 					</Text>
 				</View>
@@ -431,7 +429,7 @@ export function Stars({
 }) {
 	const { colors } = useTheme();
 	return (
-		<View style={{ flexDirection: 'row', gap: 3 }}>
+		<View style={{ flexDirection: 'row', gap: 4 }}>
 			{[1, 2, 3, 4, 5].map((i) => {
 				const icon = value >= i - 0.25 ? 'star' : value >= i - 0.75 ? 'star-half' : 'star-outline';
 				const star = (
@@ -479,7 +477,7 @@ export function Stat({ value, label, tint }: { value: string | number; label: st
 			style={{
 				flex: 1,
 				backgroundColor: colors.card,
-				borderRadius: 18,
+				borderRadius: 20,
 				borderWidth: 1,
 				borderColor: colors.border,
 				paddingVertical: 12,
@@ -492,13 +490,12 @@ export function Stat({ value, label, tint }: { value: string | number; label: st
 				style={{
 					color: tint ?? colors.text,
 					fontFamily: fonts.display,
-					fontSize: 30,
-					lineHeight: 32
+					fontSize: 28, lineHeight: 30,
 				}}
 			>
 				{String(value)}
 			</Text>
-			<Text style={{ color: colors.textMuted, fontSize: 11, fontFamily: fonts.sansMedium }}>
+			<Text style={{ color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansMedium }}>
 				{label}
 			</Text>
 		</View>
@@ -510,15 +507,14 @@ export function SectionTitle({ children }: { children: string }) {
 	const { colors } = useTheme();
 	const bar = useMemo(() => gradientBar(colors), [colors]);
 	return (
-		<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, marginBottom: -2 }}>
+		<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: -2 }}>
 			<Image source={{ uri: bar }} style={{ width: 34, height: 5, borderRadius: 2 }} />
 			<Text
 				style={{
 					color: colors.text,
 					fontFamily: fonts.display,
-					fontSize: 21,
+					fontSize: 28, lineHeight: 30,
 					letterSpacing: 2.5,
-					lineHeight: 24
 				}}
 			>
 				{children.toUpperCase()}
@@ -535,7 +531,7 @@ export function EmptyState({ icon, text }: { icon: string; text: string }) {
 				style={{
 					width: 56,
 					height: 56,
-					borderRadius: 28,
+					borderRadius: 20,
 					backgroundColor: colors.card,
 					alignItems: 'center',
 					justifyContent: 'center'
@@ -546,7 +542,7 @@ export function EmptyState({ icon, text }: { icon: string; text: string }) {
 			<Text
 				style={{
 					color: colors.textMuted,
-					fontSize: 14,
+					fontSize: 15, lineHeight: 21,
 					fontFamily: fonts.sans,
 					textAlign: 'center',
 					maxWidth: 240
@@ -563,7 +559,7 @@ export function ErrorCard({ message }: { message: string }) {
 	const { colors } = useTheme();
 	return (
 		<Card style={{ backgroundColor: colors.danger + '14' }}>
-			<Text style={{ color: colors.danger, fontSize: 14, fontFamily: fonts.sansMedium }}>
+			<Text style={{ color: colors.danger, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansMedium }}>
 				{message}
 			</Text>
 		</Card>
@@ -644,8 +640,8 @@ export function Sheet({
 						borderTopRightRadius: 28,
 						borderTopWidth: 1,
 						borderTopColor: colors.dark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)',
-						padding: 22,
-						paddingBottom: 22 + Math.max(insets.bottom, 14),
+						padding: 20,
+						paddingBottom: 20 + Math.max(insets.bottom, 14),
 						gap: 12
 					}}
 					onPress={() => {}}
@@ -664,7 +660,7 @@ export function Sheet({
 						style={{
 							color: colors.text,
 							fontFamily: fonts.display,
-							fontSize: 24,
+							fontSize: 28, lineHeight: 30,
 							letterSpacing: 1
 						}}
 					>
@@ -687,11 +683,11 @@ export function Input(props: TextInputProps) {
 			style={[
 				{
 					backgroundColor: colors.bgSecondary,
-					borderRadius: 14,
+					borderRadius: 12,
 					color: colors.text,
 					paddingHorizontal: 16,
-					paddingVertical: 13,
-					fontSize: 15.5,
+					paddingVertical: 12,
+					fontSize: 15, lineHeight: 21,
 					fontFamily: fonts.sans
 				},
 				props.multiline && { minHeight: 84, textAlignVertical: 'top' },

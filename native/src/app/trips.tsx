@@ -173,7 +173,7 @@ export default function Trips() {
 												}
 												style={({ pressed }) => [styles.dateRow, pressed && { opacity: 0.8 }]}
 											>
-												<View style={{ flex: 1, gap: 6 }}>
+												<View style={{ flex: 1, gap: 8 }}>
 													<View style={styles.dateHead}>
 														{mine ? (
 															<Ionicons name="checkmark-circle" size={15} color={colors.accentBlue} />
@@ -277,7 +277,7 @@ export default function Trips() {
 					value={form.title}
 					onChangeText={(v) => setForm({ ...form, title: v })}
 				/>
-				<View style={{ flexDirection: 'row', gap: 10 }}>
+				<View style={{ flexDirection: 'row', gap: 8 }}>
 					<Input
 						placeholder="Start 2026-10-02"
 						value={form.start}
@@ -311,7 +311,7 @@ export default function Trips() {
 				onClose={() => setDateFor(null)}
 				title={`Termin vorschlagen — ${dateFor?.title ?? ''}`}
 			>
-				<View style={{ flexDirection: 'row', gap: 10 }}>
+				<View style={{ flexDirection: 'row', gap: 8 }}>
 					<Input
 						placeholder="Start 2026-10-09"
 						value={dateForm.start}
@@ -352,37 +352,37 @@ const makeStyles = (colors: ThemeColors) =>
 		justifyContent: 'center'
 	},
 	head: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-	title: { color: colors.text, fontSize: 17.5, fontFamily: fonts.sansBold },
-	metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
-	meta: { color: colors.textMuted, fontSize: 13 },
+	title: { color: colors.text, fontSize: 16, lineHeight: 21, fontFamily: fonts.sansBold },
+	metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
+	meta: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
 	shareBtn: {
 		width: 36,
 		height: 36,
-		borderRadius: 18,
+		borderRadius: 20,
 		backgroundColor: colors.hover,
 		alignItems: 'center',
 		justifyContent: 'center'
 	},
-	notes: { color: colors.textSecondary, fontSize: 13.5, lineHeight: 20 },
-	countsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-	counts: { color: colors.textMuted, fontSize: 12.5, flex: 1 },
-	datesTitle: { color: colors.textSecondary, fontFamily: fonts.displayMedium, fontSize: 13, letterSpacing: 1.5 },
-	dateRow: { backgroundColor: colors.bgSecondary, borderRadius: 13, padding: 13 },
-	dateHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-	dateLabel: { color: colors.text, fontSize: 13.5, fontFamily: fonts.sansSemi, flex: 1 },
-	dateVotes: { color: colors.textSecondary, fontSize: 12.5, fontWeight: '700' },
-	proposeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 3 },
-	proposeText: { color: colors.textSecondary, fontSize: 13 },
+	notes: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
+	countsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+	counts: { color: colors.textMuted, fontSize: 13, lineHeight: 18, flex: 1 },
+	datesTitle: { color: colors.textSecondary, fontFamily: fonts.displayMedium, fontSize: 13, lineHeight: 18, letterSpacing: 1.5 },
+	dateRow: { backgroundColor: colors.bgSecondary, borderRadius: 12, padding: 12 },
+	dateHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+	dateLabel: { color: colors.text, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansSemi, flex: 1 },
+	dateVotes: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold },
+	proposeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+	proposeText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
 	actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
+	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 	modeRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
 		backgroundColor: colors.hover,
-		borderRadius: 13,
-		paddingHorizontal: 15,
-		paddingVertical: 14
+		borderRadius: 12,
+		paddingHorizontal: 16,
+		paddingVertical: 12
 	},
-	modeText: { color: colors.text, fontSize: 15, fontFamily: fonts.sansSemi }
+	modeText: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi }
 });

@@ -88,7 +88,7 @@ export default function More() {
 				)}
 			</Pressable>
 
-			<Card style={{ padding: 6 }}>
+			<Card style={{ padding: 8 }}>
 				{MENU.map((item, i) => (
 					<Pressable key={item.route} onPress={() => router.push(item.route)}>
 						{({ pressed }) => (
@@ -113,7 +113,7 @@ export default function More() {
 				))}
 			</Card>
 
-			<Card style={{ padding: 6 }}>
+			<Card style={{ padding: 8 }}>
 				<Pressable onPress={() => Linking.openURL(`${BASE_URL}/map`)}>
 					{({ pressed }) => (
 						<View style={[styles.menuRow, styles.menuDivider, pressed && { opacity: 0.7 }]}>
@@ -233,7 +233,7 @@ export default function More() {
 					value={pushForm.body}
 					onChangeText={(v) => setPushForm({ ...pushForm, body: v })}
 				/>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setPushOpen(false)} />
 					<Button label="Senden" onPress={sendBroadcast} />
 				</View>
@@ -244,9 +244,9 @@ export default function More() {
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-	profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-	profileName: { color: colors.text, fontSize: 17, fontFamily: fonts.sansBold },
-	profileHint: { color: colors.textMuted, fontSize: 12.5, marginTop: 1 },
+	profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+	profileName: { color: colors.text, fontSize: 16, lineHeight: 21, fontFamily: fonts.sansBold },
+	profileHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 0 },
 	menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
 	menuDivider: { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
 	menuIcon: {
@@ -257,14 +257,14 @@ const makeStyles = (colors: ThemeColors) =>
 		alignItems: 'center',
 		justifyContent: 'center'
 	},
-	menuLabel: { color: colors.text, fontSize: 15, fontFamily: fonts.sansSemi },
-	menuHint: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
-	footer: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 14, lineHeight: 17 },
-	themeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 },
+	menuLabel: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi },
+	menuHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 0 },
+	footer: { color: colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 12, lineHeight: 17 },
+	themeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
 	swatch: {
 		width: 46,
 		height: 32,
-		borderRadius: 9,
+		borderRadius: 12,
 		borderWidth: 1,
 		borderColor: colors.border,
 		flexDirection: 'row',
@@ -272,5 +272,5 @@ const makeStyles = (colors: ThemeColors) =>
 		justifyContent: 'center',
 		gap: 4
 	},
-	swatchDot: { width: 10, height: 10, borderRadius: 5 }
+	swatchDot: { width: 10, height: 10, borderRadius: 999 }
 });

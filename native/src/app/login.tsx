@@ -118,14 +118,14 @@ const makeStyles = (colors: ThemeColors) =>
 	logo: {
 		width: 88,
 		height: 88,
-		borderRadius: 24,
+		borderRadius: 20,
 		alignSelf: 'center',
 		marginBottom: 20
 	},
 	title: {
 		color: colors.text,
 		fontFamily: fonts.display,
-		fontSize: 44,
+		fontSize: 40, lineHeight: 42,
 		textAlign: 'center',
 		letterSpacing: 2
 	},
@@ -133,28 +133,28 @@ const makeStyles = (colors: ThemeColors) =>
 	subtitle: {
 		color: colors.textSecondary,
 		fontFamily: fonts.sans,
-		fontSize: 14,
+		fontSize: 15, lineHeight: 21,
 		textAlign: 'center',
-		marginTop: 6,
+		marginTop: 8,
 		marginBottom: 30
 	},
 	inputWrap: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		gap: 10,
+		gap: 8,
 		backgroundColor: colors.card,
-		borderRadius: 16,
-		paddingHorizontal: 15,
+		borderRadius: 12,
+		paddingHorizontal: 16,
 		marginBottom: 12
 	},
-	input: { flex: 1, color: colors.text, paddingVertical: 14, fontSize: 16 },
-	error: { color: colors.danger, fontSize: 14, marginBottom: 8, textAlign: 'center' },
+	input: { flex: 1, color: colors.text, paddingVertical: 12, fontSize: 16, lineHeight: 21 },
+	error: { color: colors.danger, fontSize: 15, lineHeight: 21, marginBottom: 8, textAlign: 'center' },
 	button: {
 		backgroundColor: colors.accent,
 		borderRadius: 999,
-		paddingVertical: 15,
+		paddingVertical: 16,
 		alignItems: 'center',
-		marginTop: 10
+		marginTop: 8
 	},
-	buttonText: { color: colors.onAccent, fontSize: 16, fontFamily: fonts.sansBold }
+	buttonText: { color: colors.onAccent, fontSize: 16, lineHeight: 21, fontFamily: fonts.sansBold }
 });

@@ -43,7 +43,7 @@ export default function Activity() {
 			{entries.length === 0 ? (
 				<EmptyState icon="notifications-off-outline" text="Noch keine Ereignisse." />
 			) : (
-				<Card style={{ gap: 2, paddingVertical: 8 }}>
+				<Card style={{ gap: 4, paddingVertical: 8 }}>
 					{entries.map((e) => (
 						<View key={e.id} style={styles.row}>
 							<View style={styles.iconWrap}>
@@ -53,7 +53,7 @@ export default function Activity() {
 									color={colors.accent}
 								/>
 							</View>
-							<View style={{ flex: 1, gap: 1 }}>
+							<View style={{ flex: 1, gap: 0 }}>
 								<Text style={styles.title}>{e.title}</Text>
 								{e.body ? (
 									<Text style={styles.body} numberOfLines={2}>
@@ -75,16 +75,16 @@ export default function Activity() {
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-	row: { flexDirection: 'row', gap: 12, paddingVertical: 10 },
+	row: { flexDirection: 'row', gap: 12, paddingVertical: 8 },
 	iconWrap: {
 		width: 34,
 		height: 34,
-		borderRadius: 17,
+		borderRadius: 999,
 		backgroundColor: colors.accent + '1a',
 		alignItems: 'center',
 		justifyContent: 'center'
 	},
-	title: { color: colors.text, fontSize: 14, fontFamily: fonts.sansSemi },
-	body: { color: colors.textSecondary, fontSize: 13, fontFamily: fonts.sans },
-	time: { color: colors.textMuted, fontSize: 11.5, marginTop: 2 }
+	title: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi },
+	body: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans },
+	time: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 4 }
 });

@@ -32,7 +32,7 @@ export default function Profile() {
 						<Pressable onPress={() => p.avatarFull && setShowFull(true)}>
 							<Avatar username={p.username} avatar={p.avatar} size={84} />
 						</Pressable>
-						<View style={{ flex: 1, gap: 3 }}>
+						<View style={{ flex: 1, gap: 4 }}>
 							<Text style={styles.username}>{p.username}</Text>
 							{data.myRank ? (
 								<Text style={styles.rank}>
@@ -64,7 +64,7 @@ export default function Profile() {
 					{data.completedChallenges.length > 0 ? (
 						<>
 							<SectionTitle>Geschaffte Challenges</SectionTitle>
-							<Card style={{ gap: 9 }}>
+							<Card style={{ gap: 8 }}>
 								{data.completedChallenges.slice(0, 10).map((ch, i) => (
 									<View key={i} style={styles.chRow}>
 										<Ionicons name="trophy" size={14} color={colors.accent} />
@@ -112,23 +112,23 @@ export default function Profile() {
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
 	headCard: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-	username: { color: colors.text, fontSize: 21, fontFamily: fonts.sansBold },
-	rank: { color: colors.textSecondary, fontSize: 13 },
+	username: { color: colors.text, fontSize: 28, lineHeight: 30, fontFamily: fonts.sansBold },
+	rank: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
 	statsRow: { flexDirection: 'row', gap: 8 },
 	statBox: {
 		flex: 1,
 		backgroundColor: colors.card,
-		borderRadius: 18,
-		paddingVertical: 14,
+		borderRadius: 20,
+		paddingVertical: 12,
 		alignItems: 'center'
 	},
-	statNum: { color: colors.text, fontFamily: fonts.display, fontSize: 26, lineHeight: 28 },
-	statLabel: { color: colors.textMuted, fontSize: 10.5, marginTop: 2 },
+	statNum: { color: colors.text, fontFamily: fonts.display, fontSize: 28, lineHeight: 28 },
+	statLabel: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 4 },
 	chRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	chText: { color: colors.text, fontSize: 13.5, fontWeight: '600', flex: 1 },
-	chSpot: { color: colors.textMuted, fontWeight: '400' },
-	memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 },
-	memberName: { color: colors.text, fontSize: 14.5, fontFamily: fonts.sansSemi, flex: 1 },
+	chText: { color: colors.text, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansSemi, flex: 1 },
+	chSpot: { color: colors.textMuted, fontFamily: fonts.sans },
+	memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+	memberName: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi, flex: 1 },
 	viewerBackdrop: {
 		flex: 1,
 		backgroundColor: 'rgba(0,0,0,0.95)',

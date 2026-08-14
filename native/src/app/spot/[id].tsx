@@ -13,7 +13,7 @@ import {
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { type ThemeColors } from '../../lib/theme';
+import { fonts, type ThemeColors } from '../../lib/theme';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import {
 	Card,
@@ -298,44 +298,44 @@ export default function SpotDetailScreen() {
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
 	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-	galleryImage: { width: SCREEN_W * 0.72, height: SCREEN_W * 0.48, borderRadius: 16, backgroundColor: colors.hover },
-	rateLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
-	scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 },
-	scoreText: { color: colors.textSecondary, fontSize: 13 },
+	galleryImage: { width: SCREEN_W * 0.72, height: SCREEN_W * 0.48, borderRadius: 12, backgroundColor: colors.hover },
+	rateLabel: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold, letterSpacing: 1.5 },
+	scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+	scoreText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
 	mapBtn: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		gap: 6,
+		gap: 8,
 		backgroundColor: colors.accent,
 		borderRadius: 999,
-		paddingHorizontal: 14,
-		paddingVertical: 9
+		paddingHorizontal: 12,
+		paddingVertical: 8
 	},
-	mapBtnText: { color: colors.onAccent, fontSize: 13, fontWeight: '800' },
-	myRate: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
-	myRateLabel: { color: colors.textSecondary, fontSize: 13 },
-	description: { color: colors.textSecondary, fontSize: 14, lineHeight: 21 },
+	mapBtnText: { color: colors.onAccent, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold },
+	myRate: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+	myRateLabel: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+	description: { color: colors.textSecondary, fontSize: 15, lineHeight: 21 },
 	infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	infoText: { color: colors.textSecondary, fontSize: 13, flex: 1 },
-	progressText: { color: colors.textMuted, fontSize: 12 },
-	challengeTitle: { color: colors.text, fontSize: 15.5, fontWeight: '700', flex: 1 },
-	challengeDesc: { color: colors.textSecondary, fontSize: 13.5, lineHeight: 20 },
+	infoText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, flex: 1 },
+	progressText: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+	challengeTitle: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold, flex: 1 },
+	challengeDesc: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
 	doneRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	doneText: { color: colors.textMuted, fontSize: 12.5 },
+	doneText: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
 	doneBtn: {
 		backgroundColor: colors.accent,
 		borderRadius: 999,
-		paddingVertical: 11,
+		paddingVertical: 12,
 		alignItems: 'center'
 	},
-	doneBtnText: { color: colors.onAccent, fontSize: 14, fontWeight: '800' },
+	doneBtnText: { color: colors.onAccent, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold },
 	undoBtn: {
 		backgroundColor: colors.hover,
 		borderRadius: 999,
-		paddingVertical: 11,
+		paddingVertical: 12,
 		alignItems: 'center'
 	},
-	undoBtnText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+	undoBtnText: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansSemi },
 	challengeHead: {
 		flexDirection: 'row',
 		alignItems: 'center',
@@ -345,24 +345,24 @@ const makeStyles = (colors: ThemeColors) =>
 	addSmall: {
 		width: 32,
 		height: 32,
-		borderRadius: 16,
+		borderRadius: 12,
 		backgroundColor: colors.accent,
 		alignItems: 'center',
 		justifyContent: 'center',
-		marginTop: 10
+		marginTop: 8
 	},
-	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
+	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 	nearbyRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		gap: 8,
 		backgroundColor: colors.card,
-		borderRadius: 16,
-		paddingHorizontal: 15,
-		paddingVertical: 13
+		borderRadius: 12,
+		paddingHorizontal: 16,
+		paddingVertical: 12
 	},
-	nearbyName: { color: colors.text, fontSize: 14, fontWeight: '600', flex: 1 },
-	nearbyCity: { color: colors.textMuted, fontSize: 12.5 },
+	nearbyName: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi, flex: 1 },
+	nearbyCity: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
 	viewerBackdrop: {
 		flex: 1,
 		backgroundColor: 'rgba(0,0,0,0.95)',

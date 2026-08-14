@@ -208,7 +208,7 @@ export default function Dashboard() {
 											{spot.fixed ? <Pill label="Fix" color={colors.accent} filled /> : null}
 										</View>
 									) : s.spotVotes.length > 0 ? (
-										<View style={{ gap: 6, marginTop: 4 }}>
+										<View style={{ gap: 8, marginTop: 4 }}>
 											<Text style={styles.groupLabel}>SPOT-VOTING ({s.spotVotes.length})</Text>
 											{s.spotVotes.map((v) => {
 												const mine = s.userVotedSpotId === v.spotId;
@@ -400,7 +400,7 @@ export default function Dashboard() {
 				onClose={() => setSpotFor(null)}
 				title={`Spot festlegen — ${spotFor ? metaDate(spotFor.date) : ''}`}
 			>
-				<ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ gap: 7 }}>
+				<ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ gap: 8 }}>
 					{spotFor?.overrideSpot ? (
 						<Pressable
 							style={({ pressed }) => [styles.spotOption, pressed && { opacity: 0.7 }]}
@@ -446,81 +446,80 @@ const makeStyles = (colors: ThemeColors) =>
 		tripKicker: {
 			color: colors.accentBlue,
 			fontFamily: fonts.displayMedium,
-			fontSize: 13,
+			fontSize: 13, lineHeight: 18,
 			letterSpacing: 2.5
 		},
-		tripTitle: { color: colors.text, fontSize: 16, fontFamily: fonts.sansBold, marginTop: 3 },
+		tripTitle: { color: colors.text, fontSize: 16, lineHeight: 21, fontFamily: fonts.sansBold, marginTop: 4 },
 		sessionCard: { padding: 0, overflow: 'hidden' },
-		band: { height: 34, justifyContent: 'center', paddingHorizontal: 18 },
+		band: { height: 34, justifyContent: 'center', paddingHorizontal: 16 },
 		bandText: {
 			color: colors.onAccent,
 			fontFamily: fonts.displayMedium,
-			fontSize: 14,
+			fontSize: 15, lineHeight: 21,
 			letterSpacing: 3
 		},
-		sessionBody: { padding: 18, gap: 8 },
-		dayRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+		sessionBody: { padding: 16, gap: 8 },
+		dayRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
 		dayName: {
 			color: colors.text,
 			fontFamily: fonts.display,
-			fontSize: 34,
-			lineHeight: 36,
+			fontSize: 28, lineHeight: 30,
 			letterSpacing: 1
 		},
 		countChip: {
 			backgroundColor: colors.hover,
 			borderRadius: 999,
 			paddingHorizontal: 12,
-			paddingVertical: 5
+			paddingVertical: 4
 		},
-		countChipText: { color: colors.textSecondary, fontSize: 13, fontFamily: fonts.sansMedium },
-		metaLine: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: 14.5 },
-		spotRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 2 },
-		spotText: { color: colors.text, fontSize: 14.5, fontFamily: fonts.sansBold, flexShrink: 1 },
+		countChipText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansMedium },
+		metaLine: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: 15, lineHeight: 21 },
+		spotRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+		spotText: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold, flexShrink: 1 },
 		groupLabel: {
 			fontFamily: fonts.displayMedium,
-			fontSize: 15,
+			fontSize: 15, lineHeight: 21,
 			letterSpacing: 2,
-			marginTop: 6,
+			marginTop: 8,
 			color: colors.textSecondary
 		},
-		chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-		emptyDash: { color: colors.textMuted, fontSize: 14 },
+		chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+		emptyDash: { color: colors.textMuted, fontSize: 15, lineHeight: 21 },
 		voteRow: {
 			flexDirection: 'row',
 			alignItems: 'center',
-			gap: 9,
+			gap: 8,
 			backgroundColor: colors.bgSecondary,
 			borderRadius: 12,
 			borderWidth: 1,
 			borderColor: colors.border,
 			paddingHorizontal: 12,
-			paddingVertical: 11
+			paddingVertical: 12
 		},
 		voteDot: {
 			width: 15,
 			height: 15,
-			borderRadius: 8,
+			borderRadius: 12,
 			borderWidth: 1.5,
 			borderColor: colors.textMuted
 		},
-		voteName: { color: colors.text, fontSize: 14.5, fontFamily: fonts.sansSemi, flex: 1 },
-		voteCount: { color: colors.textSecondary, fontSize: 15, fontFamily: fonts.sansBold },
+		voteName: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi, flex: 1 },
+		voteCount: { color: colors.textSecondary, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold },
 		actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8 },
-		soloCard: { paddingVertical: 14 },
-		soloRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-		soloTitle: { color: colors.text, fontSize: 14, fontFamily: fonts.sansBold },
-		soloText: { color: colors.textSecondary, fontSize: 13, fontFamily: fonts.sans, marginTop: 1 },
-		sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
+		soloCard: { paddingVertical: 12 },
+		soloRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+		soloTitle: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold },
+		soloText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans, marginTop: 0 },
+		sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 		spotOption: {
 			flexDirection: 'row',
 			alignItems: 'center',
-			gap: 10,
+			gap: 8,
 			backgroundColor: colors.hover,
-			borderRadius: 13,
-			paddingHorizontal: 14,
-			paddingVertical: 13
+			borderRadius: 12,
+			paddingHorizontal: 12,
+			paddingVertical: 12
 		},
-		spotOptionText: { color: colors.text, fontSize: 14.5, fontFamily: fonts.sansSemi, flex: 1 },
-		spotOptionCity: { color: colors.textMuted, fontSize: 12.5 }
+		spotOptionText: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi, flex: 1 },
+		spotOptionCity: { color: colors.textMuted, fontSize: 13, lineHeight: 18 }
 	});
