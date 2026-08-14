@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 	<string name="app_name">Parkour Portal</string>
-	<string name="launch_url">https://matetraining.duckdns.org/</string>
+	<string name="launch_url">https://matetraining.duckdns.org/?appv=1.0.0</string>
 
 	<!--
 		Sagt Android, zu welcher Website die App gehört. Die Website bestätigt das

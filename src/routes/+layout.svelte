@@ -18,6 +18,7 @@
 	import ActivityToasts from '$lib/components/ActivityToasts.svelte';
 	import TripDecisionGate from '$lib/components/TripDecisionGate.svelte';
 	import { refreshActivity, setActivitySelf } from '$lib/activityStore.svelte';
+	import { ANDROID_APP_VERSION } from '$lib/appVersion';
 
 type NavIcon =
 		| 'home'
@@ -195,6 +196,16 @@ type NavIcon =
 		}
 		const t = setTimeout(() => (showNavProgress = true), 400);
 		return () => clearTimeout(t);
+	});
+
+	/**
+	 * Veraltete Android-Hülle erkennen: die APK startet mit ?appv=<Version>.
+	 * Weicht sie von der Server-Version ab, gibt es einen Hinweis mit Link.
+	 */
+	let appUpdateHint = $state(false);
+	$effect(() => {
+		const fromApp = $page.url.searchParams.get('appv');
+		if (fromApp && fromApp !== ANDROID_APP_VERSION) appUpdateHint = true;
 	});
 
 let mobileMoreOpen = $state(false);
@@ -494,6 +505,27 @@ let mobileMoreOpen = $state(false);
 				</button>
 			</div>
 		</nav>
+
+		{#if appUpdateHint}
+			<div class="fixed inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[84] mx-auto max-w-md rounded-xl border border-accent/40 bg-bg-card p-3 shadow-2xl md:bottom-6 md:right-6 md:left-auto">
+				<p class="text-sm font-semibold text-text-primary">App-Update verfügbar</p>
+				<p class="mt-0.5 text-xs text-text-secondary">
+					Deine installierte App-Hülle ist älter als die auf dem Server.
+				</p>
+				<div class="mt-2 flex gap-2">
+					<a
+						href="/app"
+						onclick={() => (appUpdateHint = false)}
+						class="flex-1 rounded-lg bg-accent px-3 py-2 text-center text-sm font-semibold text-[#0c0c0e]"
+					>Herunterladen</a>
+					<button
+						type="button"
+						onclick={() => (appUpdateHint = false)}
+						class="cursor-pointer rounded-lg border border-border px-3 py-2 text-sm text-text-muted"
+					>Später</button>
+				</div>
+			</div>
+		{/if}
 
 		<OfflineIndicator />
 		<ActivityToasts />

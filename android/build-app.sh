@@ -40,6 +40,13 @@ cd "$ROOT/android"
 APK="$ROOT/android/app/build/outputs/apk/release/app-release.apk"
 AAB="$ROOT/android/app/build/outputs/bundle/release/app-release.aab"
 
+# Zum Download bereitstellen (Route /app/parkour-portal.apk)
+mkdir -p "$ROOT/data/app"
+cp "$ROOT/android/app/build/outputs/apk/release/app-release.apk" "$ROOT/data/app/parkour-portal.apk"
+echo "Download bereit: https://matetraining.duckdns.org/app"
+echo "WICHTIG: src/lib/appVersion.ts und android/.../strings.xml (?appv=) auf $VERSION_NAME setzen,"
+echo "         danach das Portal neu bauen — sonst erkennt es alte Installationen nicht."
+
 echo
 echo "Fertig:"
 echo "  APK (direkt installierbar): $APK"
