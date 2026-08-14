@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors } from '../../lib/theme';
+import { colors, fonts } from '../../lib/theme';
 import { TopBar, Screen, Stars, ErrorCard, EmptyState } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { getSpots, mediaUrl } from '../../lib/api';
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
 		borderRadius: 16,
 		paddingHorizontal: 14
 	},
-	searchInput: { flex: 1, color: colors.text, paddingVertical: 11, fontSize: 15 },
+	searchInput: { flex: 1, color: colors.text, paddingVertical: 11, fontSize: 15, fontFamily: fonts.sans },
 	row: {
 		flexDirection: 'row',
 		alignItems: 'center',
@@ -104,9 +104,9 @@ const styles = StyleSheet.create({
 	},
 	thumb: { width: 70, height: 70, borderRadius: 14, backgroundColor: colors.hover },
 	thumbEmpty: { alignItems: 'center', justifyContent: 'center' },
-	name: { color: colors.text, fontSize: 15.5, fontWeight: '700' },
+	name: { color: colors.text, fontSize: 15.5, fontFamily: fonts.sansBold },
 	micro: { color: colors.accentBlue, fontSize: 12, fontWeight: '700' },
-	city: { color: colors.textMuted, fontSize: 13 },
+	city: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.sans },
 	scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 },
 	voteCount: { color: colors.textMuted, fontSize: 12 }
 });

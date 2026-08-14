@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors } from '../../lib/theme';
+import { colors, fonts } from '../../lib/theme';
 import { Card, TopBar, Screen, SectionTitle, ErrorCard, EmptyState, ProgressBar } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { getArena } from '../../lib/api';
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
 		paddingVertical: 14,
 		alignItems: 'center'
 	},
-	statNum: { color: colors.text, fontSize: 20, fontWeight: '800' },
+	statNum: { color: colors.text, fontFamily: fonts.display, fontSize: 28, lineHeight: 30 },
 	statLabel: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
 	search: {
 		flexDirection: 'row',
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
 		borderRadius: 16,
 		paddingHorizontal: 14
 	},
-	searchInput: { flex: 1, color: colors.text, paddingVertical: 11, fontSize: 15 },
+	searchInput: { flex: 1, color: colors.text, paddingVertical: 11, fontSize: 15, fontFamily: fonts.sans },
 	filterRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
@@ -180,10 +180,10 @@ const styles = StyleSheet.create({
 	filterLabel: { color: colors.textSecondary, fontSize: 14 },
 	lbRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 	lbRank: { color: colors.textMuted, fontSize: 14, fontWeight: '800', width: 18 },
-	lbName: { color: colors.text, fontSize: 14, fontWeight: '600', flex: 1 },
+	lbName: { color: colors.text, fontSize: 14, fontFamily: fonts.sansSemi, flex: 1 },
 	lbClears: { color: colors.textSecondary, fontSize: 13 },
 	spotHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	spotName: { color: colors.text, fontSize: 15.5, fontWeight: '700' },
+	spotName: { color: colors.text, fontSize: 15.5, fontFamily: fonts.sansBold },
 	spotCity: { color: colors.textMuted, fontSize: 12.5 },
 	spotCount: { color: colors.accent, fontSize: 14, fontWeight: '800' },
 	challengeList: { color: colors.textMuted, fontSize: 12.5, lineHeight: 18 },

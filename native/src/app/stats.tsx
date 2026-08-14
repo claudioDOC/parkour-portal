@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors } from '../lib/theme';
+import { colors, fonts } from '../lib/theme';
 import { Card, TopBar, Screen, SectionTitle, ErrorCard, ProgressBar } from '../lib/ui';
 import { useData } from '../lib/store';
 import { getStats } from '../lib/api';
@@ -108,11 +108,11 @@ const styles = StyleSheet.create({
 		paddingVertical: 14,
 		alignItems: 'center'
 	},
-	statNum: { color: colors.text, fontSize: 20, fontWeight: '800' },
+	statNum: { color: colors.text, fontFamily: fonts.display, fontSize: 28, lineHeight: 30 },
 	statLabel: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
 	lbRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 	lbRank: { color: colors.textMuted, fontSize: 13, fontWeight: '800', width: 18 },
-	lbName: { color: colors.text, fontSize: 14, fontWeight: '600', flex: 1 },
+	lbName: { color: colors.text, fontSize: 14, fontFamily: fonts.sansSemi, flex: 1 },
 	lbPercent: { color: colors.textSecondary, fontSize: 13.5, fontWeight: '800' },
 	streak: { flexDirection: 'row', alignItems: 'center', gap: 2 },
 	streakText: { color: colors.warning, fontSize: 12, fontWeight: '800' },

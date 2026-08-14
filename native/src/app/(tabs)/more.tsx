@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors } from '../../lib/theme';
+import { colors, fonts } from '../../lib/theme';
 import { Card, TopBar, Screen, Avatar } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { getProfile } from '../../lib/api';
@@ -124,7 +124,7 @@ export default function More() {
 
 const styles = StyleSheet.create({
 	profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-	profileName: { color: colors.text, fontSize: 17, fontWeight: '800' },
+	profileName: { color: colors.text, fontSize: 17, fontFamily: fonts.sansBold },
 	profileHint: { color: colors.textMuted, fontSize: 12.5, marginTop: 1 },
 	menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
 	menuDivider: { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		justifyContent: 'center'
 	},
-	menuLabel: { color: colors.text, fontSize: 15, fontWeight: '700' },
+	menuLabel: { color: colors.text, fontSize: 15, fontFamily: fonts.sansSemi },
 	menuHint: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
 	footer: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 14, lineHeight: 17 }
 });

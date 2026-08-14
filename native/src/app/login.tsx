@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors } from '../lib/theme';
+import { colors, fonts } from '../lib/theme';
+import { Image as ExpoImage } from 'expo-image';
+import { BG_TEXTURE } from '../lib/gfx';
 import { login } from '../lib/api';
 import { useAuth } from './_layout';
 
@@ -45,9 +47,10 @@ export default function Login() {
 			style={styles.screen}
 			behavior={Platform.OS === 'ios' ? 'padding' : undefined}
 		>
+			<ExpoImage source={{ uri: BG_TEXTURE }} style={StyleSheet.absoluteFill} contentFit="cover" />
 			<Image source={require('../../assets/images/icon.png')} style={styles.logo} />
 			<Text style={styles.title}>
-				Parkour <Text style={styles.titleAccent}>Portal</Text>
+				PARKOUR <Text style={styles.titleAccent}>PORTAL</Text>
 			</Text>
 			<Text style={styles.subtitle}>Melde dich mit deinem Portal-Konto an</Text>
 
@@ -116,14 +119,15 @@ const styles = StyleSheet.create({
 	},
 	title: {
 		color: colors.text,
-		fontSize: 28,
-		fontWeight: '800',
+		fontFamily: fonts.display,
+		fontSize: 44,
 		textAlign: 'center',
-		letterSpacing: -0.5
+		letterSpacing: 2
 	},
 	titleAccent: { color: colors.accent },
 	subtitle: {
 		color: colors.textSecondary,
+		fontFamily: fonts.sans,
 		fontSize: 14,
 		textAlign: 'center',
 		marginTop: 6,
@@ -147,5 +151,5 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		marginTop: 10
 	},
-	buttonText: { color: colors.onAccent, fontSize: 16, fontWeight: '800' }
+	buttonText: { color: colors.onAccent, fontSize: 16, fontFamily: fonts.sansBold }
 });

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors } from '../../lib/theme';
+import { colors, fonts } from '../../lib/theme';
 import {
 	Card,
 	TopBar,
@@ -296,8 +296,8 @@ export default function Training() {
 
 const styles = StyleSheet.create({
 	cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-	cardDate: { color: colors.text, fontSize: 19, fontWeight: '800', letterSpacing: -0.3 },
-	cardTime: { color: colors.textMuted, fontSize: 13.5 },
+	cardDate: { color: colors.text, fontFamily: fonts.display, fontSize: 27, lineHeight: 28, letterSpacing: 0.5 },
+	cardTime: { color: colors.textMuted, fontSize: 13.5, fontFamily: fonts.sans },
 	spotRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 	spotIcon: {
 		width: 32,
@@ -307,9 +307,9 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		justifyContent: 'center'
 	},
-	spotText: { color: colors.text, fontSize: 14.5, fontWeight: '700', flex: 1 },
+	spotText: { color: colors.text, fontSize: 14.5, fontFamily: fonts.sansBold, flex: 1 },
 	voteMeta: { color: colors.textMuted, fontSize: 12 },
-	voteTitle: { color: colors.accentBlue, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+	voteTitle: { color: colors.accentBlue, fontFamily: fonts.displayMedium, fontSize: 14, letterSpacing: 2.5 },
 	voteRow: { borderRadius: 13, overflow: 'hidden', backgroundColor: colors.bgSecondary },
 	voteFill: { position: 'absolute', top: 0, bottom: 0, left: 0 },
 	voteContent: {
@@ -326,12 +326,12 @@ const styles = StyleSheet.create({
 		borderWidth: 1.5,
 		borderColor: colors.textMuted
 	},
-	voteName: { color: colors.text, fontSize: 14.5, fontWeight: '700', flexShrink: 1 },
+	voteName: { color: colors.text, fontSize: 14.5, fontFamily: fonts.sansSemi, flexShrink: 1 },
 	voteCity: { color: colors.textMuted, fontSize: 12.5, flex: 1 },
-	voteCount: { color: colors.textSecondary, fontSize: 14.5, fontWeight: '800' },
+	voteCount: { color: colors.textSecondary, fontSize: 15, fontFamily: fonts.sansBold },
 	voteEmpty: { color: colors.textMuted, fontSize: 13 },
 	attendRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-	attendMeta: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+	attendMeta: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.sansSemi },
 	actions: { flexDirection: 'row', alignItems: 'center', gap: 9, flexWrap: 'wrap' },
 	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
 	spotOption: {

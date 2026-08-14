@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors } from '../lib/theme';
+import { colors, fonts } from '../lib/theme';
 import { Card, TopBar, Screen, EmptyState } from '../lib/ui';
 import { useActivity } from '../lib/activity';
 
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		justifyContent: 'center'
 	},
-	title: { color: colors.text, fontSize: 14, fontWeight: '700' },
-	body: { color: colors.textSecondary, fontSize: 13 },
+	title: { color: colors.text, fontSize: 14, fontFamily: fonts.sansSemi },
+	body: { color: colors.textSecondary, fontSize: 13, fontFamily: fonts.sans },
 	time: { color: colors.textMuted, fontSize: 11.5, marginTop: 2 }
 });

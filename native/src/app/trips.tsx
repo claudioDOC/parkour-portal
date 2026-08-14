@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Alert, Share, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors } from '../lib/theme';
+import { colors, fonts } from '../lib/theme';
 import {
 	Card,
 	TopBar,
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
 		justifyContent: 'center'
 	},
 	head: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-	title: { color: colors.text, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+	title: { color: colors.text, fontSize: 17.5, fontFamily: fonts.sansBold },
 	metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
 	meta: { color: colors.textMuted, fontSize: 13 },
 	shareBtn: {
@@ -362,10 +362,10 @@ const styles = StyleSheet.create({
 	notes: { color: colors.textSecondary, fontSize: 13.5, lineHeight: 20 },
 	countsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 	counts: { color: colors.textMuted, fontSize: 12.5, flex: 1 },
-	datesTitle: { color: colors.textMuted, fontSize: 10.5, fontWeight: '800', letterSpacing: 1 },
+	datesTitle: { color: colors.textSecondary, fontFamily: fonts.displayMedium, fontSize: 13, letterSpacing: 1.5 },
 	dateRow: { backgroundColor: colors.bgSecondary, borderRadius: 13, padding: 13 },
 	dateHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-	dateLabel: { color: colors.text, fontSize: 13.5, fontWeight: '700', flex: 1 },
+	dateLabel: { color: colors.text, fontSize: 13.5, fontFamily: fonts.sansSemi, flex: 1 },
 	dateVotes: { color: colors.textSecondary, fontSize: 12.5, fontWeight: '700' },
 	proposeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 3 },
 	proposeText: { color: colors.textSecondary, fontSize: 13 },
@@ -380,5 +380,5 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 15,
 		paddingVertical: 14
 	},
-	modeText: { color: colors.text, fontSize: 15, fontWeight: '600' }
+	modeText: { color: colors.text, fontSize: 15, fontFamily: fonts.sansSemi }
 });

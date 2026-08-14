@@ -3,6 +3,14 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, AppState } from 'react-native';
 import * as Updates from 'expo-updates';
+import { useFonts } from 'expo-font';
+import { Teko_500Medium, Teko_600SemiBold } from '@expo-google-fonts/teko';
+import {
+	PlusJakartaSans_400Regular,
+	PlusJakartaSans_500Medium,
+	PlusJakartaSans_600SemiBold,
+	PlusJakartaSans_700Bold
+} from '@expo-google-fonts/plus-jakarta-sans';
 import { colors } from '../lib/theme';
 import { getMe, getToken, logout, type Me } from '../lib/api';
 import { clearDataCache } from '../lib/store';
@@ -62,6 +70,15 @@ function useSelfHostedUpdates() {
 export default function RootLayout() {
 	const [me, setMe] = useState<Me | null>(null);
 	const [ready, setReady] = useState(false);
+	// Schriften der Website (Teko + Plus Jakarta Sans) — Teil der App-Identität.
+	const [fontsLoaded] = useFonts({
+		Teko_500Medium,
+		Teko_600SemiBold,
+		PlusJakartaSans_400Regular,
+		PlusJakartaSans_500Medium,
+		PlusJakartaSans_600SemiBold,
+		PlusJakartaSans_700Bold
+	});
 	const segments = useSegments();
 	const router = useRouter();
 
@@ -94,7 +111,7 @@ export default function RootLayout() {
 		setMe(null);
 	};
 
-	if (!ready) {
+	if (!ready || !fontsLoaded) {
 		return (
 			<View
 				style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}

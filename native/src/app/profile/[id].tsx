@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors } from '../../lib/theme';
+import { colors, fonts } from '../../lib/theme';
 import { Card, TopBar, Screen, SectionTitle, ErrorCard, Avatar } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { getProfile, mediaUrl } from '../../lib/api';
@@ -108,7 +108,7 @@ export default function Profile() {
 
 const styles = StyleSheet.create({
 	headCard: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-	username: { color: colors.text, fontSize: 21, fontWeight: '800' },
+	username: { color: colors.text, fontSize: 21, fontFamily: fonts.sansBold },
 	rank: { color: colors.textSecondary, fontSize: 13 },
 	statsRow: { flexDirection: 'row', gap: 8 },
 	statBox: {
@@ -118,13 +118,13 @@ const styles = StyleSheet.create({
 		paddingVertical: 14,
 		alignItems: 'center'
 	},
-	statNum: { color: colors.text, fontSize: 18, fontWeight: '800' },
+	statNum: { color: colors.text, fontFamily: fonts.display, fontSize: 26, lineHeight: 28 },
 	statLabel: { color: colors.textMuted, fontSize: 10.5, marginTop: 2 },
 	chRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 	chText: { color: colors.text, fontSize: 13.5, fontWeight: '600', flex: 1 },
 	chSpot: { color: colors.textMuted, fontWeight: '400' },
 	memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 },
-	memberName: { color: colors.text, fontSize: 14.5, fontWeight: '600', flex: 1 },
+	memberName: { color: colors.text, fontSize: 14.5, fontFamily: fonts.sansSemi, flex: 1 },
 	viewerBackdrop: {
 		flex: 1,
 		backgroundColor: 'rgba(0,0,0,0.95)',

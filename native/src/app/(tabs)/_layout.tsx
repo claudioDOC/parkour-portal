@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors } from '../../lib/theme';
+import { colors, fonts } from '../../lib/theme';
 
 const TABS = [
 	{ name: 'index', title: 'Heute', icon: 'home' },
@@ -26,7 +26,7 @@ export default function TabsLayout() {
 				},
 				tabBarActiveTintColor: colors.accent,
 				tabBarInactiveTintColor: colors.textMuted,
-				tabBarLabelStyle: { fontSize: 10.5, fontWeight: '700' }
+				tabBarLabelStyle: { fontSize: 10.5, fontFamily: fonts.sansSemi }
 			}}
 		>
 			{TABS.map((tab) => (

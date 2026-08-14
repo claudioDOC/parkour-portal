@@ -13,16 +13,18 @@ import {
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { colors } from './theme';
+import { colors, fonts } from './theme';
+import { BG_TEXTURE, GRADIENT_BAR, GRADIENT_FILL } from './gfx';
 import { mediaUrl } from './api';
 import { useActivity } from './activity';
 
 /**
- * UI-Bausteine v2 — Flächen statt Rahmen, grosse ruhige Typografie,
- * Akzentfarbe sparsam. Alles Runde ist eine Pille, alles Eckige 20+ Radius.
+ * UI-Bausteine v3 — dieselbe Design-Sprache wie die Website:
+ * Teko-Display-Titel in Grossbuchstaben, Orange-Kicker, Gelb→Orange-Verläufe,
+ * Hintergrund mit Glow und Punktraster, Karten mit Licht-Kante.
  */
 
-/** Scroll-Seite mit Standard-Innenabstand und Pull-to-refresh. */
+/** Scroll-Seite mit Website-Hintergrund (Glows + Punktraster) und Refresh. */
 export function Screen({
 	children,
 	refreshing,
@@ -33,32 +35,40 @@ export function Screen({
 	onRefresh?: () => void;
 }) {
 	return (
-		<ScrollView
-			style={s.screen}
-			contentContainerStyle={s.content}
-			refreshControl={
-				onRefresh ? (
-					<RefreshControl
-						refreshing={refreshing ?? false}
-						onRefresh={onRefresh}
-						tintColor={colors.accent}
-						colors={[colors.accent]}
-						progressBackgroundColor={colors.card}
-					/>
-				) : undefined
-			}
-		>
-			{children}
-		</ScrollView>
+		<View style={s.root}>
+			<Image source={{ uri: BG_TEXTURE }} style={StyleSheet.absoluteFill} contentFit="cover" />
+			<ScrollView
+				style={s.screen}
+				contentContainerStyle={s.content}
+				refreshControl={
+					onRefresh ? (
+						<RefreshControl
+							refreshing={refreshing ?? false}
+							onRefresh={onRefresh}
+							tintColor={colors.accent}
+							colors={[colors.accent]}
+							progressBackgroundColor={colors.card}
+						/>
+					) : undefined
+				}
+			>
+				{children}
+			</ScrollView>
+		</View>
 	);
 }
 
 const s = StyleSheet.create({
-	screen: { flex: 1, backgroundColor: colors.bg },
-	content: { padding: 20, paddingTop: 64, paddingBottom: 44, gap: 14 }
+	root: { flex: 1, backgroundColor: colors.bg },
+	screen: { flex: 1 },
+	content: { padding: 20, paddingTop: 60, paddingBottom: 44, gap: 14 }
 });
 
-/** Seitenkopf: Kicker + grosser Titel (letztes Wort im Akzent) + Glocke. */
+/**
+ * Seitenkopf wie PageHeader der Website: Orange-Kicker mit weiter
+ * Sperrung, Teko-Titel in Grossbuchstaben (letztes Wort im Akzent),
+ * Verlaufs-Balken darunter. Rechts die Glocke.
+ */
 export function TopBar({
 	kicker,
 	title,
@@ -88,9 +98,10 @@ export function TopBar({
 			<View style={{ flex: 1 }}>
 				<Text style={t.kicker}>{kicker.toUpperCase()}</Text>
 				<Text style={t.title} numberOfLines={1}>
-					{words.length ? words.join(' ') + ' ' : ''}
-					<Text style={t.accent}>{last}</Text>
+					{(words.length ? words.join(' ') + ' ' : '').toUpperCase()}
+					<Text style={t.accent}>{last?.toUpperCase()}</Text>
 				</Text>
+				<Image source={{ uri: GRADIENT_BAR }} style={t.bar} />
 			</View>
 			{right}
 			<Pressable
@@ -106,23 +117,34 @@ export function TopBar({
 }
 
 const t = StyleSheet.create({
-	row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-	kicker: { color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 2.5 },
+	row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 6 },
+	kicker: {
+		color: colors.accentHot,
+		fontFamily: fonts.displayMedium,
+		fontSize: 15,
+		letterSpacing: 4.5,
+		marginBottom: -2
+	},
 	title: {
 		color: colors.text,
-		fontSize: 30,
-		fontWeight: '800',
-		marginTop: 2,
-		letterSpacing: -0.8
+		fontFamily: fonts.display,
+		fontSize: 40,
+		letterSpacing: 1.5,
+		lineHeight: 44,
+		marginBottom: 2
 	},
 	accent: { color: colors.accent },
+	bar: { width: 64, height: 6, borderRadius: 2 },
 	circleBtn: {
 		width: 40,
 		height: 40,
 		borderRadius: 20,
 		backgroundColor: colors.card,
+		borderWidth: 1,
+		borderColor: colors.border,
 		alignItems: 'center',
-		justifyContent: 'center'
+		justifyContent: 'center',
+		marginTop: 8
 	},
 	dot: {
 		position: 'absolute',
@@ -137,15 +159,24 @@ const t = StyleSheet.create({
 	}
 });
 
+/** Karte wie `card-surface` im Web: Fläche, Licht-Kante oben, tiefer Schatten. */
 export function Card({ children, style }: { children: ReactNode; style?: object }) {
 	return <View style={[c.card, style]}>{children}</View>;
 }
 
 const c = StyleSheet.create({
-	card: { backgroundColor: colors.card, borderRadius: 22, padding: 20 }
+	card: {
+		backgroundColor: colors.card,
+		borderRadius: 20,
+		padding: 18,
+		borderTopWidth: 1,
+		borderTopColor: 'rgba(255,255,255,0.07)',
+		elevation: 8,
+		shadowColor: '#000'
+	}
 });
 
-/** Getönte Status-Pille — Fläche statt Rahmen. */
+/** Getönte Status-Pille. */
 export function Pill({
 	label,
 	color,
@@ -156,7 +187,7 @@ export function Pill({
 	filled?: boolean;
 }) {
 	return (
-		<View style={[p.pill, { backgroundColor: filled ? color : color + '1f' }]}>
+		<View style={[p.pill, { backgroundColor: filled ? color : color + '22' }]}>
 			<Text style={[p.text, { color: filled ? colors.onAccent : color }]}>{label}</Text>
 		</View>
 	);
@@ -164,7 +195,7 @@ export function Pill({
 
 const p = StyleSheet.create({
 	pill: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 4, alignSelf: 'flex-start' },
-	text: { fontSize: 11, fontWeight: '800', letterSpacing: 0.2 }
+	text: { fontSize: 11, fontFamily: fonts.sansBold, letterSpacing: 0.3 }
 });
 
 const AVATAR_COLORS = ['#47c5ff', '#47ffb3', '#ff9947', '#c58cff', '#ff7ab8', '#7adfff'];
@@ -202,7 +233,7 @@ export function Avatar({
 				justifyContent: 'center'
 			}}
 		>
-			<Text style={{ color, fontSize: size * 0.4, fontWeight: '800' }}>
+			<Text style={{ color, fontSize: size * 0.4, fontFamily: fonts.sansBold }}>
 				{username.slice(0, 1).toUpperCase()}
 			</Text>
 		</View>
@@ -240,7 +271,7 @@ const a = StyleSheet.create({
 		alignItems: 'center',
 		justifyContent: 'center'
 	},
-	moreText: { color: colors.textSecondary, fontSize: 11, fontWeight: '800' }
+	moreText: { color: colors.textSecondary, fontSize: 11, fontFamily: fonts.sansBold }
 });
 
 /** Sterne-Anzeige, optional antippbar (Spot-Bewertung). */
@@ -277,7 +308,7 @@ export function Stars({
 	);
 }
 
-/** Fortschrittsbalken (Challenges, Trip-Mehrheit …). */
+/** Fortschrittsbalken. */
 export function ProgressBar({
 	percent,
 	color = colors.accent
@@ -302,11 +333,11 @@ const b = StyleSheet.create({
 	fill: { height: 5, borderRadius: 3 }
 });
 
-/** Kennzahl-Kachel (Statistik-Reihen oben auf Screens). */
+/** Kennzahl-Kachel — Zahl in Teko wie die grossen Ziffern der Website. */
 export function Stat({ value, label, tint }: { value: string | number; label: string; tint?: string }) {
 	return (
 		<View style={sb.box}>
-			<Text style={[sb.value, tint ? { color: tint } : null]}>{value}</Text>
+			<Text style={[sb.value, tint ? { color: tint } : null]}>{String(value)}</Text>
 			<Text style={sb.label}>{label}</Text>
 		</View>
 	);
@@ -317,27 +348,31 @@ const sb = StyleSheet.create({
 		flex: 1,
 		backgroundColor: colors.card,
 		borderRadius: 18,
-		paddingVertical: 14,
+		borderTopWidth: 1,
+		borderTopColor: 'rgba(255,255,255,0.07)',
+		paddingVertical: 12,
 		alignItems: 'center',
-		gap: 2
+		elevation: 6,
+		shadowColor: '#000'
 	},
-	value: { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
-	label: { color: colors.textMuted, fontSize: 11 }
+	value: { color: colors.text, fontFamily: fonts.display, fontSize: 30, lineHeight: 32 },
+	label: { color: colors.textMuted, fontSize: 11, fontFamily: fonts.sansMedium }
 });
 
+/** Abschnittstitel — Teko, gesperrt, wie Zwischenüberschriften im Web. */
 export function SectionTitle({ children }: { children: string }) {
 	return <Text style={st.title}>{children.toUpperCase()}</Text>;
 }
 
 const st = StyleSheet.create({
 	title: {
-		color: colors.textMuted,
-		fontSize: 11,
-		fontWeight: '800',
-		letterSpacing: 2,
-		marginTop: 12,
+		color: colors.textSecondary,
+		fontFamily: fonts.displayMedium,
+		fontSize: 17,
+		letterSpacing: 3,
+		marginTop: 10,
 		marginBottom: -4,
-		marginLeft: 4
+		marginLeft: 2
 	}
 });
 
@@ -362,19 +397,27 @@ const e = StyleSheet.create({
 		alignItems: 'center',
 		justifyContent: 'center'
 	},
-	text: { color: colors.textMuted, fontSize: 14, textAlign: 'center', maxWidth: 240 }
+	text: {
+		color: colors.textMuted,
+		fontSize: 14,
+		fontFamily: fonts.sans,
+		textAlign: 'center',
+		maxWidth: 240
+	}
 });
 
 /** Fehlerkarte für gescheiterte Ladevorgänge. */
 export function ErrorCard({ message }: { message: string }) {
 	return (
 		<Card style={{ backgroundColor: colors.danger + '14' }}>
-			<Text style={{ color: colors.danger, fontSize: 14 }}>{message}</Text>
+			<Text style={{ color: colors.danger, fontSize: 14, fontFamily: fonts.sansMedium }}>
+				{message}
+			</Text>
 		</Card>
 	);
 }
 
-/** Buttons: accent (eine Hauptaktion pro Screen), ghost (Fläche), danger. */
+/** Buttons: accent = Gelb→Orange-Verlauf (Hauptaktion), ghost, danger. */
 export function Button({
 	label,
 	onPress,
@@ -388,34 +431,38 @@ export function Button({
 	small?: boolean;
 	wide?: boolean;
 }) {
-	const base =
-		kind === 'accent'
-			? { backgroundColor: colors.accent }
-			: kind === 'danger'
-				? { backgroundColor: colors.danger + '1f' }
-				: { backgroundColor: colors.hover };
 	const textColor =
 		kind === 'accent' ? colors.onAccent : kind === 'danger' ? colors.danger : colors.text;
 	return (
 		<Pressable
 			style={({ pressed }) => [
 				bt.btn,
-				base,
+				kind === 'ghost' && { backgroundColor: colors.hover },
+				kind === 'danger' && { backgroundColor: colors.danger + '1f' },
 				small && bt.small,
 				wide && { alignSelf: 'stretch', alignItems: 'center' },
-				pressed && { opacity: 0.8 }
+				pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] }
 			]}
 			onPress={onPress}
 		>
+			{kind === 'accent' ? (
+				<Image source={{ uri: GRADIENT_FILL }} style={StyleSheet.absoluteFill} contentFit="fill" />
+			) : null}
 			<Text style={[bt.text, { color: textColor }, small && { fontSize: 13 }]}>{label}</Text>
 		</Pressable>
 	);
 }
 
 const bt = StyleSheet.create({
-	btn: { borderRadius: 999, paddingHorizontal: 22, paddingVertical: 13, alignSelf: 'flex-start' },
+	btn: {
+		borderRadius: 999,
+		paddingHorizontal: 22,
+		paddingVertical: 12,
+		alignSelf: 'flex-start',
+		overflow: 'hidden'
+	},
 	small: { paddingHorizontal: 15, paddingVertical: 9 },
-	text: { fontSize: 14.5, fontWeight: '800' }
+	text: { fontSize: 14.5, fontFamily: fonts.sansBold }
 });
 
 /** Bottom-Sheet mit Griff und Backdrop — für alle Dialoge der App. */
@@ -435,7 +482,7 @@ export function Sheet({
 			<Pressable style={sh.backdrop} onPress={onClose}>
 				<Pressable style={sh.sheet} onPress={() => {}}>
 					<View style={sh.handle} />
-					<Text style={sh.title}>{title}</Text>
+					<Text style={sh.title}>{title.toUpperCase()}</Text>
 					{children}
 				</Pressable>
 			</Pressable>
@@ -449,6 +496,8 @@ const sh = StyleSheet.create({
 		backgroundColor: colors.card,
 		borderTopLeftRadius: 28,
 		borderTopRightRadius: 28,
+		borderTopWidth: 1,
+		borderTopColor: 'rgba(255,255,255,0.09)',
 		padding: 22,
 		paddingBottom: 36,
 		gap: 12
@@ -459,9 +508,9 @@ const sh = StyleSheet.create({
 		height: 4,
 		borderRadius: 2,
 		backgroundColor: colors.hover,
-		marginBottom: 6
+		marginBottom: 4
 	},
-	title: { color: colors.text, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 }
+	title: { color: colors.text, fontFamily: fonts.display, fontSize: 24, letterSpacing: 1 }
 });
 
 /** Eingabefeld — Fläche, kein Rahmen. */
@@ -477,12 +526,13 @@ export function Input(props: TextInputProps) {
 
 const inp = StyleSheet.create({
 	input: {
-		backgroundColor: colors.hover,
+		backgroundColor: colors.bgSecondary,
 		borderRadius: 14,
 		color: colors.text,
 		paddingHorizontal: 16,
 		paddingVertical: 13,
-		fontSize: 15.5
+		fontSize: 15.5,
+		fontFamily: fonts.sans
 	},
 	multiline: { minHeight: 84, textAlignVertical: 'top' }
 });

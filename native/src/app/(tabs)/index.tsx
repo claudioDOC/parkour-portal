@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors } from '../../lib/theme';
+import { colors, fonts } from '../../lib/theme';
 import { Card, TopBar, InitialsRow, Pill, ErrorCard, Button, Screen } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { getTraining, getPendingTrip, logSolo, type TrainingSession } from '../../lib/api';
@@ -157,21 +157,21 @@ export default function Today() {
 const styles = StyleSheet.create({
 	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 	tripCard: { backgroundColor: colors.accentBlue + '12' },
-	tripKicker: { color: colors.accentBlue, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.5 },
-	tripTitle: { color: colors.text, fontSize: 16, fontWeight: '800', marginTop: 3 },
-	cardKicker: { color: colors.accent, fontSize: 11, fontWeight: '800', letterSpacing: 2 },
-	cardTitle: { color: colors.text, fontSize: 22, fontWeight: '800', marginTop: 10, letterSpacing: -0.5 },
+	tripKicker: { color: colors.accentBlue, fontFamily: fonts.displayMedium, fontSize: 13, letterSpacing: 2.5 },
+	tripTitle: { color: colors.text, fontSize: 16, fontFamily: fonts.sansBold, marginTop: 3 },
+	cardKicker: { color: colors.accentHot, fontFamily: fonts.displayMedium, fontSize: 14, letterSpacing: 3 },
+	cardTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 30, lineHeight: 32, marginTop: 8, letterSpacing: 0.5 },
 	metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
-	metaText: { color: colors.textSecondary, fontSize: 14 },
+	metaText: { color: colors.textSecondary, fontSize: 14, fontFamily: fonts.sans },
 	divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: 14 },
 	spotRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-	spotName: { color: colors.text, fontSize: 16, fontWeight: '700' },
-	spotCity: { color: colors.textMuted, fontSize: 13 },
-	voteHint: { color: colors.accentBlue, fontSize: 14, fontWeight: '600', flex: 1 },
+	spotName: { color: colors.text, fontSize: 15.5, fontFamily: fonts.sansBold },
+	spotCity: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.sans },
+	voteHint: { color: colors.accentBlue, fontSize: 14, fontFamily: fonts.sansSemi, flex: 1 },
 	attendRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
-	attendCount: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+	attendCount: { color: colors.textSecondary, fontSize: 13, fontFamily: fonts.sansSemi },
 	smallCard: { paddingVertical: 15 },
 	smallRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-	smallTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
-	smallText: { color: colors.textSecondary, fontSize: 13, marginTop: 1, flexShrink: 1 }
+	smallTitle: { color: colors.text, fontSize: 14, fontFamily: fonts.sansBold },
+	smallText: { color: colors.textSecondary, fontSize: 13, fontFamily: fonts.sans, marginTop: 1, flexShrink: 1 }
 });
