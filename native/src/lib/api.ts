@@ -148,6 +148,13 @@ export const trainingAction = (
 	extra: { reason?: string; spotId?: number } = {}
 ) => post<{ success?: boolean }>('/api/training', { action, sessionId, ...extra });
 
+/** Admin: Training absagen/reaktivieren, Spot festlegen (spotId null = zurück). */
+export const adminTraining = (
+	type: 'cancel_session' | 'uncancel_session' | 'set_spot',
+	sessionId: number,
+	extra: { spotId?: number | null; reason?: string } = {}
+) => post<{ success?: boolean }>('/api/admin/training', { type, sessionId, ...extra });
+
 // --- Solo-Training ---
 
 export const logSolo = (note?: string) => post<{ success?: boolean }>('/api/solo', { note });
@@ -205,6 +212,9 @@ export const getSpot = (id: number) => get<SpotDetailPayload>(`/api/v1/spots/${i
 
 export const voteSpot = (spotId: number, score: number) =>
 	post<{ success?: boolean }>('/api/spots/vote', { spotId, score });
+
+export const createChallenge = (spotId: number, title: string, description: string) =>
+	post<{ success?: boolean }>('/api/spots/challenges', { spotId, title, description });
 
 export const setChallengeDone = (challengeId: number, done: boolean) =>
 	request<{ success?: boolean }>('/api/spots/challenges', {
@@ -305,6 +315,18 @@ export const getPendingTrip = () =>
 
 export const tripAction = (action: string, tripId: number, extra: object = {}) =>
 	post<{ success?: boolean; adopted?: boolean }>('/api/trips', { action, tripId, ...extra });
+
+export const createTrip = (title: string, startDate: string, endDate: string, notes: string) =>
+	post<{ success?: boolean }>('/api/trips', { action: 'create_trip', title, startDate, endDate, notes });
+
+export const proposeDateOption = (tripId: number, startDate: string, endDate: string, note: string) =>
+	post<{ success?: boolean }>('/api/trips', {
+		action: 'propose_date_option',
+		tripId,
+		startDate,
+		endDate,
+		note
+	});
 
 // --- Statistik ---
 

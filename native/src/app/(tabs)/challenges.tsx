@@ -156,10 +156,8 @@ const styles = StyleSheet.create({
 	statBox: {
 		flex: 1,
 		backgroundColor: colors.card,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: 16,
-		paddingVertical: 12,
+		borderRadius: 18,
+		paddingVertical: 14,
 		alignItems: 'center'
 	},
 	statNum: { color: colors.text, fontSize: 20, fontWeight: '800' },
@@ -169,10 +167,8 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		gap: 8,
 		backgroundColor: colors.card,
-		borderColor: colors.border,
-		borderWidth: 1,
-		borderRadius: 14,
-		paddingHorizontal: 13
+		borderRadius: 16,
+		paddingHorizontal: 14
 	},
 	searchInput: { flex: 1, color: colors.text, paddingVertical: 11, fontSize: 15 },
 	filterRow: {

@@ -156,11 +156,11 @@ export default function Today() {
 
 const styles = StyleSheet.create({
 	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-	tripCard: { borderColor: colors.accentBlue + '55' },
+	tripCard: { backgroundColor: colors.accentBlue + '12' },
 	tripKicker: { color: colors.accentBlue, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.5 },
 	tripTitle: { color: colors.text, fontSize: 16, fontWeight: '800', marginTop: 3 },
 	cardKicker: { color: colors.accent, fontSize: 11, fontWeight: '800', letterSpacing: 2 },
-	cardTitle: { color: colors.text, fontSize: 21, fontWeight: '800', marginTop: 10, letterSpacing: -0.3 },
+	cardTitle: { color: colors.text, fontSize: 22, fontWeight: '800', marginTop: 10, letterSpacing: -0.5 },
 	metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
 	metaText: { color: colors.textSecondary, fontSize: 14 },
 	divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: 14 },
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
 	voteHint: { color: colors.accentBlue, fontSize: 14, fontWeight: '600', flex: 1 },
 	attendRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
 	attendCount: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
-	smallCard: { paddingVertical: 14 },
+	smallCard: { paddingVertical: 15 },
 	smallRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 	smallTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
 	smallText: { color: colors.textSecondary, fontSize: 13, marginTop: 1, flexShrink: 1 }

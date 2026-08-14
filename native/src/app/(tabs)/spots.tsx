@@ -89,10 +89,8 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		gap: 8,
 		backgroundColor: colors.card,
-		borderColor: colors.border,
-		borderWidth: 1,
-		borderRadius: 14,
-		paddingHorizontal: 13
+		borderRadius: 16,
+		paddingHorizontal: 14
 	},
 	searchInput: { flex: 1, color: colors.text, paddingVertical: 11, fontSize: 15 },
 	row: {
@@ -100,13 +98,11 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		gap: 12,
 		backgroundColor: colors.card,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: 18,
+		borderRadius: 20,
 		padding: 10,
 		paddingRight: 14
 	},
-	thumb: { width: 68, height: 68, borderRadius: 12, backgroundColor: colors.hover },
+	thumb: { width: 70, height: 70, borderRadius: 14, backgroundColor: colors.hover },
 	thumbEmpty: { alignItems: 'center', justifyContent: 'center' },
 	name: { color: colors.text, fontSize: 15.5, fontWeight: '700' },
 	micro: { color: colors.accentBlue, fontSize: 12, fontWeight: '700' },

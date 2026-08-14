@@ -5,7 +5,10 @@ import {
 	StyleSheet,
 	Pressable,
 	ScrollView,
-	RefreshControl
+	RefreshControl,
+	Modal,
+	TextInput,
+	type TextInputProps
 } from 'react-native';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -15,11 +18,11 @@ import { mediaUrl } from './api';
 import { useActivity } from './activity';
 
 /**
- * Gemeinsame UI-Bausteine der App — gleiche Formensprache wie das Portal:
- * dunkle Karten, Hairline-Border, Akzent sparsam eingesetzt.
+ * UI-Bausteine v2 — Flächen statt Rahmen, grosse ruhige Typografie,
+ * Akzentfarbe sparsam. Alles Runde ist eine Pille, alles Eckige 20+ Radius.
  */
 
-/** Scroll-Seite mit Standard-Innenabstand und Pull-to-refresh im Portal-Look. */
+/** Scroll-Seite mit Standard-Innenabstand und Pull-to-refresh. */
 export function Screen({
 	children,
 	refreshing,
@@ -52,13 +55,10 @@ export function Screen({
 
 const s = StyleSheet.create({
 	screen: { flex: 1, backgroundColor: colors.bg },
-	content: { padding: 20, paddingTop: 58, paddingBottom: 40, gap: 12 }
+	content: { padding: 20, paddingTop: 64, paddingBottom: 44, gap: 14 }
 });
 
-/**
- * Seitenkopf: Kicker + Titel (letztes Wort im Akzent, wie PageHeader im Web),
- * rechts die Aktivitäts-Glocke mit rotem Punkt — auf jedem Hauptscreen.
- */
+/** Seitenkopf: Kicker + grosser Titel (letztes Wort im Akzent) + Glocke. */
 export function TopBar({
 	kicker,
 	title,
@@ -77,8 +77,12 @@ export function TopBar({
 	return (
 		<View style={t.row}>
 			{back ? (
-				<Pressable onPress={() => router.back()} hitSlop={10} style={t.backBtn}>
-					<Ionicons name="chevron-back" size={24} color={colors.text} />
+				<Pressable
+					onPress={() => router.back()}
+					hitSlop={8}
+					style={({ pressed }) => [t.circleBtn, pressed && { opacity: 0.7 }]}
+				>
+					<Ionicons name="chevron-back" size={22} color={colors.text} />
 				</Pressable>
 			) : null}
 			<View style={{ flex: 1 }}>
@@ -89,8 +93,12 @@ export function TopBar({
 				</Text>
 			</View>
 			{right}
-			<Pressable onPress={() => router.push('/activity')} hitSlop={10} style={t.bell}>
-				<Ionicons name="notifications-outline" size={23} color={colors.textSecondary} />
+			<Pressable
+				onPress={() => router.push('/activity')}
+				hitSlop={8}
+				style={({ pressed }) => [t.circleBtn, pressed && { opacity: 0.7 }]}
+			>
+				<Ionicons name="notifications-outline" size={21} color={colors.textSecondary} />
 				{unread > 0 ? <View style={t.dot} /> : null}
 			</Pressable>
 		</View>
@@ -98,16 +106,28 @@ export function TopBar({
 }
 
 const t = StyleSheet.create({
-	row: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-	backBtn: { marginLeft: -8, padding: 2 },
+	row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
 	kicker: { color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 2.5 },
-	title: { color: colors.text, fontSize: 25, fontWeight: '800', marginTop: 2, letterSpacing: -0.5 },
+	title: {
+		color: colors.text,
+		fontSize: 30,
+		fontWeight: '800',
+		marginTop: 2,
+		letterSpacing: -0.8
+	},
 	accent: { color: colors.accent },
-	bell: { padding: 6 },
+	circleBtn: {
+		width: 40,
+		height: 40,
+		borderRadius: 20,
+		backgroundColor: colors.card,
+		alignItems: 'center',
+		justifyContent: 'center'
+	},
 	dot: {
 		position: 'absolute',
-		top: 5,
-		right: 4,
+		top: 9,
+		right: 9,
 		width: 9,
 		height: 9,
 		borderRadius: 5,
@@ -122,16 +142,10 @@ export function Card({ children, style }: { children: ReactNode; style?: object 
 }
 
 const c = StyleSheet.create({
-	card: {
-		backgroundColor: colors.card,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: 20,
-		padding: 18
-	}
+	card: { backgroundColor: colors.card, borderRadius: 22, padding: 20 }
 });
 
-/** Farbige Status-Pille (z. B. „Fix", „✓ dabei", „Abgesagt"). */
+/** Getönte Status-Pille — Fläche statt Rahmen. */
 export function Pill({
 	label,
 	color,
@@ -142,17 +156,15 @@ export function Pill({
 	filled?: boolean;
 }) {
 	return (
-		<View
-			style={[p.pill, filled ? { backgroundColor: color } : { borderColor: color, borderWidth: 1 }]}
-		>
+		<View style={[p.pill, { backgroundColor: filled ? color : color + '1f' }]}>
 			<Text style={[p.text, { color: filled ? colors.onAccent : color }]}>{label}</Text>
 		</View>
 	);
 }
 
 const p = StyleSheet.create({
-	pill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start' },
-	text: { fontSize: 11, fontWeight: '800' }
+	pill: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 4, alignSelf: 'flex-start' },
+	text: { fontSize: 11, fontWeight: '800', letterSpacing: 0.2 }
 });
 
 const AVATAR_COLORS = ['#47c5ff', '#47ffb3', '#ff9947', '#c58cff', '#ff7ab8', '#7adfff'];
@@ -185,7 +197,7 @@ export function Avatar({
 				width: size,
 				height: size,
 				borderRadius: size / 2,
-				backgroundColor: color + '33',
+				backgroundColor: color + '2b',
 				alignItems: 'center',
 				justifyContent: 'center'
 			}}
@@ -197,19 +209,19 @@ export function Avatar({
 	);
 }
 
-/** Reihe von Initialen-Kreisen („wer ist dabei"), max. 7 + Rest. */
+/** Überlappende Avatar-Reihe („wer ist dabei"), max. 7 + Rest. */
 export function InitialsRow({ names }: { names: string[] }) {
 	const shown = names.slice(0, 7);
 	const rest = names.length - shown.length;
 	return (
 		<View style={a.row}>
 			{shown.map((n, i) => (
-				<View key={`${n}-${i}`} style={[a.wrap, { marginLeft: i === 0 ? 0 : -7 }]}>
+				<View key={`${n}-${i}`} style={[a.wrap, { marginLeft: i === 0 ? 0 : -8 }]}>
 					<Avatar username={n} size={30} index={i} />
 				</View>
 			))}
 			{rest > 0 ? (
-				<View style={[a.wrap, a.more, { marginLeft: -7 }]}>
+				<View style={[a.wrap, a.more, { marginLeft: -8 }]}>
 					<Text style={a.moreText}>+{rest}</Text>
 				</View>
 			) : null}
@@ -242,7 +254,7 @@ export function Stars({
 	onRate?: (score: number) => void;
 }) {
 	return (
-		<View style={{ flexDirection: 'row', gap: 2 }}>
+		<View style={{ flexDirection: 'row', gap: 3 }}>
 			{[1, 2, 3, 4, 5].map((i) => {
 				const icon = value >= i - 0.25 ? 'star' : value >= i - 0.75 ? 'star-half' : 'star-outline';
 				const star = (
@@ -254,7 +266,7 @@ export function Stars({
 					/>
 				);
 				return onRate ? (
-					<Pressable key={i} onPress={() => onRate(i)} hitSlop={4}>
+					<Pressable key={i} onPress={() => onRate(i)} hitSlop={5}>
 						{star}
 					</Pressable>
 				) : (
@@ -265,18 +277,52 @@ export function Stars({
 	);
 }
 
-/** Fortschrittsbalken (Challenges am Spot, Trip-Mehrheit …). */
-export function ProgressBar({ percent, color = colors.accent }: { percent: number; color?: string }) {
+/** Fortschrittsbalken (Challenges, Trip-Mehrheit …). */
+export function ProgressBar({
+	percent,
+	color = colors.accent
+}: {
+	percent: number;
+	color?: string;
+}) {
 	return (
 		<View style={b.track}>
-			<View style={[b.fill, { width: `${Math.min(100, Math.max(0, percent))}%`, backgroundColor: color }]} />
+			<View
+				style={[
+					b.fill,
+					{ width: `${Math.min(100, Math.max(0, percent))}%`, backgroundColor: color }
+				]}
+			/>
 		</View>
 	);
 }
 
 const b = StyleSheet.create({
-	track: { height: 6, borderRadius: 3, backgroundColor: colors.hover, overflow: 'hidden' },
-	fill: { height: 6, borderRadius: 3 }
+	track: { height: 5, borderRadius: 3, backgroundColor: colors.hover, overflow: 'hidden' },
+	fill: { height: 5, borderRadius: 3 }
+});
+
+/** Kennzahl-Kachel (Statistik-Reihen oben auf Screens). */
+export function Stat({ value, label, tint }: { value: string | number; label: string; tint?: string }) {
+	return (
+		<View style={sb.box}>
+			<Text style={[sb.value, tint ? { color: tint } : null]}>{value}</Text>
+			<Text style={sb.label}>{label}</Text>
+		</View>
+	);
+}
+
+const sb = StyleSheet.create({
+	box: {
+		flex: 1,
+		backgroundColor: colors.card,
+		borderRadius: 18,
+		paddingVertical: 14,
+		alignItems: 'center',
+		gap: 2
+	},
+	value: { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+	label: { color: colors.textMuted, fontSize: 11 }
 });
 
 export function SectionTitle({ children }: { children: string }) {
@@ -289,82 +335,154 @@ const st = StyleSheet.create({
 		fontSize: 11,
 		fontWeight: '800',
 		letterSpacing: 2,
-		marginTop: 10,
-		marginBottom: -2
+		marginTop: 12,
+		marginBottom: -4,
+		marginLeft: 4
 	}
 });
 
 export function EmptyState({ icon, text }: { icon: string; text: string }) {
 	return (
 		<View style={e.wrap}>
-			<Ionicons name={icon as 'help'} size={30} color={colors.textMuted} />
+			<View style={e.iconCircle}>
+				<Ionicons name={icon as 'help'} size={26} color={colors.textMuted} />
+			</View>
 			<Text style={e.text}>{text}</Text>
 		</View>
 	);
 }
 
 const e = StyleSheet.create({
-	wrap: { alignItems: 'center', gap: 8, paddingVertical: 34 },
-	text: { color: colors.textMuted, fontSize: 14, textAlign: 'center' }
+	wrap: { alignItems: 'center', gap: 12, paddingVertical: 38 },
+	iconCircle: {
+		width: 56,
+		height: 56,
+		borderRadius: 28,
+		backgroundColor: colors.card,
+		alignItems: 'center',
+		justifyContent: 'center'
+	},
+	text: { color: colors.textMuted, fontSize: 14, textAlign: 'center', maxWidth: 240 }
 });
 
-/** Fehlerkarte (rot umrandet) für gescheiterte Ladevorgänge. */
+/** Fehlerkarte für gescheiterte Ladevorgänge. */
 export function ErrorCard({ message }: { message: string }) {
 	return (
-		<Card style={{ borderColor: colors.danger + '55' }}>
+		<Card style={{ backgroundColor: colors.danger + '14' }}>
 			<Text style={{ color: colors.danger, fontSize: 14 }}>{message}</Text>
 		</Card>
 	);
 }
 
-/** Runde Buttons: Akzent (primär) und Ghost (sekundär). */
+/** Buttons: accent (eine Hauptaktion pro Screen), ghost (Fläche), danger. */
 export function Button({
 	label,
 	onPress,
 	kind = 'accent',
-	small = false
+	small = false,
+	wide = false
 }: {
 	label: string;
 	onPress: () => void;
 	kind?: 'accent' | 'ghost' | 'danger';
 	small?: boolean;
+	wide?: boolean;
 }) {
-	const base = kind === 'accent' ? bt.accent : kind === 'danger' ? bt.dangerBtn : bt.ghost;
-	const textStyle =
-		kind === 'accent' ? bt.accentText : kind === 'danger' ? bt.dangerText : bt.ghostText;
+	const base =
+		kind === 'accent'
+			? { backgroundColor: colors.accent }
+			: kind === 'danger'
+				? { backgroundColor: colors.danger + '1f' }
+				: { backgroundColor: colors.hover };
+	const textColor =
+		kind === 'accent' ? colors.onAccent : kind === 'danger' ? colors.danger : colors.text;
 	return (
 		<Pressable
-			style={({ pressed }) => [base, small && bt.small, pressed && { opacity: 0.8 }]}
+			style={({ pressed }) => [
+				bt.btn,
+				base,
+				small && bt.small,
+				wide && { alignSelf: 'stretch', alignItems: 'center' },
+				pressed && { opacity: 0.8 }
+			]}
 			onPress={onPress}
 		>
-			<Text style={[textStyle, small && { fontSize: 13 }]}>{label}</Text>
+			<Text style={[bt.text, { color: textColor }, small && { fontSize: 13 }]}>{label}</Text>
 		</Pressable>
 	);
 }
 
 const bt = StyleSheet.create({
-	accent: {
-		backgroundColor: colors.accent,
-		borderRadius: 999,
-		paddingHorizontal: 20,
-		paddingVertical: 11
+	btn: { borderRadius: 999, paddingHorizontal: 22, paddingVertical: 13, alignSelf: 'flex-start' },
+	small: { paddingHorizontal: 15, paddingVertical: 9 },
+	text: { fontSize: 14.5, fontWeight: '800' }
+});
+
+/** Bottom-Sheet mit Griff und Backdrop — für alle Dialoge der App. */
+export function Sheet({
+	visible,
+	onClose,
+	title,
+	children
+}: {
+	visible: boolean;
+	onClose: () => void;
+	title: string;
+	children: ReactNode;
+}) {
+	return (
+		<Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+			<Pressable style={sh.backdrop} onPress={onClose}>
+				<Pressable style={sh.sheet} onPress={() => {}}>
+					<View style={sh.handle} />
+					<Text style={sh.title}>{title}</Text>
+					{children}
+				</Pressable>
+			</Pressable>
+		</Modal>
+	);
+}
+
+const sh = StyleSheet.create({
+	backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
+	sheet: {
+		backgroundColor: colors.card,
+		borderTopLeftRadius: 28,
+		borderTopRightRadius: 28,
+		padding: 22,
+		paddingBottom: 36,
+		gap: 12
 	},
-	accentText: { color: colors.onAccent, fontSize: 14, fontWeight: '800' },
-	ghost: {
-		borderColor: colors.border,
-		borderWidth: 1,
-		borderRadius: 999,
-		paddingHorizontal: 20,
-		paddingVertical: 11
+	handle: {
+		alignSelf: 'center',
+		width: 36,
+		height: 4,
+		borderRadius: 2,
+		backgroundColor: colors.hover,
+		marginBottom: 6
 	},
-	ghostText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
-	dangerBtn: {
-		borderColor: colors.danger + '88',
-		borderWidth: 1,
-		borderRadius: 999,
-		paddingHorizontal: 20,
-		paddingVertical: 11
+	title: { color: colors.text, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 }
+});
+
+/** Eingabefeld — Fläche, kein Rahmen. */
+export function Input(props: TextInputProps) {
+	return (
+		<TextInput
+			placeholderTextColor={colors.textMuted}
+			{...props}
+			style={[inp.input, props.multiline && inp.multiline, props.style]}
+		/>
+	);
+}
+
+const inp = StyleSheet.create({
+	input: {
+		backgroundColor: colors.hover,
+		borderRadius: 14,
+		color: colors.text,
+		paddingHorizontal: 16,
+		paddingVertical: 13,
+		fontSize: 15.5
 	},
-	dangerText: { color: colors.danger, fontSize: 14, fontWeight: '700' },
-	small: { paddingHorizontal: 14, paddingVertical: 8 }
+	multiline: { minHeight: 84, textAlignVertical: 'top' }
 });

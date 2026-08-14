@@ -23,10 +23,13 @@ import {
 	ProgressBar,
 	SectionTitle,
 	ErrorCard,
-	InitialsRow
+	InitialsRow,
+	Sheet,
+	Input,
+	Button
 } from '../../lib/ui';
 import { useData } from '../../lib/store';
-import { getSpot, voteSpot, setChallengeDone, mediaUrl } from '../../lib/api';
+import { getSpot, voteSpot, setChallengeDone, createChallenge, mediaUrl } from '../../lib/api';
 import { useAuth } from '../_layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -40,8 +43,26 @@ export default function SpotDetailScreen() {
 		getSpot(spotId)
 	);
 	const [viewer, setViewer] = useState<number | null>(null);
+	// Neue Challenge an diesem Spot
+	const [challengeOpen, setChallengeOpen] = useState(false);
+	const [chForm, setChForm] = useState({ title: '', description: '' });
 
 	const base = data?.spot ?? null;
+
+	const submitChallenge = async () => {
+		if (!chForm.title.trim()) {
+			Alert.alert('Titel fehlt', 'Gib der Challenge einen Namen.');
+			return;
+		}
+		setChallengeOpen(false);
+		try {
+			await createChallenge(spotId, chForm.title.trim(), chForm.description.trim());
+			setChForm({ title: '', description: '' });
+			await refresh();
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Erstellen fehlgeschlagen');
+		}
+	};
 
 	const rate = async (score: number) => {
 		try {
@@ -155,9 +176,18 @@ export default function SpotDetailScreen() {
 						</Card>
 					) : null}
 
+					<View style={styles.challengeHead}>
+						<SectionTitle>{`Challenges · ${data.challenges.length}`}</SectionTitle>
+						<Pressable
+							onPress={() => setChallengeOpen(true)}
+							hitSlop={8}
+							style={({ pressed }) => [styles.addSmall, pressed && { opacity: 0.8 }]}
+						>
+							<Ionicons name="add" size={19} color={colors.onAccent} />
+						</Pressable>
+					</View>
 					{data.challenges.length > 0 ? (
 						<>
-							<SectionTitle>{`Challenges · ${data.challenges.length}`}</SectionTitle>
 							{totalSlots > 0 ? (
 								<View style={{ gap: 4 }}>
 									<ProgressBar percent={(totalDone / totalSlots) * 100} />
@@ -218,6 +248,29 @@ export default function SpotDetailScreen() {
 						</>
 					) : null}
 
+					{/* Neue Challenge */}
+					<Sheet
+						visible={challengeOpen}
+						onClose={() => setChallengeOpen(false)}
+						title={`Neue Challenge — ${base.name}`}
+					>
+						<Input
+							placeholder="Titel (z. B. Kong über die Mauer)"
+							value={chForm.title}
+							onChangeText={(v) => setChForm({ ...chForm, title: v })}
+						/>
+						<Input
+							placeholder="Beschreibung (optional)"
+							multiline
+							value={chForm.description}
+							onChangeText={(v) => setChForm({ ...chForm, description: v })}
+						/>
+						<View style={styles.sheetActions}>
+							<Button label="Abbrechen" kind="ghost" onPress={() => setChallengeOpen(false)} />
+							<Button label="Erstellen" onPress={submitChallenge} />
+						</View>
+					</Sheet>
+
 					{/* Vollbild-Viewer für Spot-Bilder */}
 					<Modal visible={viewer !== null} transparent animationType="fade">
 						<Pressable style={styles.viewerBackdrop} onPress={() => setViewer(null)}>
@@ -268,28 +321,41 @@ const styles = StyleSheet.create({
 	doneBtn: {
 		backgroundColor: colors.accent,
 		borderRadius: 999,
-		paddingVertical: 10,
+		paddingVertical: 11,
 		alignItems: 'center'
 	},
 	doneBtnText: { color: colors.onAccent, fontSize: 14, fontWeight: '800' },
 	undoBtn: {
-		borderColor: colors.border,
-		borderWidth: 1,
+		backgroundColor: colors.hover,
 		borderRadius: 999,
-		paddingVertical: 10,
+		paddingVertical: 11,
 		alignItems: 'center'
 	},
 	undoBtnText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+	challengeHead: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		paddingRight: 2
+	},
+	addSmall: {
+		width: 32,
+		height: 32,
+		borderRadius: 16,
+		backgroundColor: colors.accent,
+		alignItems: 'center',
+		justifyContent: 'center',
+		marginTop: 10
+	},
+	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
 	nearbyRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		gap: 8,
 		backgroundColor: colors.card,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: 14,
-		paddingHorizontal: 14,
-		paddingVertical: 12
+		borderRadius: 16,
+		paddingHorizontal: 15,
+		paddingVertical: 13
 	},
 	nearbyName: { color: colors.text, fontSize: 14, fontWeight: '600', flex: 1 },
 	nearbyCity: { color: colors.textMuted, fontSize: 12.5 },

@@ -104,10 +104,8 @@ const styles = StyleSheet.create({
 	statBox: {
 		flex: 1,
 		backgroundColor: colors.card,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: 16,
-		paddingVertical: 12,
+		borderRadius: 18,
+		paddingVertical: 14,
 		alignItems: 'center'
 	},
 	statNum: { color: colors.text, fontSize: 20, fontWeight: '800' },

@@ -108,13 +108,11 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 28
 	},
 	logo: {
-		width: 84,
-		height: 84,
-		borderRadius: 22,
+		width: 88,
+		height: 88,
+		borderRadius: 24,
 		alignSelf: 'center',
-		marginBottom: 18,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.border
+		marginBottom: 20
 	},
 	title: {
 		color: colors.text,
@@ -136,10 +134,8 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		gap: 10,
 		backgroundColor: colors.card,
-		borderColor: colors.border,
-		borderWidth: 1,
-		borderRadius: 14,
-		paddingHorizontal: 14,
+		borderRadius: 16,
+		paddingHorizontal: 15,
 		marginBottom: 12
 	},
 	input: { flex: 1, color: colors.text, paddingVertical: 14, fontSize: 16 },
