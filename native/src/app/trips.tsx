@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Alert, Share, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../lib/theme';
+import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
 import {
 	Card,
@@ -352,9 +353,9 @@ const makeStyles = (colors: ThemeColors) =>
 		justifyContent: 'center'
 	},
 	head: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-	title: { color: colors.text, fontSize: 16, lineHeight: 21, fontFamily: fonts.sansBold },
+	title: { color: colors.fg + textAlpha.primary, fontSize: 16, lineHeight: 22, fontFamily: fonts.sansBold },
 	metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
-	meta: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+	meta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
 	shareBtn: {
 		width: 36,
 		height: 36,
@@ -363,16 +364,16 @@ const makeStyles = (colors: ThemeColors) =>
 		alignItems: 'center',
 		justifyContent: 'center'
 	},
-	notes: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
+	notes: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16 },
 	countsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	counts: { color: colors.textMuted, fontSize: 13, lineHeight: 18, flex: 1 },
-	datesTitle: { color: colors.textSecondary, fontFamily: fonts.displayMedium, fontSize: 13, lineHeight: 18, letterSpacing: 1.5 },
+	counts: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, flex: 1 },
+	datesTitle: { color: colors.fg + textAlpha.secondary, fontFamily: fonts.displayMedium, fontSize: 12, lineHeight: 16, letterSpacing: 1.5 },
 	dateRow: { backgroundColor: colors.bgSecondary, borderRadius: 12, padding: 12 },
 	dateHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	dateLabel: { color: colors.text, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansSemi, flex: 1 },
-	dateVotes: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold },
+	dateLabel: { color: colors.fg + textAlpha.primary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansSemi, flex: 1 },
+	dateVotes: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold },
 	proposeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
-	proposeText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+	proposeText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16 },
 	actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
 	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 	modeRow: {
@@ -384,5 +385,5 @@ const makeStyles = (colors: ThemeColors) =>
 		paddingHorizontal: 16,
 		paddingVertical: 12
 	},
-	modeText: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi }
+	modeText: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi }
 });

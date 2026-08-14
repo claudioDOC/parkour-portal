@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
+import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { Card, TopBar, Screen, SectionTitle, ErrorCard, Avatar } from '../../lib/ui';
 import { useData } from '../../lib/store';
@@ -112,8 +113,8 @@ export default function Profile() {
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
 	headCard: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-	username: { color: colors.text, fontSize: 28, lineHeight: 30, fontFamily: fonts.sansBold },
-	rank: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+	username: { color: colors.fg + textAlpha.primary, fontSize: 30, lineHeight: 32, fontFamily: fonts.sansBold },
+	rank: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16 },
 	statsRow: { flexDirection: 'row', gap: 8 },
 	statBox: {
 		flex: 1,
@@ -122,13 +123,13 @@ const makeStyles = (colors: ThemeColors) =>
 		paddingVertical: 12,
 		alignItems: 'center'
 	},
-	statNum: { color: colors.text, fontFamily: fonts.display, fontSize: 28, lineHeight: 28 },
-	statLabel: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 4 },
+	statNum: { color: colors.fg + textAlpha.primary, fontFamily: fonts.display, fontSize: 30, lineHeight: 32 },
+	statLabel: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, marginTop: 4 },
 	chRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	chText: { color: colors.text, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansSemi, flex: 1 },
-	chSpot: { color: colors.textMuted, fontFamily: fonts.sans },
+	chText: { color: colors.fg + textAlpha.primary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansSemi, flex: 1 },
+	chSpot: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans },
 	memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
-	memberName: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi, flex: 1 },
+	memberName: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi, flex: 1 },
 	viewerBackdrop: {
 		flex: 1,
 		backgroundColor: 'rgba(0,0,0,0.95)',

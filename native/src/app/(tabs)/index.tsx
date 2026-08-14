@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
+import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { gradientFill } from '../../lib/gfx';
 import {
@@ -86,6 +87,8 @@ export default function Dashboard() {
 	const [absenceFor, setAbsenceFor] = useState<TrainingSession | null>(null);
 	const [absenceReason, setAbsenceReason] = useState('');
 	const [spotFor, setSpotFor] = useState<TrainingSession | null>(null);
+	// Admin-Aktionen liegen hinter „…", damit die Karte ruhig bleibt.
+	const [adminFor, setAdminFor] = useState<TrainingSession | null>(null);
 	const isAdmin = me?.role === 'admin';
 
 	const data = training.data;
@@ -180,7 +183,7 @@ export default function Dashboard() {
 					<Card key={s.id} style={styles.sessionCard}>
 						{sessionIndex === 0 ? (
 							<View style={styles.band}>
-								<Image source={{ uri: band }} style={StyleSheet.absoluteFill} contentFit="fill" />
+								<View style={styles.bandDot} />
 								<Text style={styles.bandText}>NÄCHSTES TRAINING</Text>
 							</View>
 						) : null}
@@ -315,33 +318,17 @@ export default function Dashboard() {
 											/>
 										)}
 										{isAdmin ? (
-											<>
-												<Button
-													label="Spot festlegen"
-													kind="ghost"
-													small
-													onPress={() => setSpotFor(s)}
+											<Pressable
+												onPress={() => setAdminFor(s)}
+												hitSlop={8}
+												style={({ pressed }) => [styles.moreBtn, pressed && { opacity: 0.7 }]}
+											>
+												<Ionicons
+													name="ellipsis-horizontal"
+													size={18}
+													color={colors.fg + textAlpha.secondary}
 												/>
-												<Button
-													label="Absagen"
-													kind="danger"
-													small
-													onPress={() =>
-														Alert.alert(
-															'Training absagen?',
-															`${metaDate(s.date)} — alle Angemeldeten bekommen Push.`,
-															[
-																{ text: 'Zurück', style: 'cancel' },
-																{
-																	text: 'Absagen',
-																	style: 'destructive',
-																	onPress: () => act(() => adminTraining('cancel_session', s.id))
-																}
-															]
-														)
-													}
-												/>
-											</>
+											</Pressable>
 										) : null}
 									</View>
 								</>
@@ -403,6 +390,46 @@ export default function Dashboard() {
 			</Sheet>
 
 			<Sheet
+				visible={adminFor !== null}
+				onClose={() => setAdminFor(null)}
+				title={`Admin — ${adminFor ? metaDate(adminFor.date) : ''}`}
+			>
+				<Pressable
+					style={({ pressed }) => [styles.spotOption, pressed && { opacity: 0.7 }]}
+					onPress={() => {
+						const session = adminFor!;
+						setAdminFor(null);
+						setSpotFor(session);
+					}}
+				>
+					<Ionicons name="location-outline" size={18} color={colors.fg + textAlpha.secondary} />
+					<Text style={styles.spotOptionText}>Spot festlegen</Text>
+				</Pressable>
+				<Pressable
+					style={({ pressed }) => [styles.spotOption, pressed && { opacity: 0.7 }]}
+					onPress={() => {
+						const session = adminFor!;
+						setAdminFor(null);
+						Alert.alert(
+							'Training absagen?',
+							`${metaDate(session.date)} — alle Angemeldeten bekommen Push.`,
+							[
+								{ text: 'Zurück', style: 'cancel' },
+								{
+									text: 'Absagen',
+									style: 'destructive',
+									onPress: () => act(() => adminTraining('cancel_session', session.id))
+								}
+							]
+						);
+					}}
+				>
+					<Ionicons name="close-circle-outline" size={18} color={colors.danger} />
+					<Text style={[styles.spotOptionText, { color: colors.danger }]}>Training absagen</Text>
+				</Pressable>
+			</Sheet>
+
+			<Sheet
 				visible={spotFor !== null}
 				onClose={() => setSpotFor(null)}
 				title={`Spot festlegen — ${spotFor ? metaDate(spotFor.date) : ''}`}
@@ -447,8 +474,8 @@ export default function Dashboard() {
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
 		rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-		greeting: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
-		greetingName: { color: colors.text, fontFamily: fonts.sansBold },
+		greeting: { color: colors.fg + textAlpha.secondary, fontFamily: fonts.sans, fontSize: 16, lineHeight: 22 },
+		greetingName: { color: colors.fg + textAlpha.primary, fontFamily: fonts.sansBold },
 		streakChip: {
 			flexDirection: 'row',
 			alignItems: 'center',
@@ -461,7 +488,7 @@ const makeStyles = (colors: ThemeColors) =>
 		},
 		streakText: {
 			color: colors.accent,
-			fontSize: 15,
+			fontSize: 14,
 			lineHeight: 21,
 			fontFamily: fonts.sansSemi
 		},
@@ -469,24 +496,41 @@ const makeStyles = (colors: ThemeColors) =>
 		tripKicker: {
 			color: colors.accentBlue,
 			fontFamily: fonts.displayMedium,
-			fontSize: 13, lineHeight: 18,
+			fontSize: 12, lineHeight: 16,
 			letterSpacing: 2.5
 		},
-		tripTitle: { color: colors.text, fontSize: 16, lineHeight: 21, fontFamily: fonts.sansBold, marginTop: 4 },
+		tripTitle: { color: colors.fg + textAlpha.primary, fontSize: 16, lineHeight: 22, fontFamily: fonts.sansBold, marginTop: 4 },
 		sessionCard: { padding: 0, overflow: 'hidden' },
-		band: { height: 34, justifyContent: 'center', paddingHorizontal: 16 },
+		band: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			gap: 8,
+			paddingHorizontal: 16,
+			paddingTop: 14,
+			paddingBottom: 2
+		},
+		bandDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
 		bandText: {
-			color: colors.onAccent,
-			fontFamily: fonts.displayMedium,
-			fontSize: 15, lineHeight: 21,
-			letterSpacing: 3
+			color: colors.accent,
+			fontFamily: fonts.sansSemi,
+			fontSize: 11,
+			lineHeight: 14,
+			letterSpacing: 1.2
+		},
+		moreBtn: {
+			width: 38,
+			height: 38,
+			borderRadius: 999,
+			backgroundColor: colors.hover,
+			alignItems: 'center',
+			justifyContent: 'center'
 		},
 		sessionBody: { padding: 16, gap: 8 },
 		dayRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
 		dayName: {
-			color: colors.text,
+			color: colors.fg + textAlpha.primary,
 			fontFamily: fonts.display,
-			fontSize: 28, lineHeight: 30,
+			fontSize: 30, lineHeight: 32,
 			letterSpacing: 1
 		},
 		countChip: {
@@ -495,19 +539,19 @@ const makeStyles = (colors: ThemeColors) =>
 			paddingHorizontal: 12,
 			paddingVertical: 4
 		},
-		countChipText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansMedium },
-		metaLine: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: 15, lineHeight: 21 },
+		countChipText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansMedium },
+		metaLine: { color: colors.fg + textAlpha.secondary, fontFamily: fonts.sans, fontSize: 14, lineHeight: 20 },
 		spotRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-		spotText: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold, flexShrink: 1 },
+		spotText: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold, flexShrink: 1 },
 		groupLabel: {
 			fontFamily: fonts.displayMedium,
-			fontSize: 15, lineHeight: 21,
+			fontSize: 14, lineHeight: 20,
 			letterSpacing: 2,
 			marginTop: 8,
 			color: colors.textSecondary
 		},
 		chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-		emptyDash: { color: colors.textMuted, fontSize: 15, lineHeight: 21 },
+		emptyDash: { color: colors.fg + textAlpha.muted, fontSize: 14, lineHeight: 20 },
 		voteRow: {
 			flexDirection: 'row',
 			alignItems: 'center',
@@ -526,13 +570,13 @@ const makeStyles = (colors: ThemeColors) =>
 			borderWidth: 1.5,
 			borderColor: colors.textMuted
 		},
-		voteName: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi, flex: 1 },
-		voteCount: { color: colors.textSecondary, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold },
+		voteName: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi, flex: 1 },
+		voteCount: { color: colors.fg + textAlpha.secondary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
 		actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8 },
 		soloCard: { paddingVertical: 12 },
 		soloRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-		soloTitle: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold },
-		soloText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans, marginTop: 0 },
+		soloTitle: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
+		soloText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans, marginTop: 0 },
 		sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 		spotOption: {
 			flexDirection: 'row',
@@ -543,6 +587,6 @@ const makeStyles = (colors: ThemeColors) =>
 			paddingHorizontal: 12,
 			paddingVertical: 12
 		},
-		spotOptionText: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi, flex: 1 },
-		spotOptionCity: { color: colors.textMuted, fontSize: 13, lineHeight: 18 }
+		spotOptionText: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi, flex: 1 },
+		spotOptionCity: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 }
 	});

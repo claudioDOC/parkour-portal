@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, TextInput, Switch } from 'react-nati
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../lib/theme';
+import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
 import {
 	Card,
@@ -168,7 +169,7 @@ export default function Challenges() {
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-	heroText: { color: colors.textSecondary, fontSize: 15, lineHeight: 21, fontFamily: fonts.sans },
+	heroText: { color: colors.fg + textAlpha.secondary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sans },
 	statBox: {
 		flex: 1,
 		backgroundColor: colors.card,
@@ -176,8 +177,8 @@ const makeStyles = (colors: ThemeColors) =>
 		paddingVertical: 12,
 		alignItems: 'center'
 	},
-	statNum: { color: colors.text, fontFamily: fonts.display, fontSize: 28, lineHeight: 30 },
-	statLabel: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 4 },
+	statNum: { color: colors.fg + textAlpha.primary, fontFamily: fonts.display, fontSize: 30, lineHeight: 32 },
+	statLabel: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, marginTop: 4 },
 	search: {
 		flexDirection: 'row',
 		alignItems: 'center',
@@ -186,23 +187,23 @@ const makeStyles = (colors: ThemeColors) =>
 		borderRadius: 12,
 		paddingHorizontal: 12
 	},
-	searchInput: { flex: 1, color: colors.text, paddingVertical: 12, fontSize: 15, lineHeight: 21, fontFamily: fonts.sans },
+	searchInput: { flex: 1, color: colors.fg + textAlpha.primary, paddingVertical: 12, fontSize: 14, lineHeight: 20, fontFamily: fonts.sans },
 	filterRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
 		paddingHorizontal: 4
 	},
-	filterLabel: { color: colors.textSecondary, fontSize: 15, lineHeight: 21 },
+	filterLabel: { color: colors.fg + textAlpha.secondary, fontSize: 14, lineHeight: 20 },
 	lbRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	lbRank: { color: colors.textMuted, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold, width: 18 },
-	lbName: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi, flex: 1 },
-	lbClears: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+	lbRank: { color: colors.fg + textAlpha.muted, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold, width: 18 },
+	lbName: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi, flex: 1 },
+	lbClears: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16 },
 	spotHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	spotName: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold },
-	spotCity: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
-	spotCount: { color: colors.accent, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold },
-	challengeList: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+	spotName: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
+	spotCity: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
+	spotCount: { color: colors.accent, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
+	challengeList: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
 	clearRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	clearText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, flex: 1 }
+	clearText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, flex: 1 }
 });

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
+import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { Card, TopBar, Screen, Avatar, Sheet, Input, Button } from '../../lib/ui';
 import { THEMES, THEME_OPTIONS } from '../../lib/theme';
@@ -256,8 +257,8 @@ export default function More() {
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
 	profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-	profileName: { color: colors.text, fontSize: 16, lineHeight: 21, fontFamily: fonts.sansBold },
-	profileHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 0 },
+	profileName: { color: colors.fg + textAlpha.primary, fontSize: 16, lineHeight: 22, fontFamily: fonts.sansBold },
+	profileHint: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, marginTop: 0 },
 	menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
 	menuDivider: { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
 	menuIcon: {
@@ -268,9 +269,9 @@ const makeStyles = (colors: ThemeColors) =>
 		alignItems: 'center',
 		justifyContent: 'center'
 	},
-	menuLabel: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi },
-	menuHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 0 },
-	footer: { color: colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 12, lineHeight: 17 },
+	menuLabel: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi },
+	menuHint: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, marginTop: 0 },
+	footer: { color: colors.fg + textAlpha.muted, fontSize: 12, textAlign: 'center', marginTop: 12, lineHeight: 17 },
 	themeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
 	swatch: {
 		width: 46,

@@ -15,6 +15,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, type ThemeColors } from './theme';
+import { type as T, textAlpha, radius, space } from './tokens';
 import { useTheme, useThemedStyles } from './themeContext';
 import { bgTexture, gradientBar, gradientProgress } from './gfx';
 import { mediaUrl } from './api';
@@ -82,9 +83,9 @@ export function AppHeader() {
 					style={{
 						color: colors.accent,
 						fontFamily: fonts.displayMedium,
-						fontSize: 13,
-						lineHeight: 14,
-						letterSpacing: 4,
+						fontSize: 11,
+						lineHeight: 13,
+						letterSpacing: 3.5
 					}}
 				>
 					PORTAL
@@ -160,74 +161,52 @@ export function Screen({
 
 const makeTopBar = (colors: ThemeColors) =>
 	StyleSheet.create({
-		row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 8 },
-		kicker: {
-			color: colors.accentHot,
-			fontFamily: fonts.displayMedium,
-			fontSize: 15, lineHeight: 21,
-			letterSpacing: 4.5,
-			marginBottom: -2
-		},
-		title: {
-			color: colors.text,
-			fontFamily: fonts.display,
-			fontSize: 40, lineHeight: 42,
-			letterSpacing: 1.5,
-			marginBottom: 4
-		},
-		accent: { color: colors.accent },
-		bar: { width: 64, height: 6, borderRadius: 2 },
-		sub: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: 15, lineHeight: 21, marginTop: 8 },
+		row: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.xs },
+		kicker: { ...T.label, color: colors.fg + textAlpha.muted },
+		title: { ...T.screenTitle, color: colors.fg + textAlpha.primary },
+		sub: { ...T.body, color: colors.fg + textAlpha.secondary, marginTop: space.sm },
 		circleBtn: {
 			width: 40,
 			height: 40,
-			borderRadius: 20,
-			backgroundColor: colors.card,
-			borderWidth: 1,
-			borderColor: colors.border,
+			borderRadius: radius.full,
+			backgroundColor: colors.hover,
 			alignItems: 'center',
-			justifyContent: 'center',
-			marginTop: 2
+			justifyContent: 'center'
 		},
 		dot: {
 			position: 'absolute',
 			top: 9,
 			right: 9,
-			width: 9,
-			height: 9,
-			borderRadius: 999,
+			width: 8,
+			height: 8,
+			borderRadius: radius.full,
 			backgroundColor: colors.danger,
-			borderWidth: 1.5,
-			borderColor: colors.bg
+			borderWidth: 2,
+			borderColor: colors.hover
 		}
 	});
 
 /**
- * Seitenkopf wie PageHeader der Website: Kicker (Zweitakzent, gesperrt),
- * Teko-Titel (letztes Wort im Akzent), Verlaufsbalken, optionale Sub-Zeile.
+ * Seitenkopf: kleiner gedämpfter Kicker, kräftiger neutraler Titel.
+ * Bewusst OHNE Akzentfarbe — die bleibt Kennzahlen und Aktionen vorbehalten.
  */
 export function TopBar({
 	kicker,
 	title,
 	sub,
 	back = false,
-	right,
-	plainTitle = false
+	right
 }: {
 	kicker: string;
 	title: string;
 	sub?: ReactNode;
 	back?: boolean;
 	right?: ReactNode;
-	/** Titel ohne Akzentwort — wie das Dashboard der Website. */
 	plainTitle?: boolean;
 }) {
 	const router = useRouter();
 	const { colors } = useTheme();
 	const t = useThemedStyles(makeTopBar);
-	const bar = useMemo(() => gradientBar(colors), [colors]);
-	const words = title.split(' ');
-	const last = words.pop();
 	return (
 		<View style={t.row}>
 			{back ? (
@@ -236,16 +215,14 @@ export function TopBar({
 					hitSlop={8}
 					style={({ pressed }) => [t.circleBtn, pressed && { opacity: 0.7 }]}
 				>
-					<Ionicons name="chevron-back" size={22} color={colors.text} />
+					<Ionicons name="chevron-back" size={22} color={colors.fg} />
 				</Pressable>
 			) : null}
 			<View style={{ flex: 1 }}>
 				<Text style={t.kicker}>{kicker.toUpperCase()}</Text>
 				<Text style={t.title} numberOfLines={1}>
-					{(words.length ? words.join(' ') + ' ' : '').toUpperCase()}
-					<Text style={plainTitle ? undefined : t.accent}>{last?.toUpperCase()}</Text>
+					{title.toUpperCase()}
 				</Text>
-				<Image source={{ uri: bar }} style={t.bar} />
 				{sub ? typeof sub === 'string' ? <Text style={t.sub}>{sub}</Text> : sub : null}
 			</View>
 			{right}
@@ -253,7 +230,10 @@ export function TopBar({
 	);
 }
 
-/** Karte wie `card-surface` im Web: Fläche, Licht-Kante oben, Schatten. */
+/**
+ * Karte: Höhe wird im Dunkeln über eine hellere Fläche gezeigt, nicht
+ * über Schatten (die sind auf Dunkel praktisch unsichtbar).
+ */
 export function Card({ children, style }: { children: ReactNode; style?: object }) {
 	const { colors } = useTheme();
 	return (
@@ -261,13 +241,8 @@ export function Card({ children, style }: { children: ReactNode; style?: object 
 			style={[
 				{
 					backgroundColor: colors.card,
-					borderRadius: 20,
-					padding: 16,
-					borderWidth: 1,
-					borderColor: colors.border,
-					borderTopColor: colors.dark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.04)',
-					elevation: 6,
-					shadowColor: '#000'
+					borderRadius: radius.md,
+					padding: space.lg
 				},
 				style
 			]}
@@ -277,7 +252,7 @@ export function Card({ children, style }: { children: ReactNode; style?: object 
 	);
 }
 
-/** Getönte Status-Pille. */
+/** Status-Pille: neutrale Fläche, Bedeutung allein über die Textfarbe. */
 export function Pill({
 	label,
 	color,
@@ -291,45 +266,41 @@ export function Pill({
 	return (
 		<View
 			style={{
-				borderRadius: 999,
-				paddingHorizontal: 12,
-				paddingVertical: 4,
+				borderRadius: radius.full,
+				paddingHorizontal: space.md,
+				paddingVertical: 5,
 				alignSelf: 'flex-start',
-				backgroundColor: filled ? color : color + '26'
+				backgroundColor: filled ? color : colors.hover
 			}}
 		>
-			<Text
-				style={{
-					fontSize: 13, lineHeight: 18,
-					fontFamily: fonts.sansBold,
-					letterSpacing: 0.2,
-					color: filled ? colors.onAccent : color
-				}}
-			>
-				{label}
+			<Text style={{ ...T.label, color: filled ? colors.onAccent : color }}>
+				{label.toUpperCase()}
 			</Text>
 		</View>
 	);
 }
 
-/** Namens-Chip wie „ZIEHT"-Liste im Web-Dashboard. */
+/**
+ * Namens-Chip: neutrale Fläche mit farbigem Punkt. Vorher war die ganze
+ * Fläche eingefärbt — bei zehn Namen wurde die Karte zur Farbwand.
+ */
 export function NameChip({ name, tone }: { name: string; tone?: string }) {
 	const { colors } = useTheme();
-	const color = tone ?? colors.success;
+	const dot = tone ?? colors.success;
 	return (
 		<View
 			style={{
-				borderRadius: 999,
-				paddingHorizontal: 16,
-				paddingVertical: 8,
-				backgroundColor: color + '1a',
-				borderWidth: 1,
-				borderColor: color + '2e'
+				flexDirection: 'row',
+				alignItems: 'center',
+				gap: space.sm,
+				borderRadius: radius.full,
+				paddingHorizontal: space.md,
+				paddingVertical: 7,
+				backgroundColor: colors.hover
 			}}
 		>
-			<Text style={{ color, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansMedium }}>
-				{name}
-			</Text>
+			<View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dot }} />
+			<Text style={{ ...T.body, color: colors.fg + textAlpha.primary }}>{name}</Text>
 		</View>
 	);
 }
@@ -455,19 +426,17 @@ export function Stars({
 	);
 }
 
-/** Fortschrittsbalken mit Akzent-Verlauf — wie die Balken der Statistik. */
+/** Fortschrittsbalken — dünn, einfarbig, ohne Aufmerksamkeit zu stehlen. */
 export function ProgressBar({
 	percent,
 	color,
-	height = 6
+	height = 4
 }: {
 	percent: number;
 	color?: string;
 	height?: number;
 }) {
 	const { colors } = useTheme();
-	const grad = useMemo(() => gradientProgress(colors), [colors]);
-	const width = `${Math.min(100, Math.max(0, percent))}%` as const;
 	return (
 		<View
 			style={{
@@ -477,20 +446,22 @@ export function ProgressBar({
 				overflow: 'hidden'
 			}}
 		>
-			{color ? (
-				<View style={{ height, borderRadius: height / 2, width, backgroundColor: color }} />
-			) : (
-				<View style={{ height, width, borderRadius: height / 2, overflow: 'hidden' }}>
-					<Image source={{ uri: grad }} style={{ flex: 1 }} contentFit="fill" />
-				</View>
-			)}
+			<View
+				style={{
+					height,
+					borderRadius: height / 2,
+					width: `${Math.min(100, Math.max(0, percent))}%`,
+					backgroundColor: color ?? colors.accent
+				}}
+			/>
 		</View>
 	);
 }
 
 /**
- * Kennzahl-Kachel wie im Web: grosse Zahl in der Metrik-Farbe, darunter
- * die Beschriftung in gesperrten Grossbuchstaben. In 2×2-Rastern verwendet.
+ * Kennzahl-Kachel: grosse Zahl in der Metrik-Farbe, darunter eine kleine
+ * gedämpfte Beschriftung. Zahlen sind der einzige Ort, an dem Farbe
+ * grossflächig auftauchen darf.
  */
 export function Stat({
 	value,
@@ -507,52 +478,25 @@ export function Stat({
 	return (
 		<View
 			style={{
-				// Zwei Kacheln pro Reihe (halbe Breite minus Abstand).
 				flexGrow: 1,
 				flexBasis: '46%',
 				minWidth: 140,
-				backgroundColor: colors.bgSecondary,
-				borderRadius: 12,
-				borderWidth: 1,
-				borderColor: colors.border,
-				paddingVertical: 16,
-				paddingHorizontal: 12,
+				backgroundColor: colors.card,
+				borderRadius: radius.md,
+				paddingVertical: space.lg,
+				paddingHorizontal: space.md,
 				alignItems: 'center',
-				gap: 4
+				gap: 2
 			}}
 		>
-			<Text
-				style={{
-					color: tint ?? colors.accent,
-					fontFamily: fonts.display,
-					fontSize: 28,
-					lineHeight: 30
-				}}
-			>
+			<Text style={{ ...T.metric, color: tint ?? colors.fg + textAlpha.primary }}>
 				{String(value)}
 			</Text>
-			<Text
-				style={{
-					color: colors.textMuted,
-					fontSize: 13,
-					lineHeight: 15,
-					fontFamily: fonts.sansMedium,
-					letterSpacing: 0.8,
-					textAlign: 'center'
-				}}
-			>
+			<Text style={{ ...T.label, color: colors.fg + textAlpha.secondary, textAlign: 'center' }}>
 				{label.toUpperCase()}
 			</Text>
 			{hint ? (
-				<Text
-					style={{
-						color: colors.textMuted,
-						fontSize: 13,
-						lineHeight: 18,
-						fontFamily: fonts.sans,
-						textAlign: 'center'
-					}}
-				>
+				<Text style={{ ...T.caption, color: colors.fg + textAlpha.muted, textAlign: 'center' }}>
 					{hint}
 				</Text>
 			) : null}
@@ -565,42 +509,43 @@ export function StatGrid({ children }: { children: ReactNode }) {
 	return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>{children}</View>;
 }
 
-/** Gruppenbeschriftung („ZIEHT (6)") — Sans in der Gruppenfarbe. */
+/** Gruppenbeschriftung („ZIEHT (6)") — klein, gedämpft, farbiger Punkt. */
 export function GroupLabel({ children, color }: { children: string; color: string }) {
+	const { colors } = useTheme();
+	return (
+		<View
+			style={{
+				flexDirection: 'row',
+				alignItems: 'center',
+				gap: space.sm,
+				marginTop: space.sm
+			}}
+		>
+			<View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
+			<Text style={{ ...T.label, color: colors.fg + textAlpha.secondary }}>
+				{children.toUpperCase()}
+			</Text>
+		</View>
+	);
+}
+
+/**
+ * Abschnittstitel: klein und gedämpft. Vorher stand hier ein zweiter
+ * grosser Titel samt Farbbalken — das hat mit dem Seitentitel konkurriert.
+ */
+export function SectionTitle({ children }: { children: string }) {
+	const { colors } = useTheme();
 	return (
 		<Text
 			style={{
-				color,
-				fontSize: 13,
-				lineHeight: 18,
-				fontFamily: fonts.sansBold,
-				letterSpacing: 1.2,
-				marginTop: 4
+				...T.label,
+				color: colors.fg + textAlpha.secondary,
+				marginTop: space.md,
+				marginBottom: -space.xs
 			}}
 		>
 			{children.toUpperCase()}
 		</Text>
-	);
-}
-
-/** Abschnittstitel wie im Web: kurzer Verlaufsbalken + Teko, gesperrt. */
-export function SectionTitle({ children }: { children: string }) {
-	const { colors } = useTheme();
-	const bar = useMemo(() => gradientBar(colors), [colors]);
-	return (
-		<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: -2 }}>
-			<Image source={{ uri: bar }} style={{ width: 34, height: 5, borderRadius: 2 }} />
-			<Text
-				style={{
-					color: colors.text,
-					fontFamily: fonts.display,
-					fontSize: 28, lineHeight: 30,
-					letterSpacing: 2.5,
-				}}
-			>
-				{children.toUpperCase()}
-			</Text>
-		</View>
 	);
 }
 
@@ -648,8 +593,8 @@ export function ErrorCard({ message }: { message: string }) {
 }
 
 /**
- * Buttons wie auf der Website: primär = solide Akzentfläche mit dunklem
- * Text und moderat gerundeten Ecken; ghost = Umrandung; danger = getönt.
+ * Buttons: `accent` ist die EINE Hauptaktion je Ansicht, alles andere
+ * `ghost` (neutrale Fläche). Höhe 48 — bequemes Daumenziel.
  */
 export function Button({
 	label,
@@ -666,40 +611,28 @@ export function Button({
 }) {
 	const { colors } = useTheme();
 	const textColor =
-		kind === 'accent' ? colors.onAccent : kind === 'danger' ? colors.danger : colors.text;
+		kind === 'accent'
+			? colors.onAccent
+			: kind === 'danger'
+				? colors.danger
+				: colors.fg + textAlpha.primary;
 	return (
 		<Pressable
 			style={({ pressed }) => [
 				{
-					borderRadius: 12,
-					paddingHorizontal: small ? 16 : 20,
-					paddingVertical: small ? 10 : 14,
-					minHeight: small ? 40 : 48,
+					borderRadius: radius.sm,
+					paddingHorizontal: small ? space.lg : space.xl,
+					minHeight: small ? 38 : 48,
 					justifyContent: 'center',
 					alignSelf: wide ? 'stretch' : 'flex-start',
-					alignItems: 'center'
+					alignItems: 'center',
+					backgroundColor: kind === 'accent' ? colors.accent : colors.hover
 				},
-				kind === 'accent' && { backgroundColor: colors.accent },
-				kind === 'ghost' && {
-					backgroundColor: 'transparent',
-					borderWidth: 1,
-					borderColor: colors.border
-				},
-				kind === 'danger' && { backgroundColor: colors.danger + '1f' },
-				pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }
+				pressed && { opacity: 0.8 }
 			]}
 			onPress={onPress}
 		>
-			<Text
-				style={{
-					fontSize: small ? 13 : 15,
-					lineHeight: small ? 18 : 21,
-					fontFamily: fonts.sansBold,
-					color: textColor
-				}}
-			>
-				{label}
-			</Text>
+			<Text style={{ ...T.bodyStrong, color: textColor }}>{label}</Text>
 		</Pressable>
 	);
 }

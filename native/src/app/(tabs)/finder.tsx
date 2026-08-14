@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
+import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { Card, TopBar, Screen, Stars, Button, Input, EmptyState } from '../../lib/ui';
 import { runFinder, type FinderResult } from '../../lib/api';
@@ -98,12 +99,12 @@ export default function Finder() {
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-		hint: { color: colors.accentBlue, fontFamily: fonts.sans, fontSize: 13, lineHeight: 18 },
+		hint: { color: colors.accentBlue, fontFamily: fonts.sans, fontSize: 12, lineHeight: 16 },
 		head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-		name: { color: colors.text, fontSize: 16, lineHeight: 21, fontFamily: fonts.sansBold },
-		city: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans },
+		name: { color: colors.fg + textAlpha.primary, fontSize: 16, lineHeight: 22, fontFamily: fonts.sansBold },
+		city: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans },
 		scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-		score: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans },
+		score: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans },
 		reasonWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 		reason: {
 			backgroundColor: colors.hover,
@@ -111,5 +112,5 @@ const makeStyles = (colors: ThemeColors) =>
 			paddingHorizontal: 12,
 			paddingVertical: 4
 		},
-		reasonText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansMedium }
+		reasonText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansMedium }
 	});

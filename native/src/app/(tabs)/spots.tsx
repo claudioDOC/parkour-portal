@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
+import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { TopBar, Screen, ErrorCard, EmptyState } from '../../lib/ui';
 import { useData } from '../../lib/store';
@@ -101,7 +102,7 @@ const makeStyles = (colors: ThemeColors) =>
 		borderRadius: 12,
 		paddingHorizontal: 12
 	},
-	searchInput: { flex: 1, color: colors.text, paddingVertical: 12, fontSize: 15, lineHeight: 21, fontFamily: fonts.sans },
+	searchInput: { flex: 1, color: colors.fg + textAlpha.primary, paddingVertical: 12, fontSize: 14, lineHeight: 20, fontFamily: fonts.sans },
 	row: {
 		backgroundColor: colors.card,
 		borderRadius: 20,
@@ -111,8 +112,8 @@ const makeStyles = (colors: ThemeColors) =>
 	},
 	rowBody: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16 },
 	thumb: { width: '100%', height: 150, backgroundColor: colors.hover },
-	name: { color: colors.text, fontSize: 16, lineHeight: 21, fontFamily: fonts.sansBold },
-	city: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans },
+	name: { color: colors.fg + textAlpha.primary, fontSize: 16, lineHeight: 22, fontFamily: fonts.sansBold },
+	city: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans },
 	tagRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
 	tag: {
 		backgroundColor: colors.accentBlue + '1a',
@@ -120,7 +121,7 @@ const makeStyles = (colors: ThemeColors) =>
 		paddingHorizontal: 12,
 		paddingVertical: 4
 	},
-	tagText: { color: colors.accentBlue, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansMedium },
-	score: { color: colors.accent, fontFamily: fonts.display, fontSize: 28, lineHeight: 30 },
-	votes: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans }
+	tagText: { color: colors.accentBlue, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansMedium },
+	score: { color: colors.accent, fontFamily: fonts.display, fontSize: 30, lineHeight: 32 },
+	votes: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans }
 });

@@ -27,7 +27,7 @@ export default function TabsLayout() {
 				},
 				tabBarActiveTintColor: colors.accent,
 				tabBarInactiveTintColor: colors.textMuted,
-				tabBarLabelStyle: { fontSize: 13, lineHeight: 16, fontFamily: fonts.sansSemi, marginTop: 2 }
+				tabBarLabelStyle: { fontSize: 12, lineHeight: 16, fontFamily: fonts.sansSemi, marginTop: 2 }
 			}}
 		>
 			<Tabs.Screen

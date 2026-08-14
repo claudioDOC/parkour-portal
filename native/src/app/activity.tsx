@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../lib/theme';
+import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
 import { Card, TopBar, Screen, EmptyState } from '../lib/ui';
 import { useActivity } from '../lib/activity';
@@ -84,7 +85,7 @@ const makeStyles = (colors: ThemeColors) =>
 		alignItems: 'center',
 		justifyContent: 'center'
 	},
-	title: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi },
-	body: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans },
-	time: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 4 }
+	title: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi },
+	body: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans },
+	time: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, marginTop: 4 }
 });

@@ -14,6 +14,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
+import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import {
 	Card,
@@ -299,9 +300,9 @@ const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
 	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 	galleryImage: { width: SCREEN_W * 0.72, height: SCREEN_W * 0.48, borderRadius: 12, backgroundColor: colors.hover },
-	rateLabel: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold, letterSpacing: 1.5 },
+	rateLabel: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold, letterSpacing: 1.5 },
 	scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-	scoreText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+	scoreText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16 },
 	mapBtn: {
 		flexDirection: 'row',
 		alignItems: 'center',
@@ -311,31 +312,31 @@ const makeStyles = (colors: ThemeColors) =>
 		paddingHorizontal: 12,
 		paddingVertical: 8
 	},
-	mapBtnText: { color: colors.onAccent, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold },
+	mapBtnText: { color: colors.onAccent, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold },
 	myRate: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
-	myRateLabel: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
-	description: { color: colors.textSecondary, fontSize: 15, lineHeight: 21 },
+	myRateLabel: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16 },
+	description: { color: colors.fg + textAlpha.secondary, fontSize: 14, lineHeight: 20 },
 	infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	infoText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, flex: 1 },
-	progressText: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
-	challengeTitle: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold, flex: 1 },
-	challengeDesc: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
+	infoText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, flex: 1 },
+	progressText: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
+	challengeTitle: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold, flex: 1 },
+	challengeDesc: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16 },
 	doneRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	doneText: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+	doneText: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
 	doneBtn: {
 		backgroundColor: colors.accent,
 		borderRadius: 999,
 		paddingVertical: 12,
 		alignItems: 'center'
 	},
-	doneBtnText: { color: colors.onAccent, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold },
+	doneBtnText: { color: colors.onAccent, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
 	undoBtn: {
 		backgroundColor: colors.hover,
 		borderRadius: 999,
 		paddingVertical: 12,
 		alignItems: 'center'
 	},
-	undoBtnText: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansSemi },
+	undoBtnText: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansSemi },
 	challengeHead: {
 		flexDirection: 'row',
 		alignItems: 'center',
@@ -361,8 +362,8 @@ const makeStyles = (colors: ThemeColors) =>
 		paddingHorizontal: 16,
 		paddingVertical: 12
 	},
-	nearbyName: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi, flex: 1 },
-	nearbyCity: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+	nearbyName: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi, flex: 1 },
+	nearbyCity: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
 	viewerBackdrop: {
 		flex: 1,
 		backgroundColor: 'rgba(0,0,0,0.95)',

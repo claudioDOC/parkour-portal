@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
+import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { Card, TopBar, Screen, SectionTitle, ErrorCard, ProgressBar, Stat, StatGrid } from '../../lib/ui';
 import { useData } from '../../lib/store';
@@ -124,15 +125,15 @@ const makeStyles = (colors: ThemeColors) =>
 		paddingVertical: 12,
 		alignItems: 'center'
 	},
-	statNum: { color: colors.text, fontFamily: fonts.display, fontSize: 28, lineHeight: 30 },
-	statLabel: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 4 },
+	statNum: { color: colors.fg + textAlpha.primary, fontFamily: fonts.display, fontSize: 30, lineHeight: 32 },
+	statLabel: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, marginTop: 4 },
 	lbRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	lbRank: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold, width: 18 },
-	lbName: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansSemi, flex: 1 },
-	lbPercent: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold },
+	lbRank: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold, width: 18 },
+	lbName: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi, flex: 1 },
+	lbPercent: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold },
 	streak: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-	streakText: { color: colors.warning, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold },
-	soloMeta: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+	streakText: { color: colors.warning, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold },
+	soloMeta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
 	recentRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	recentText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, flex: 1 }
+	recentText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, flex: 1 }
 });

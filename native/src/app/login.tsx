@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../lib/theme';
+import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
 import { Image as ExpoImage } from 'expo-image';
 import { bgTexture } from '../lib/gfx';
@@ -123,17 +124,17 @@ const makeStyles = (colors: ThemeColors) =>
 		marginBottom: 20
 	},
 	title: {
-		color: colors.text,
+		color: colors.fg + textAlpha.primary,
 		fontFamily: fonts.display,
-		fontSize: 40, lineHeight: 42,
+		fontSize: 34, lineHeight: 36,
 		textAlign: 'center',
 		letterSpacing: 2
 	},
 	titleAccent: { color: colors.accent },
 	subtitle: {
-		color: colors.textSecondary,
+		color: colors.fg + textAlpha.secondary,
 		fontFamily: fonts.sans,
-		fontSize: 15, lineHeight: 21,
+		fontSize: 14, lineHeight: 20,
 		textAlign: 'center',
 		marginTop: 8,
 		marginBottom: 30
@@ -147,8 +148,8 @@ const makeStyles = (colors: ThemeColors) =>
 		paddingHorizontal: 16,
 		marginBottom: 12
 	},
-	input: { flex: 1, color: colors.text, paddingVertical: 12, fontSize: 16, lineHeight: 21 },
-	error: { color: colors.danger, fontSize: 15, lineHeight: 21, marginBottom: 8, textAlign: 'center' },
+	input: { flex: 1, color: colors.fg + textAlpha.primary, paddingVertical: 12, fontSize: 16, lineHeight: 22 },
+	error: { color: colors.danger, fontSize: 14, lineHeight: 20, marginBottom: 8, textAlign: 'center' },
 	button: {
 		backgroundColor: colors.accent,
 		borderRadius: 999,
@@ -156,5 +157,5 @@ const makeStyles = (colors: ThemeColors) =>
 		alignItems: 'center',
 		marginTop: 8
 	},
-	buttonText: { color: colors.onAccent, fontSize: 16, lineHeight: 21, fontFamily: fonts.sansBold }
+	buttonText: { color: colors.onAccent, fontSize: 16, lineHeight: 22, fontFamily: fonts.sansBold }
 });

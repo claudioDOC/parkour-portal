@@ -23,6 +23,11 @@ export type ThemeColors = {
 	onAccent: string;
 	/** Heller oder dunkler Modus (Statusbar, Grauwerte). */
 	dark: boolean;
+	/**
+	 * Reine Vordergrundfarbe ohne Deckkraft — Textstufen entstehen daraus
+	 * mit den Werten aus tokens.textAlpha (87 / 60 / 38 %).
+	 */
+	fg: string;
 };
 
 export type UiThemeId =
@@ -42,7 +47,7 @@ export const THEMES: Record<UiThemeId, ThemeColors> = {
 		text: '#f0f0f0', textSecondary: '#a3a3ad', textMuted: '#777777',
 		border: 'rgba(255,255,255,0.09)',
 		danger: '#ff5555', warning: '#ff9947', success: '#47ffb3',
-		onAccent: '#0c0c0e', dark: true
+		onAccent: '#0c0c0e', dark: true, fg: '#f5f5f7'
 	},
 	urban: {
 		bg: '#1a1a18', bgSecondary: '#242320', card: '#2e2c28', hover: '#3a3834',
@@ -50,7 +55,7 @@ export const THEMES: Record<UiThemeId, ThemeColors> = {
 		text: '#f2f1ee', textSecondary: '#c4c2bc', textMuted: '#8a8780',
 		border: 'rgba(255,255,255,0.11)',
 		danger: '#d96a6a', warning: '#d4a85e', success: '#52b892',
-		onAccent: '#101413', dark: true
+		onAccent: '#101413', dark: true, fg: '#f5f4f1'
 	},
 	night: {
 		bg: '#0e1015', bgSecondary: '#14161c', card: '#1a1d24', hover: '#232733',
@@ -58,7 +63,7 @@ export const THEMES: Record<UiThemeId, ThemeColors> = {
 		text: '#eef1f6', textSecondary: '#a8aeba', textMuted: '#767d8a',
 		border: 'rgba(255,255,255,0.08)',
 		danger: '#f27285', warning: '#e5a960', success: '#5fc99a',
-		onAccent: '#0e1015', dark: true
+		onAccent: '#0e1015', dark: true, fg: '#f2f4f9'
 	},
 	dark: {
 		bg: '#121212', bgSecondary: '#1a1a1a', card: '#242424', hover: '#2f2f2f',
@@ -66,7 +71,7 @@ export const THEMES: Record<UiThemeId, ThemeColors> = {
 		text: '#ececec', textSecondary: '#b0b0b0', textMuted: '#8a8a8a',
 		border: 'rgba(255,255,255,0.10)',
 		danger: '#f28b82', warning: '#fdd663', success: '#81c995',
-		onAccent: '#121212', dark: true
+		onAccent: '#121212', dark: true, fg: '#f0f0f0'
 	},
 	light: {
 		bg: '#f3f4f6', bgSecondary: '#e5e7eb', card: '#ffffff', hover: '#eef0f3',
@@ -74,7 +79,7 @@ export const THEMES: Record<UiThemeId, ThemeColors> = {
 		text: '#111827', textSecondary: '#4b5563', textMuted: '#6b7280',
 		border: 'rgba(0,0,0,0.10)',
 		danger: '#dc2626', warning: '#d97706', success: '#059669',
-		onAccent: '#ffffff', dark: false
+		onAccent: '#ffffff', dark: false, fg: '#0b1220'
 	},
 	nord: {
 		bg: '#2e3440', bgSecondary: '#3b4252', card: '#434c5e', hover: '#4c566a',
@@ -82,7 +87,7 @@ export const THEMES: Record<UiThemeId, ThemeColors> = {
 		text: '#eceff4', textSecondary: '#d8dee9', textMuted: '#aeb3c0',
 		border: 'rgba(236,239,244,0.12)',
 		danger: '#bf616a', warning: '#ebcb8b', success: '#a3be8c',
-		onAccent: '#2e3440', dark: true
+		onAccent: '#2e3440', dark: true, fg: '#eceff4'
 	},
 	noir: {
 		bg: '#0a0a0c', bgSecondary: '#121218', card: '#1a1a22', hover: '#24242e',
@@ -90,7 +95,7 @@ export const THEMES: Record<UiThemeId, ThemeColors> = {
 		text: '#f0eef5', textSecondary: '#b8b4c4', textMuted: '#7a7688',
 		border: 'rgba(255,255,255,0.08)',
 		danger: '#e07080', warning: '#d9a85e', success: '#6bbe9a',
-		onAccent: '#0a0a0c', dark: true
+		onAccent: '#0a0a0c', dark: true, fg: '#f2f0f7'
 	},
 	ocean: {
 		bg: '#0c1520', bgSecondary: '#132535', card: '#1a3045', hover: '#224056',
@@ -98,7 +103,7 @@ export const THEMES: Record<UiThemeId, ThemeColors> = {
 		text: '#f0fdfa', textSecondary: '#a8d4ce', textMuted: '#6b9a94',
 		border: 'rgba(165,243,252,0.12)',
 		danger: '#fb7185', warning: '#fbbf24', success: '#4ade80',
-		onAccent: '#0c1520', dark: true
+		onAccent: '#0c1520', dark: true, fg: '#f0fdfa'
 	}
 };
 
