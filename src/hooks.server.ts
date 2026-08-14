@@ -50,7 +50,14 @@ function redirectHttpToHttpsIfNeeded(event: RequestEvent) {
 }
 
 /** Mutationen, die keinen Live-Reload bei allen auslösen sollen. */
-const LIVE_IGNORED_PATHS = ['/api/live', '/api/push/beacon', '/api/auth/'];
+const LIVE_IGNORED_PATHS = [
+	'/api/live',
+	'/api/push/beacon',
+	'/api/auth/',
+	// Rein persönlich (Gelesen-Stand) — würde sonst bei allen einen Reload
+	// auslösen und das gerade geöffnete Glocken-Panel zuklappen.
+	'/api/activity'
+];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	redirectHttpToHttpsIfNeeded(event);

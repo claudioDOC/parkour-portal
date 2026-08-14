@@ -28,10 +28,13 @@
 		if (open) markActivitySeen();
 	}
 
-	// Schliessen, wenn man auf einen Eintrag navigiert
+	// Nur bei echtem Seitenwechsel schliessen. Ohne Pfadvergleich würde jedes
+	// $page-Update (z. B. durch Live-Refresh) das Panel sofort zuklappen.
+	let lastPath = $state('');
 	$effect(() => {
-		void $page.url.pathname;
-		open = false;
+		const path = $page.url.pathname;
+		if (lastPath && path !== lastPath) open = false;
+		lastPath = path;
 	});
 
 	onMount(() => {
