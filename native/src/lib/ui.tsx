@@ -13,6 +13,7 @@ import {
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, type ThemeColors } from './theme';
 import { useTheme, useThemedStyles } from './themeContext';
 import { bgTexture, gradientBar, gradientFill } from './gfx';
@@ -36,13 +37,20 @@ export function Screen({
 	onRefresh?: () => void;
 }) {
 	const { colors } = useTheme();
+	const insets = useSafeAreaInsets();
 	const bg = useMemo(() => bgTexture(colors), [colors]);
 	return (
 		<View style={{ flex: 1, backgroundColor: colors.bg }}>
 			<Image source={{ uri: bg }} style={StyleSheet.absoluteFill} contentFit="cover" />
 			<ScrollView
 				style={{ flex: 1 }}
-				contentContainerStyle={{ padding: 20, paddingTop: 60, paddingBottom: 44, gap: 14 }}
+				contentContainerStyle={{
+					paddingHorizontal: 20,
+					// Statusleiste und Android-Navigationsleiste freihalten.
+					paddingTop: insets.top + 16,
+					paddingBottom: insets.bottom + 32,
+					gap: 14
+				}}
 				refreshControl={
 					onRefresh ? (
 						<RefreshControl
@@ -541,6 +549,7 @@ export function Sheet({
 	children: ReactNode;
 }) {
 	const { colors } = useTheme();
+	const insets = useSafeAreaInsets();
 	return (
 		<Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
 			<Pressable
@@ -555,7 +564,7 @@ export function Sheet({
 						borderTopWidth: 1,
 						borderTopColor: colors.dark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)',
 						padding: 22,
-						paddingBottom: 36,
+						paddingBottom: 22 + Math.max(insets.bottom, 14),
 						gap: 12
 					}}
 					onPress={() => {}}

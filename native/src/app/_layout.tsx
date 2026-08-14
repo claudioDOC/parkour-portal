@@ -2,6 +2,7 @@ import { useEffect, useState, createContext, useContext } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, AppState } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Updates from 'expo-updates';
 import { useFonts } from 'expo-font';
 import { Teko_500Medium, Teko_600SemiBold } from '@expo-google-fonts/teko';
@@ -129,6 +130,7 @@ export default function RootLayout() {
 	}
 
 	return (
+		<SafeAreaProvider>
 		<AuthContext.Provider value={{ me, setMe, signOut }}>
 			<ThemeProvider themeId={themeId} setThemeId={setThemeId}>
 			<ActivityProvider enabled={me !== null}>
@@ -147,5 +149,6 @@ export default function RootLayout() {
 			</ActivityProvider>
 			</ThemeProvider>
 		</AuthContext.Provider>
+		</SafeAreaProvider>
 	);
 }

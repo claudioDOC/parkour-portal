@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts } from '../../lib/theme';
 import { useTheme } from '../../lib/themeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
  * Untere Navigation — identisch zur Website: Finder · Spots · Training
@@ -10,6 +11,7 @@ import { useTheme } from '../../lib/themeContext';
  */
 export default function TabsLayout() {
 	const { colors } = useTheme();
+	const insets = useSafeAreaInsets();
 	return (
 		<Tabs
 			screenOptions={{
@@ -18,8 +20,9 @@ export default function TabsLayout() {
 					backgroundColor: colors.bgSecondary,
 					borderTopColor: colors.border,
 					borderTopWidth: StyleSheet.hairlineWidth,
-					height: 66,
-					paddingBottom: 10,
+					// Android-Navigationsleiste (Gesten/Buttons) nicht überlappen.
+					height: 62 + insets.bottom,
+					paddingBottom: insets.bottom + 8,
 					paddingTop: 8
 				},
 				tabBarActiveTintColor: colors.accent,
