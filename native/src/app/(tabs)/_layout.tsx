@@ -3,6 +3,14 @@ import { StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors } from '../../lib/theme';
 
+const TABS = [
+	{ name: 'index', title: 'Heute', icon: 'home' },
+	{ name: 'training', title: 'Training', icon: 'calendar' },
+	{ name: 'spots', title: 'Spots', icon: 'location' },
+	{ name: 'challenges', title: 'Challenges', icon: 'trophy' },
+	{ name: 'more', title: 'Mehr', icon: 'menu' }
+] as const;
+
 export default function TabsLayout() {
 	return (
 		<Tabs
@@ -18,27 +26,25 @@ export default function TabsLayout() {
 				},
 				tabBarActiveTintColor: colors.accent,
 				tabBarInactiveTintColor: colors.textMuted,
-				tabBarLabelStyle: { fontSize: 11, fontWeight: '700' }
+				tabBarLabelStyle: { fontSize: 10.5, fontWeight: '700' }
 			}}
 		>
-			<Tabs.Screen
-				name="index"
-				options={{
-					title: 'Heute',
-					tabBarIcon: ({ color, focused }) => (
-						<Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
-					)
-				}}
-			/>
-			<Tabs.Screen
-				name="training"
-				options={{
-					title: 'Training',
-					tabBarIcon: ({ color, focused }) => (
-						<Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={color} />
-					)
-				}}
-			/>
+			{TABS.map((tab) => (
+				<Tabs.Screen
+					key={tab.name}
+					name={tab.name}
+					options={{
+						title: tab.title,
+						tabBarIcon: ({ color, focused }) => (
+							<Ionicons
+								name={(focused ? tab.icon : `${tab.icon}-outline`) as 'home'}
+								size={22}
+								color={color}
+							/>
+						)
+					}}
+				/>
+			))}
 		</Tabs>
 	);
 }

@@ -1,25 +1,10 @@
-import { useCallback, useState } from 'react';
-import {
-	View,
-	Text,
-	ScrollView,
-	RefreshControl,
-	StyleSheet,
-	Pressable,
-	Alert,
-	TextInput,
-	Modal
-} from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert, TextInput, Modal } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors } from '../../lib/theme';
-import { Card, Header, InitialsRow, Pill } from '../../lib/ui';
-import {
-	getTraining,
-	trainingAction,
-	type TrainingPayload,
-	type TrainingSession
-} from '../../lib/api';
+import { Card, TopBar, InitialsRow, Pill, Screen, ErrorCard, Button } from '../../lib/ui';
+import { useData } from '../../lib/store';
+import { getTraining, trainingAction, type TrainingSession } from '../../lib/api';
 import { useAuth } from '../_layout';
 
 function formatDate(ymd: string): string {
@@ -28,39 +13,16 @@ function formatDate(ymd: string): string {
 }
 
 export default function Training() {
-	const [data, setData] = useState<TrainingPayload | null>(null);
-	const [refreshing, setRefreshing] = useState(false);
-	const [error, setError] = useState('');
+	const { me } = useAuth();
+	const { data, error, refresh, refreshing, onRefresh } = useData('training', getTraining);
 	// Abmelde-Dialog: Session + Begründung (min. 10 Zeichen, wie im Web)
 	const [absenceFor, setAbsenceFor] = useState<TrainingSession | null>(null);
 	const [absenceReason, setAbsenceReason] = useState('');
-	const { me } = useAuth();
-
-	const load = useCallback(async () => {
-		try {
-			setData(await getTraining());
-			setError('');
-		} catch (e) {
-			setError(e instanceof Error ? e.message : 'Laden fehlgeschlagen');
-		}
-	}, []);
-
-	useFocusEffect(
-		useCallback(() => {
-			load();
-		}, [load])
-	);
-
-	const onRefresh = async () => {
-		setRefreshing(true);
-		await load();
-		setRefreshing(false);
-	};
 
 	const act = async (fn: () => Promise<unknown>) => {
 		try {
 			await fn();
-			await load();
+			await refresh();
 		} catch (e) {
 			Alert.alert('Fehler', e instanceof Error ? e.message : 'Aktion fehlgeschlagen');
 		}
@@ -81,21 +43,9 @@ export default function Training() {
 	const optIn = data?.viewerTrainingAttendance === 'opt_in';
 
 	return (
-		<ScrollView
-			style={styles.screen}
-			contentContainerStyle={styles.content}
-			refreshControl={
-				<RefreshControl
-					refreshing={refreshing}
-					onRefresh={onRefresh}
-					tintColor={colors.accent}
-					colors={[colors.accent]}
-					progressBackgroundColor={colors.card}
-				/>
-			}
-		>
-			<Header kicker="Planung" title="Training" />
-			{error ? <Text style={styles.errorText}>{error}</Text> : null}
+		<Screen refreshing={refreshing} onRefresh={onRefresh}>
+			<TopBar kicker="Planung" title="Training" />
+			{error && !data ? <ErrorCard message={error} /> : null}
 
 			{(data?.sessions ?? []).map((s) => {
 				const iAmIn = me ? s.attending.some((a) => a.id === me.id) : false;
@@ -104,7 +54,7 @@ export default function Training() {
 				return (
 					<Card key={s.id}>
 						<View style={styles.cardHead}>
-							<View style={styles.dateBlock}>
+							<View style={{ gap: 2 }}>
 								<Text style={styles.cardDate}>{formatDate(s.date)}</Text>
 								<View style={styles.metaRow}>
 									<Ionicons name="time-outline" size={13} color={colors.textMuted} />
@@ -124,7 +74,6 @@ export default function Training() {
 
 						{!s.cancelled ? (
 							<>
-								{/* Spot-Status */}
 								{s.overrideSpot || (s.votingClosed && (s.winnerSpot || s.autoSpot)) ? (
 									<View style={styles.spotRow}>
 										<Ionicons name="location" size={16} color={colors.accent} />
@@ -167,7 +116,6 @@ export default function Training() {
 														)
 													}
 												>
-													{/* Balken proportional zu den Stimmen */}
 													<View
 														style={[
 															styles.voteFill,
@@ -195,14 +143,11 @@ export default function Training() {
 											);
 										})}
 										{s.spotVotes.length === 0 ? (
-											<Text style={styles.voteEmpty}>
-												Noch keine Stimmen — im Portal einen Spot vorschlagen.
-											</Text>
+											<Text style={styles.voteEmpty}>Noch keine Stimmen — sei die erste Stimme über den Spots-Tab.</Text>
 										) : null}
 									</View>
 								)}
 
-								{/* Teilnahme */}
 								<View style={styles.attendRow}>
 									<InitialsRow names={s.attending.map((a) => a.username)} />
 									<Text style={styles.attendMeta}>
@@ -211,27 +156,23 @@ export default function Training() {
 									</Text>
 								</View>
 
-								{/* Aktionen */}
 								<View style={styles.actions}>
 									{optIn ? (
 										s.userHasRsvp ? (
-											<Pressable
-												style={({ pressed }) => [styles.btnGhost, pressed && { opacity: 0.7 }]}
+											<Button
+												label="Doch nicht"
+												kind="ghost"
 												onPress={() => act(() => trainingAction('rsvp_no', s.id))}
-											>
-												<Text style={styles.btnGhostText}>Doch nicht</Text>
-											</Pressable>
+											/>
 										) : (
-											<Pressable
-												style={({ pressed }) => [styles.btnAccent, pressed && { opacity: 0.85 }]}
+											<Button
+												label="Dabei!"
 												onPress={() => act(() => trainingAction('rsvp_yes', s.id))}
-											>
-												<Text style={styles.btnAccentText}>Dabei!</Text>
-											</Pressable>
+											/>
 										)
 									) : absent ? (
-										<Pressable
-											style={({ pressed }) => [styles.btnAccent, pressed && { opacity: 0.85 }]}
+										<Button
+											label="Wieder dabei"
 											onPress={() =>
 												act(() =>
 													trainingAction(
@@ -240,16 +181,9 @@ export default function Training() {
 													)
 												)
 											}
-										>
-											<Text style={styles.btnAccentText}>Wieder dabei</Text>
-										</Pressable>
+										/>
 									) : (
-										<Pressable
-											style={({ pressed }) => [styles.btnGhost, pressed && { opacity: 0.7 }]}
-											onPress={() => setAbsenceFor(s)}
-										>
-											<Text style={styles.btnGhostText}>Abmelden</Text>
-										</Pressable>
+										<Button label="Abmelden" kind="ghost" onPress={() => setAbsenceFor(s)} />
 									)}
 								</View>
 							</>
@@ -276,35 +210,25 @@ export default function Training() {
 							onChangeText={setAbsenceReason}
 						/>
 						<View style={styles.sheetActions}>
-							<Pressable
-								style={({ pressed }) => [styles.btnGhost, pressed && { opacity: 0.7 }]}
+							<Button
+								label="Abbrechen"
+								kind="ghost"
 								onPress={() => {
 									setAbsenceFor(null);
 									setAbsenceReason('');
 								}}
-							>
-								<Text style={styles.btnGhostText}>Abbrechen</Text>
-							</Pressable>
-							<Pressable
-								style={({ pressed }) => [styles.btnAccent, pressed && { opacity: 0.85 }]}
-								onPress={submitAbsence}
-							>
-								<Text style={styles.btnAccentText}>Abmelden</Text>
-							</Pressable>
+							/>
+							<Button label="Abmelden" onPress={submitAbsence} />
 						</View>
 					</View>
 				</View>
 			</Modal>
-		</ScrollView>
+		</Screen>
 	);
 }
 
 const styles = StyleSheet.create({
-	screen: { flex: 1, backgroundColor: colors.bg },
-	content: { padding: 20, paddingTop: 60, paddingBottom: 40, gap: 12 },
-	errorText: { color: colors.danger, fontSize: 14 },
 	cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-	dateBlock: { gap: 2 },
 	cardDate: { color: colors.text, fontSize: 17, fontWeight: '800' },
 	metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 	cardTime: { color: colors.textMuted, fontSize: 13 },
@@ -339,21 +263,6 @@ const styles = StyleSheet.create({
 	attendRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
 	attendMeta: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
 	actions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
-	btnAccent: {
-		backgroundColor: colors.accent,
-		borderRadius: 999,
-		paddingHorizontal: 20,
-		paddingVertical: 11
-	},
-	btnAccentText: { color: colors.onAccent, fontSize: 14, fontWeight: '800' },
-	btnGhost: {
-		borderColor: colors.border,
-		borderWidth: 1,
-		borderRadius: 999,
-		paddingHorizontal: 20,
-		paddingVertical: 11
-	},
-	btnGhostText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
 	sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
 	sheet: {
 		backgroundColor: colors.card,

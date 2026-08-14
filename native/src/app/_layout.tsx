@@ -5,6 +5,8 @@ import { View, ActivityIndicator, AppState } from 'react-native';
 import * as Updates from 'expo-updates';
 import { colors } from '../lib/theme';
 import { getMe, getToken, logout, type Me } from '../lib/api';
+import { clearDataCache } from '../lib/store';
+import { ActivityProvider } from '../lib/activity';
 
 /**
  * Auth-Kontext: hält den eingeloggten User. Beim Start wird das gespeicherte
@@ -88,12 +90,15 @@ export default function RootLayout() {
 
 	const signOut = async () => {
 		await logout();
+		clearDataCache();
 		setMe(null);
 	};
 
 	if (!ready) {
 		return (
-			<View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+			<View
+				style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}
+			>
 				<ActivityIndicator color={colors.accent} size="large" />
 			</View>
 		);
@@ -101,14 +106,20 @@ export default function RootLayout() {
 
 	return (
 		<AuthContext.Provider value={{ me, setMe, signOut }}>
-			<StatusBar style="light" />
-			<Stack
-				screenOptions={{
-					headerShown: false,
-					contentStyle: { backgroundColor: colors.bg },
-					animation: 'fade_from_bottom'
-				}}
-			/>
+			<ActivityProvider enabled={me !== null}>
+				<StatusBar style="light" />
+				<Stack
+					screenOptions={{
+						headerShown: false,
+						contentStyle: { backgroundColor: colors.bg },
+						animation: 'slide_from_right'
+					}}
+				>
+					<Stack.Screen name="(tabs)" />
+					<Stack.Screen name="login" options={{ animation: 'fade' }} />
+					<Stack.Screen name="activity" options={{ animation: 'slide_from_bottom' }} />
+				</Stack>
+			</ActivityProvider>
 		</AuthContext.Provider>
 	);
 }

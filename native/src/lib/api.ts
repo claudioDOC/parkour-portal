@@ -7,6 +7,12 @@ import * as SecureStore from 'expo-secure-store';
  */
 export const BASE_URL = 'https://matetraining.duckdns.org';
 
+/** Relative Upload-Pfade (/uploads/…) zu vollen URLs machen. */
+export function mediaUrl(path: string | null | undefined): string | null {
+	if (!path) return null;
+	return path.startsWith('http') ? path : `${BASE_URL}${path}`;
+}
+
 const TOKEN_KEY = 'parkour-token';
 
 let cachedToken: string | null = null;
@@ -54,6 +60,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 	return res.json() as Promise<T>;
 }
 
+const get = <T>(path: string) => request<T>(path);
+const post = <T>(path: string, body: object) =>
+	request<T>(path, { method: 'POST', body: JSON.stringify(body) });
+
+// --- Auth ---
+
 export type Me = {
 	id: number;
 	username: string;
@@ -75,7 +87,7 @@ export async function logout(): Promise<void> {
 	await setToken(null);
 }
 
-export const getMe = () => request<Me>('/api/v1/me');
+export const getMe = () => get<Me>('/api/v1/me');
 
 // --- Training (Payload identisch zur Web-Seite, /api/v1/training) ---
 
@@ -112,17 +124,13 @@ export type TrainingSession = {
 export type TrainingPayload = {
 	sessions: TrainingSession[];
 	allSpots: { id: number; name: string; city: string }[];
-	trainingForecast: {
-		summary?: string;
-		isWet?: boolean;
-		temperature?: number | null;
-	} | null;
+	trainingForecast: { summary?: string; isWet?: boolean; temperature?: number | null } | null;
 	viewerTrainingAttendance: string | null;
 	mySolo: { todayLogged: boolean; countMonth: number };
 	calendarToday: string;
 };
 
-export const getTraining = () => request<TrainingPayload>('/api/v1/training');
+export const getTraining = () => get<TrainingPayload>('/api/v1/training');
 
 export type TrainingAction =
 	| 'absence'
@@ -134,13 +142,236 @@ export type TrainingAction =
 	| 'weekday_override_yes'
 	| 'weekday_override_no';
 
-export function trainingAction(
+export const trainingAction = (
 	action: TrainingAction,
 	sessionId: number,
 	extra: { reason?: string; spotId?: number } = {}
-) {
-	return request<{ success?: boolean }>('/api/training', {
-		method: 'POST',
-		body: JSON.stringify({ action, sessionId, ...extra })
+) => post<{ success?: boolean }>('/api/training', { action, sessionId, ...extra });
+
+// --- Solo-Training ---
+
+export const logSolo = (note?: string) => post<{ success?: boolean }>('/api/solo', { note });
+
+// --- Spots ---
+
+export type SpotListItem = {
+	id: number;
+	name: string;
+	city: string;
+	avgScore: number;
+	voteCount: number;
+	thumbnail: string | null;
+	isMicro?: boolean;
+	parentSpotName?: string | null;
+	lighting?: string | null;
+};
+
+export const getSpots = () => get<{ spots: SpotListItem[] }>('/api/v1/spots');
+
+export type SpotChallenge = {
+	id: number;
+	title: string;
+	description: string | null;
+	images: { id: number; url: string }[];
+	doneCount: number;
+	openCount: number;
+	doneBy: { userId: number; username: string }[];
+	openBy: { id: number; username: string }[];
+};
+
+/** Basisdaten liegen unter `spot`, Bewertung/Bilder/Challenges daneben. */
+export type SpotDetailPayload = {
+	spot: {
+		id: number;
+		name: string;
+		city: string;
+		latitude: number | null;
+		longitude: number | null;
+		lighting: string | null;
+		techniques: string | null;
+		goodWeather: string | null;
+		description: string | null;
+		addedByName: string;
+	};
+	avgScore: number;
+	voteCount: number;
+	userVote: number | null;
+	images: { id: number; url: string; filename: string }[];
+	challenges: SpotChallenge[];
+	nearbySpots: { id: number; name: string; city: string; distanceKm?: number }[];
+};
+
+export const getSpot = (id: number) => get<SpotDetailPayload>(`/api/v1/spots/${id}`);
+
+export const voteSpot = (spotId: number, score: number) =>
+	post<{ success?: boolean }>('/api/spots/vote', { spotId, score });
+
+export const setChallengeDone = (challengeId: number, done: boolean) =>
+	request<{ success?: boolean }>('/api/spots/challenges', {
+		method: 'PATCH',
+		body: JSON.stringify({ challengeId, done })
 	});
+
+// --- Challenge-Arena ---
+
+export type ArenaChallenge = {
+	id: number;
+	title: string;
+	description: string | null;
+	spotId: number;
+	completers: { userId: number; username: string }[];
+	images: { id: number; url: string }[];
+};
+
+export type ArenaPayload = {
+	schemaReady: boolean;
+	spotsWithChallenges: {
+		spotId: number;
+		spotName: string;
+		spotCity: string;
+		isMicro: boolean;
+		challenges: ArenaChallenge[];
+	}[];
+	totalChallenges: number;
+	totalClears: number;
+	openQuests: number;
+	leaderboard: { userId: number; username: string; clears: number }[];
+	recentClears: { username: string; challengeTitle?: string; title?: string; spotName: string; spotId: number; at: string }[];
+	viewerUsername: string | null;
+};
+
+export const getArena = () => get<ArenaPayload>('/api/v1/challenges');
+
+// --- Trips ---
+
+export type TripDateOption = {
+	id: number;
+	startDate: string;
+	endDate: string | null;
+	note: string | null;
+	proposedByName?: string;
+	voteCount: number;
+	sameAsPlanned?: boolean;
+};
+
+export type Trip = {
+	id: number;
+	title: string;
+	startDate: string;
+	endDate: string | null;
+	notes: string | null;
+	destinationLabel: string | null;
+	transportMode: string | null;
+	createdByName?: string;
+	participants: { userId: number; username: string; transportMode: string | null }[];
+	memberStates: { userId: number; username: string; status: 'joined' | 'declined' | 'pending'; transportMode: string | null }[];
+	dateOptions: TripDateOption[];
+	eligibleVoters: number;
+	votesNeeded: number;
+	myParticipation: { userId: number; transportMode: string | null } | null;
+	myVoteDateOptionId: number | null;
+	joinedCount: number;
+	declinedCount: number;
+	pendingCount: number;
+};
+
+export type TripsPayload = {
+	trips: Trip[];
+	activeUsers: { id: number; username: string }[];
+	user: { id: number };
+	isAdmin: boolean;
+};
+
+export const getTrips = () => get<TripsPayload>('/api/v1/trips');
+
+/**
+ * Mein Status an einem Trip — der Server speichert ihn im transportMode:
+ * keine Zeile = offen, 'abgemeldet' = nicht dabei,
+ * 'enthalten'/'unentschlossen' = enthalten, alles andere = dabei.
+ */
+export function myTripStatus(trip: Trip): 'pending' | 'declined' | 'abstained' | 'joined' {
+	const mode = trip.myParticipation?.transportMode;
+	if (mode === undefined || trip.myParticipation === null) return 'pending';
+	if (mode === 'abgemeldet') return 'declined';
+	if (mode === 'enthalten' || mode === 'unentschlossen') return 'abstained';
+	return 'joined';
 }
+
+/** Erster Trip, zu dem meine Antwort fehlt (inkl. 3-Tage-Wiedervorlage). */
+export const getPendingTrip = () =>
+	get<{ trip: { id: number; title: string; startDate: string; creatorName: string | null; inCount: number } | null }>(
+		'/api/trips/pending'
+	);
+
+export const tripAction = (action: string, tripId: number, extra: object = {}) =>
+	post<{ success?: boolean; adopted?: boolean }>('/api/trips', { action, tripId, ...extra });
+
+// --- Statistik ---
+
+export type StatsRow = {
+	userId: number;
+	username: string;
+	eligiblePastSessions: number;
+	absences: number;
+	showUpPercent: number;
+	streakNoAbsence: number;
+	spotsSuggested: number;
+	challengesCompleted: number;
+	totalChallenges: number;
+	challengeProgressPercent: number;
+};
+
+export type StatsPayload = {
+	stats: {
+		today: string;
+		group: {
+			pastSessionCount: number;
+			totalAbsences: number;
+			avgPulledPerSession: number;
+			memberCount: number;
+		};
+		leaderboard: StatsRow[];
+	};
+	solo: {
+		leaderboard: { userId: number; username: string; total: number; last90: number }[];
+		recent: { username: string; date: string; note: string | null }[];
+	};
+};
+
+export const getStats = () => get<StatsPayload>('/api/v1/stats');
+
+// --- Profil ---
+
+export type ProfilePayload = {
+	profile: { id: number; username: string; avatar: string | null; avatarFull: string | null };
+	me: StatsRow | null;
+	myRank: number | null;
+	totalMembers: number;
+	monthly: { label: string; present?: number; absences?: number }[];
+	completedChallenges: { title: string; spotName?: string; spotId?: number }[];
+	openChallengeCount: number;
+	soloCount: number;
+	members: { id: number; username: string; avatar: string | null }[];
+};
+
+export const getProfile = (userId?: number) =>
+	get<ProfilePayload>(userId ? `/api/v1/profile?userId=${userId}` : '/api/v1/profile');
+
+// --- Aktivität ---
+
+export type FeedEntry = {
+	id: number;
+	kind: string;
+	actorUserId: number | null;
+	actorName: string | null;
+	title: string;
+	body: string | null;
+	url: string | null;
+	createdAt: string;
+};
+
+export const getActivity = () =>
+	get<{ entries: FeedEntry[]; unread: number; latestId: number }>('/api/activity');
+
+export const markActivitySeen = (eventId: number) =>
+	post<{ success?: boolean }>('/api/activity', { eventId });
