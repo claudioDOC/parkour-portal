@@ -7,9 +7,11 @@ import {
 	StyleSheet,
 	KeyboardAvoidingView,
 	Platform,
-	ActivityIndicator
+	ActivityIndicator,
+	Image
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors } from '../lib/theme';
 import { login } from '../lib/api';
 import { useAuth } from './_layout';
@@ -17,6 +19,7 @@ import { useAuth } from './_layout';
 export default function Login() {
 	const [username, setUsername] = useState('');
 	const [password, setPassword] = useState('');
+	const [showPassword, setShowPassword] = useState(false);
 	const [error, setError] = useState('');
 	const [busy, setBusy] = useState(false);
 	const { setMe } = useAuth();
@@ -42,40 +45,48 @@ export default function Login() {
 			style={styles.screen}
 			behavior={Platform.OS === 'ios' ? 'padding' : undefined}
 		>
-			<View style={styles.chevrons}>
-				{/* Drei gestaffelte Chevrons — das Logo des Portals */}
-				{[0, 1, 2].map((i) => (
-					<Text key={i} style={[styles.chevron, { opacity: 1 - i * 0.3 }]}>
-						❯
-					</Text>
-				))}
-			</View>
-			<Text style={styles.title}>Parkour Portal</Text>
+			<Image source={require('../../assets/images/icon.png')} style={styles.logo} />
+			<Text style={styles.title}>
+				Parkour <Text style={styles.titleAccent}>Portal</Text>
+			</Text>
 			<Text style={styles.subtitle}>Melde dich mit deinem Portal-Konto an</Text>
 
-			<TextInput
-				style={styles.input}
-				placeholder="Benutzername"
-				placeholderTextColor={colors.textMuted}
-				autoCapitalize="none"
-				autoCorrect={false}
-				value={username}
-				onChangeText={setUsername}
-			/>
-			<TextInput
-				style={styles.input}
-				placeholder="Passwort"
-				placeholderTextColor={colors.textMuted}
-				secureTextEntry
-				value={password}
-				onChangeText={setPassword}
-				onSubmitEditing={submit}
-			/>
+			<View style={styles.inputWrap}>
+				<Ionicons name="person-outline" size={18} color={colors.textMuted} />
+				<TextInput
+					style={styles.input}
+					placeholder="Benutzername"
+					placeholderTextColor={colors.textMuted}
+					autoCapitalize="none"
+					autoCorrect={false}
+					value={username}
+					onChangeText={setUsername}
+				/>
+			</View>
+			<View style={styles.inputWrap}>
+				<Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />
+				<TextInput
+					style={styles.input}
+					placeholder="Passwort"
+					placeholderTextColor={colors.textMuted}
+					secureTextEntry={!showPassword}
+					value={password}
+					onChangeText={setPassword}
+					onSubmitEditing={submit}
+				/>
+				<Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
+					<Ionicons
+						name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+						size={18}
+						color={colors.textMuted}
+					/>
+				</Pressable>
+			</View>
 
 			{error ? <Text style={styles.error}>{error}</Text> : null}
 
 			<Pressable
-				style={({ pressed }) => [styles.button, pressed && { opacity: 0.8 }]}
+				style={({ pressed }) => [styles.button, (pressed || busy) && { opacity: 0.85 }]}
 				onPress={submit}
 				disabled={busy}
 			>
@@ -96,39 +107,49 @@ const styles = StyleSheet.create({
 		justifyContent: 'center',
 		paddingHorizontal: 28
 	},
-	chevrons: { flexDirection: 'row', justifyContent: 'center', marginBottom: 12 },
-	chevron: { color: '#ffffff', fontSize: 34, fontWeight: '900', marginHorizontal: 2 },
+	logo: {
+		width: 84,
+		height: 84,
+		borderRadius: 22,
+		alignSelf: 'center',
+		marginBottom: 18,
+		borderWidth: StyleSheet.hairlineWidth,
+		borderColor: colors.border
+	},
 	title: {
 		color: colors.text,
 		fontSize: 28,
 		fontWeight: '800',
-		textAlign: 'center'
+		textAlign: 'center',
+		letterSpacing: -0.5
 	},
+	titleAccent: { color: colors.accent },
 	subtitle: {
 		color: colors.textSecondary,
 		fontSize: 14,
 		textAlign: 'center',
 		marginTop: 6,
-		marginBottom: 28
+		marginBottom: 30
 	},
-	input: {
+	inputWrap: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 10,
 		backgroundColor: colors.card,
 		borderColor: colors.border,
 		borderWidth: 1,
-		borderRadius: 12,
-		color: colors.text,
-		paddingHorizontal: 16,
-		paddingVertical: 14,
-		fontSize: 16,
+		borderRadius: 14,
+		paddingHorizontal: 14,
 		marginBottom: 12
 	},
+	input: { flex: 1, color: colors.text, paddingVertical: 14, fontSize: 16 },
 	error: { color: colors.danger, fontSize: 14, marginBottom: 8, textAlign: 'center' },
 	button: {
 		backgroundColor: colors.accent,
-		borderRadius: 12,
+		borderRadius: 999,
 		paddingVertical: 15,
 		alignItems: 'center',
-		marginTop: 8
+		marginTop: 10
 	},
 	buttonText: { color: colors.onAccent, fontSize: 16, fontWeight: '800' }
 });

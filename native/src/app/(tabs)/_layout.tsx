@@ -1,12 +1,7 @@
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { StyleSheet } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors } from '../../lib/theme';
-
-import type { ColorValue } from 'react-native';
-
-function Icon({ glyph, color }: { glyph: string; color: ColorValue }) {
-	return <Text style={{ fontSize: 20, color }}>{glyph}</Text>;
-}
 
 export default function TabsLayout() {
 	return (
@@ -16,27 +11,32 @@ export default function TabsLayout() {
 				tabBarStyle: {
 					backgroundColor: colors.bgSecondary,
 					borderTopColor: colors.border,
-					height: 62,
-					paddingBottom: 8,
-					paddingTop: 6
+					borderTopWidth: StyleSheet.hairlineWidth,
+					height: 64,
+					paddingBottom: 10,
+					paddingTop: 8
 				},
 				tabBarActiveTintColor: colors.accent,
 				tabBarInactiveTintColor: colors.textMuted,
-				tabBarLabelStyle: { fontSize: 11, fontWeight: '600' }
+				tabBarLabelStyle: { fontSize: 11, fontWeight: '700' }
 			}}
 		>
 			<Tabs.Screen
 				name="index"
 				options={{
 					title: 'Heute',
-					tabBarIcon: ({ color }) => <Icon glyph="⌂" color={color} />
+					tabBarIcon: ({ color, focused }) => (
+						<Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
+					)
 				}}
 			/>
 			<Tabs.Screen
 				name="training"
 				options={{
 					title: 'Training',
-					tabBarIcon: ({ color }) => <Icon glyph="◎" color={color} />
+					tabBarIcon: ({ color, focused }) => (
+						<Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={color} />
+					)
 				}}
 			/>
 		</Tabs>

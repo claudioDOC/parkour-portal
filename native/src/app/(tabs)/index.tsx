@@ -8,7 +8,9 @@ import {
 	Pressable
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors } from '../../lib/theme';
+import { Card, Header, InitialsRow, Pill } from '../../lib/ui';
 import { getTraining, type TrainingPayload, type TrainingSession } from '../../lib/api';
 import { useAuth } from '../_layout';
 
@@ -41,7 +43,6 @@ export default function Today() {
 		}
 	}, []);
 
-	// Bei jedem Fokus aktualisieren — Daten sind da, bevor man hinschaut.
 	useFocusEffect(
 		useCallback(() => {
 			load();
@@ -57,136 +58,152 @@ export default function Today() {
 	const next = data?.sessions.find((s) => !s.cancelled) ?? data?.sessions[0] ?? null;
 	const isToday = next && data && next.date === data.calendarToday;
 	const spot = next ? effectiveSpot(next) : null;
-	const iAmIn =
-		next && me ? next.attending.some((a) => a.id === me.id) : false;
+	const iAmIn = next && me ? next.attending.some((a) => a.id === me.id) : false;
 
 	return (
 		<ScrollView
 			style={styles.screen}
 			contentContainerStyle={styles.content}
 			refreshControl={
-				<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+				<RefreshControl
+					refreshing={refreshing}
+					onRefresh={onRefresh}
+					tintColor={colors.accent}
+					colors={[colors.accent]}
+					progressBackgroundColor={colors.card}
+				/>
 			}
 		>
 			<View style={styles.headerRow}>
-				<View>
-					<Text style={styles.kicker}>PARKOUR PORTAL</Text>
-					<Text style={styles.title}>Hey {me?.username} 👋</Text>
-				</View>
-				<Pressable onPress={signOut} hitSlop={10}>
-					<Text style={styles.logout}>Abmelden</Text>
+				<Header kicker="Parkour Portal" title={`Hey ${me?.username ?? ''}`} />
+				<Pressable onPress={signOut} hitSlop={10} style={styles.logoutBtn}>
+					<Ionicons name="log-out-outline" size={20} color={colors.textMuted} />
 				</Pressable>
 			</View>
 
-			{error ? <Text style={styles.error}>{error}</Text> : null}
+			{error ? (
+				<Card style={styles.errorCard}>
+					<Text style={styles.errorText}>{error}</Text>
+				</Card>
+			) : null}
 
 			{next ? (
-				<Pressable style={styles.card} onPress={() => router.push('/training')}>
-					<Text style={styles.cardKicker}>
-						{isToday ? 'HEUTE' : 'NÄCHSTES TRAINING'}
-					</Text>
-					<Text style={styles.cardTitle}>{formatDate(next.date)}</Text>
-					<Text style={styles.cardMeta}>
-						{next.timeStart}–{next.timeEnd} Uhr
-					</Text>
-
-					{next.cancelled ? (
-						<Text style={styles.cancelled}>Abgesagt</Text>
-					) : (
-						<>
-							{spot ? (
-								<View style={styles.spotRow}>
-									<Text style={styles.spotLabel}>
-										{spot.fixed ? 'Spot steht fest' : 'Spot'}
-									</Text>
-									<Text style={styles.spotName}>
-										{spot.name} · {spot.city}
-									</Text>
-								</View>
-							) : (
-								<Text style={styles.spotOpen}>
-									Spot-Voting läuft — stimm ab!
+				<Pressable onPress={() => router.push('/training')}>
+					{({ pressed }) => (
+						<Card style={pressed ? { opacity: 0.85 } : undefined}>
+							<View style={styles.cardTop}>
+								<Text style={styles.cardKicker}>
+									{isToday ? 'HEUTE' : 'NÄCHSTES TRAINING'}
 								</Text>
-							)}
-							<View style={styles.attendRow}>
-								<Text style={styles.attendCount}>
-									{next.attending.length} dabei
-								</Text>
-								<Text style={styles.attendNames} numberOfLines={2}>
-									{next.attending.map((a) => a.username).join(', ') || '—'}
+								{next.cancelled ? (
+									<Pill label="Abgesagt" color={colors.danger} />
+								) : iAmIn ? (
+									<Pill label="✓ Dabei" color={colors.success} />
+								) : (
+									<Pill label="Nicht angemeldet" color={colors.warning} />
+								)}
+							</View>
+							<Text style={styles.cardTitle}>{formatDate(next.date)}</Text>
+							<View style={styles.metaRow}>
+								<Ionicons name="time-outline" size={15} color={colors.textSecondary} />
+								<Text style={styles.metaText}>
+									{next.timeStart}–{next.timeEnd} Uhr
 								</Text>
 							</View>
-							<Text style={[styles.myStatus, { color: iAmIn ? colors.success : colors.warning }]}>
-								{iAmIn ? '✓ Du bist dabei' : 'Du bist nicht angemeldet'}
-							</Text>
-						</>
+
+							{!next.cancelled ? (
+								<>
+									<View style={styles.divider} />
+									{spot ? (
+										<View style={styles.spotRow}>
+											<Ionicons name="location" size={18} color={colors.accent} />
+											<View style={{ flex: 1 }}>
+												<Text style={styles.spotName}>{spot.name}</Text>
+												<Text style={styles.spotCity}>{spot.city}</Text>
+											</View>
+											{spot.fixed ? <Pill label="Fix" color={colors.accent} filled /> : null}
+										</View>
+									) : (
+										<View style={styles.spotRow}>
+											<Ionicons name="megaphone-outline" size={18} color={colors.accentBlue} />
+											<Text style={styles.voteHint}>Spot-Voting läuft — stimm ab!</Text>
+										</View>
+									)}
+
+									<View style={styles.attendRow}>
+										<InitialsRow names={next.attending.map((a) => a.username)} />
+										<Text style={styles.attendCount}>{next.attending.length} dabei</Text>
+									</View>
+								</>
+							) : null}
+						</Card>
 					)}
 				</Pressable>
 			) : (
-				<View style={styles.card}>
-					<Text style={styles.cardMeta}>Kein Training geplant.</Text>
-				</View>
+				<Card>
+					<Text style={styles.metaText}>Kein Training geplant.</Text>
+				</Card>
 			)}
 
 			{data?.trainingForecast?.summary ? (
-				<View style={styles.forecast}>
-					<Text style={styles.forecastText}>{data.trainingForecast.summary}</Text>
-				</View>
+				<Card style={styles.smallCard}>
+					<View style={styles.smallRow}>
+						<Ionicons
+							name={data.trainingForecast.isWet ? 'rainy-outline' : 'partly-sunny-outline'}
+							size={18}
+							color={colors.accentBlue}
+						/>
+						<Text style={styles.smallText}>{data.trainingForecast.summary}</Text>
+					</View>
+				</Card>
 			) : null}
 
-			<View style={styles.soloCard}>
-				<Text style={styles.soloTitle}>Solo-Training</Text>
-				<Text style={styles.soloText}>
-					{data?.mySolo.countMonth ?? 0} diesen Monat
-					{data?.mySolo.todayLogged ? ' · heute eingetragen ✓' : ''}
-				</Text>
-			</View>
+			<Card style={styles.smallCard}>
+				<View style={styles.smallRow}>
+					<Ionicons name="flash-outline" size={18} color={colors.accent} />
+					<View style={{ flex: 1 }}>
+						<Text style={styles.smallTitle}>Solo-Training</Text>
+						<Text style={styles.smallText}>
+							{data?.mySolo.countMonth ?? 0} diesen Monat
+							{data?.mySolo.todayLogged ? '  ·  heute eingetragen ✓' : ''}
+						</Text>
+					</View>
+				</View>
+			</Card>
 		</ScrollView>
 	);
 }
 
 const styles = StyleSheet.create({
 	screen: { flex: 1, backgroundColor: colors.bg },
-	content: { padding: 20, paddingTop: 56, gap: 14 },
-	headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-	kicker: { color: colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 2 },
-	title: { color: colors.text, fontSize: 24, fontWeight: '800', marginTop: 2 },
-	logout: { color: colors.textMuted, fontSize: 13 },
-	error: { color: colors.danger, fontSize: 14 },
-	card: {
-		backgroundColor: colors.card,
-		borderColor: colors.border,
-		borderWidth: 1,
-		borderRadius: 16,
-		padding: 18
+	content: { padding: 20, paddingTop: 60, gap: 12 },
+	headerRow: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'flex-start',
+		marginBottom: 6
 	},
+	logoutBtn: { padding: 6, marginTop: 4 },
+	errorCard: { borderColor: colors.danger + '55' },
+	errorText: { color: colors.danger, fontSize: 14 },
+	cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 	cardKicker: { color: colors.accent, fontSize: 11, fontWeight: '800', letterSpacing: 2 },
-	cardTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginTop: 6 },
-	cardMeta: { color: colors.textSecondary, fontSize: 14, marginTop: 2 },
-	cancelled: { color: colors.danger, fontSize: 16, fontWeight: '800', marginTop: 12 },
-	spotRow: { marginTop: 14 },
-	spotLabel: { color: colors.textMuted, fontSize: 12 },
-	spotName: { color: colors.text, fontSize: 16, fontWeight: '700', marginTop: 2 },
-	spotOpen: { color: colors.accentBlue, fontSize: 14, fontWeight: '600', marginTop: 14 },
-	attendRow: { marginTop: 12 },
-	attendCount: { color: colors.text, fontSize: 14, fontWeight: '700' },
-	attendNames: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
-	myStatus: { fontSize: 14, fontWeight: '700', marginTop: 12 },
-	forecast: {
-		backgroundColor: colors.bgSecondary,
-		borderRadius: 12,
-		padding: 14,
-		borderColor: colors.border,
-		borderWidth: 1
+	cardTitle: { color: colors.text, fontSize: 21, fontWeight: '800', marginTop: 10, letterSpacing: -0.3 },
+	metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+	metaText: { color: colors.textSecondary, fontSize: 14 },
+	divider: {
+		height: StyleSheet.hairlineWidth,
+		backgroundColor: colors.border,
+		marginVertical: 14
 	},
-	forecastText: { color: colors.textSecondary, fontSize: 13 },
-	soloCard: {
-		backgroundColor: colors.bgSecondary,
-		borderRadius: 12,
-		padding: 14,
-		borderColor: colors.border,
-		borderWidth: 1
-	},
-	soloTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
-	soloText: { color: colors.textSecondary, fontSize: 13, marginTop: 2 }
+	spotRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+	spotName: { color: colors.text, fontSize: 16, fontWeight: '700' },
+	spotCity: { color: colors.textMuted, fontSize: 13 },
+	voteHint: { color: colors.accentBlue, fontSize: 14, fontWeight: '600', flex: 1 },
+	attendRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
+	attendCount: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+	smallCard: { paddingVertical: 14 },
+	smallRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+	smallTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+	smallText: { color: colors.textSecondary, fontSize: 13, marginTop: 1, flexShrink: 1 }
 });
