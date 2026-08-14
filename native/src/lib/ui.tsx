@@ -26,15 +26,105 @@ import { useActivity } from './activity';
  * Sperrung, Akzent-Verlaufsbalken, Hintergrund-Glow, Karten mit Licht-Kante.
  */
 
+/**
+ * Feste Kopfleiste wie auf der Website: Logo-Kachel, Wortmarke „PARKOUR /
+ * PORTAL", rechts die Glocke mit rotem Punkt.
+ */
+export function AppHeader() {
+	const { colors } = useTheme();
+	const insets = useSafeAreaInsets();
+	const router = useRouter();
+	const { unread } = useActivity();
+	return (
+		<View
+			style={{
+				paddingTop: insets.top + 8,
+				paddingBottom: 10,
+				paddingHorizontal: 16,
+				flexDirection: 'row',
+				alignItems: 'center',
+				gap: 11,
+				backgroundColor: colors.bgSecondary,
+				borderBottomWidth: StyleSheet.hairlineWidth,
+				borderBottomColor: colors.border
+			}}
+		>
+			<View
+				style={{
+					width: 40,
+					height: 40,
+					borderRadius: 12,
+					backgroundColor: colors.bg,
+					borderWidth: 1,
+					borderColor: colors.border,
+					alignItems: 'center',
+					justifyContent: 'center'
+				}}
+			>
+				<Image
+					source={require('../../assets/images/icon.png')}
+					style={{ width: 26, height: 26, borderRadius: 7 }}
+					contentFit="contain"
+				/>
+			</View>
+			<View style={{ flex: 1 }}>
+				<Text
+					style={{
+						color: colors.text,
+						fontFamily: fonts.display,
+						fontSize: 23,
+						letterSpacing: 1.5,
+						lineHeight: 24
+					}}
+				>
+					PARKOUR
+				</Text>
+				<Text
+					style={{
+						color: colors.accent,
+						fontFamily: fonts.displayMedium,
+						fontSize: 12,
+						letterSpacing: 4,
+						lineHeight: 14
+					}}
+				>
+					PORTAL
+				</Text>
+			</View>
+			<Pressable onPress={() => router.push('/activity')} hitSlop={10} style={{ padding: 4 }}>
+				<Ionicons name="notifications-outline" size={23} color={colors.textSecondary} />
+				{unread > 0 ? (
+					<View
+						style={{
+							position: 'absolute',
+							top: 2,
+							right: 2,
+							width: 9,
+							height: 9,
+							borderRadius: 5,
+							backgroundColor: colors.danger,
+							borderWidth: 1.5,
+							borderColor: colors.bgSecondary
+						}}
+					/>
+				) : null}
+			</Pressable>
+		</View>
+	);
+}
+
 /** Scroll-Seite mit Theme-Hintergrund (Glows + Punktraster) und Refresh. */
 export function Screen({
 	children,
 	refreshing,
-	onRefresh
+	onRefresh,
+	header = true
 }: {
 	children: ReactNode;
 	refreshing?: boolean;
 	onRefresh?: () => void;
+	/** Feste Kopfleiste mit Logo — auf Unterseiten abschaltbar. */
+	header?: boolean;
 }) {
 	const { colors } = useTheme();
 	const insets = useSafeAreaInsets();
@@ -42,12 +132,12 @@ export function Screen({
 	return (
 		<View style={{ flex: 1, backgroundColor: colors.bg }}>
 			<Image source={{ uri: bg }} style={StyleSheet.absoluteFill} contentFit="cover" />
+			{header ? <AppHeader /> : null}
 			<ScrollView
 				style={{ flex: 1 }}
 				contentContainerStyle={{
 					paddingHorizontal: 20,
-					// Statusleiste und Android-Navigationsleiste freihalten.
-					paddingTop: insets.top + 16,
+					paddingTop: header ? 18 : insets.top + 16,
 					paddingBottom: insets.bottom + 32,
 					gap: 14
 				}}
@@ -133,7 +223,6 @@ export function TopBar({
 }) {
 	const router = useRouter();
 	const { colors } = useTheme();
-	const { unread } = useActivity();
 	const t = useThemedStyles(makeTopBar);
 	const bar = useMemo(() => gradientBar(colors), [colors]);
 	const words = title.split(' ');
@@ -159,14 +248,6 @@ export function TopBar({
 				{sub ? typeof sub === 'string' ? <Text style={t.sub}>{sub}</Text> : sub : null}
 			</View>
 			{right}
-			<Pressable
-				onPress={() => router.push('/activity')}
-				hitSlop={8}
-				style={({ pressed }) => [t.circleBtn, pressed && { opacity: 0.7 }]}
-			>
-				<Ionicons name="notifications-outline" size={21} color={colors.textSecondary} />
-				{unread > 0 ? <View style={t.dot} /> : null}
-			</Pressable>
 		</View>
 	);
 }
