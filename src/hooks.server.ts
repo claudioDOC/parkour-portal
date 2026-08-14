@@ -26,7 +26,9 @@ const publicPaths = [
 	// Digital Asset Links für die Android-App (Play Store / TWA).
 	'/.well-known/assetlinks.json',
 	// Kalender-Abo — Key-geschützt in der Route selbst.
-	'/calendar.ics'
+	'/calendar.ics',
+	// APK-Download-Seite — Link soll ohne Login teilbar sein.
+	'/app'
 ];
 
 /** F-09: In Produktion nur HTTPS, wenn der Proxy X-Forwarded-Proto mitsendet. */

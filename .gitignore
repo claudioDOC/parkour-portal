@@ -67,3 +67,13 @@ android/build/
 /.android
 /.gradle
 /tools
+
+# Native App (React Native / Expo)
+/native/node_modules
+/native/dist
+/native/.expo
+/native/android/build
+/native/android/app/build
+/native/android/.gradle
+/native/android/.kotlin
+/native/android/local.properties
