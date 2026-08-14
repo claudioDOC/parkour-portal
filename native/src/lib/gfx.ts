@@ -31,6 +31,14 @@ export function gradientBar(c: ThemeColors): string {
 </svg>`);
 }
 
+/** Verlaufs-Fortschrittsbalken (Akzent→Zweitakzent) wie in der Statistik. */
+export function gradientProgress(c: ThemeColors): string {
+	return svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 6" preserveAspectRatio="none">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${c.accent}"/><stop offset="100%" stop-color="${c.accentHot}"/></linearGradient></defs>
+<rect width="100" height="6" rx="3" fill="url(#g)"/>
+</svg>`);
+}
+
 /** Flächen-Verlauf für primäre Buttons und Kopfbänder. */
 export function gradientFill(c: ThemeColors): string {
 	return svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40" preserveAspectRatio="none">

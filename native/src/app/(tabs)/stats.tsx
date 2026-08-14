@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
-import { Card, TopBar, Screen, SectionTitle, ErrorCard, ProgressBar } from '../../lib/ui';
+import { Card, TopBar, Screen, SectionTitle, ErrorCard, ProgressBar, Stat, StatGrid } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { getStats } from '../../lib/api';
 import { useAuth } from '../_layout';
@@ -21,23 +21,35 @@ export default function Stats() {
 			{error && !data ? <ErrorCard message={error} /> : null}
 
 			{data ? (
-				<View style={styles.statsRow}>
-					<View style={styles.statBox}>
-						<Text style={styles.statNum}>{data.stats.group.pastSessionCount}</Text>
-						<Text style={styles.statLabel}>Trainings</Text>
-					</View>
-					<View style={styles.statBox}>
-						<Text style={styles.statNum}>{data.stats.group.avgPulledPerSession}</Text>
-						<Text style={styles.statLabel}>Ø dabei</Text>
-					</View>
-					<View style={styles.statBox}>
-						<Text style={styles.statNum}>{data.stats.group.memberCount}</Text>
-						<Text style={styles.statLabel}>Mitglieder</Text>
-					</View>
-				</View>
+				<StatGrid>
+					<Stat
+						value={data.stats.group.pastSessionCount}
+						label="Trainings"
+						tint={colors.accent}
+						hint="bisher durch"
+					/>
+					<Stat
+						value={data.stats.group.totalAbsences}
+						label="Abmeldungen"
+						tint={colors.warning}
+						hint="insgesamt gemeldet"
+					/>
+					<Stat
+						value={data.stats.group.avgPulledPerSession}
+						label="Ø pro Training"
+						tint={colors.text}
+						hint="im Schnitt dabei"
+					/>
+					<Stat
+						value={data.stats.group.memberCount}
+						label="Mitglieder"
+						tint={colors.text}
+						hint="in der Wertung"
+					/>
+				</StatGrid>
 			) : null}
 
-			<SectionTitle>Anwesenheit</SectionTitle>
+			<SectionTitle>Hall of Fame</SectionTitle>
 			<Card style={{ gap: 12 }}>
 				{lb.map((row, i) => (
 					<View key={row.userId} style={{ gap: 4 }}>

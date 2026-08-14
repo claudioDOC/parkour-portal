@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, type ThemeColors } from './theme';
 import { useTheme, useThemedStyles } from './themeContext';
-import { bgTexture, gradientBar, gradientFill } from './gfx';
+import { bgTexture, gradientBar, gradientProgress } from './gfx';
 import { mediaUrl } from './api';
 import { useActivity } from './activity';
 
@@ -312,19 +312,19 @@ export function Pill({
 /** Namens-Chip wie „ZIEHT"-Liste im Web-Dashboard. */
 export function NameChip({ name, tone }: { name: string; tone?: string }) {
 	const { colors } = useTheme();
-	const color = tone ?? colors.accent;
+	const color = tone ?? colors.success;
 	return (
 		<View
 			style={{
 				borderRadius: 999,
-				paddingHorizontal: 12,
+				paddingHorizontal: 16,
 				paddingVertical: 8,
-				backgroundColor: color + '1c',
+				backgroundColor: color + '1a',
 				borderWidth: 1,
-				borderColor: color + '33'
+				borderColor: color + '2e'
 			}}
 		>
-			<Text style={{ color: colors.text, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansMedium }}>
+			<Text style={{ color, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansMedium }}>
 				{name}
 			</Text>
 		</View>
@@ -452,53 +452,128 @@ export function Stars({
 	);
 }
 
-/** Fortschrittsbalken. */
-export function ProgressBar({ percent, color }: { percent: number; color?: string }) {
+/** Fortschrittsbalken mit Akzent-Verlauf — wie die Balken der Statistik. */
+export function ProgressBar({
+	percent,
+	color,
+	height = 6
+}: {
+	percent: number;
+	color?: string;
+	height?: number;
+}) {
 	const { colors } = useTheme();
+	const grad = useMemo(() => gradientProgress(colors), [colors]);
+	const width = `${Math.min(100, Math.max(0, percent))}%` as const;
 	return (
-		<View style={{ height: 5, borderRadius: 3, backgroundColor: colors.hover, overflow: 'hidden' }}>
-			<View
-				style={{
-					height: 5,
-					borderRadius: 3,
-					width: `${Math.min(100, Math.max(0, percent))}%`,
-					backgroundColor: color ?? colors.accent
-				}}
-			/>
+		<View
+			style={{
+				height,
+				borderRadius: height / 2,
+				backgroundColor: colors.hover,
+				overflow: 'hidden'
+			}}
+		>
+			{color ? (
+				<View style={{ height, borderRadius: height / 2, width, backgroundColor: color }} />
+			) : (
+				<View style={{ height, width, borderRadius: height / 2, overflow: 'hidden' }}>
+					<Image source={{ uri: grad }} style={{ flex: 1 }} contentFit="fill" />
+				</View>
+			)}
 		</View>
 	);
 }
 
-/** Kennzahl-Kachel — Zahl in Teko wie die grossen Ziffern der Website. */
-export function Stat({ value, label, tint }: { value: string | number; label: string; tint?: string }) {
+/**
+ * Kennzahl-Kachel wie im Web: grosse Zahl in der Metrik-Farbe, darunter
+ * die Beschriftung in gesperrten Grossbuchstaben. In 2×2-Rastern verwendet.
+ */
+export function Stat({
+	value,
+	label,
+	tint,
+	hint
+}: {
+	value: string | number;
+	label: string;
+	tint?: string;
+	hint?: string;
+}) {
 	const { colors } = useTheme();
 	return (
 		<View
 			style={{
 				flex: 1,
-				backgroundColor: colors.card,
-				borderRadius: 20,
+				backgroundColor: colors.bgSecondary,
+				borderRadius: 12,
 				borderWidth: 1,
 				borderColor: colors.border,
-				paddingVertical: 12,
+				paddingVertical: 16,
+				paddingHorizontal: 12,
 				alignItems: 'center',
-				elevation: 4,
-				shadowColor: '#000'
+				gap: 4
 			}}
 		>
 			<Text
 				style={{
-					color: tint ?? colors.text,
+					color: tint ?? colors.accent,
 					fontFamily: fonts.display,
-					fontSize: 28, lineHeight: 30,
+					fontSize: 28,
+					lineHeight: 30
 				}}
 			>
 				{String(value)}
 			</Text>
-			<Text style={{ color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansMedium }}>
-				{label}
+			<Text
+				style={{
+					color: colors.textMuted,
+					fontSize: 13,
+					lineHeight: 15,
+					fontFamily: fonts.sansMedium,
+					letterSpacing: 0.8,
+					textAlign: 'center'
+				}}
+			>
+				{label.toUpperCase()}
 			</Text>
+			{hint ? (
+				<Text
+					style={{
+						color: colors.textMuted,
+						fontSize: 13,
+						lineHeight: 18,
+						fontFamily: fonts.sans,
+						textAlign: 'center'
+					}}
+				>
+					{hint}
+				</Text>
+			) : null}
 		</View>
+	);
+}
+
+/** 2×2-Raster für vier Kennzahlen — das Layout der Website. */
+export function StatGrid({ children }: { children: ReactNode }) {
+	return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>{children}</View>;
+}
+
+/** Gruppenbeschriftung („ZIEHT (6)") — Sans in der Gruppenfarbe. */
+export function GroupLabel({ children, color }: { children: string; color: string }) {
+	return (
+		<Text
+			style={{
+				color,
+				fontSize: 13,
+				lineHeight: 18,
+				fontFamily: fonts.sansBold,
+				letterSpacing: 1.2,
+				marginTop: 4
+			}}
+		>
+			{children.toUpperCase()}
+		</Text>
 	);
 }
 
@@ -566,7 +641,10 @@ export function ErrorCard({ message }: { message: string }) {
 	);
 }
 
-/** Buttons: accent = Akzent-Verlauf (Hauptaktion), ghost, danger. */
+/**
+ * Buttons wie auf der Website: primär = solide Akzentfläche mit dunklem
+ * Text und moderat gerundeten Ecken; ghost = Umrandung; danger = getönt.
+ */
 export function Button({
 	label,
 	onPress,
@@ -581,31 +659,38 @@ export function Button({
 	wide?: boolean;
 }) {
 	const { colors } = useTheme();
-	const fill = useMemo(() => gradientFill(colors), [colors]);
 	const textColor =
 		kind === 'accent' ? colors.onAccent : kind === 'danger' ? colors.danger : colors.text;
 	return (
 		<Pressable
 			style={({ pressed }) => [
 				{
-					borderRadius: 999,
-					paddingHorizontal: small ? 15 : 22,
-					paddingVertical: small ? 9 : 12,
+					borderRadius: 12,
+					paddingHorizontal: small ? 16 : 20,
+					paddingVertical: small ? 10 : 14,
+					minHeight: small ? 40 : 48,
+					justifyContent: 'center',
 					alignSelf: wide ? 'stretch' : 'flex-start',
-					alignItems: wide ? 'center' : undefined,
-					overflow: 'hidden'
+					alignItems: 'center'
 				},
-				kind === 'ghost' && { backgroundColor: colors.hover },
+				kind === 'accent' && { backgroundColor: colors.accent },
+				kind === 'ghost' && {
+					backgroundColor: 'transparent',
+					borderWidth: 1,
+					borderColor: colors.border
+				},
 				kind === 'danger' && { backgroundColor: colors.danger + '1f' },
-				pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] }
+				pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] }
 			]}
 			onPress={onPress}
 		>
-			{kind === 'accent' ? (
-				<Image source={{ uri: fill }} style={StyleSheet.absoluteFill} contentFit="fill" />
-			) : null}
 			<Text
-				style={{ fontSize: small ? 13 : 14.5, fontFamily: fonts.sansBold, color: textColor }}
+				style={{
+					fontSize: small ? 13 : 15,
+					lineHeight: small ? 18 : 21,
+					fontFamily: fonts.sansBold,
+					color: textColor
+				}}
 			>
 				{label}
 			</Text>

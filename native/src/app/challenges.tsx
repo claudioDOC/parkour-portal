@@ -4,7 +4,17 @@ import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../lib/theme';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
-import { Card, TopBar, Screen, SectionTitle, ErrorCard, EmptyState, ProgressBar } from '../lib/ui';
+import {
+	Card,
+	TopBar,
+	Screen,
+	SectionTitle,
+	ErrorCard,
+	EmptyState,
+	ProgressBar,
+	Stat,
+	StatGrid
+} from '../lib/ui';
 import { useData } from '../lib/store';
 import { getArena } from '../lib/api';
 import { useAuth } from './_layout';
@@ -38,20 +48,22 @@ export default function Challenges() {
 			{error && !data ? <ErrorCard message={error} /> : null}
 
 			{data ? (
-				<View style={styles.statsRow}>
-					<View style={styles.statBox}>
-						<Text style={styles.statNum}>{data.totalChallenges}</Text>
-						<Text style={styles.statLabel}>Challenges</Text>
-					</View>
-					<View style={styles.statBox}>
-						<Text style={styles.statNum}>{data.totalClears}</Text>
-						<Text style={styles.statLabel}>Clears</Text>
-					</View>
-					<View style={styles.statBox}>
-						<Text style={[styles.statNum, { color: colors.accent }]}>{data.openQuests}</Text>
-						<Text style={styles.statLabel}>Offen für dich</Text>
-					</View>
-				</View>
+				<Card style={{ gap: 16 }}>
+					<Text style={styles.heroText}>
+						Alle aktiven Spot-Quests — wer hat was erlegt? Offene Quests locken, die Rangliste
+						ehrt die fleissigsten Legenden.
+					</Text>
+					<StatGrid>
+						<Stat value={data.totalChallenges} label="Aktive Quests" tint={colors.accent} />
+						<Stat value={data.totalClears} label="Siege gesamt" tint={colors.success} />
+						<Stat value={data.openQuests} label="Noch offen" tint={colors.warning} />
+						<Stat
+							value={data.spotsWithChallenges.length}
+							label="Spots am Start"
+							tint={colors.accentBlue}
+						/>
+					</StatGrid>
+				</Card>
 			) : null}
 
 			<View style={styles.search}>
@@ -156,7 +168,7 @@ export default function Challenges() {
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-	statsRow: { flexDirection: 'row', gap: 8 },
+	heroText: { color: colors.textSecondary, fontSize: 15, lineHeight: 21, fontFamily: fonts.sans },
 	statBox: {
 		flex: 1,
 		backgroundColor: colors.card,

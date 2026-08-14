@@ -11,6 +11,7 @@ import {
 	TopBar,
 	Pill,
 	NameChip,
+	GroupLabel,
 	Screen,
 	ErrorCard,
 	Button,
@@ -209,7 +210,9 @@ export default function Dashboard() {
 										</View>
 									) : s.spotVotes.length > 0 ? (
 										<View style={{ gap: 8, marginTop: 4 }}>
-											<Text style={styles.groupLabel}>SPOT-VOTING ({s.spotVotes.length})</Text>
+											<GroupLabel color={colors.accentBlue}>
+												{`Spot-Voting (${s.spotVotes.length})`}
+											</GroupLabel>
 											{s.spotVotes.map((v) => {
 												const mine = s.userVotedSpotId === v.spotId;
 												return (
@@ -245,9 +248,9 @@ export default function Dashboard() {
 										<Text style={styles.metaLine}>Noch kein Spot vorgeschlagen</Text>
 									)}
 
-									<Text style={[styles.groupLabel, { color: colors.accent }]}>
-										ZIEHT ({s.attending.length})
-									</Text>
+									<GroupLabel color={colors.success}>
+										{`Zieht (${s.attending.length})`}
+									</GroupLabel>
 									<View style={styles.chipWrap}>
 										{s.attending.map((a) => (
 											<NameChip key={a.id} name={a.username} />
@@ -259,9 +262,9 @@ export default function Dashboard() {
 											<Text style={styles.emptyDash}>—</Text>
 										) : null}
 									</View>
-									<Text style={[styles.groupLabel, { color: colors.danger }]}>
-										ZIEHT NICHT ({s.absences.length})
-									</Text>
+									<GroupLabel color={colors.danger}>
+										{`Zieht nicht (${s.absences.length})`}
+									</GroupLabel>
 									<View style={styles.chipWrap}>
 										{s.absences.map((a) => (
 											<NameChip key={a.id} name={a.username} tone={colors.danger} />

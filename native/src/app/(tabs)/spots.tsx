@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
-import { TopBar, Screen, Stars, ErrorCard, EmptyState } from '../../lib/ui';
+import { TopBar, Screen, ErrorCard, EmptyState } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { getSpots, mediaUrl } from '../../lib/api';
 
@@ -55,25 +55,30 @@ export default function Spots() {
 									contentFit="cover"
 									transition={150}
 								/>
-							) : (
-								<View style={[styles.thumb, styles.thumbEmpty]}>
-									<Ionicons name="image-outline" size={20} color={colors.textMuted} />
+							) : null}
+							<View style={styles.rowBody}>
+								<View style={{ flex: 1, gap: 4 }}>
+									<Text style={styles.name} numberOfLines={1}>
+										{s.name}
+									</Text>
+									<Text style={styles.city}>{s.city}</Text>
+									{s.isMicro ? (
+										<View style={styles.tagRow}>
+											<View style={styles.tag}>
+												<Text style={styles.tagText}>Microspot</Text>
+											</View>
+										</View>
+									) : null}
 								</View>
-							)}
-							<View style={{ flex: 1, gap: 4 }}>
-								<Text style={styles.name} numberOfLines={1}>
-									{s.name}
-									{s.isMicro ? <Text style={styles.micro}>  · Micro</Text> : null}
-								</Text>
-								<Text style={styles.city}>{s.city}</Text>
-								<View style={styles.scoreRow}>
-									<Stars value={s.avgScore} size={13} />
-									<Text style={styles.voteCount}>
-										{s.voteCount > 0 ? `${s.avgScore.toFixed(1)} (${s.voteCount})` : 'Keine Bewertung'}
+								<View style={{ alignItems: 'flex-end' }}>
+									<Text style={styles.score}>
+										{s.voteCount > 0 ? s.avgScore.toFixed(1) : '—'}
+									</Text>
+									<Text style={styles.votes}>
+										{s.voteCount > 0 ? `${s.voteCount} Votes` : 'keine Votes'}
 									</Text>
 								</View>
 							</View>
-							<Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
 						</View>
 					)}
 				</Pressable>
@@ -98,19 +103,24 @@ const makeStyles = (colors: ThemeColors) =>
 	},
 	searchInput: { flex: 1, color: colors.text, paddingVertical: 12, fontSize: 15, lineHeight: 21, fontFamily: fonts.sans },
 	row: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 12,
 		backgroundColor: colors.card,
 		borderRadius: 20,
-		padding: 8,
-		paddingRight: 14
+		borderWidth: 1,
+		borderColor: colors.border,
+		overflow: 'hidden'
 	},
-	thumb: { width: 70, height: 70, borderRadius: 12, backgroundColor: colors.hover },
-	thumbEmpty: { alignItems: 'center', justifyContent: 'center' },
-	name: { color: colors.text, fontSize: 15, lineHeight: 21, fontFamily: fonts.sansBold },
-	micro: { color: colors.accentBlue, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansBold },
+	rowBody: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16 },
+	thumb: { width: '100%', height: 150, backgroundColor: colors.hover },
+	name: { color: colors.text, fontSize: 16, lineHeight: 21, fontFamily: fonts.sansBold },
 	city: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans },
-	scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 0 },
-	voteCount: { color: colors.textMuted, fontSize: 13, lineHeight: 18 }
+	tagRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+	tag: {
+		backgroundColor: colors.accentBlue + '1a',
+		borderRadius: 999,
+		paddingHorizontal: 12,
+		paddingVertical: 4
+	},
+	tagText: { color: colors.accentBlue, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansMedium },
+	score: { color: colors.accent, fontFamily: fonts.display, fontSize: 28, lineHeight: 30 },
+	votes: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans }
 });

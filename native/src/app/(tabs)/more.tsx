@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -114,7 +115,17 @@ export default function More() {
 			</Card>
 
 			<Card style={{ padding: 8 }}>
-				<Pressable onPress={() => Linking.openURL(`${BASE_URL}/map`)}>
+				<Pressable
+					onPress={() =>
+						WebBrowser.openBrowserAsync(`${BASE_URL}/map`, {
+							toolbarColor: colors.bgSecondary,
+							controlsColor: colors.accent,
+							// Bleibt im App-Fenster: Chrome Custom Tab statt externem Browser.
+							showTitle: true,
+							enableBarCollapsing: true
+						})
+					}
+				>
 					{({ pressed }) => (
 						<View style={[styles.menuRow, styles.menuDivider, pressed && { opacity: 0.7 }]}>
 							<View style={styles.menuIcon}>
