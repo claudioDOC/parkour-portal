@@ -13,7 +13,8 @@ import {
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors } from '../../lib/theme';
+import { type ThemeColors } from '../../lib/theme';
+import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import {
 	Card,
 	TopBar,
@@ -35,6 +36,8 @@ import { useAuth } from '../_layout';
 const { width: SCREEN_W } = Dimensions.get('window');
 
 export default function SpotDetailScreen() {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(makeStyles);
 	const { id } = useLocalSearchParams<{ id: string }>();
 	const spotId = Number(id);
 	const { me } = useAuth();
@@ -292,7 +295,8 @@ export default function SpotDetailScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+	StyleSheet.create({
 	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 	galleryImage: { width: SCREEN_W * 0.72, height: SCREEN_W * 0.48, borderRadius: 16, backgroundColor: colors.hover },
 	rateLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },

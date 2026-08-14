@@ -71,6 +71,7 @@ export type Me = {
 	username: string;
 	role: string;
 	trainingAttendance: string | null;
+	uiTheme?: string;
 };
 
 export async function login(username: string, password: string): Promise<Me> {
@@ -378,6 +379,32 @@ export type ProfilePayload = {
 
 export const getProfile = (userId?: number) =>
 	get<ProfilePayload>(userId ? `/api/v1/profile?userId=${userId}` : '/api/v1/profile');
+
+// --- Finder ---
+
+export type FinderResult = {
+	id: number;
+	name: string;
+	city: string;
+	lighting: string | null;
+	techniques: string | null;
+	description: string | null;
+	avgScore: number;
+	voteCount: number;
+	reasons: string[];
+};
+
+export const runFinder = (wish: string) =>
+	post<{ results: FinderResult[]; forecastHint: string | null }>('/api/finder', { wish });
+
+// --- Einstellungen ---
+
+export const saveUiTheme = (theme: string) =>
+	post<{ success?: boolean }>('/api/user/ui-theme', { theme });
+
+/** Admin: Push-Nachricht an alle Geräte. */
+export const adminBroadcast = (title: string, body: string) =>
+	post<{ sent?: number }>('/api/admin/push', { title, body });
 
 // --- Aktivität ---
 

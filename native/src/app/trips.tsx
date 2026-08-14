@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Alert, Share, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fonts } from '../lib/theme';
+import { fonts, type ThemeColors } from '../lib/theme';
+import { useTheme, useThemedStyles } from '../lib/themeContext';
 import {
 	Card,
 	TopBar,
@@ -42,6 +43,8 @@ const TRANSPORT_MODES = [
 ];
 
 export default function Trips() {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(makeStyles);
 	const { data, error, refresh, refreshing, onRefresh } = useData('trips', getTrips);
 	// Beitritt: erst Transportmittel wählen (Bottom-Sheet), dann senden.
 	const [joinFor, setJoinFor] = useState<Trip | null>(null);
@@ -338,7 +341,8 @@ export default function Trips() {
 	);
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+	StyleSheet.create({
 	addBtn: {
 		width: 40,
 		height: 40,

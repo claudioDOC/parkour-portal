@@ -1,22 +1,55 @@
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fonts } from '../../lib/theme';
-import { Card, TopBar, Screen, Avatar } from '../../lib/ui';
+import { fonts, type ThemeColors } from '../../lib/theme';
+import { useTheme, useThemedStyles } from '../../lib/themeContext';
+import { Card, TopBar, Screen, Avatar, Sheet, Input, Button } from '../../lib/ui';
+import { THEMES, THEME_OPTIONS } from '../../lib/theme';
 import { useData } from '../../lib/store';
-import { getProfile } from '../../lib/api';
+import { getProfile, saveUiTheme, adminBroadcast, BASE_URL } from '../../lib/api';
 import { useAuth } from '../_layout';
 
 const MENU = [
+	{ route: '/challenges', icon: 'trophy-outline', label: 'Challenges', hint: 'Arena, Leaderboard, offene Quests' },
 	{ route: '/trips', icon: 'airplane-outline', label: 'Trips', hint: 'Ausflüge & Abstimmungen' },
-	{ route: '/stats', icon: 'stats-chart-outline', label: 'Statistik', hint: 'Anwesenheit & Solo' },
 	{ route: '/profile/me', icon: 'person-outline', label: 'Profil & Mitglieder', hint: 'Dein Profil, alle Leute' },
 	{ route: '/activity', icon: 'notifications-outline', label: 'Aktivität', hint: 'Was zuletzt passiert ist' }
 ] as const;
 
 export default function More() {
+	const { colors, themeId, setThemeId } = useTheme();
+	const styles = useThemedStyles(makeStyles);
 	const { me, signOut } = useAuth();
+	const [themeOpen, setThemeOpen] = useState(false);
+	const [pushOpen, setPushOpen] = useState(false);
+	const [pushForm, setPushForm] = useState({ title: '', body: '' });
+
+	const pickTheme = async (id: (typeof THEME_OPTIONS)[number]['id']) => {
+		setThemeId(id);
+		setThemeOpen(false);
+		try {
+			await saveUiTheme(id);
+		} catch {
+			Alert.alert('Hinweis', 'Theme lokal aktiv, aber Speichern im Profil schlug fehl.');
+		}
+	};
+
+	const sendBroadcast = async () => {
+		if (!pushForm.title.trim() || !pushForm.body.trim()) {
+			Alert.alert('Unvollständig', 'Titel und Text sind Pflicht.');
+			return;
+		}
+		setPushOpen(false);
+		try {
+			const res = await adminBroadcast(pushForm.title.trim(), pushForm.body.trim());
+			setPushForm({ title: '', body: '' });
+			Alert.alert('Verschickt', `Push an ${res.sent ?? '?'} Geräte gesendet.`);
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Senden fehlgeschlagen');
+		}
+	};
 	const router = useRouter();
 	const profile = useData('profile-me', () => getProfile());
 
@@ -81,6 +114,51 @@ export default function More() {
 			</Card>
 
 			<Card style={{ padding: 6 }}>
+				<Pressable onPress={() => Linking.openURL(`${BASE_URL}/map`)}>
+					{({ pressed }) => (
+						<View style={[styles.menuRow, styles.menuDivider, pressed && { opacity: 0.7 }]}>
+							<View style={styles.menuIcon}>
+								<Ionicons name="map-outline" size={19} color={colors.accent} />
+							</View>
+							<View style={{ flex: 1 }}>
+								<Text style={styles.menuLabel}>Karte</Text>
+								<Text style={styles.menuHint}>Alle Spots auf der Portal-Karte (Browser)</Text>
+							</View>
+							<Ionicons name="open-outline" size={16} color={colors.textMuted} />
+						</View>
+					)}
+				</Pressable>
+				<Pressable onPress={() => setThemeOpen(true)}>
+					{({ pressed }) => (
+						<View style={[styles.menuRow, styles.menuDivider, pressed && { opacity: 0.7 }]}>
+							<View style={styles.menuIcon}>
+								<Ionicons name="color-palette-outline" size={19} color={colors.accent} />
+							</View>
+							<View style={{ flex: 1 }}>
+								<Text style={styles.menuLabel}>Design</Text>
+								<Text style={styles.menuHint}>
+									Aktiv: {THEME_OPTIONS.find((t) => t.id === themeId)?.label}
+								</Text>
+							</View>
+							<Ionicons name="chevron-forward" size={17} color={colors.textMuted} />
+						</View>
+					)}
+				</Pressable>
+				{me?.role === 'admin' ? (
+					<Pressable onPress={() => setPushOpen(true)}>
+						{({ pressed }) => (
+							<View style={[styles.menuRow, styles.menuDivider, pressed && { opacity: 0.7 }]}>
+								<View style={styles.menuIcon}>
+									<Ionicons name="megaphone-outline" size={19} color={colors.warning} />
+								</View>
+								<View style={{ flex: 1 }}>
+									<Text style={styles.menuLabel}>Push an alle</Text>
+									<Text style={styles.menuHint}>Admin: Nachricht an alle Geräte</Text>
+								</View>
+							</View>
+						)}
+					</Pressable>
+				) : null}
 				<Pressable onPress={checkUpdate}>
 					{({ pressed }) => (
 						<View style={[styles.menuRow, styles.menuDivider, pressed && { opacity: 0.7 }]}>
@@ -118,11 +196,54 @@ export default function More() {
 			<Text style={styles.footer}>
 				Parkour Portal · matetraining.duckdns.org{'\n'}Web und App teilen denselben Stand.
 			</Text>
+
+			{/* Theme-Wahl — wie Einstellungen → Design im Web */}
+			<Sheet visible={themeOpen} onClose={() => setThemeOpen(false)} title="Design wählen">
+				{THEME_OPTIONS.map((opt) => (
+					<Pressable
+						key={opt.id}
+						onPress={() => pickTheme(opt.id)}
+						style={({ pressed }) => [styles.themeRow, pressed && { opacity: 0.7 }]}
+					>
+						<View style={[styles.swatch, { backgroundColor: THEMES[opt.id].bg }]}>
+							<View style={[styles.swatchDot, { backgroundColor: THEMES[opt.id].accent }]} />
+							<View style={[styles.swatchDot, { backgroundColor: THEMES[opt.id].accentHot }]} />
+						</View>
+						<View style={{ flex: 1 }}>
+							<Text style={styles.menuLabel}>{opt.label}</Text>
+							<Text style={styles.menuHint}>{opt.hint}</Text>
+						</View>
+						{themeId === opt.id ? (
+							<Ionicons name="checkmark-circle" size={20} color={colors.accent} />
+						) : null}
+					</Pressable>
+				))}
+			</Sheet>
+
+			{/* Admin: Broadcast-Push */}
+			<Sheet visible={pushOpen} onClose={() => setPushOpen(false)} title="Push an alle">
+				<Input
+					placeholder="Titel"
+					value={pushForm.title}
+					onChangeText={(v) => setPushForm({ ...pushForm, title: v })}
+				/>
+				<Input
+					placeholder="Nachricht"
+					multiline
+					value={pushForm.body}
+					onChangeText={(v) => setPushForm({ ...pushForm, body: v })}
+				/>
+				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setPushOpen(false)} />
+					<Button label="Senden" onPress={sendBroadcast} />
+				</View>
+			</Sheet>
 		</Screen>
 	);
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+	StyleSheet.create({
 	profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },
 	profileName: { color: colors.text, fontSize: 17, fontFamily: fonts.sansBold },
 	profileHint: { color: colors.textMuted, fontSize: 12.5, marginTop: 1 },
@@ -138,5 +259,18 @@ const styles = StyleSheet.create({
 	},
 	menuLabel: { color: colors.text, fontSize: 15, fontFamily: fonts.sansSemi },
 	menuHint: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
-	footer: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 14, lineHeight: 17 }
+	footer: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 14, lineHeight: 17 },
+	themeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 7 },
+	swatch: {
+		width: 46,
+		height: 32,
+		borderRadius: 9,
+		borderWidth: 1,
+		borderColor: colors.border,
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: 4
+	},
+	swatchDot: { width: 10, height: 10, borderRadius: 5 }
 });

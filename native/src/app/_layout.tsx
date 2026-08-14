@@ -11,7 +11,8 @@ import {
 	PlusJakartaSans_600SemiBold,
 	PlusJakartaSans_700Bold
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { colors } from '../lib/theme';
+import { THEMES, DEFAULT_THEME, isThemeId, type UiThemeId } from '../lib/theme';
+import { ThemeProvider } from '../lib/themeContext';
 import { getMe, getToken, logout, type Me } from '../lib/api';
 import { clearDataCache } from '../lib/store';
 import { ActivityProvider } from '../lib/activity';
@@ -70,6 +71,12 @@ function useSelfHostedUpdates() {
 export default function RootLayout() {
 	const [me, setMe] = useState<Me | null>(null);
 	const [ready, setReady] = useState(false);
+	// Theme folgt dem Profil (uiTheme), wie data-theme auf der Website.
+	const [themeId, setThemeId] = useState<UiThemeId>(DEFAULT_THEME);
+	useEffect(() => {
+		setThemeId(isThemeId(me?.uiTheme) ? (me!.uiTheme as UiThemeId) : DEFAULT_THEME);
+	}, [me]);
+	const colors = THEMES[themeId];
 	// Schriften der Website (Teko + Plus Jakarta Sans) — Teil der App-Identität.
 	const [fontsLoaded] = useFonts({
 		Teko_500Medium,
@@ -123,8 +130,9 @@ export default function RootLayout() {
 
 	return (
 		<AuthContext.Provider value={{ me, setMe, signOut }}>
+			<ThemeProvider themeId={themeId} setThemeId={setThemeId}>
 			<ActivityProvider enabled={me !== null}>
-				<StatusBar style="light" />
+				<StatusBar style={colors.dark ? 'light' : 'dark'} />
 				<Stack
 					screenOptions={{
 						headerShown: false,
@@ -137,6 +145,7 @@ export default function RootLayout() {
 					<Stack.Screen name="activity" options={{ animation: 'slide_from_bottom' }} />
 				</Stack>
 			</ActivityProvider>
+			</ThemeProvider>
 		</AuthContext.Provider>
 	);
 }

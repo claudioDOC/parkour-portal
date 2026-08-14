@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
 	View,
 	Text,
@@ -12,13 +12,17 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fonts } from '../lib/theme';
+import { fonts, type ThemeColors } from '../lib/theme';
+import { useTheme, useThemedStyles } from '../lib/themeContext';
 import { Image as ExpoImage } from 'expo-image';
-import { BG_TEXTURE } from '../lib/gfx';
+import { bgTexture } from '../lib/gfx';
 import { login } from '../lib/api';
 import { useAuth } from './_layout';
 
 export default function Login() {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(makeStyles);
+	const bg = useMemo(() => bgTexture(colors), [colors]);
 	const [username, setUsername] = useState('');
 	const [password, setPassword] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
@@ -47,7 +51,7 @@ export default function Login() {
 			style={styles.screen}
 			behavior={Platform.OS === 'ios' ? 'padding' : undefined}
 		>
-			<ExpoImage source={{ uri: BG_TEXTURE }} style={StyleSheet.absoluteFill} contentFit="cover" />
+			<ExpoImage source={{ uri: bg }} style={StyleSheet.absoluteFill} contentFit="cover" />
 			<Image source={require('../../assets/images/icon.png')} style={styles.logo} />
 			<Text style={styles.title}>
 				PARKOUR <Text style={styles.titleAccent}>PORTAL</Text>
@@ -103,7 +107,8 @@ export default function Login() {
 	);
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+	StyleSheet.create({
 	screen: {
 		flex: 1,
 		backgroundColor: colors.bg,

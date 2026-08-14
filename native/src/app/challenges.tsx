@@ -2,13 +2,16 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fonts } from '../../lib/theme';
-import { Card, TopBar, Screen, SectionTitle, ErrorCard, EmptyState, ProgressBar } from '../../lib/ui';
-import { useData } from '../../lib/store';
-import { getArena } from '../../lib/api';
-import { useAuth } from '../_layout';
+import { fonts, type ThemeColors } from '../lib/theme';
+import { useTheme, useThemedStyles } from '../lib/themeContext';
+import { Card, TopBar, Screen, SectionTitle, ErrorCard, EmptyState, ProgressBar } from '../lib/ui';
+import { useData } from '../lib/store';
+import { getArena } from '../lib/api';
+import { useAuth } from './_layout';
 
 export default function Challenges() {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(makeStyles);
 	const { me } = useAuth();
 	const router = useRouter();
 	const { data, error, refreshing, onRefresh } = useData('arena', getArena);
@@ -151,7 +154,8 @@ export default function Challenges() {
 	);
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+	StyleSheet.create({
 	statsRow: { flexDirection: 'row', gap: 10 },
 	statBox: {
 		flex: 1,

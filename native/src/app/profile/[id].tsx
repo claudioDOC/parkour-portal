@@ -3,13 +3,16 @@ import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fonts } from '../../lib/theme';
+import { fonts, type ThemeColors } from '../../lib/theme';
+import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { Card, TopBar, Screen, SectionTitle, ErrorCard, Avatar } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { getProfile, mediaUrl } from '../../lib/api';
 import { useRouter } from 'expo-router';
 
 export default function Profile() {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(makeStyles);
 	const { id } = useLocalSearchParams<{ id: string }>();
 	const userId = id === 'me' ? undefined : Number(id);
 	const router = useRouter();
@@ -106,7 +109,8 @@ export default function Profile() {
 	);
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+	StyleSheet.create({
 	headCard: { flexDirection: 'row', alignItems: 'center', gap: 16 },
 	username: { color: colors.text, fontSize: 21, fontFamily: fonts.sansBold },
 	rank: { color: colors.textSecondary, fontSize: 13 },

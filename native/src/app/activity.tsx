@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fonts } from '../lib/theme';
+import { fonts, type ThemeColors } from '../lib/theme';
+import { useTheme, useThemedStyles } from '../lib/themeContext';
 import { Card, TopBar, Screen, EmptyState } from '../lib/ui';
 import { useActivity } from '../lib/activity';
 
@@ -26,6 +27,8 @@ function timeAgo(iso: string): string {
 }
 
 export default function Activity() {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(makeStyles);
 	const { entries, refresh, markSeen } = useActivity();
 
 	// Beim Öffnen: aktualisieren und als gelesen markieren (Punkt verschwindet).
@@ -70,7 +73,8 @@ export default function Activity() {
 	);
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+	StyleSheet.create({
 	row: { flexDirection: 'row', gap: 12, paddingVertical: 10 },
 	iconWrap: {
 		width: 34,

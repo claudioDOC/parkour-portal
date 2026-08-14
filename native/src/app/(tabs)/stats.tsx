@@ -1,12 +1,15 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fonts } from '../lib/theme';
-import { Card, TopBar, Screen, SectionTitle, ErrorCard, ProgressBar } from '../lib/ui';
-import { useData } from '../lib/store';
-import { getStats } from '../lib/api';
-import { useAuth } from './_layout';
+import { fonts, type ThemeColors } from '../../lib/theme';
+import { useTheme, useThemedStyles } from '../../lib/themeContext';
+import { Card, TopBar, Screen, SectionTitle, ErrorCard, ProgressBar } from '../../lib/ui';
+import { useData } from '../../lib/store';
+import { getStats } from '../../lib/api';
+import { useAuth } from '../_layout';
 
 export default function Stats() {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(makeStyles);
 	const { me } = useAuth();
 	const { data, error, refreshing, onRefresh } = useData('stats', getStats);
 
@@ -99,7 +102,8 @@ export default function Stats() {
 	);
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+	StyleSheet.create({
 	statsRow: { flexDirection: 'row', gap: 10 },
 	statBox: {
 		flex: 1,

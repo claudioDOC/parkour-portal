@@ -1,39 +1,118 @@
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fonts } from '../../lib/theme';
-import { Card, TopBar, InitialsRow, Pill, ErrorCard, Button, Screen } from '../../lib/ui';
+import { fonts, type ThemeColors } from '../../lib/theme';
+import { useTheme, useThemedStyles } from '../../lib/themeContext';
+import { gradientFill } from '../../lib/gfx';
+import {
+	Card,
+	TopBar,
+	Pill,
+	NameChip,
+	Screen,
+	ErrorCard,
+	Button,
+	Sheet,
+	Input,
+	SectionTitle
+} from '../../lib/ui';
 import { useData } from '../../lib/store';
-import { getTraining, getPendingTrip, logSolo, type TrainingSession } from '../../lib/api';
+import {
+	getTraining,
+	getPendingTrip,
+	getStats,
+	logSolo,
+	trainingAction,
+	adminTraining,
+	type TrainingSession
+} from '../../lib/api';
 import { useAuth } from '../_layout';
 
-/** Effektiver Spot einer Session: Admin-Override schlägt Voting schlägt Auto-Wahl. */
-export function effectiveSpot(s: TrainingSession) {
-	if (s.overrideSpot) return { name: s.overrideSpot.name, city: s.overrideSpot.city, fixed: true };
-	if (s.winnerSpot) return { name: s.winnerSpot.name, city: s.winnerSpot.city, fixed: false };
-	if (s.autoSpot) return { name: s.autoSpot.name, city: s.autoSpot.city, fixed: false };
-	return null;
+/** Sprüche der Website-Startseite — gleiche Rotation nach Kalendertag. */
+const GREETINGS = [
+	'Bereit für den nächsten Sprung?',
+	'Der Beton wartet auf dich.',
+	'Präzis bleiben. 🎯',
+	'Heute wieder fliegen?',
+	'Ein Sprung nach dem anderen.',
+	'Send it! 🚀',
+	'Die Mauer springt nicht über sich selbst.',
+	'Flow > Kraft.',
+	'Erst schauen, dann springen — aber springen.'
+];
+
+function greetingFor(calendarToday: string): string {
+	const [y, m, d] = calendarToday.split('-').map(Number);
+	const dayIndex = Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
+	return GREETINGS[dayIndex % GREETINGS.length];
 }
 
-function formatDateLong(ymd: string): string {
-	const d = new Date(`${ymd}T12:00:00`);
-	return d.toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long' });
+/** „Heute", „Morgen", sonst „in N Tagen" — wie auf der Website. */
+function countdownLabel(dateStr: string, calendarToday: string): string {
+	const target = new Date(dateStr + 'T00:00:00').getTime();
+	const today = new Date(calendarToday + 'T00:00:00').getTime();
+	const days = Math.round((target - today) / 86_400_000);
+	if (days <= 0) return 'Heute';
+	if (days === 1) return 'Morgen';
+	return `in ${days} Tagen`;
 }
 
-export default function Today() {
+function weekdayLong(ymd: string): string {
+	return new Date(`${ymd}T12:00:00`).toLocaleDateString('de-CH', { weekday: 'long' });
+}
+
+function metaDate(ymd: string): string {
+	return new Date(`${ymd}T12:00:00`).toLocaleDateString('de-CH', {
+		weekday: 'short',
+		day: 'numeric',
+		month: 'short'
+	});
+}
+
+export default function Dashboard() {
 	const { me } = useAuth();
+	const { colors } = useTheme();
+	const styles = useThemedStyles(makeStyles);
 	const router = useRouter();
+	const band = useMemo(() => gradientFill(colors), [colors]);
+
 	const training = useData('training', getTraining);
 	const pending = useData('trip-pending', getPendingTrip);
+	const stats = useData('stats', getStats);
+
+	const [absenceFor, setAbsenceFor] = useState<TrainingSession | null>(null);
+	const [absenceReason, setAbsenceReason] = useState('');
+	const [spotFor, setSpotFor] = useState<TrainingSession | null>(null);
+	const isAdmin = me?.role === 'admin';
 
 	const data = training.data;
-	const next = data?.sessions.find((s) => !s.cancelled) ?? data?.sessions[0] ?? null;
-	const isToday = next && data && next.date === data.calendarToday;
-	const spot = next ? effectiveSpot(next) : null;
-	const iAmIn = next && me ? next.attending.some((a) => a.id === me.id) : false;
-
-	// Trip, bei dem meine Antwort fehlt (Server kennt die 3-Tage-Wiedervorlage).
+	const myStreak =
+		stats.data?.stats.leaderboard.find((r) => r.userId === me?.id)?.streakNoAbsence ?? 0;
 	const pendingTrip = pending.data?.trip ?? null;
+	const optIn = data?.viewerTrainingAttendance === 'opt_in';
+
+	const act = async (fn: () => Promise<unknown>) => {
+		try {
+			await fn();
+			await training.refresh();
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Aktion fehlgeschlagen');
+		}
+	};
+
+	const submitAbsence = async () => {
+		if (!absenceFor) return;
+		if (absenceReason.trim().length < 10) {
+			Alert.alert('Begründung zu kurz', 'Bitte mindestens 10 Zeichen — wie im Portal.');
+			return;
+		}
+		const session = absenceFor;
+		setAbsenceFor(null);
+		await act(() => trainingAction('absence', session.id, { reason: absenceReason.trim() }));
+		setAbsenceReason('');
+	};
 
 	const logSoloToday = async () => {
 		try {
@@ -46,7 +125,21 @@ export default function Today() {
 
 	return (
 		<Screen refreshing={training.refreshing} onRefresh={training.onRefresh}>
-			<TopBar kicker="Parkour Portal" title={`Hey ${me?.username ?? ''}`} />
+			<TopBar
+				kicker="Übersicht"
+				title="Dashboard"
+				sub={
+					<View style={{ gap: 8, marginTop: 8 }}>
+						<Text style={styles.greeting}>
+							Hey <Text style={styles.greetingName}>{me?.username}</Text>
+							{data ? ` — ${greetingFor(data.calendarToday)}` : ''}
+						</Text>
+						{myStreak >= 2 ? (
+							<Pill label={`🔥 ${myStreak}er-Streak`} color={colors.accent} />
+						) : null}
+					</View>
+				}
+			/>
 
 			{training.error && !data ? <ErrorCard message={training.error} /> : null}
 
@@ -66,80 +159,204 @@ export default function Today() {
 				</Pressable>
 			) : null}
 
-			{next ? (
-				<Pressable onPress={() => router.push('/training')}>
-					{({ pressed }) => (
-						<Card style={pressed ? { opacity: 0.85 } : undefined}>
-							<View style={styles.rowBetween}>
-								<Text style={styles.cardKicker}>{isToday ? 'HEUTE' : 'NÄCHSTES TRAINING'}</Text>
-								{next.cancelled ? (
-									<Pill label="Abgesagt" color={colors.danger} />
-								) : iAmIn ? (
-									<Pill label="✓ Dabei" color={colors.success} />
-								) : (
-									<Pill label="Nicht angemeldet" color={colors.warning} />
-								)}
-							</View>
-							<Text style={styles.cardTitle}>{formatDateLong(next.date)}</Text>
-							<View style={styles.metaRow}>
-								<Ionicons name="time-outline" size={15} color={colors.textSecondary} />
-								<Text style={styles.metaText}>
-									{next.timeStart}–{next.timeEnd} Uhr
-								</Text>
-							</View>
+			<SectionTitle>Nächste Trainings</SectionTitle>
 
-							{!next.cancelled ? (
+			{(data?.sessions ?? []).map((s, sessionIndex) => {
+				const iAmIn = me ? s.attending.some((a) => a.id === me.id) : false;
+				const absent = s.userDbAbsent || s.userVirtualAbsent;
+				const spot = s.overrideSpot
+					? { label: `${s.overrideSpot.name} · ${s.overrideSpot.city}`, fixed: true }
+					: s.votingClosed && s.winnerSpot
+						? { label: `${s.winnerSpot.name} · ${s.winnerSpot.city}`, fixed: false }
+						: s.votingClosed && s.autoSpot
+							? { label: `${s.autoSpot.name} · ${s.autoSpot.city} (Auto)`, fixed: false }
+							: null;
+				return (
+					<Card key={s.id} style={styles.sessionCard}>
+						{sessionIndex === 0 ? (
+							<View style={styles.band}>
+								<Image source={{ uri: band }} style={StyleSheet.absoluteFill} contentFit="fill" />
+								<Text style={styles.bandText}>NÄCHSTES TRAINING</Text>
+							</View>
+						) : null}
+
+						<View style={styles.sessionBody}>
+							<View style={styles.dayRow}>
+								<Text style={styles.dayName}>{weekdayLong(s.date).toUpperCase()}</Text>
+								{data ? (
+									<View style={styles.countChip}>
+										<Text style={styles.countChipText}>
+											{countdownLabel(s.date, data.calendarToday)}
+										</Text>
+									</View>
+								) : null}
+								{s.cancelled ? <Pill label="Abgesagt" color={colors.danger} /> : null}
+							</View>
+							<Text style={styles.metaLine}>
+								{metaDate(s.date)} · {s.timeStart} – {s.timeEnd}
+							</Text>
+							{sessionIndex === 0 && data?.trainingForecast?.summary ? (
+								<Text style={styles.metaLine}>Prognose: {data.trainingForecast.summary}</Text>
+							) : null}
+
+							{!s.cancelled ? (
 								<>
-									<View style={styles.divider} />
 									{spot ? (
 										<View style={styles.spotRow}>
-											<Ionicons name="location" size={18} color={colors.accent} />
-											<View style={{ flex: 1 }}>
-												<Text style={styles.spotName}>{spot.name}</Text>
-												<Text style={styles.spotCity}>{spot.city}</Text>
-											</View>
+											<Ionicons name="location" size={15} color={colors.accent} />
+											<Text style={styles.spotText}>{spot.label}</Text>
 											{spot.fixed ? <Pill label="Fix" color={colors.accent} filled /> : null}
 										</View>
-									) : (
-										<View style={styles.spotRow}>
-											<Ionicons name="megaphone-outline" size={18} color={colors.accentBlue} />
-											<Text style={styles.voteHint}>Spot-Voting läuft — stimm ab!</Text>
+									) : s.spotVotes.length > 0 ? (
+										<View style={{ gap: 6, marginTop: 4 }}>
+											<Text style={styles.groupLabel}>SPOT-VOTING ({s.spotVotes.length})</Text>
+											{s.spotVotes.map((v) => {
+												const mine = s.userVotedSpotId === v.spotId;
+												return (
+													<Pressable
+														key={v.spotId}
+														style={({ pressed }) => [
+															styles.voteRow,
+															mine && { borderColor: colors.accent + '66' },
+															pressed && { opacity: 0.75 }
+														]}
+														onPress={() =>
+															act(() =>
+																mine
+																	? trainingAction('remove_vote', s.id)
+																	: trainingAction('vote_spot', s.id, { spotId: v.spotId })
+															)
+														}
+													>
+														{mine ? (
+															<Ionicons name="checkmark-circle" size={16} color={colors.accent} />
+														) : (
+															<View style={styles.voteDot} />
+														)}
+														<Text style={[styles.voteName, mine && { color: colors.accent }]}>
+															{v.spotName}
+														</Text>
+														<Text style={styles.voteCount}>{v.voteCount}</Text>
+													</Pressable>
+												);
+											})}
 										</View>
+									) : (
+										<Text style={styles.metaLine}>Noch kein Spot vorgeschlagen</Text>
 									)}
-									<View style={styles.attendRow}>
-										<InitialsRow names={next.attending.map((a) => a.username)} />
-										<Text style={styles.attendCount}>{next.attending.length} dabei</Text>
+
+									<Text style={[styles.groupLabel, { color: colors.accent }]}>
+										ZIEHT ({s.attending.length})
+									</Text>
+									<View style={styles.chipWrap}>
+										{s.attending.map((a) => (
+											<NameChip key={a.id} name={a.username} />
+										))}
+										{s.guests.map((g) => (
+											<NameChip key={`g-${g.id}`} name={`${g.name} (Gast)`} />
+										))}
+										{s.attending.length === 0 && s.guests.length === 0 ? (
+											<Text style={styles.emptyDash}>—</Text>
+										) : null}
+									</View>
+									<Text style={[styles.groupLabel, { color: colors.danger }]}>
+										ZIEHT NICHT ({s.absences.length})
+									</Text>
+									<View style={styles.chipWrap}>
+										{s.absences.map((a) => (
+											<NameChip key={a.id} name={a.username} tone={colors.danger} />
+										))}
+										{s.absences.length === 0 ? <Text style={styles.emptyDash}>—</Text> : null}
+									</View>
+
+									<View style={styles.actions}>
+										{iAmIn ? <Pill label="✓ Du ziehst mit" color={colors.success} /> : null}
+										{optIn ? (
+											s.userHasRsvp ? (
+												<Button
+													label="Doch nicht"
+													kind="ghost"
+													small
+													onPress={() => act(() => trainingAction('rsvp_no', s.id))}
+												/>
+											) : (
+												<Button
+													label="Dabei!"
+													small
+													onPress={() => act(() => trainingAction('rsvp_yes', s.id))}
+												/>
+											)
+										) : absent ? (
+											<Button
+												label="Wieder dabei"
+												small
+												onPress={() =>
+													act(() =>
+														trainingAction(
+															s.userDbAbsent ? 'cancel_absence' : 'weekday_override_yes',
+															s.id
+														)
+													)
+												}
+											/>
+										) : (
+											<Button
+												label="Abmelden"
+												kind="ghost"
+												small
+												onPress={() => setAbsenceFor(s)}
+											/>
+										)}
+										{isAdmin ? (
+											<>
+												<Button
+													label="Spot festlegen"
+													kind="ghost"
+													small
+													onPress={() => setSpotFor(s)}
+												/>
+												<Button
+													label="Absagen"
+													kind="danger"
+													small
+													onPress={() =>
+														Alert.alert(
+															'Training absagen?',
+															`${metaDate(s.date)} — alle Angemeldeten bekommen Push.`,
+															[
+																{ text: 'Zurück', style: 'cancel' },
+																{
+																	text: 'Absagen',
+																	style: 'destructive',
+																	onPress: () => act(() => adminTraining('cancel_session', s.id))
+																}
+															]
+														)
+													}
+												/>
+											</>
+										) : null}
 									</View>
 								</>
+							) : isAdmin ? (
+								<Button
+									label="Absage aufheben"
+									kind="ghost"
+									small
+									onPress={() => act(() => adminTraining('uncancel_session', s.id))}
+								/>
 							) : null}
-						</Card>
-					)}
-				</Pressable>
-			) : data ? (
-				<Card>
-					<Text style={styles.metaText}>Kein Training geplant.</Text>
-				</Card>
-			) : null}
+						</View>
+					</Card>
+				);
+			})}
 
-			{data?.trainingForecast?.summary ? (
-				<Card style={styles.smallCard}>
-					<View style={styles.smallRow}>
-						<Ionicons
-							name={data.trainingForecast.isWet ? 'rainy-outline' : 'partly-sunny-outline'}
-							size={18}
-							color={colors.accentBlue}
-						/>
-						<Text style={styles.smallText}>{data.trainingForecast.summary}</Text>
-					</View>
-				</Card>
-			) : null}
-
-			<Card style={styles.smallCard}>
-				<View style={styles.smallRow}>
+			<Card style={styles.soloCard}>
+				<View style={styles.soloRow}>
 					<Ionicons name="flash-outline" size={18} color={colors.accent} />
 					<View style={{ flex: 1 }}>
-						<Text style={styles.smallTitle}>Solo-Training</Text>
-						<Text style={styles.smallText}>
+						<Text style={styles.soloTitle}>Solo-Training</Text>
+						<Text style={styles.soloText}>
 							{data?.mySolo.countMonth ?? 0} diesen Monat
 							{data?.mySolo.todayLogged ? '  ·  heute eingetragen ✓' : ''}
 						</Text>
@@ -149,29 +366,161 @@ export default function Today() {
 					) : null}
 				</View>
 			</Card>
+
+			<Sheet
+				visible={absenceFor !== null}
+				onClose={() => {
+					setAbsenceFor(null);
+					setAbsenceReason('');
+				}}
+				title={`Abmelden — ${absenceFor ? metaDate(absenceFor.date) : ''}`}
+			>
+				<Input
+					placeholder="Begründung (mind. 10 Zeichen)"
+					multiline
+					autoFocus
+					value={absenceReason}
+					onChangeText={setAbsenceReason}
+				/>
+				<View style={styles.sheetActions}>
+					<Button
+						label="Abbrechen"
+						kind="ghost"
+						onPress={() => {
+							setAbsenceFor(null);
+							setAbsenceReason('');
+						}}
+					/>
+					<Button label="Abmelden" onPress={submitAbsence} />
+				</View>
+			</Sheet>
+
+			<Sheet
+				visible={spotFor !== null}
+				onClose={() => setSpotFor(null)}
+				title={`Spot festlegen — ${spotFor ? metaDate(spotFor.date) : ''}`}
+			>
+				<ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ gap: 7 }}>
+					{spotFor?.overrideSpot ? (
+						<Pressable
+							style={({ pressed }) => [styles.spotOption, pressed && { opacity: 0.7 }]}
+							onPress={() => {
+								const session = spotFor;
+								setSpotFor(null);
+								act(() => adminTraining('set_spot', session.id, { spotId: null }));
+							}}
+						>
+							<Ionicons name="refresh-outline" size={17} color={colors.warning} />
+							<Text style={[styles.spotOptionText, { color: colors.warning }]}>
+								Festlegung aufheben (zurück zum Voting)
+							</Text>
+						</Pressable>
+					) : null}
+					{(data?.allSpots ?? []).map((sp) => (
+						<Pressable
+							key={sp.id}
+							style={({ pressed }) => [styles.spotOption, pressed && { opacity: 0.7 }]}
+							onPress={() => {
+								const session = spotFor!;
+								setSpotFor(null);
+								act(() => adminTraining('set_spot', session.id, { spotId: sp.id }));
+							}}
+						>
+							<Ionicons name="location-outline" size={17} color={colors.textSecondary} />
+							<Text style={styles.spotOptionText}>{sp.name}</Text>
+							<Text style={styles.spotOptionCity}>{sp.city}</Text>
+						</Pressable>
+					))}
+				</ScrollView>
+			</Sheet>
 		</Screen>
 	);
 }
 
-
-const styles = StyleSheet.create({
-	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-	tripCard: { backgroundColor: colors.accentBlue + '12' },
-	tripKicker: { color: colors.accentBlue, fontFamily: fonts.displayMedium, fontSize: 13, letterSpacing: 2.5 },
-	tripTitle: { color: colors.text, fontSize: 16, fontFamily: fonts.sansBold, marginTop: 3 },
-	cardKicker: { color: colors.accentHot, fontFamily: fonts.displayMedium, fontSize: 14, letterSpacing: 3 },
-	cardTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 30, lineHeight: 32, marginTop: 8, letterSpacing: 0.5 },
-	metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
-	metaText: { color: colors.textSecondary, fontSize: 14, fontFamily: fonts.sans },
-	divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: 14 },
-	spotRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-	spotName: { color: colors.text, fontSize: 15.5, fontFamily: fonts.sansBold },
-	spotCity: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.sans },
-	voteHint: { color: colors.accentBlue, fontSize: 14, fontFamily: fonts.sansSemi, flex: 1 },
-	attendRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
-	attendCount: { color: colors.textSecondary, fontSize: 13, fontFamily: fonts.sansSemi },
-	smallCard: { paddingVertical: 15 },
-	smallRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-	smallTitle: { color: colors.text, fontSize: 14, fontFamily: fonts.sansBold },
-	smallText: { color: colors.textSecondary, fontSize: 13, fontFamily: fonts.sans, marginTop: 1, flexShrink: 1 }
-});
+const makeStyles = (colors: ThemeColors) =>
+	StyleSheet.create({
+		rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+		greeting: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
+		greetingName: { color: colors.text, fontFamily: fonts.sansBold },
+		tripCard: { backgroundColor: colors.accentBlue + '14' },
+		tripKicker: {
+			color: colors.accentBlue,
+			fontFamily: fonts.displayMedium,
+			fontSize: 13,
+			letterSpacing: 2.5
+		},
+		tripTitle: { color: colors.text, fontSize: 16, fontFamily: fonts.sansBold, marginTop: 3 },
+		sessionCard: { padding: 0, overflow: 'hidden' },
+		band: { height: 34, justifyContent: 'center', paddingHorizontal: 18 },
+		bandText: {
+			color: colors.onAccent,
+			fontFamily: fonts.displayMedium,
+			fontSize: 14,
+			letterSpacing: 3
+		},
+		sessionBody: { padding: 18, gap: 8 },
+		dayRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+		dayName: {
+			color: colors.text,
+			fontFamily: fonts.display,
+			fontSize: 34,
+			lineHeight: 36,
+			letterSpacing: 1
+		},
+		countChip: {
+			backgroundColor: colors.hover,
+			borderRadius: 999,
+			paddingHorizontal: 12,
+			paddingVertical: 5
+		},
+		countChipText: { color: colors.textSecondary, fontSize: 13, fontFamily: fonts.sansMedium },
+		metaLine: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: 14.5 },
+		spotRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 2 },
+		spotText: { color: colors.text, fontSize: 14.5, fontFamily: fonts.sansBold, flexShrink: 1 },
+		groupLabel: {
+			fontFamily: fonts.displayMedium,
+			fontSize: 15,
+			letterSpacing: 2,
+			marginTop: 6,
+			color: colors.textSecondary
+		},
+		chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+		emptyDash: { color: colors.textMuted, fontSize: 14 },
+		voteRow: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			gap: 9,
+			backgroundColor: colors.bgSecondary,
+			borderRadius: 12,
+			borderWidth: 1,
+			borderColor: colors.border,
+			paddingHorizontal: 12,
+			paddingVertical: 11
+		},
+		voteDot: {
+			width: 15,
+			height: 15,
+			borderRadius: 8,
+			borderWidth: 1.5,
+			borderColor: colors.textMuted
+		},
+		voteName: { color: colors.text, fontSize: 14.5, fontFamily: fonts.sansSemi, flex: 1 },
+		voteCount: { color: colors.textSecondary, fontSize: 15, fontFamily: fonts.sansBold },
+		actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8 },
+		soloCard: { paddingVertical: 14 },
+		soloRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+		soloTitle: { color: colors.text, fontSize: 14, fontFamily: fonts.sansBold },
+		soloText: { color: colors.textSecondary, fontSize: 13, fontFamily: fonts.sans, marginTop: 1 },
+		sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
+		spotOption: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			gap: 10,
+			backgroundColor: colors.hover,
+			borderRadius: 13,
+			paddingHorizontal: 14,
+			paddingVertical: 13
+		},
+		spotOptionText: { color: colors.text, fontSize: 14.5, fontFamily: fonts.sansSemi, flex: 1 },
+		spotOptionCity: { color: colors.textMuted, fontSize: 12.5 }
+	});

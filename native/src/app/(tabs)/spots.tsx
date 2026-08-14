@@ -3,12 +3,15 @@ import { View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fonts } from '../../lib/theme';
+import { fonts, type ThemeColors } from '../../lib/theme';
+import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { TopBar, Screen, Stars, ErrorCard, EmptyState } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { getSpots, mediaUrl } from '../../lib/api';
 
 export default function Spots() {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(makeStyles);
 	const router = useRouter();
 	const { data, error, refreshing, onRefresh } = useData('spots', getSpots);
 	const [query, setQuery] = useState('');
@@ -83,7 +86,8 @@ export default function Spots() {
 	);
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+	StyleSheet.create({
 	search: {
 		flexDirection: 'row',
 		alignItems: 'center',
