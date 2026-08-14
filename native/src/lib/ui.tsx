@@ -284,24 +284,63 @@ export function Pill({
  * Namens-Chip: neutrale Fläche mit farbigem Punkt. Vorher war die ganze
  * Fläche eingefärbt — bei zehn Namen wurde die Karte zur Farbwand.
  */
-export function NameChip({ name, tone }: { name: string; tone?: string }) {
+export function NameChip({
+	name,
+	tone,
+	avatar,
+	userId,
+	index = 0
+}: {
+	name: string;
+	tone?: string;
+	avatar?: string | null;
+	/** Gesetzt = Chip führt aufs Profil. */
+	userId?: number;
+	index?: number;
+}) {
 	const { colors } = useTheme();
+	const router = useRouter();
 	const dot = tone ?? colors.success;
-	return (
+	const body = (
 		<View
 			style={{
 				flexDirection: 'row',
 				alignItems: 'center',
 				gap: space.sm,
 				borderRadius: radius.full,
-				paddingHorizontal: space.md,
-				paddingVertical: 7,
+				paddingLeft: 4,
+				paddingRight: space.md,
+				paddingVertical: 4,
 				backgroundColor: colors.hover
 			}}
 		>
-			<View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dot }} />
+			{avatar !== undefined ? (
+				<Avatar username={name} avatar={avatar} size={26} index={index} />
+			) : (
+				<View
+					style={{
+						width: 26,
+						height: 26,
+						borderRadius: 13,
+						backgroundColor: dot + '33',
+						alignItems: 'center',
+						justifyContent: 'center'
+					}}
+				>
+					<View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dot }} />
+				</View>
+			)}
 			<Text style={{ ...T.body, color: colors.fg + textAlpha.primary }}>{name}</Text>
 		</View>
+	);
+	if (!userId) return body;
+	return (
+		<Pressable
+			onPress={() => router.push(`/profile/${userId}`)}
+			style={({ pressed }) => (pressed ? { opacity: 0.7 } : undefined)}
+		>
+			{body}
+		</Pressable>
 	);
 }
 

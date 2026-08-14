@@ -6,7 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
 import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
-import { gradientFill } from '../../lib/gfx';
+import { mediaUrl } from '../../lib/api';
 import {
 	Card,
 	TopBar,
@@ -78,7 +78,6 @@ export default function Dashboard() {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
 	const router = useRouter();
-	const band = useMemo(() => gradientFill(colors), [colors]);
 
 	const training = useData('training', getTraining);
 	const pending = useData('trip-pending', getPendingTrip);
@@ -132,7 +131,7 @@ export default function Dashboard() {
 			<TopBar
 				plainTitle
 				kicker="Übersicht"
-				title="Dashboard"
+				title="Start"
 				sub={
 					<View style={{ gap: 8, marginTop: 8 }}>
 						<Text style={styles.greeting}>
@@ -181,6 +180,17 @@ export default function Dashboard() {
 							: null;
 				return (
 					<Card key={s.id} style={styles.sessionCard}>
+						{s.spotThumbnail ? (
+							<View>
+								<Image
+									source={{ uri: mediaUrl(s.spotThumbnail) ?? undefined }}
+									style={styles.hero}
+									contentFit="cover"
+									transition={200}
+								/>
+								<View style={styles.heroFade} />
+							</View>
+						) : null}
 						{sessionIndex === 0 ? (
 							<View style={styles.band}>
 								<View style={styles.bandDot} />
@@ -259,8 +269,14 @@ export default function Dashboard() {
 										{`Zieht (${s.attending.length})`}
 									</GroupLabel>
 									<View style={styles.chipWrap}>
-										{s.attending.map((a) => (
-											<NameChip key={a.id} name={a.username} />
+										{s.attending.map((a, i) => (
+											<NameChip
+												key={a.id}
+												name={a.username}
+												avatar={a.avatar ?? null}
+												userId={a.id}
+												index={i}
+											/>
 										))}
 										{s.guests.map((g) => (
 											<NameChip key={`g-${g.id}`} name={`${g.name} (Gast)`} />
@@ -274,7 +290,12 @@ export default function Dashboard() {
 									</GroupLabel>
 									<View style={styles.chipWrap}>
 										{s.absences.map((a) => (
-											<NameChip key={a.id} name={a.username} tone={colors.danger} />
+											<NameChip
+												key={a.id}
+												name={a.username}
+												tone={colors.danger}
+												userId={a.userId}
+											/>
 										))}
 										{s.absences.length === 0 ? <Text style={styles.emptyDash}>—</Text> : null}
 									</View>
@@ -501,6 +522,16 @@ const makeStyles = (colors: ThemeColors) =>
 		},
 		tripTitle: { color: colors.fg + textAlpha.primary, fontSize: 16, lineHeight: 22, fontFamily: fonts.sansBold, marginTop: 4 },
 		sessionCard: { padding: 0, overflow: 'hidden' },
+		hero: { width: '100%', height: 160, backgroundColor: colors.hover },
+		heroFade: {
+			position: 'absolute',
+			left: 0,
+			right: 0,
+			bottom: 0,
+			height: 56,
+			backgroundColor: colors.card,
+			opacity: 0.55
+		},
 		band: {
 			flexDirection: 'row',
 			alignItems: 'center',

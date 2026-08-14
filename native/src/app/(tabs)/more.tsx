@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -10,7 +9,7 @@ import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { Card, TopBar, Screen, Avatar, Sheet, Input, Button } from '../../lib/ui';
 import { THEMES, THEME_OPTIONS } from '../../lib/theme';
 import { useData } from '../../lib/store';
-import { getProfile, saveUiTheme, adminBroadcast, BASE_URL } from '../../lib/api';
+import { getProfile, saveUiTheme, adminBroadcast } from '../../lib/api';
 import { useAuth } from '../_layout';
 
 const MENU = [
@@ -116,17 +115,7 @@ export default function More() {
 			</Card>
 
 			<Card style={{ padding: 8 }}>
-				<Pressable
-					onPress={() =>
-						WebBrowser.openBrowserAsync(`${BASE_URL}/map`, {
-							toolbarColor: colors.bgSecondary,
-							controlsColor: colors.accent,
-							// Bleibt im App-Fenster: Chrome Custom Tab statt externem Browser.
-							showTitle: true,
-							enableBarCollapsing: true
-						})
-					}
-				>
+				<Pressable onPress={() => router.push('/map')}>
 					{({ pressed }) => (
 						<View style={[styles.menuRow, styles.menuDivider, pressed && { opacity: 0.7 }]}>
 							<View style={styles.menuIcon}>

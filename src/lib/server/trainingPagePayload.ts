@@ -5,6 +5,7 @@ import {
 	users,
 	trainingSpotVotes,
 	spots,
+	spotImages,
 	sessionGuests,
 	sessionHiddenUsers,
 	trainingSessionRsvp,
@@ -51,6 +52,7 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 					id: users.id,
 					username: users.username,
 					active: users.active,
+					avatar: users.avatar,
 					trainingAttendance: users.trainingAttendance,
 					autoAbsentWeekdays: users.autoAbsentWeekdays
 				})
@@ -62,7 +64,8 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 				.select({
 					id: users.id,
 					username: users.username,
-					active: users.active
+					active: users.active,
+					avatar: users.avatar
 				})
 				.from(users)
 				.where(usersNotDeletedCondition())
@@ -75,6 +78,23 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 					autoAbsentWeekdays: [] as string[]
 				}));
 	const allSpots = db.select({ id: spots.id, name: spots.name, city: spots.city }).from(spots).all();
+
+	/**
+	 * Erstes Bild je Spot — die App zeigt es als Kopfbild der Trainingskarte,
+	 * damit die Oberfläche nicht nur aus Text besteht.
+	 */
+	const spotThumbs = new Map<number, string>();
+	try {
+		const rows = db
+			.select({ spotId: spotImages.spotId, filename: spotImages.filename })
+			.from(spotImages)
+			.all();
+		for (const r of rows) {
+			if (!spotThumbs.has(r.spotId)) spotThumbs.set(r.spotId, `/uploads/${r.filename}`);
+		}
+	} catch {
+		/* Tabelle optional */
+	}
 
 	const forecastBySessionKey = new Map<
 		string,
@@ -273,8 +293,12 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 			}
 		}
 
+		const effectiveSpotId =
+			session.overrideSpotId ?? winnerSpot?.spotId ?? autoSpot?.spotId ?? null;
+
 		return {
 			...session,
+			spotThumbnail: effectiveSpotId ? (spotThumbs.get(effectiveSpotId) ?? null) : null,
 			overrideSpot,
 			absences: absencesForList,
 			attending,

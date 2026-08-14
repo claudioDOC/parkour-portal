@@ -51,7 +51,7 @@ export default function TabsLayout() {
 			<Tabs.Screen
 				name="index"
 				options={{
-					title: 'Training',
+					title: 'Start',
 					// Erhöhter Kreis in der Mitte — wie auf der Website.
 					tabBarIcon: ({ color, focused }) => (
 						<View

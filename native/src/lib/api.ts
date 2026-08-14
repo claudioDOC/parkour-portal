@@ -117,8 +117,10 @@ export type TrainingSession = {
 	timeStart: string;
 	timeEnd: string;
 	cancelled?: boolean | number | null;
+	/** Erstes Bild des gewählten Spots — Kopfbild der Trainingskarte. */
+	spotThumbnail?: string | null;
 	overrideSpot: { spotId: number; name: string; city: string } | null;
-	attending: { id: number; username: string }[];
+	attending: { id: number; username: string; avatar?: string | null }[];
 	absences: { id: number; userId: number; username: string; reason: string; virtual?: boolean }[];
 	guests: { id: number; name: string }[];
 	userDbAbsent: boolean;

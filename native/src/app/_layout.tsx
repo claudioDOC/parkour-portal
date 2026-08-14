@@ -17,6 +17,7 @@ import { ThemeProvider } from '../lib/themeContext';
 import { getMe, getToken, logout, type Me } from '../lib/api';
 import { clearDataCache } from '../lib/store';
 import { ActivityProvider } from '../lib/activity';
+import { Splash } from '../lib/Splash';
 
 /**
  * Auth-Kontext: hält den eingeloggten User. Beim Start wird das gespeicherte
@@ -72,6 +73,7 @@ function useSelfHostedUpdates() {
 export default function RootLayout() {
 	const [me, setMe] = useState<Me | null>(null);
 	const [ready, setReady] = useState(false);
+	const [splashDone, setSplashDone] = useState(false);
 	// Theme folgt dem Profil (uiTheme), wie data-theme auf der Website.
 	const [themeId, setThemeId] = useState<UiThemeId>(DEFAULT_THEME);
 	useEffect(() => {
@@ -119,12 +121,11 @@ export default function RootLayout() {
 		setMe(null);
 	};
 
-	if (!ready || !fontsLoaded) {
+	// Startanimation läuft, während Token und Schriften geladen werden.
+	if (!ready || !fontsLoaded || !splashDone) {
 		return (
-			<View
-				style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}
-			>
-				<ActivityIndicator color={colors.accent} size="large" />
+			<View style={{ flex: 1, backgroundColor: colors.bg }}>
+				{fontsLoaded ? <Splash colors={colors} onDone={() => setSplashDone(true)} /> : null}
 			</View>
 		);
 	}
