@@ -127,6 +127,7 @@ export default function Dashboard() {
 	return (
 		<Screen refreshing={training.refreshing} onRefresh={training.onRefresh}>
 			<TopBar
+				plainTitle
 				kicker="Übersicht"
 				title="Dashboard"
 				sub={
@@ -136,7 +137,10 @@ export default function Dashboard() {
 							{data ? ` — ${greetingFor(data.calendarToday)}` : ''}
 						</Text>
 						{myStreak >= 2 ? (
-							<Pill label={`🔥 ${myStreak}er-Streak`} color={colors.accent} />
+							<View style={styles.streakChip}>
+								<Ionicons name="flame" size={15} color={colors.accent} />
+								<Text style={styles.streakText}>{myStreak}er-Streak</Text>
+							</View>
 						) : null}
 					</View>
 				}
@@ -196,8 +200,8 @@ export default function Dashboard() {
 							<Text style={styles.metaLine}>
 								{metaDate(s.date)} · {s.timeStart} – {s.timeEnd}
 							</Text>
-							{sessionIndex === 0 && data?.trainingForecast?.summary ? (
-								<Text style={styles.metaLine}>Prognose: {data.trainingForecast.summary}</Text>
+							{sessionIndex === 0 && data?.trainingForecast?.summaryLine ? (
+								<Text style={styles.metaLine}>{data.trainingForecast.summaryLine}</Text>
 							) : null}
 
 							{!s.cancelled ? (
@@ -445,6 +449,22 @@ const makeStyles = (colors: ThemeColors) =>
 		rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 		greeting: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
 		greetingName: { color: colors.text, fontFamily: fonts.sansBold },
+		streakChip: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			gap: 8,
+			alignSelf: 'flex-start',
+			backgroundColor: colors.accent + '1a',
+			borderRadius: 999,
+			paddingHorizontal: 12,
+			paddingVertical: 4
+		},
+		streakText: {
+			color: colors.accent,
+			fontSize: 15,
+			lineHeight: 21,
+			fontFamily: fonts.sansSemi
+		},
 		tripCard: { backgroundColor: colors.accentBlue + '14' },
 		tripKicker: {
 			color: colors.accentBlue,

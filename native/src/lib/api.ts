@@ -1,16 +1,23 @@
-import * as SecureStore from 'expo-secure-store';
+import { readToken, writeToken } from './tokenStore';
 
 /**
  * API-Client der nativen App. Spricht dieselben Endpunkte wie das Web
  * (docs/API.md): Login liefert ein Bearer-JWT, das sicher im Gerätespeicher
  * liegt (Android Keystore via SecureStore).
  */
-export const BASE_URL = 'https://matetraining.duckdns.org';
+import { Platform } from 'react-native';
+
+/**
+ * Server-Adresse. Im Browser (Design-Vorschau beim Entwickeln) relativ,
+ * damit derselbe Ursprung genutzt wird; auf dem Gerät die echte Domain.
+ */
+export const BASE_URL = Platform.OS === 'web' ? '' : 'https://matetraining.duckdns.org';
 
 /** Relative Upload-Pfade (/uploads/…) zu vollen URLs machen. */
 export function mediaUrl(path: string | null | undefined): string | null {
 	if (!path) return null;
-	return path.startsWith('http') ? path : `${BASE_URL}${path}`;
+	if (path.startsWith('http')) return path;
+	return `${BASE_URL || 'https://matetraining.duckdns.org'}${path}`;
 }
 
 const TOKEN_KEY = 'parkour-token';
@@ -19,14 +26,13 @@ let cachedToken: string | null = null;
 
 export async function getToken(): Promise<string | null> {
 	if (cachedToken) return cachedToken;
-	cachedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+	cachedToken = await readToken(TOKEN_KEY);
 	return cachedToken;
 }
 
 export async function setToken(token: string | null): Promise<void> {
 	cachedToken = token;
-	if (token) await SecureStore.setItemAsync(TOKEN_KEY, token);
-	else await SecureStore.deleteItemAsync(TOKEN_KEY);
+	await writeToken(TOKEN_KEY, token);
 }
 
 export class ApiError extends Error {
@@ -88,7 +94,11 @@ export async function logout(): Promise<void> {
 	await setToken(null);
 }
 
-export const getMe = () => get<Me>('/api/v1/me');
+/** Antwort ist in { user: … } verpackt — auspacken, sonst fehlen id/rolle/theme. */
+export const getMe = async (): Promise<Me> => {
+	const data = await get<{ user: Me }>('/api/v1/me');
+	return data.user;
+};
 
 // --- Training (Payload identisch zur Web-Seite, /api/v1/training) ---
 
@@ -125,7 +135,7 @@ export type TrainingSession = {
 export type TrainingPayload = {
 	sessions: TrainingSession[];
 	allSpots: { id: number; name: string; city: string }[];
-	trainingForecast: { summary?: string; isWet?: boolean; temperature?: number | null } | null;
+	trainingForecast: { summaryLine?: string; isWet?: boolean; temperatureInWindow?: number | null } | null;
 	viewerTrainingAttendance: string | null;
 	mySolo: { todayLogged: boolean; countMonth: number };
 	calendarToday: string;

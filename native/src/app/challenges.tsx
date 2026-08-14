@@ -44,7 +44,7 @@ export default function Challenges() {
 
 	return (
 		<Screen refreshing={refreshing} onRefresh={onRefresh}>
-			<TopBar kicker="Arena" title="Challenges" />
+			<TopBar kicker="Quest-Board" title="Challenge-Arena" />
 			{error && !data ? <ErrorCard message={error} /> : null}
 
 			{data ? (
@@ -102,7 +102,7 @@ export default function Challenges() {
 								>
 									{row.username}
 								</Text>
-								<Text style={styles.lbClears}>{row.clears} Clears</Text>
+								<Text style={styles.lbClears}>{row.clears === 1 ? '1 Clear' : `${row.clears} Clears`}</Text>
 							</View>
 						))}
 					</Card>

@@ -54,3 +54,17 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## Design-Vorschau (Screenshots ohne Gerät)
+
+Damit die App nicht blind gebaut wird, lässt sie sich als Web-Export
+rendern und fotografieren — im selben Format wie die Website:
+
+```bash
+npx expo export --platform web
+node <scratchpad>/preview-server.mjs      # serviert dist/, proxyt /api ans Portal
+node <scratchpad>/appshots.mjs            # Screenshots aller Screens
+```
+
+Die Website-Screenshots zum Abgleich entstehen mit `shots.mjs` (Puppeteer,
+eingeloggt via JWT-Cookie, 412×915).

@@ -21,13 +21,13 @@ export default function TabsLayout() {
 					borderTopColor: colors.border,
 					borderTopWidth: StyleSheet.hairlineWidth,
 					// Android-Navigationsleiste (Gesten/Buttons) nicht überlappen.
-					height: 62 + insets.bottom,
-					paddingBottom: insets.bottom + 8,
+					height: 80 + insets.bottom,
+					paddingBottom: insets.bottom + 14,
 					paddingTop: 8
 				},
 				tabBarActiveTintColor: colors.accent,
 				tabBarInactiveTintColor: colors.textMuted,
-				tabBarLabelStyle: { fontSize: 13, lineHeight: 15, fontFamily: fonts.sansSemi }
+				tabBarLabelStyle: { fontSize: 13, lineHeight: 16, fontFamily: fonts.sansSemi, marginTop: 2 }
 			}}
 		>
 			<Tabs.Screen

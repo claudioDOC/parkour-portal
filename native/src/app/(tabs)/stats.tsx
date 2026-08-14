@@ -73,7 +73,7 @@ export default function Stats() {
 
 			{data?.solo.leaderboard.length ? (
 				<>
-					<SectionTitle>Solo-Training (getrennt gezählt)</SectionTitle>
+					<SectionTitle>Solo-Training</SectionTitle>
 					<Card style={{ gap: 8 }}>
 						{data.solo.leaderboard.map((row, i) => (
 							<View key={row.userId} style={styles.lbRow}>
@@ -91,7 +91,7 @@ export default function Stats() {
 
 			{data?.solo.recent.length ? (
 				<>
-					<SectionTitle>Zuletzt solo trainiert</SectionTitle>
+					<SectionTitle>Zuletzt solo</SectionTitle>
 					<Card style={{ gap: 8 }}>
 						{data.solo.recent.map((r, i) => (
 							<View key={i} style={styles.recentRow}>

@@ -160,7 +160,7 @@ export function Screen({
 
 const makeTopBar = (colors: ThemeColors) =>
 	StyleSheet.create({
-		row: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
+		row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 8 },
 		kicker: {
 			color: colors.accentHot,
 			fontFamily: fonts.displayMedium,
@@ -187,7 +187,7 @@ const makeTopBar = (colors: ThemeColors) =>
 			borderColor: colors.border,
 			alignItems: 'center',
 			justifyContent: 'center',
-			marginTop: 8
+			marginTop: 2
 		},
 		dot: {
 			position: 'absolute',
@@ -211,13 +211,16 @@ export function TopBar({
 	title,
 	sub,
 	back = false,
-	right
+	right,
+	plainTitle = false
 }: {
 	kicker: string;
 	title: string;
 	sub?: ReactNode;
 	back?: boolean;
 	right?: ReactNode;
+	/** Titel ohne Akzentwort — wie das Dashboard der Website. */
+	plainTitle?: boolean;
 }) {
 	const router = useRouter();
 	const { colors } = useTheme();
@@ -240,7 +243,7 @@ export function TopBar({
 				<Text style={t.kicker}>{kicker.toUpperCase()}</Text>
 				<Text style={t.title} numberOfLines={1}>
 					{(words.length ? words.join(' ') + ' ' : '').toUpperCase()}
-					<Text style={t.accent}>{last?.toUpperCase()}</Text>
+					<Text style={plainTitle ? undefined : t.accent}>{last?.toUpperCase()}</Text>
 				</Text>
 				<Image source={{ uri: bar }} style={t.bar} />
 				{sub ? typeof sub === 'string' ? <Text style={t.sub}>{sub}</Text> : sub : null}
@@ -504,7 +507,10 @@ export function Stat({
 	return (
 		<View
 			style={{
-				flex: 1,
+				// Zwei Kacheln pro Reihe (halbe Breite minus Abstand).
+				flexGrow: 1,
+				flexBasis: '46%',
+				minWidth: 140,
 				backgroundColor: colors.bgSecondary,
 				borderRadius: 12,
 				borderWidth: 1,
