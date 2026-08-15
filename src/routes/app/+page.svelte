@@ -19,7 +19,7 @@
 				{/if}
 			</p>
 			<a
-				href="/app/parkour-portal.apk"
+				href={`/app/parkour-portal-${data.version}.apk`}
 				class="mt-4 inline-block rounded-lg bg-accent px-5 py-3 text-sm font-bold text-[#0c0c0e] transition-colors hover:bg-accent-hover"
 			>
 				APK herunterladen

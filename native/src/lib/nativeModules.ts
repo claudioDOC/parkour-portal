@@ -1,4 +1,4 @@
-import { NativeModules, UIManager } from 'react-native';
+import { NativeModules, UIManager, TurboModuleRegistry } from 'react-native';
 
 /**
  * Prüft, ob die nativen Zusatzmodule wirklich vorhanden sind.
@@ -18,19 +18,33 @@ function tryRequire<T>(load: () => T): T | null {
 	}
 }
 
-/** Ist der native View-Manager der Web-Ansicht registriert? */
-export function hasWebViewNative(): boolean {
+/**
+ * Modul-Suche, die auf alter UND neuer Architektur funktioniert.
+ * Unter der neuen Architektur sind Module nicht mehr über NativeModules
+ * aufzählbar — TurboModuleRegistry.get fällt aber auf Brücken-Module
+ * zurück und findet beides.
+ */
+function moduleExists(name: string): boolean {
 	try {
-		const cfg = UIManager.getViewManagerConfig?.('RNCWebView');
-		if (cfg) return true;
+		if (TurboModuleRegistry.get(name)) return true;
 	} catch {
-		/* ältere Architektur meldet hier einen Fehler */
+		/* weiter unten prüfen */
 	}
-	// Neue Architektur registriert stattdessen ein Modul.
-	return Boolean(
-		(NativeModules as Record<string, unknown>).RNCWebView ??
-			(NativeModules as Record<string, unknown>).RNCWebViewModule
-	);
+	try {
+		if ((NativeModules as Record<string, unknown>)[name]) return true;
+	} catch {
+		/* weiter unten prüfen */
+	}
+	try {
+		return Boolean(UIManager.getViewManagerConfig?.(name));
+	} catch {
+		return false;
+	}
+}
+
+/** Ist die native Web-Ansicht vorhanden? */
+export function hasWebViewNative(): boolean {
+	return moduleExists('RNCWebView') || moduleExists('RNCWebViewModule');
 }
 
 /** Eingebettete Web-Ansicht (Karte) — nur wenn die native Seite existiert. */
@@ -87,26 +101,12 @@ export function getNativeMap() {
 
 export function hasNativeMap(): boolean {
 	if (getNativeMap() === null) return false;
-	/**
-	 * Bewusst streng: Es muss BEIDES da sein — ein registriertes MLRN-Modul
-	 * UND der View-Manager der Kartenansicht. Eine lockerere Prüfung hatte
-	 * fälschlich „nativ" gemeldet, woraufhin die App beim Zeichnen abstürzte.
-	 */
-	let hasModule = false;
-	try {
-		hasModule = Object.keys(NativeModules).some((k) => k.startsWith('MLRN'));
-	} catch {
-		hasModule = false;
-	}
-	if (!hasModule) return false;
-	try {
-		return Boolean(
-			UIManager.getViewManagerConfig?.('MLRNMapView') ??
-				UIManager.getViewManagerConfig?.('MLRNAndroidTextureMapView')
-		);
-	} catch {
-		return false;
-	}
+	return (
+		moduleExists('MLRNModule') ||
+		moduleExists('MLRNLogModule') ||
+		moduleExists('MLRNCameraModule') ||
+		moduleExists('MLRNMapView')
+	);
 }
 
 /** Sind alle Zusatzmodule vorhanden? Steuert den Update-Hinweis. */
