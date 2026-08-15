@@ -195,9 +195,11 @@ export type SpotListItem = {
 	goodWeather?: string | null;
 	latitude?: number | null;
 	longitude?: number | null;
+	challengeCount?: number;
 };
 
-export const getSpots = () => get<{ spots: SpotListItem[] }>('/api/v1/spots');
+export const getSpots = () =>
+	get<{ spots: SpotListItem[]; nextTrainingSpotId?: number | null }>('/api/v1/spots');
 
 export type NewSpot = {
 	name: string;

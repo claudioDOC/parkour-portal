@@ -18,8 +18,16 @@ export type MapMarker = {
 	city?: string;
 	lat: number;
 	lon: number;
-	/** 'main' = dieser Spot, 'parking' = Parkplatz, sonst Nachbar-Spot */
+	/** 'main' = dieser Spot, 'parking' = Parkplatz, 'training' = Voting-Leader, sonst Nachbar-Spot */
 	kind: string;
+	/** Text in der Pin-Blase (z. B. Bewertung) — sonst Symbol nach kind. */
+	label?: string;
+	/** Kleine Zähler-Plakette an der Blase (z. B. Anzahl Challenges). */
+	badge?: number;
+	/** Eigene Blasenfarbe (z. B. nach Bewertung) — sonst Farbe nach kind. */
+	color?: string;
+	/** Textfarbe zur eigenen Blasenfarbe. */
+	fg?: string;
 };
 
 /** Freier Vektorkarten-Stil ohne Konto und ohne Schlüssel. */
@@ -34,13 +42,15 @@ export function NativeMap({
 	markers,
 	height = 240,
 	fill = false,
-	zoom = 15
+	zoom = 15,
+	onMarkerPress
 }: {
 	markers: MapMarker[];
 	height?: number;
 	/** Füllt den verfügbaren Platz (flex) statt fester Höhe — für Vollbild. */
 	fill?: boolean;
 	zoom?: number;
+	onMarkerPress?: (marker: MapMarker) => void;
 }) {
 	const { colors } = useTheme();
 	const maplibre = getNativeMap() as MapLibreModule | null;
@@ -55,7 +65,13 @@ export function NativeMap({
 				.filter((m) => Number.isFinite(m.lat) && Number.isFinite(m.lon))
 				.map((m) => ({
 					...m,
-					color: m.kind === 'main' ? colors.accent : m.kind === 'parking' ? '#47c5ff' : '#9ca3af'
+					color:
+						m.color ??
+						(m.kind === 'main' || m.kind === 'training'
+							? colors.accent
+							: m.kind === 'parking'
+								? '#47c5ff'
+								: '#9ca3af')
 				})),
 		[markers, colors]
 	);
@@ -91,11 +107,23 @@ export function NativeMap({
 				<LibreMap style={{ flex: 1 }} mapStyle={MAP_STYLE}>
 					<Camera initialViewState={{ center: [main.lon, main.lat], zoom }} />
 					{pins.map((p) => (
-						<Marker key={`${p.kind}-${p.id}`} lngLat={[p.lon, p.lat]}>
-							<View style={[styles.pin, { backgroundColor: p.color }]}>
-								<Text style={styles.pinText}>
-									{p.kind === 'parking' ? 'P' : p.kind === 'main' ? '★' : '•'}
+						<Marker
+							key={`${p.kind}-${p.id}`}
+							lngLat={[p.lon, p.lat]}
+							onPress={onMarkerPress ? () => onMarkerPress(p) : undefined}
+						>
+							<View style={p.label ? [styles.bubble, { backgroundColor: p.color }] : [styles.pin, { backgroundColor: p.color }]}>
+								<Text style={[styles.pinText, p.fg ? { color: p.fg } : null]}>
+									{p.kind === 'training'
+										? '🚂'
+										: (p.label ??
+											(p.kind === 'parking' ? 'P' : p.kind === 'main' ? '★' : '•'))}
 								</Text>
+								{p.badge ? (
+									<View style={styles.badge}>
+										<Text style={styles.badgeText}>{p.badge}</Text>
+									</View>
+								) : null}
 							</View>
 						</Marker>
 					))}
@@ -120,5 +148,28 @@ const styles = StyleSheet.create({
 		borderWidth: 2,
 		borderColor: '#fff'
 	},
-	pinText: { color: '#111', fontSize: 13, fontWeight: '700' }
+	bubble: {
+		minWidth: 34,
+		height: 28,
+		borderRadius: 14,
+		paddingHorizontal: 8,
+		alignItems: 'center',
+		justifyContent: 'center',
+		borderWidth: 2,
+		borderColor: '#fff'
+	},
+	pinText: { color: '#111', fontSize: 13, fontWeight: '700' },
+	badge: {
+		position: 'absolute',
+		top: -7,
+		right: -7,
+		minWidth: 16,
+		height: 16,
+		borderRadius: 8,
+		paddingHorizontal: 3,
+		backgroundColor: '#e11d48',
+		alignItems: 'center',
+		justifyContent: 'center'
+	},
+	badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' }
 });

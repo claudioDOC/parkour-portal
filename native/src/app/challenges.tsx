@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, Switch } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../lib/theme';
 import { textAlpha } from '../lib/tokens';
@@ -29,7 +29,9 @@ export default function Challenges() {
 	const { me } = useAuth();
 	const router = useRouter();
 	const { data, error, refreshing, onRefresh } = useData('arena', getArena);
-	const [query, setQuery] = useState('');
+	// ?q=<Spotname> — z. B. vom Challenge-Link auf der Karte.
+	const params = useLocalSearchParams<{ q?: string }>();
+	const [query, setQuery] = useState(typeof params.q === 'string' ? params.q : '');
 	const [onlyMine, setOnlyMine] = useState(false);
 
 	const q = query.trim().toLowerCase();

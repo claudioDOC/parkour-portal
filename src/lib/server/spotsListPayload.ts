@@ -1,8 +1,17 @@
 import { db } from '$lib/server/db';
-import { spots, votes, users, spotImages } from '$lib/server/db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import {
+	spots,
+	votes,
+	users,
+	spotImages,
+	spotChallenges,
+	trainingSessions,
+	trainingSpotVotes
+} from '$lib/server/db/schema';
+import { and, asc, eq, desc, gte, sql } from 'drizzle-orm';
 import { asNum } from '$lib/server/asSqlNumber';
 import { spotsTableHasMicrospotColumns } from '$lib/server/spotsTableColumns';
+import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 
 export function buildSpotsListPayload() {
 	const hasMicro = spotsTableHasMicrospotColumns();
@@ -64,14 +73,48 @@ export function buildSpotsListPayload() {
 			.where(eq(spotImages.spotId, spot.id))
 			.limit(1)
 			.get();
+		let challengeCount = 0;
+		try {
+			challengeCount = Number(
+				db
+					.select({ c: sql<number>`COUNT(*)` })
+					.from(spotChallenges)
+					.where(and(eq(spotChallenges.spotId, spot.id), eq(spotChallenges.deleted, false)))
+					.get()?.c ?? 0
+			);
+		} catch {
+			/* Challenge-Schema evtl. nicht bereit */
+		}
 		return {
 			...spot,
 			avgScore: asNum(spot.avgScore),
 			voteCount: asNum(spot.voteCount),
 			parentSpotName: spot.parentSpotId ? (spotNameById.get(spot.parentSpotId) ?? null) : null,
-			thumbnail: firstImage ? `/uploads/${firstImage.filename}` : null
+			thumbnail: firstImage ? `/uploads/${firstImage.filename}` : null,
+			challengeCount
 		};
 	});
 
-	return { spots: spotsWithThumbnail };
+	return { spots: spotsWithThumbnail, nextTrainingSpotId: findNextTrainingSpotId() };
+}
+
+/** Spot mit den meisten Votes fürs nächste Training — wie auf der Web-Karte. */
+function findNextTrainingSpotId(): number | null {
+	const nextSession = db
+		.select()
+		.from(trainingSessions)
+		.where(and(gte(trainingSessions.date, todayYmdInAppTZ()), eq(trainingSessions.cancelled, false)))
+		.orderBy(asc(trainingSessions.date))
+		.limit(1)
+		.get();
+	if (!nextSession) return null;
+	const top = db
+		.select({ spotId: trainingSpotVotes.spotId, c: sql<number>`COUNT(*)`.as('c') })
+		.from(trainingSpotVotes)
+		.where(eq(trainingSpotVotes.sessionId, nextSession.id))
+		.groupBy(trainingSpotVotes.spotId)
+		.orderBy(desc(sql`c`))
+		.limit(1)
+		.get();
+	return top?.spotId ?? null;
 }
