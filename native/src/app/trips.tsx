@@ -13,11 +13,11 @@ import {
 	ErrorCard,
 	EmptyState,
 	Button,
-	InitialsRow,
 	Sheet,
 	Input
 } from '../lib/ui';
 import { useData } from '../lib/store';
+import { NativeMap, type MapMarker } from '../lib/NativeMap';
 import {
 	getTrips,
 	tripAction,
@@ -28,6 +28,8 @@ import {
 	removePlanVote,
 	proposeStopover,
 	deleteStopover,
+	setTripDestination,
+	adminTrashTrip,
 	geocode,
 	myTripStatus,
 	BASE_URL,
@@ -51,6 +53,24 @@ const TRANSPORT_MODES = [
 	{ key: 'unentschlossen', label: 'Noch unentschlossen' }
 ];
 
+/** Chip-Beschriftung pro Person — dieselben Worte wie die Web-Seite. */
+function memberLabel(m: Trip['memberStates'][number]): string {
+	if (m.status === 'pending') return 'Offen';
+	if (m.status === 'declined') return 'Abgemeldet';
+	switch (m.transportMode) {
+		case 'auto_owner':
+			return 'Eigenes Auto';
+		case 'motorrad':
+			return 'Motorrad';
+		case 'zug':
+			return 'Zug';
+		case 'unentschlossen':
+			return 'Unentschlossen';
+		default:
+			return 'Mitfahrt';
+	}
+}
+
 export default function Trips() {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
@@ -70,6 +90,10 @@ export default function Trips() {
 	const [stopQuery, setStopQuery] = useState('');
 	const [stopHits, setStopHits] = useState<{ lat: number; lon: number; displayName: string }[]>([]);
 	const [joinNote, setJoinNote] = useState('');
+	// Trip-Ziel setzen (Ersteller/Admin) — gleiche Ortssuche wie Zwischenstopps.
+	const [destFor, setDestFor] = useState<Trip | null>(null);
+	// Angetippter Teilnehmer-Chip: zeigt dessen Notiz darunter an.
+	const [openNoteKey, setOpenNoteKey] = useState<string | null>(null);
 
 	const act = async (fn: () => Promise<unknown>) => {
 		try {
@@ -77,6 +101,25 @@ export default function Trips() {
 			await refresh();
 		} catch (e) {
 			Alert.alert('Fehler', e instanceof Error ? e.message : 'Aktion fehlgeschlagen');
+		}
+	};
+
+	/** Beitritt/Änderung: Notiz aus der bisherigen Anmeldung vorbefüllen. */
+	const openJoin = (trip: Trip) => {
+		setJoinNote(trip.myParticipation?.note ?? '');
+		setJoinFor(trip);
+	};
+
+	/** Ortssuche für Zwischenstopp- und Ziel-Sheet. */
+	const searchPlaces = async () => {
+		const q = stopQuery.trim();
+		if (q.length < 2) return;
+		try {
+			const res = await geocode(q);
+			setStopHits(res.results);
+			if (!res.results.length) Alert.alert('Nichts gefunden', `Keine Treffer für „${q}".`);
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Suche fehlgeschlagen');
 		}
 	};
 
@@ -127,9 +170,27 @@ export default function Trips() {
 
 			{(data?.trips ?? []).map((trip) => {
 				const status = myTripStatus(trip);
-				const joinedNames = trip.memberStates
-					.filter((m) => m.status === 'joined')
-					.map((m) => m.username);
+				const canManage = data?.isAdmin || trip.createdBy === data?.user.id;
+				const tripPins: MapMarker[] = [
+					...(trip.destinationLatitude != null && trip.destinationLongitude != null
+						? [
+								{
+									id: -trip.id,
+									name: trip.destinationLabel ?? trip.title,
+									lat: trip.destinationLatitude,
+									lon: trip.destinationLongitude,
+									kind: 'main'
+								}
+							]
+						: []),
+					...(trip.stopovers ?? []).map((st) => ({
+						id: st.id,
+						name: st.label,
+						lat: st.latitude,
+						lon: st.longitude,
+						kind: 'parking'
+					}))
+				];
 				return (
 					<Card key={trip.id} style={{ gap: 12 }}>
 						<View style={styles.head}>
@@ -159,12 +220,62 @@ export default function Trips() {
 
 						{trip.notes ? <Text style={styles.notes}>{trip.notes}</Text> : null}
 
-						<View style={styles.countsRow}>
-							<InitialsRow names={joinedNames} />
-							<Text style={styles.counts}>
-								{trip.joinedCount} dabei · {trip.declinedCount} nicht · {trip.pendingCount} offen
-							</Text>
+						{/* Zählkacheln wie im Web: Angemeldet / Offen / Abgemeldet */}
+						<View style={styles.tilesRow}>
+							<View style={[styles.tile, { borderColor: colors.success + '59' }]}>
+								<Text style={[styles.tileNum, { color: colors.success }]}>{trip.joinedCount}</Text>
+								<Text style={styles.tileLabel}>Angemeldet</Text>
+							</View>
+							<View style={styles.tile}>
+								<Text style={styles.tileNum}>{trip.pendingCount}</Text>
+								<Text style={styles.tileLabel}>Offen</Text>
+							</View>
+							<View style={[styles.tile, { borderColor: colors.danger + '59' }]}>
+								<Text style={[styles.tileNum, { color: colors.danger }]}>{trip.declinedCount}</Text>
+								<Text style={styles.tileLabel}>Abgemeldet</Text>
+							</View>
 						</View>
+
+						{/* Wer ist wie unterwegs — Chip antippen zeigt die Notiz */}
+						<View style={styles.chipsWrap}>
+							{trip.memberStates.map((m) => {
+								const key = `${trip.id}:${m.userId}`;
+								const tint =
+									m.status === 'declined'
+										? colors.danger
+										: m.status === 'pending'
+											? colors.fg + textAlpha.muted
+											: m.transportMode === 'auto_owner'
+												? colors.accent
+												: colors.success;
+								return (
+									<Pressable
+										key={key}
+										onPress={() =>
+											m.note ? setOpenNoteKey(openNoteKey === key ? null : key) : undefined
+										}
+										style={[styles.memberChip, { borderColor: tint + '40' }]}
+									>
+										<Text style={[styles.memberChipText, { color: tint }]}>
+											{m.username} · {memberLabel(m)}
+											{m.note ? ' *' : ''}
+										</Text>
+									</Pressable>
+								);
+							})}
+						</View>
+						{openNoteKey?.startsWith(`${trip.id}:`)
+							? (() => {
+									const m = trip.memberStates.find(
+										(x) => `${trip.id}:${x.userId}` === openNoteKey
+									);
+									return m?.note ? (
+										<Text style={styles.memberNote}>
+											{m.username}: {m.note}
+										</Text>
+									) : null;
+								})()
+							: null}
 
 						{/* Termin-Alternativen mit Mehrheits-Fortschritt */}
 						<View style={{ gap: 8 }}>
@@ -177,6 +288,12 @@ export default function Trips() {
 										const mine = trip.myVoteDateOptionId === opt.id;
 										const range = formatRange(opt.startDate, opt.endDate);
 										const label = opt.note ? `${range} · ${opt.note}` : range;
+										const subline = [
+											opt.proposedByName ? `von ${opt.proposedByName}` : null,
+											opt.sameAsPlanned ? 'wie Trip geplant' : null
+										]
+											.filter(Boolean)
+											.join(' · ');
 										return (
 											<Pressable
 												key={opt.id}
@@ -205,6 +322,7 @@ export default function Trips() {
 														percent={(opt.voteCount / Math.max(1, trip.votesNeeded)) * 100}
 														color={colors.accentBlue}
 													/>
+													{subline ? <Text style={styles.proposeText}>{subline}</Text> : null}
 												</View>
 											</Pressable>
 										);
@@ -298,12 +416,66 @@ export default function Trips() {
 							</Pressable>
 						</View>
 
+						{/* Routen-Karte: Ziel (★) und Zwischenstopps — wie im Web */}
+						{tripPins.length > 0 ? <NativeMap markers={tripPins} height={180} zoom={7} /> : null}
+						{canManage ? (
+							<View style={styles.manageRow}>
+								<Pressable
+									onPress={() => {
+										setDestFor(trip);
+										setStopQuery('');
+										setStopHits([]);
+									}}
+									style={({ pressed }) => [styles.proposeRow, pressed && { opacity: 0.7 }]}
+								>
+									<Ionicons name="flag-outline" size={16} color={colors.fg + textAlpha.secondary} />
+									<Text style={styles.proposeText}>
+										{trip.destinationLabel ? 'Ziel ändern' : 'Ziel setzen'}
+									</Text>
+								</Pressable>
+								{trip.destinationLabel ? (
+									<Pressable
+										onPress={() => act(() => setTripDestination(trip.id, null))}
+										style={({ pressed }) => [styles.proposeRow, pressed && { opacity: 0.7 }]}
+									>
+										<Ionicons name="close-circle-outline" size={16} color={colors.fg + textAlpha.muted} />
+										<Text style={styles.proposeText}>Ziel entfernen</Text>
+									</Pressable>
+								) : null}
+								{data?.isAdmin ? (
+									<Pressable
+										onPress={() =>
+											Alert.alert('In Papierkorb?', `Trip „${trip.title}" in den Papierkorb legen?`, [
+												{ text: 'Abbrechen', style: 'cancel' },
+												{
+													text: 'Papierkorb',
+													style: 'destructive',
+													onPress: () => act(() => adminTrashTrip(trip.id))
+												}
+											])
+										}
+										style={({ pressed }) => [styles.proposeRow, pressed && { opacity: 0.7 }]}
+									>
+										<Ionicons name="trash-outline" size={16} color={colors.warning} />
+										<Text style={[styles.proposeText, { color: colors.warning }]}>Papierkorb</Text>
+									</Pressable>
+								) : null}
+							</View>
+						) : null}
+
 						<View style={styles.actions}>
 							{status === 'joined' ? (
 								<>
 									<Pill label="✓ Du bist dabei" color={colors.success} />
+									<Button label="Ändern" kind="ghost" small onPress={() => openJoin(trip)} />
 									<Button
 										label="Abmelden"
+										kind="ghost"
+										small
+										onPress={() => act(() => tripAction('decline_trip', trip.id))}
+									/>
+									<Button
+										label="Zurück auf offen"
 										kind="ghost"
 										small
 										onPress={() => act(() => tripAction('leave_trip', trip.id))}
@@ -312,16 +484,28 @@ export default function Trips() {
 							) : status === 'declined' ? (
 								<>
 									<Pill label="Nicht dabei" color={colors.textMuted} />
-									<Button label="Doch dabei" small onPress={() => setJoinFor(trip)} />
+									<Button label="Doch dabei" small onPress={() => openJoin(trip)} />
+									<Button
+										label="Zurück auf offen"
+										kind="ghost"
+										small
+										onPress={() => act(() => tripAction('leave_trip', trip.id))}
+									/>
 								</>
 							) : status === 'abstained' ? (
 								<>
 									<Pill label="Enthalten" color={colors.warning} />
-									<Button label="Dabei!" small onPress={() => setJoinFor(trip)} />
+									<Button label="Dabei!" small onPress={() => openJoin(trip)} />
+									<Button
+										label="Abmelden"
+										kind="ghost"
+										small
+										onPress={() => act(() => tripAction('decline_trip', trip.id))}
+									/>
 								</>
 							) : (
 								<>
-									<Button label="Dabei!" small onPress={() => setJoinFor(trip)} />
+									<Button label="Dabei!" small onPress={() => openJoin(trip)} />
 									<Button
 										label="Nicht dabei"
 										kind="ghost"
@@ -345,16 +529,22 @@ export default function Trips() {
 				<EmptyState icon="airplane-outline" text="Kein Trip geplant — erstell den ersten mit dem + oben." />
 			) : null}
 
-			{/* Transportmittel-Auswahl beim Beitritt */}
+			{/* Transportmittel-Auswahl beim Beitritt — Antippen sendet inkl. Notiz */}
 			<Sheet visible={joinFor !== null} onClose={() => setJoinFor(null)} title="Wie kommst du hin?">
+				<Input
+					placeholder="Notiz für alle sichtbar (optional)"
+					value={joinNote}
+					onChangeText={setJoinNote}
+				/>
 				{TRANSPORT_MODES.map((mode) => (
 					<Pressable
 						key={mode.key}
 						style={({ pressed }) => [styles.modeRow, pressed && { opacity: 0.7 }]}
 						onPress={() => {
 							const trip = joinFor!;
+							const note = joinNote.trim();
 							setJoinFor(null);
-							act(() => tripAction('join_trip', trip.id, { transportMode: mode.key }));
+							act(() => tripAction('join_trip', trip.id, { transportMode: mode.key, note }));
 						}}
 					>
 						<Text style={styles.modeText}>{mode.label}</Text>
@@ -362,6 +552,115 @@ export default function Trips() {
 					</Pressable>
 				))}
 				<Button label="Abbrechen" kind="ghost" onPress={() => setJoinFor(null)} />
+			</Sheet>
+
+			{/* Ablauf vorschlagen (freier Text, wie das Web-Textfeld) */}
+			<Sheet
+				visible={planFor !== null}
+				onClose={() => setPlanFor(null)}
+				title={`Ablauf vorschlagen — ${planFor?.title ?? ''}`}
+			>
+				<Input
+					placeholder="Ablauf beschreiben — z. B. ganze Woche mit Trainer, wer fährt mit wem …"
+					multiline
+					value={planText}
+					onChangeText={setPlanText}
+					style={{ minHeight: 90 }}
+				/>
+				<View style={styles.sheetActions}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setPlanFor(null)} />
+					<Button
+						label="Vorschlagen"
+						onPress={() => {
+							const trip = planFor;
+							const text = planText.trim();
+							if (!trip || !text) return;
+							setPlanFor(null);
+							setPlanText('');
+							act(() => proposePlanOption(trip.id, text));
+						}}
+					/>
+				</View>
+			</Sheet>
+
+			{/* Zwischenstopp: Ort suchen und übernehmen */}
+			<Sheet
+				visible={stopFor !== null}
+				onClose={() => setStopFor(null)}
+				title={`Zwischenstopp — ${stopFor?.title ?? ''}`}
+			>
+				<View style={styles.searchRow}>
+					<View style={{ flex: 1 }}>
+						<Input
+							placeholder="Ort suchen …"
+							value={stopQuery}
+							onChangeText={setStopQuery}
+							onSubmitEditing={searchPlaces}
+							returnKeyType="search"
+						/>
+					</View>
+					<Button label="Suchen" kind="ghost" onPress={searchPlaces} />
+				</View>
+				{stopHits.map((hit, i) => (
+					<Pressable
+						key={i}
+						style={({ pressed }) => [styles.hitRow, pressed && { opacity: 0.7 }]}
+						onPress={() => {
+							const trip = stopFor!;
+							setStopFor(null);
+							act(() => proposeStopover(trip.id, hit.displayName, hit.lat, hit.lon));
+						}}
+					>
+						<Ionicons name="location-outline" size={16} color={colors.accentBlue} />
+						<Text style={styles.hitText} numberOfLines={2}>
+							{hit.displayName}
+						</Text>
+					</Pressable>
+				))}
+				<Button label="Abbrechen" kind="ghost" onPress={() => setStopFor(null)} />
+			</Sheet>
+
+			{/* Trip-Ziel setzen (Ersteller/Admin) */}
+			<Sheet
+				visible={destFor !== null}
+				onClose={() => setDestFor(null)}
+				title={`Ziel setzen — ${destFor?.title ?? ''}`}
+			>
+				<View style={styles.searchRow}>
+					<View style={{ flex: 1 }}>
+						<Input
+							placeholder="Zielort suchen …"
+							value={stopQuery}
+							onChangeText={setStopQuery}
+							onSubmitEditing={searchPlaces}
+							returnKeyType="search"
+						/>
+					</View>
+					<Button label="Suchen" kind="ghost" onPress={searchPlaces} />
+				</View>
+				{stopHits.map((hit, i) => (
+					<Pressable
+						key={i}
+						style={({ pressed }) => [styles.hitRow, pressed && { opacity: 0.7 }]}
+						onPress={() => {
+							const trip = destFor!;
+							setDestFor(null);
+							act(() =>
+								setTripDestination(trip.id, {
+									latitude: hit.lat,
+									longitude: hit.lon,
+									label: hit.displayName
+								})
+							);
+						}}
+					>
+						<Ionicons name="flag-outline" size={16} color={colors.accent} />
+						<Text style={styles.hitText} numberOfLines={2}>
+							{hit.displayName}
+						</Text>
+					</Pressable>
+				))}
+				<Button label="Abbrechen" kind="ghost" onPress={() => setDestFor(null)} />
 			</Sheet>
 
 			{/* Neuen Trip erstellen */}
@@ -458,8 +757,67 @@ const makeStyles = (colors: ThemeColors) =>
 		justifyContent: 'center'
 	},
 	notes: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16 },
-	countsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	counts: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, flex: 1 },
+	tilesRow: { flexDirection: 'row', gap: 8 },
+	tile: {
+		flex: 1,
+		borderWidth: 1,
+		borderColor: colors.border,
+		backgroundColor: colors.bgSecondary,
+		borderRadius: 14,
+		paddingVertical: 10,
+		alignItems: 'center',
+		gap: 2
+	},
+	tileNum: {
+		color: colors.fg + textAlpha.primary,
+		fontFamily: fonts.display,
+		fontSize: 24,
+		lineHeight: 26
+	},
+	tileLabel: {
+		color: colors.fg + textAlpha.muted,
+		fontSize: 10,
+		lineHeight: 14,
+		letterSpacing: 0.8,
+		textTransform: 'uppercase',
+		fontFamily: fonts.sansSemi
+	},
+	chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+	memberChip: {
+		borderRadius: 999,
+		borderWidth: 1,
+		backgroundColor: colors.bgSecondary,
+		paddingHorizontal: 10,
+		paddingVertical: 5
+	},
+	memberChipText: { fontSize: 11, lineHeight: 15, fontFamily: fonts.sansMedium },
+	memberNote: {
+		color: colors.fg + textAlpha.secondary,
+		fontSize: 12,
+		lineHeight: 17,
+		backgroundColor: colors.bgSecondary,
+		borderRadius: 10,
+		paddingHorizontal: 10,
+		paddingVertical: 8
+	},
+	manageRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+	searchRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+	hitRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 8,
+		backgroundColor: colors.hover,
+		borderRadius: 12,
+		paddingHorizontal: 12,
+		paddingVertical: 10
+	},
+	hitText: {
+		color: colors.fg + textAlpha.primary,
+		fontSize: 13,
+		lineHeight: 18,
+		fontFamily: fonts.sans,
+		flex: 1
+	},
 	datesTitle: { color: colors.fg + textAlpha.secondary, fontFamily: fonts.displayMedium, fontSize: 12, lineHeight: 16, letterSpacing: 1.5 },
 	dateRow: { backgroundColor: colors.bgSecondary, borderRadius: 12, padding: 12 },
 	dateHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },

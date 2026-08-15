@@ -69,6 +69,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 const get = <T>(path: string) => request<T>(path);
 const post = <T>(path: string, body: object) =>
 	request<T>(path, { method: 'POST', body: JSON.stringify(body) });
+const patch = <T>(path: string, body: object) =>
+	request<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
 
 // --- Auth ---
 
@@ -622,7 +624,13 @@ export type Trip = {
 	transportMode: string | null;
 	createdByName?: string;
 	participants: { userId: number; username: string; transportMode: string | null }[];
-	memberStates: { userId: number; username: string; status: 'joined' | 'declined' | 'pending'; transportMode: string | null }[];
+	memberStates: {
+		userId: number;
+		username: string;
+		status: 'joined' | 'declined' | 'pending';
+		transportMode: string | null;
+		note: string | null;
+	}[];
 	dateOptions: TripDateOption[];
 	destinations: {
 		id: number;
@@ -645,7 +653,7 @@ export type Trip = {
 	myVoteDestinationId: number | null;
 	eligibleVoters: number;
 	votesNeeded: number;
-	myParticipation: { userId: number; transportMode: string | null } | null;
+	myParticipation: { userId: number; transportMode: string | null; note?: string | null } | null;
 	myVoteDateOptionId: number | null;
 	joinedCount: number;
 	declinedCount: number;
@@ -682,6 +690,10 @@ export const getPendingTrip = () =>
 
 export const tripAction = (action: string, tripId: number, extra: object = {}) =>
 	post<{ success?: boolean; adopted?: boolean }>('/api/trips', { action, tripId, ...extra });
+
+/** Admin: Trip in den Papierkorb (gleicher Weg wie die Web-Seite). */
+export const adminTrashTrip = (tripId: number) =>
+	patch<{ success?: boolean }>('/api/admin/trips', { tripId, action: 'trash' });
 
 export const createTrip = (title: string, startDate: string, endDate: string, notes: string) =>
 	post<{ success?: boolean }>('/api/trips', { action: 'create_trip', title, startDate, endDate, notes });
