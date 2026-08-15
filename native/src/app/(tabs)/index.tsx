@@ -31,6 +31,8 @@ import {
 	type TrainingSession
 } from '../../lib/api';
 import { useAuth } from '../_layout';
+import { hasNativeExtras } from '../../lib/nativeModules';
+import { Linking } from 'react-native';
 
 /** Sprüche der Website-Startseite — gleiche Rotation nach Kalendertag. */
 const GREETINGS = [
@@ -149,6 +151,24 @@ export default function Dashboard() {
 			/>
 
 			{training.error && !data ? <ErrorCard message={training.error} /> : null}
+
+			{!hasNativeExtras() ? (
+				<Pressable onPress={() => Linking.openURL('https://matetraining.duckdns.org/app')}>
+					{({ pressed }) => (
+						<Card style={[styles.updateCard, pressed && { opacity: 0.85 }]}>
+							<Ionicons name="download-outline" size={22} color={colors.accent} />
+							<View style={{ flex: 1 }}>
+								<Text style={styles.updateTitle}>Neue App-Version verfügbar</Text>
+								<Text style={styles.updateText}>
+									Karte, Fotos und Standort brauchen Version 1.2. Einmal installieren —
+									danach läuft alles wieder automatisch.
+								</Text>
+							</View>
+							<Ionicons name="chevron-forward" size={20} color={colors.accent} />
+						</Card>
+					)}
+				</Pressable>
+			) : null}
 
 			{data?.trainingForecast?.summaryLine ? (
 				<Card style={styles.weatherCard}>
@@ -524,6 +544,25 @@ const makeStyles = (colors: ThemeColors) =>
 			fontSize: 14,
 			lineHeight: 21,
 			fontFamily: fonts.sansSemi
+		},
+		updateCard: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			gap: 12,
+			backgroundColor: colors.accent + '1a'
+		},
+		updateTitle: {
+			color: colors.fg + textAlpha.primary,
+			fontFamily: fonts.sansBold,
+			fontSize: 14,
+			lineHeight: 20
+		},
+		updateText: {
+			color: colors.fg + textAlpha.secondary,
+			fontFamily: fonts.sans,
+			fontSize: 12,
+			lineHeight: 16,
+			marginTop: 2
 		},
 		weatherCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
 		weatherLabel: {

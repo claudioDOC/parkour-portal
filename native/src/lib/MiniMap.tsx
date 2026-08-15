@@ -67,22 +67,33 @@ ${pins}
 
 	const WebView = getWebView();
 	if (!WebView) {
-		// Alte App-Version ohne Kartenmodul — ehrlicher Hinweis statt Absturz.
-		const main = markers.find((m) => m.kind === 'main') ?? markers[0];
+		// Ältere APK ohne Kartenmodul: Das lässt sich per Update nicht
+		// nachrüsten — darum ein klarer Hinweis statt eines Browser-Sprungs.
 		return (
-			<Pressable
-				onPress={() =>
-					Linking.openURL(`https://matetraining.duckdns.org/map?spot=${main.id}`)
-				}
-				style={[styles.wrap, styles.fallback, { height: 120, backgroundColor: colors.hover }]}
+			<View
+				style={[styles.wrap, styles.fallback, { height: 150, backgroundColor: colors.hover }]}
 			>
-				<Text style={{ color: colors.fg, fontSize: 14, textAlign: 'center' }}>
-					Die Karte braucht die neue App-Version.
+				<Text style={{ color: colors.fg, fontSize: 15, fontWeight: '600', textAlign: 'center' }}>
+					Karte braucht App-Version 1.2
 				</Text>
-				<Text style={{ color: colors.accent, fontSize: 13, marginTop: 6 }}>
-					matetraining.duckdns.org/app
+				<Text style={{ color: colors.fg, opacity: 0.6, fontSize: 13, textAlign: 'center', marginTop: 4 }}>
+					Einmal neu installieren, danach läuft alles wieder automatisch.
 				</Text>
-			</Pressable>
+				<Pressable
+					onPress={() => Linking.openURL('https://matetraining.duckdns.org/app')}
+					style={{
+						marginTop: 12,
+						backgroundColor: colors.accent,
+						borderRadius: 10,
+						paddingHorizontal: 18,
+						paddingVertical: 10
+					}}
+				>
+					<Text style={{ color: colors.onAccent, fontSize: 14, fontWeight: '700' }}>
+						App herunterladen
+					</Text>
+				</Pressable>
+			</View>
 		);
 	}
 

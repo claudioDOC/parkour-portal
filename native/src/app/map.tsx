@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, StyleSheet, Linking } from 'react-native';
 import { getWebView } from '../lib/nativeModules';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/themeContext';
@@ -31,6 +31,29 @@ export default function MapScreen() {
 				<TopBar back kicker="Alle Spots" title="Karte" />
 			</View>
 			<View style={{ flex: 1, marginTop: 12 }}>
+				{!WebView ? (
+					<View style={{ padding: 24, alignItems: 'center', gap: 12 }}>
+						<Text style={{ color: colors.fg, fontSize: 16, textAlign: 'center' }}>
+							Die Karte braucht App-Version 1.2
+						</Text>
+						<Text style={{ color: colors.fg, opacity: 0.6, fontSize: 14, textAlign: 'center' }}>
+							Einmal neu installieren — danach kommen Updates wieder von selbst.
+						</Text>
+						<Pressable
+							onPress={() => Linking.openURL('https://matetraining.duckdns.org/app')}
+							style={{
+								backgroundColor: colors.accent,
+								borderRadius: 10,
+								paddingHorizontal: 20,
+								paddingVertical: 12
+							}}
+						>
+							<Text style={{ color: colors.onAccent, fontSize: 15, fontWeight: '700' }}>
+								App herunterladen
+							</Text>
+						</Pressable>
+					</View>
+				) : null}
 				{token && WebView ? (
 					<WebView
 						source={{
@@ -47,7 +70,7 @@ export default function MapScreen() {
 						javaScriptEnabled
 					/>
 				) : null}
-				{loading ? (
+				{loading && WebView ? (
 					<View style={styles.loading} pointerEvents="none">
 						<ActivityIndicator color={colors.accent} size="large" />
 					</View>
