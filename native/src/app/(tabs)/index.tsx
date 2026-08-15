@@ -150,6 +150,20 @@ export default function Dashboard() {
 
 			{training.error && !data ? <ErrorCard message={training.error} /> : null}
 
+			{data?.trainingForecast?.summaryLine ? (
+				<Card style={styles.weatherCard}>
+					<Ionicons
+						name={data.trainingForecast.isWet ? 'rainy-outline' : 'partly-sunny-outline'}
+						size={22}
+						color={colors.accentBlue}
+					/>
+					<View style={{ flex: 1 }}>
+						<Text style={styles.weatherLabel}>WETTER ZUM NÄCHSTEN TRAINING</Text>
+						<Text style={styles.weatherText}>{data.trainingForecast.summaryLine}</Text>
+					</View>
+				</Card>
+			) : null}
+
 			{pendingTrip ? (
 				<Pressable onPress={() => router.push('/trips')}>
 					{({ pressed }) => (
@@ -213,9 +227,6 @@ export default function Dashboard() {
 							<Text style={styles.metaLine}>
 								{metaDate(s.date)} · {s.timeStart} – {s.timeEnd}
 							</Text>
-							{sessionIndex === 0 && data?.trainingForecast?.summaryLine ? (
-								<Text style={styles.metaLine}>{data.trainingForecast.summaryLine}</Text>
-							) : null}
 
 							{!s.cancelled ? (
 								<>
@@ -291,10 +302,11 @@ export default function Dashboard() {
 									<View style={styles.chipWrap}>
 										{s.absences.map((a) => (
 											<NameChip
-												key={a.id}
+												key={a.id ?? a.userId}
 												name={a.username}
 												tone={colors.danger}
 												userId={a.userId}
+												avatar={a.avatar ?? null}
 											/>
 										))}
 										{s.absences.length === 0 ? <Text style={styles.emptyDash}>—</Text> : null}
@@ -512,6 +524,21 @@ const makeStyles = (colors: ThemeColors) =>
 			fontSize: 14,
 			lineHeight: 21,
 			fontFamily: fonts.sansSemi
+		},
+		weatherCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+		weatherLabel: {
+			color: colors.fg + textAlpha.muted,
+			fontFamily: fonts.sansSemi,
+			fontSize: 11,
+			lineHeight: 14,
+			letterSpacing: 1.2
+		},
+		weatherText: {
+			color: colors.fg + textAlpha.primary,
+			fontFamily: fonts.sans,
+			fontSize: 14,
+			lineHeight: 20,
+			marginTop: 2
 		},
 		tripCard: { backgroundColor: colors.accentBlue + '14' },
 		tripKicker: {

@@ -118,7 +118,7 @@ export const THEME_OPTIONS: { id: UiThemeId; label: string; hint: string }[] = [
 	{ id: 'ocean', label: 'Ocean', hint: 'Tiefblau, Türkis' }
 ];
 
-export const DEFAULT_THEME: UiThemeId = 'mate';
+export const DEFAULT_THEME: UiThemeId = 'light';
 
 export function isThemeId(v: unknown): v is UiThemeId {
 	return typeof v === 'string' && v in THEMES;

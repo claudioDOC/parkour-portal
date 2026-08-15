@@ -68,9 +68,39 @@ export default function Stats() {
 							<Text style={styles.lbPercent}>{row.showUpPercent}%</Text>
 						</View>
 						<ProgressBar percent={row.showUpPercent} />
+						<Text style={styles.detailLine}>
+							{row.eligiblePastSessions} Trainings · {row.implicitPresent} gezogen ·{' '}
+							{row.absences} abgemeldet
+						</Text>
 					</View>
 				))}
 			</Card>
+
+			{data?.stats.monthly?.length ? (
+				<>
+					<SectionTitle>Verlauf nach Monat</SectionTitle>
+					<Card style={{ gap: 12 }}>
+						{data.stats.monthly.slice(0, 8).map((m) => {
+							const total = Math.max(1, m.sessionCount);
+							const pulled = Math.max(0, m.sessionCount - 0);
+							return (
+								<View key={m.key} style={{ gap: 6 }}>
+									<View style={styles.monthRow}>
+										<Text style={styles.monthLabel}>{m.label}</Text>
+										<Text style={styles.monthMeta}>
+											{m.sessionCount} Trainings · {m.absenceCount} Abmeldungen
+										</Text>
+									</View>
+									<ProgressBar
+										percent={(m.sessionCount / Math.max(...data.stats.monthly.map((x) => x.sessionCount || 1))) * 100}
+										color={colors.accentBlue}
+									/>
+								</View>
+							);
+						})}
+					</Card>
+				</>
+			) : null}
 
 			{data?.solo.leaderboard.length ? (
 				<>
@@ -128,6 +158,20 @@ const makeStyles = (colors: ThemeColors) =>
 	statNum: { color: colors.fg + textAlpha.primary, fontFamily: fonts.display, fontSize: 30, lineHeight: 32 },
 	statLabel: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, marginTop: 4 },
 	lbRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+	detailLine: {
+		color: colors.fg + textAlpha.muted,
+		fontSize: 12,
+		lineHeight: 16,
+		fontFamily: fonts.sans
+	},
+	monthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+	monthLabel: {
+		color: colors.fg + textAlpha.primary,
+		fontSize: 14,
+		lineHeight: 20,
+		fontFamily: fonts.sansSemi
+	},
+	monthMeta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans },
 	lbRank: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold, width: 18 },
 	lbName: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi, flex: 1 },
 	lbPercent: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold },

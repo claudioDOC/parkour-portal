@@ -121,7 +121,14 @@ export type TrainingSession = {
 	spotThumbnail?: string | null;
 	overrideSpot: { spotId: number; name: string; city: string } | null;
 	attending: { id: number; username: string; avatar?: string | null }[];
-	absences: { id: number; userId: number; username: string; reason: string; virtual?: boolean }[];
+	absences: {
+		id: number | null;
+		userId: number;
+		username: string;
+		reason: string | null;
+		virtual?: boolean;
+		avatar?: string | null;
+	}[];
 	guests: { id: number; name: string }[];
 	userDbAbsent: boolean;
 	userVirtualAbsent: boolean;
@@ -348,6 +355,7 @@ export type StatsRow = {
 	username: string;
 	eligiblePastSessions: number;
 	absences: number;
+	implicitPresent: number;
 	showUpPercent: number;
 	streakNoAbsence: number;
 	spotsSuggested: number;
@@ -355,6 +363,8 @@ export type StatsRow = {
 	totalChallenges: number;
 	challengeProgressPercent: number;
 };
+
+export type MonthRow = { key: string; label: string; sessionCount: number; absenceCount: number };
 
 export type StatsPayload = {
 	stats: {
@@ -366,6 +376,7 @@ export type StatsPayload = {
 			memberCount: number;
 		};
 		leaderboard: StatsRow[];
+		monthly: MonthRow[];
 	};
 	solo: {
 		leaderboard: { userId: number; username: string; total: number; last90: number }[];
@@ -406,8 +417,17 @@ export type FinderResult = {
 	reasons: string[];
 };
 
-export const runFinder = (wish: string) =>
-	post<{ results: FinderResult[]; forecastHint: string | null }>('/api/finder', { wish });
+export type FinderQuery = {
+	useAutoWeather: boolean;
+	weatherCondition: 'trocken' | 'nass' | 'egal';
+	isDark: boolean;
+	cities: string[];
+	techniques: string[];
+	wish: string;
+};
+
+export const runFinder = (query: FinderQuery) =>
+	post<{ results: FinderResult[]; forecastHint: string | null }>('/api/finder', query);
 
 // --- Einstellungen ---
 

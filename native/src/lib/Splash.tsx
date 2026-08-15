@@ -15,6 +15,9 @@ export function Splash({ colors, onDone }: { colors: ThemeColors; onDone: () => 
 	const fade = useRef(new Animated.Value(1)).current;
 
 	useEffect(() => {
+		// Sicherung: falls die Animation nicht sauber endet (z. B. wenn das
+		// System sie unterbricht), geht es trotzdem weiter — nie hängen bleiben.
+		const failsafe = setTimeout(onDone, 2200);
 		Animated.sequence([
 			Animated.timing(logo, {
 				toValue: 1,
@@ -44,12 +47,14 @@ export function Splash({ colors, onDone }: { colors: ThemeColors; onDone: () => 
 				useNativeDriver: true
 			})
 		]).start(({ finished }) => {
+			clearTimeout(failsafe);
 			if (finished) onDone();
 		});
+		return () => clearTimeout(failsafe);
 	}, []);
 
 	return (
-		<Animated.View style={[styles.root, { backgroundColor: colors.bg, opacity: fade }]}>
+		<Animated.View style={[styles.root, { backgroundColor: '#0d0d0f', opacity: fade }]}>
 			<Animated.View
 				style={{
 					opacity: logo,
@@ -67,7 +72,7 @@ export function Splash({ colors, onDone }: { colors: ThemeColors; onDone: () => 
 			</Animated.View>
 
 			<Animated.View style={{ opacity: word, alignItems: 'center' }}>
-				<Text style={[styles.word, { color: colors.fg }]}>PARKOUR</Text>
+				<Text style={[styles.word, { color: '#f5f5f7' }]}>PARKOUR</Text>
 				<Text style={[styles.sub, { color: colors.accent }]}>PORTAL</Text>
 			</Animated.View>
 

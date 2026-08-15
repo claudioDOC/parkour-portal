@@ -14,8 +14,11 @@ import {
 	EmptyState,
 	ProgressBar,
 	Stat,
-	StatGrid
+	StatGrid,
+	InitialsRow
 } from '../lib/ui';
+import { Image } from 'expo-image';
+import { mediaUrl } from '../lib/api';
 import { useData } from '../lib/store';
 import { getArena } from '../lib/api';
 import { useAuth } from './_layout';
@@ -130,9 +133,45 @@ export default function Challenges() {
 									<Ionicons name="chevron-forward" size={17} color={colors.textMuted} />
 								</View>
 								<ProgressBar percent={g.challenges.length ? (doneMine / g.challenges.length) * 100 : 0} />
-								<Text style={styles.challengeList} numberOfLines={2}>
-									{g.challenges.map((ch) => ch.title).join('  ·  ')}
-								</Text>
+								<View style={{ gap: 12, marginTop: 4 }}>
+									{g.challenges.map((ch) => {
+										const done = me ? ch.completers.some((c) => c.userId === me.id) : false;
+										return (
+											<View key={ch.id} style={styles.chRow}>
+												{ch.images?.[0] ? (
+													<Image
+														source={{ uri: mediaUrl(ch.images[0].url) ?? undefined }}
+														style={styles.chImage}
+														contentFit="cover"
+														transition={150}
+													/>
+												) : (
+													<View style={[styles.chImage, styles.chImageEmpty]}>
+														<Ionicons name="trophy-outline" size={18} color={colors.fg + textAlpha.muted} />
+													</View>
+												)}
+												<View style={{ flex: 1, gap: 4 }}>
+													<Text style={styles.chTitle} numberOfLines={1}>
+														{ch.title}
+													</Text>
+													{ch.completers.length > 0 ? (
+														<View style={styles.chDone}>
+															<InitialsRow names={ch.completers.map((c) => c.username)} />
+															<Text style={styles.chDoneText}>
+																{ch.completers.length} geschafft
+															</Text>
+														</View>
+													) : (
+														<Text style={styles.chDoneText}>Noch niemand geschafft</Text>
+													)}
+												</View>
+												{done ? (
+													<Ionicons name="checkmark-circle" size={20} color={colors.success} />
+												) : null}
+											</View>
+										);
+									})}
+								</View>
 							</Card>
 						)}
 					</Pressable>
@@ -203,7 +242,12 @@ const makeStyles = (colors: ThemeColors) =>
 	spotName: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
 	spotCity: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
 	spotCount: { color: colors.accent, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
-	challengeList: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
+	chRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+	chImage: { width: 52, height: 52, borderRadius: 10, backgroundColor: colors.hover },
+	chImageEmpty: { alignItems: 'center', justifyContent: 'center' },
+	chTitle: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi },
+	chDone: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+	chDoneText: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans },
 	clearRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 	clearText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, flex: 1 }
 });

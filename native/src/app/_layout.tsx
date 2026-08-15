@@ -81,7 +81,7 @@ export default function RootLayout() {
 	}, [me]);
 	const colors = THEMES[themeId];
 	// Schriften der Website (Teko + Plus Jakarta Sans) — Teil der App-Identität.
-	const [fontsLoaded] = useFonts({
+	const [fontsReady] = useFonts({
 		Teko_500Medium,
 		Teko_600SemiBold,
 		PlusJakartaSans_400Regular,
@@ -89,6 +89,17 @@ export default function RootLayout() {
 		PlusJakartaSans_600SemiBold,
 		PlusJakartaSans_700Bold
 	});
+	/**
+	 * Schriften dürfen den Start nie blockieren: nach 2,5 s geht es auch
+	 * ohne sie weiter (System-Schrift), sonst bliebe ein schwarzer Schirm.
+	 */
+	const [fontTimeout, setFontTimeout] = useState(false);
+	useEffect(() => {
+		const t = setTimeout(() => setFontTimeout(true), 2500);
+		return () => clearTimeout(t);
+	}, []);
+	const fontsLoaded = fontsReady || fontTimeout;
+
 	const segments = useSegments();
 	const router = useRouter();
 
@@ -122,10 +133,11 @@ export default function RootLayout() {
 	};
 
 	// Startanimation läuft, während Token und Schriften geladen werden.
-	if (!ready || !fontsLoaded || !splashDone) {
+	// Die Animation läuft IMMER — sie darf nie an einer Bedingung hängen.
+	if (!ready || !splashDone) {
 		return (
-			<View style={{ flex: 1, backgroundColor: colors.bg }}>
-				{fontsLoaded ? <Splash colors={colors} onDone={() => setSplashDone(true)} /> : null}
+			<View style={{ flex: 1, backgroundColor: '#0d0d0f' }}>
+				<Splash colors={colors} onDone={() => setSplashDone(true)} />
 			</View>
 		);
 	}

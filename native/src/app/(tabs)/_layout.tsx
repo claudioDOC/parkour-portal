@@ -9,6 +9,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  * Untere Navigation — identisch zur Website: Finder · Spots · Training
  * (mittig, erhöhter Kreis) · Stats · Mehr.
  */
+/** App öffnet immer auf „Start", egal wo man zuletzt war. */
+export const unstable_settings = { initialRouteName: 'index' };
+
 export default function TabsLayout() {
 	const { colors } = useTheme();
 	const insets = useSafeAreaInsets();

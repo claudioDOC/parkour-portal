@@ -9,6 +9,7 @@ export type UserForAttendance = {
 	trainingAttendance: TrainingAttendanceMode;
 	autoAbsentWeekdays: string[];
 	active?: boolean;
+	avatar?: string | null;
 };
 
 export function parseAutoAbsentWeekdays(raw: string | null | undefined): string[] {
@@ -33,6 +34,7 @@ export function normalizeUserForAttendance(row: {
 	id: number;
 	username: string;
 	active: boolean | null;
+	avatar?: string | null;
 	trainingAttendance: string | null;
 	autoAbsentWeekdays?: string | null;
 }): UserForAttendance {
@@ -40,6 +42,7 @@ export function normalizeUserForAttendance(row: {
 		id: row.id,
 		username: row.username,
 		active: row.active ?? true,
+		avatar: row.avatar ?? null,
 		trainingAttendance: row.trainingAttendance === 'opt_in' ? 'opt_in' : 'implicit',
 		autoAbsentWeekdays: parseAutoAbsentWeekdays(row.autoAbsentWeekdays ?? '[]')
 	};
@@ -81,10 +84,15 @@ export function filterAttendingUsers(
 	effectiveAbsentUserIds: Set<number>,
 	hiddenUserIds: Set<number>,
 	rsvpUserIds: Set<number>
-): { id: number; username: string }[] {
+): { id: number; username: string; avatar: string | null }[] {
 	return allUsers
 		.filter((u) => isListedAsAttending(u, effectiveAbsentUserIds, hiddenUserIds, rsvpUserIds))
-		.map((u) => ({ id: u.id, username: u.username }));
+		.map((u) => ({
+			id: u.id,
+			username: u.username,
+			// Voller Pfad — die App hängt nur noch die Domain davor.
+			avatar: u.avatar ? `/uploads/${u.avatar}` : null
+		}));
 }
 
 export type AbsenceListEntry = {
@@ -93,6 +101,7 @@ export type AbsenceListEntry = {
 	username: string;
 	reason: string | null;
 	virtual: boolean;
+	avatar: string | null;
 };
 
 export function buildAbsenceListForSession(
@@ -113,15 +122,18 @@ export function buildAbsenceListForSession(
 			userId: u.id,
 			username: u.username,
 			reason: `Standard: kein ${sessionDayOfWeek}`,
-			virtual: true
+			virtual: true,
+			avatar: u.avatar ? `/uploads/${u.avatar}` : null
 		});
 	}
+	const avatarByUser = new Map(allUsers.map((u) => [u.id, u.avatar ?? null]));
 	const real: AbsenceListEntry[] = dbAbsences.map((a) => ({
 		id: a.id,
 		userId: a.userId,
 		username: a.username,
 		reason: a.reason,
-		virtual: false
+		virtual: false,
+		avatar: avatarByUser.get(a.userId) ? `/uploads/${avatarByUser.get(a.userId)}` : null
 	}));
 	return [...real, ...virtual].sort((a, b) => a.username.localeCompare(b.username, 'de'));
 }
