@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import {
 	View,
 	Text,
@@ -114,6 +114,15 @@ export function AppHeader() {
 }
 
 /** Scroll-Seite mit Theme-Hintergrund (Glows + Punktraster) und Refresh. */
+/**
+ * Lässt eingebettete Gesten-Flächen (Karte!) das Scrollen der Seite
+ * vorübergehend sperren. Ohne das kämpfen Karte und ScrollView um jede
+ * vertikale Bewegung — die Karte lässt sich nicht schieben, und Wischen
+ * nach unten löst den Seiten-Refresh aus.
+ */
+const ScrollLockContext = createContext<(enabled: boolean) => void>(() => {});
+export const useScrollLock = () => useContext(ScrollLockContext);
+
 export function Screen({
 	children,
 	refreshing,
@@ -129,12 +138,14 @@ export function Screen({
 	const { colors } = useTheme();
 	const insets = useSafeAreaInsets();
 	const bg = useMemo(() => bgTexture(colors), [colors]);
+	const [scrollEnabled, setScrollEnabled] = useState(true);
 	return (
 		<View style={{ flex: 1, backgroundColor: colors.bg }}>
 			<Image source={{ uri: bg }} style={StyleSheet.absoluteFill} contentFit="cover" />
 			{header ? <AppHeader /> : null}
 			<ScrollView
 				style={{ flex: 1 }}
+				scrollEnabled={scrollEnabled}
 				contentContainerStyle={{
 					paddingHorizontal: 20,
 					paddingTop: header ? 18 : insets.top + 16,
@@ -153,7 +164,9 @@ export function Screen({
 					) : undefined
 				}
 			>
-				{children}
+				<ScrollLockContext.Provider value={setScrollEnabled}>
+					{children}
+				</ScrollLockContext.Provider>
 			</ScrollView>
 		</View>
 	);

@@ -315,7 +315,16 @@ export default function SpotDetailScreen() {
 					{data.mapMarkers?.length ? (
 						<View style={{ gap: 8 }}>
 							<SectionTitle>Karte</SectionTitle>
-							<NativeMap markers={data.mapMarkers} height={240} />
+							<NativeMap
+								markers={data.mapMarkers}
+								height={240}
+								defaultSatellite
+								onMarkerPress={(m) =>
+									Linking.openURL(
+										`geo:${m.lat},${m.lon}?q=${m.lat},${m.lon}(${encodeURIComponent(m.name)})`
+									)
+								}
+							/>
 							<View style={styles.legendRow}>
 								<Legend color={colors.accent} label="Spot" />
 								<Legend color="#47c5ff" label="Parkplatz" />

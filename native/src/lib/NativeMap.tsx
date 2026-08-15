@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from './themeContext';
 import { getNativeMap } from './nativeModules';
 import { SafeRender } from './SafeRender';
+import { useScrollLock } from './ui';
 
 /**
  * Nur der TYP des Moduls — wird beim Kompilieren gelöscht, lädt also nichts.
@@ -33,6 +35,22 @@ export type MapMarker = {
 /** Freier Vektorkarten-Stil ohne Konto und ohne Schlüssel. */
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
+/** Satellitenbilder — dieselbe Quelle wie die Web-Spot-Karte (Esri). */
+const SATELLITE_STYLE = {
+	version: 8 as const,
+	sources: {
+		satellite: {
+			type: 'raster' as const,
+			tiles: [
+				'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+			],
+			tileSize: 256,
+			attribution: 'Tiles © Esri'
+		}
+	},
+	layers: [{ id: 'satellite', type: 'raster' as const, source: 'satellite' }]
+};
+
 /**
  * Echte native Karte (MapLibre) — die Kacheln zeichnet Android selbst,
  * es läuft keine Webseite im Hintergrund. Fehlt das Modul (ältere
@@ -43,6 +61,7 @@ export function NativeMap({
 	height = 240,
 	fill = false,
 	zoom = 15,
+	defaultSatellite = false,
 	onMarkerPress
 }: {
 	markers: MapMarker[];
@@ -50,10 +69,14 @@ export function NativeMap({
 	/** Füllt den verfügbaren Platz (flex) statt fester Höhe — für Vollbild. */
 	fill?: boolean;
 	zoom?: number;
+	/** Startet mit Satellitenbild (wie die Spot-Karte im Web). */
+	defaultSatellite?: boolean;
 	onMarkerPress?: (marker: MapMarker) => void;
 }) {
 	const { colors } = useTheme();
 	const maplibre = getNativeMap() as MapLibreModule | null;
+	const [satellite, setSatellite] = useState(defaultSatellite);
+	const lockScroll = useScrollLock();
 	// Bewusst KEINE Vorab-Erkennung mehr: die hat in beide Richtungen
 	// falsch gelegen. Die Karte wird gezeichnet; klappt es nicht, greift
 	// die Absturzsicherung und zeigt den Ersatzinhalt.
@@ -103,8 +126,13 @@ export function NativeMap({
 
 	return (
 		<SafeRender fallback={fallback}>
-			<View style={[styles.wrap, fill ? { flex: 1 } : { height }, { backgroundColor: colors.hover }]}>
-				<LibreMap style={{ flex: 1 }} mapStyle={MAP_STYLE}>
+			<View
+				style={[styles.wrap, fill ? { flex: 1 } : { height }, { backgroundColor: colors.hover }]}
+				onTouchStart={() => lockScroll(false)}
+				onTouchEnd={() => lockScroll(true)}
+				onTouchCancel={() => lockScroll(true)}
+			>
+				<LibreMap style={{ flex: 1 }} mapStyle={satellite ? SATELLITE_STYLE : MAP_STYLE}>
 					<Camera initialViewState={{ center: [main.lon, main.lat], zoom }} />
 					{pins.map((p) => (
 						<Marker
@@ -128,6 +156,14 @@ export function NativeMap({
 						</Marker>
 					))}
 				</LibreMap>
+				<Pressable
+					onPress={() => setSatellite((s) => !s)}
+					style={({ pressed }) => [styles.modeBtn, pressed && { opacity: 0.8 }]}
+					hitSlop={8}
+				>
+					<Ionicons name={satellite ? 'map-outline' : 'globe-outline'} size={14} color="#111" />
+					<Text style={styles.modeText}>{satellite ? 'Karte' : 'Satellit'}</Text>
+				</Pressable>
 			</View>
 		</SafeRender>
 	);
@@ -159,6 +195,24 @@ const styles = StyleSheet.create({
 		borderColor: '#fff'
 	},
 	pinText: { color: '#111', fontSize: 13, fontWeight: '700' },
+	modeBtn: {
+		position: 'absolute',
+		top: 10,
+		right: 10,
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 5,
+		backgroundColor: 'rgba(255,255,255,0.92)',
+		borderRadius: 999,
+		paddingHorizontal: 12,
+		paddingVertical: 7,
+		elevation: 3,
+		shadowColor: '#000',
+		shadowOpacity: 0.2,
+		shadowRadius: 4,
+		shadowOffset: { width: 0, height: 2 }
+	},
+	modeText: { color: '#111', fontSize: 12, fontWeight: '700' },
 	badge: {
 		position: 'absolute',
 		top: -7,

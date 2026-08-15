@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -120,6 +120,19 @@ export default function MapScreen() {
 							>
 								<Text style={[styles.actionText, { color: colors.onAccent }]}>Spot öffnen</Text>
 							</Pressable>
+							<Pressable
+								style={[styles.actionBtn, styles.ghostBtn]}
+								onPress={() =>
+									Linking.openURL(
+										`geo:${selected.latitude},${selected.longitude}?q=${selected.latitude},${selected.longitude}(${encodeURIComponent(selected.name)})`
+									)
+								}
+							>
+								<Ionicons name="navigate" size={14} color={colors.fg + textAlpha.primary} />
+								<Text style={[styles.actionText, { color: colors.fg + textAlpha.primary }]}>
+									Route
+								</Text>
+							</Pressable>
 							{selected.challengeCount ? (
 								<Pressable
 									style={[styles.actionBtn, styles.ghostBtn]}
@@ -174,6 +187,8 @@ const makeStyles = (colors: ThemeColors) =>
 		sheetActions: { flexDirection: 'row', gap: 8 },
 		actionBtn: {
 			flex: 1,
+			flexDirection: 'row',
+			gap: 6,
 			borderRadius: 12,
 			paddingVertical: 11,
 			alignItems: 'center',
