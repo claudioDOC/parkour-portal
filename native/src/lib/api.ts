@@ -193,6 +193,8 @@ export type SpotListItem = {
 	lighting?: string | null;
 	techniques?: string | null;
 	goodWeather?: string | null;
+	latitude?: number | null;
+	longitude?: number | null;
 };
 
 export const getSpots = () => get<{ spots: SpotListItem[] }>('/api/v1/spots');

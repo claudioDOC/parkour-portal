@@ -41,23 +41,18 @@ export function getWebView() {
 	);
 }
 
-function hasExpoModule(name: string): boolean {
-	return Boolean((NativeModules as Record<string, unknown>)[name]);
-}
-
-/** Bild- und Videoauswahl. */
+/**
+ * Expo-Module tauchen NICHT in NativeModules auf — sie hängen an einer
+ * eigenen Registry. Eine Vorab-Prüfung darüber meldet fälschlich „fehlt".
+ * Darum werden sie einfach geladen; scheitert der native Teil, meldet
+ * sich das beim Aufruf und wird dort abgefangen.
+ */
 export function getImagePicker() {
-	const mod = tryRequire(() => require('expo-image-picker') as typeof import('expo-image-picker'));
-	if (!mod) return null;
-	// Ohne native Seite werfen die Aufrufe zur Laufzeit — vorher abfangen.
-	return hasExpoModule('ExponentImagePicker') || hasExpoModule('ExpoImagePicker') ? mod : null;
+	return tryRequire(() => require('expo-image-picker') as typeof import('expo-image-picker'));
 }
 
-/** Standortbestimmung. */
 export function getLocation() {
-	const mod = tryRequire(() => require('expo-location') as typeof import('expo-location'));
-	if (!mod) return null;
-	return hasExpoModule('ExpoLocation') ? mod : null;
+	return tryRequire(() => require('expo-location') as typeof import('expo-location'));
 }
 
 /**
@@ -66,11 +61,32 @@ export function getLocation() {
  */
 export function nativeReport(): string {
 	const parts = [
-		`Karte ${hasWebViewNative() ? '✓' : '✗'}`,
+		`Karte ${hasNativeMap() ? 'nativ' : hasWebViewNative() ? 'eingebettet' : '✗'}`,
 		`Fotos ${getImagePicker() ? '✓' : '✗'}`,
 		`Standort ${getLocation() ? '✓' : '✗'}`
 	];
 	return parts.join(' · ');
+}
+
+/** Echte native Karte (MapLibre) — ab App-Paket 1.3. */
+export function getNativeMap() {
+	return tryRequire(() => require('@maplibre/maplibre-react-native'));
+}
+
+export function hasNativeMap(): boolean {
+	if (getNativeMap() === null) return false;
+	// MapLibre registriert mehrere Module (MLRNCameraModule, MLRNLogModule …)
+	// und Ansichten — es genügt, eines davon zu finden.
+	const hasModule = Object.keys(NativeModules).some((k) => k.startsWith('MLRN'));
+	if (hasModule) return true;
+	try {
+		return Boolean(
+			UIManager.getViewManagerConfig?.('MLRNMapView') ??
+				UIManager.getViewManagerConfig?.('MLRNAndroidTextureMapView')
+		);
+	} catch {
+		return false;
+	}
 }
 
 /** Sind alle Zusatzmodule vorhanden? Steuert den Update-Hinweis. */

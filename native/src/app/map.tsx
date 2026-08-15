@@ -1,93 +1,48 @@
-import { useRef, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, StyleSheet, Linking } from 'react-native';
-import { getWebView } from '../lib/nativeModules';
+import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/themeContext';
 import { TopBar } from '../lib/ui';
-import { BASE_URL, getToken } from '../lib/api';
+import { NativeMap, type MapMarker } from '../lib/NativeMap';
+import { useData } from '../lib/store';
+import { getSpots } from '../lib/api';
 
 /**
- * Karte direkt in der App: die Portal-Karte läuft in einer eingebetteten
- * Ansicht — kein externer Browser, kein Verlassen der App. Das Token wird
- * als Cookie gesetzt, damit die Seite eingeloggt lädt.
+ * Karte aller Spots — nativ gezeichnet, keine eingebettete Webseite.
+ * Tippen auf einen Namen führt zum jeweiligen Spot.
  */
 export default function MapScreen() {
 	const { colors } = useTheme();
 	const insets = useSafeAreaInsets();
-	const [loading, setLoading] = useState(true);
-	const [token, setToken] = useState<string | null>(null);
-	const asked = useRef(false);
+	const router = useRouter();
+	const { data } = useData('spots', getSpots);
 
-	if (!asked.current) {
-		asked.current = true;
-		getToken().then(setToken);
-	}
-
-	const WebView = getWebView();
+	// Nur Spots mit Koordinaten können auf der Karte stehen.
+	const markers: MapMarker[] = (data?.spots ?? [])
+		.filter((s) => typeof s.latitude === 'number' && typeof s.longitude === 'number')
+		.map((s, i) => ({
+			id: s.id,
+			name: s.name,
+			city: s.city,
+			lat: s.latitude as number,
+			lon: s.longitude as number,
+			kind: i === 0 ? 'main' : 'nearby'
+		}));
 
 	return (
 		<View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + 12 }}>
 			<View style={{ paddingHorizontal: 20 }}>
-				<TopBar back kicker="Alle Spots" title="Karte" />
+				<TopBar back kicker={`${markers.length} Spots`} title="Karte" />
 			</View>
-			<View style={{ flex: 1, marginTop: 12 }}>
-				{!WebView ? (
-					<View style={{ padding: 24, alignItems: 'center', gap: 12 }}>
-						<Text style={{ color: colors.fg, fontSize: 16, textAlign: 'center' }}>
-							Die Karte braucht App-Version 1.2
-						</Text>
-						<Text style={{ color: colors.fg, opacity: 0.6, fontSize: 14, textAlign: 'center' }}>
-							Einmal neu installieren — danach kommen Updates wieder von selbst.
-						</Text>
-						<Pressable
-							onPress={() => Linking.openURL('https://matetraining.duckdns.org/app')}
-							style={{
-								backgroundColor: colors.accent,
-								borderRadius: 10,
-								paddingHorizontal: 20,
-								paddingVertical: 12
-							}}
-						>
-							<Text style={{ color: colors.onAccent, fontSize: 15, fontWeight: '700' }}>
-								App herunterladen
-							</Text>
-						</Pressable>
-					</View>
-				) : null}
-				{token && WebView ? (
-					<WebView
-						source={{
-							uri: `${BASE_URL}/map`,
-							headers: { Authorization: `Bearer ${token}` }
-						}}
-						style={{ flex: 1, backgroundColor: colors.bg }}
-						onLoadEnd={() => setLoading(false)}
-						// Session-Cookie aus dem Token setzen, damit die Karte eingeloggt lädt.
-						injectedJavaScriptBeforeContentLoaded={`document.cookie = "session=${token}; path=/";`}
-						sharedCookiesEnabled
-						thirdPartyCookiesEnabled
-						domStorageEnabled
-						javaScriptEnabled
-					/>
-				) : null}
-				{loading && WebView ? (
-					<View style={styles.loading} pointerEvents="none">
-						<ActivityIndicator color={colors.accent} size="large" />
-					</View>
-				) : null}
+			<View style={{ flex: 1, marginTop: 12, marginHorizontal: 12, marginBottom: insets.bottom + 12 }}>
+				{markers.length > 0 ? (
+					<NativeMap markers={markers} height={10000} zoom={11} />
+				) : (
+					<Text style={{ color: colors.fg, padding: 20 }}>
+						Für keinen Spot sind Koordinaten hinterlegt.
+					</Text>
+				)}
 			</View>
 		</View>
 	);
 }
-
-const styles = StyleSheet.create({
-	loading: {
-		position: 'absolute',
-		top: 0,
-		left: 0,
-		right: 0,
-		bottom: 0,
-		alignItems: 'center',
-		justifyContent: 'center'
-	}
-});

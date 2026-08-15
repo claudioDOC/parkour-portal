@@ -31,7 +31,7 @@ import {
 	Button
 } from '../../lib/ui';
 import { useData } from '../../lib/store';
-import { MiniMap } from '../../lib/MiniMap';
+import { NativeMap } from '../../lib/NativeMap';
 import {
 	getSpot,
 	voteSpot,
@@ -315,7 +315,7 @@ export default function SpotDetailScreen() {
 					{data.mapMarkers?.length ? (
 						<View style={{ gap: 8 }}>
 							<SectionTitle>Karte</SectionTitle>
-							<MiniMap markers={data.mapMarkers} height={240} />
+							<NativeMap markers={data.mapMarkers} height={240} />
 							<View style={styles.legendRow}>
 								<Legend color={colors.accent} label="Spot" />
 								<Legend color="#47c5ff" label="Parkplatz" />
