@@ -28,10 +28,23 @@ export const GET: RequestHandler = async ({ request }) => {
 	}
 	const manifest = JSON.parse(manifestRaw);
 
-	// Nur Updates für dieselbe Runtime — bei nativen Änderungen (neue
-	// Berechtigung, neue Bibliothek) zählt die neue APK, nicht dieses Bundle.
+	/**
+	 * Auch ältere Installationen beliefern.
+	 *
+	 * Früher bekam eine App nur Updates ihrer exakten Runtime — dadurch blieb
+	 * eine alte Installation für immer auf dem Stand ihrer APK stehen, ohne
+	 * dass es jemand merkte. Die App lädt native Zusatzmodule inzwischen
+	 * vorsichtig (siehe native/src/lib/nativeModules.ts) und zeigt einen
+	 * Hinweis statt abzustürzen, wenn eines fehlt. Darum darf jede Runtime
+	 * aus COMPATIBLE_RUNTIMES dasselbe Bundle bekommen.
+	 */
+	const COMPATIBLE_RUNTIMES = ['1.0.0', '1.1.0'];
 	const clientRuntime = request.headers.get('expo-runtime-version');
-	if (clientRuntime && clientRuntime !== manifest.runtimeVersion) {
+	if (
+		clientRuntime &&
+		clientRuntime !== manifest.runtimeVersion &&
+		!COMPATIBLE_RUNTIMES.includes(clientRuntime)
+	) {
 		throw error(404, 'Keine Updates für diese Runtime-Version');
 	}
 

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { View, Text, StyleSheet, Linking, Pressable } from 'react-native';
+import { getWebView } from './nativeModules';
 import { useTheme } from './themeContext';
 
 export type MapMarker = {
@@ -65,6 +65,27 @@ ${pins}
 
 	if (!html) return null;
 
+	const WebView = getWebView();
+	if (!WebView) {
+		// Alte App-Version ohne Kartenmodul — ehrlicher Hinweis statt Absturz.
+		const main = markers.find((m) => m.kind === 'main') ?? markers[0];
+		return (
+			<Pressable
+				onPress={() =>
+					Linking.openURL(`https://matetraining.duckdns.org/map?spot=${main.id}`)
+				}
+				style={[styles.wrap, styles.fallback, { height: 120, backgroundColor: colors.hover }]}
+			>
+				<Text style={{ color: colors.fg, fontSize: 14, textAlign: 'center' }}>
+					Die Karte braucht die neue App-Version.
+				</Text>
+				<Text style={{ color: colors.accent, fontSize: 13, marginTop: 6 }}>
+					matetraining.duckdns.org/app
+				</Text>
+			</Pressable>
+		);
+	}
+
 	return (
 		<View style={[styles.wrap, { height, backgroundColor: colors.hover }]}>
 			<WebView
@@ -80,5 +101,6 @@ ${pins}
 }
 
 const styles = StyleSheet.create({
-	wrap: { borderRadius: 16, overflow: 'hidden' }
+	wrap: { borderRadius: 16, overflow: 'hidden' },
+	fallback: { alignItems: 'center', justifyContent: 'center', padding: 16 }
 });

@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as Location from 'expo-location';
-import * as ImagePicker from 'expo-image-picker';
+import { getLocation, getImagePicker } from '../lib/nativeModules';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../lib/theme';
@@ -38,10 +37,15 @@ export default function NewSpot() {
 	const [weather, setWeather] = useState<string[]>(['trocken']);
 	const [techniques, setTechniques] = useState<string[]>([]);
 	const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
-	const [photos, setPhotos] = useState<ImagePicker.ImagePickerAsset[]>([]);
+	const [photos, setPhotos] = useState<{ uri: string; fileName?: string | null; mimeType?: string | null }[]>([]);
 	const [busy, setBusy] = useState(false);
 
 	const useMyLocation = async () => {
+		const Location = getLocation();
+		if (!Location) {
+			Alert.alert('Neue App-Version nötig', 'Der Standort geht ab App-Version 1.1.0.');
+			return;
+		}
 		const perm = await Location.requestForegroundPermissionsAsync();
 		if (!perm.granted) {
 			Alert.alert('Kein Zugriff', 'Für den Standort braucht die App die Ortungsberechtigung.');
@@ -52,6 +56,11 @@ export default function NewSpot() {
 	};
 
 	const addPhoto = async (fromCamera: boolean) => {
+		const ImagePicker = getImagePicker();
+		if (!ImagePicker) {
+			Alert.alert('Neue App-Version nötig', 'Fotos gehen ab App-Version 1.1.0.');
+			return;
+		}
 		const perm = fromCamera
 			? await ImagePicker.requestCameraPermissionsAsync()
 			: await ImagePicker.requestMediaLibraryPermissionsAsync();

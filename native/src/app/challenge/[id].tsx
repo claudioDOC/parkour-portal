@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, Modal, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
+import { getImagePicker } from '../../lib/nativeModules';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
 import { textAlpha } from '../../lib/tokens';
@@ -61,6 +61,11 @@ export default function ChallengeDetail() {
 	};
 
 	const addMedia = async () => {
+		const ImagePicker = getImagePicker();
+		if (!ImagePicker) {
+			Alert.alert('Neue App-Version nötig', 'Bilder hochladen geht ab App-Version 1.1.0.');
+			return;
+		}
 		const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
 		if (!perm.granted) {
 			Alert.alert('Kein Zugriff', 'Für den Upload braucht die App Zugriff auf deine Galerie.');

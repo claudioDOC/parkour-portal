@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Alert, Pressable, Share } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { getImagePicker } from '../lib/nativeModules';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, THEMES, THEME_OPTIONS, type ThemeColors } from '../lib/theme';
 import { textAlpha } from '../lib/tokens';
@@ -30,6 +30,11 @@ export default function Settings() {
 	const [busy, setBusy] = useState(false);
 
 	const pickAvatar = async () => {
+		const ImagePicker = getImagePicker();
+		if (!ImagePicker) {
+			Alert.alert('Neue App-Version nötig', 'Bilder hochladen geht ab App-Version 1.1.0.');
+			return;
+		}
 		const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
 		if (!perm.granted) {
 			Alert.alert('Kein Zugriff', 'Bitte den Galerie-Zugriff erlauben.');

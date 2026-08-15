@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { getWebView } from '../lib/nativeModules';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/themeContext';
 import { TopBar } from '../lib/ui';
@@ -23,13 +23,15 @@ export default function MapScreen() {
 		getToken().then(setToken);
 	}
 
+	const WebView = getWebView();
+
 	return (
 		<View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + 12 }}>
 			<View style={{ paddingHorizontal: 20 }}>
 				<TopBar back kicker="Alle Spots" title="Karte" />
 			</View>
 			<View style={{ flex: 1, marginTop: 12 }}>
-				{token ? (
+				{token && WebView ? (
 					<WebView
 						source={{
 							uri: `${BASE_URL}/map`,

@@ -45,7 +45,7 @@ import {
 	trashSpot,
 	mediaUrl
 } from '../../lib/api';
-import * as ImagePicker from 'expo-image-picker';
+import { getImagePicker } from '../../lib/nativeModules';
 import { useAuth } from '../_layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -95,6 +95,11 @@ export default function SpotDetailScreen() {
 	};
 
 	const addPhoto = async () => {
+		const ImagePicker = getImagePicker();
+		if (!ImagePicker) {
+			Alert.alert('Neue App-Version nötig', 'Bilder hochladen geht ab App-Version 1.1.0.');
+			return;
+		}
 		const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
 		if (!perm.granted) {
 			Alert.alert('Kein Zugriff', 'Bitte den Galerie-Zugriff erlauben.');
