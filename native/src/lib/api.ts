@@ -195,6 +195,118 @@ export type SpotListItem = {
 
 export const getSpots = () => get<{ spots: SpotListItem[] }>('/api/v1/spots');
 
+export type NewSpot = {
+	name: string;
+	city: string;
+	latitude?: number | null;
+	longitude?: number | null;
+	lighting?: string;
+	techniques?: string[];
+	goodWeather?: string[];
+	description?: string;
+	isMicro?: boolean;
+	parentSpotId?: number | null;
+};
+
+export const createSpot = (spot: NewSpot) =>
+	post<{ id?: number; success?: boolean }>('/api/spots', spot);
+
+/** Bild an einen Spot hängen. */
+export async function uploadSpotImage(
+	spotId: number,
+	uri: string,
+	name: string,
+	type: string
+): Promise<void> {
+	const token = await getToken();
+	const form = new FormData();
+	form.append('spotId', String(spotId));
+	form.append('image', { uri, name, type } as unknown as Blob);
+	const res = await fetch(`${BASE_URL || 'https://matetraining.duckdns.org'}/api/spots/images`, {
+		method: 'POST',
+		headers: token ? { authorization: `Bearer ${token}` } : undefined,
+		body: form
+	});
+	if (!res.ok) throw new ApiError(res.status, `Upload fehlgeschlagen (${res.status})`);
+}
+
+/** Avatar hochladen (Profilbild). */
+export async function uploadAvatar(uri: string, name: string, type: string): Promise<void> {
+	const token = await getToken();
+	const form = new FormData();
+	form.append('image', { uri, name, type } as unknown as Blob);
+	const res = await fetch(`${BASE_URL || 'https://matetraining.duckdns.org'}/api/profile/avatar`, {
+		method: 'POST',
+		headers: token ? { authorization: `Bearer ${token}` } : undefined,
+		body: form
+	});
+	if (!res.ok) throw new ApiError(res.status, `Avatar-Upload fehlgeschlagen (${res.status})`);
+}
+
+export const changePassword = (currentPassword: string, newPassword: string) =>
+	post<{ success?: boolean }>('/api/auth/change-password', { currentPassword, newPassword });
+
+export const removeAvatar = () =>
+	request<{ ok?: boolean }>('/api/profile/avatar', { method: 'DELETE' });
+
+// --- Admin ---
+
+export type AdminUser = {
+	id: number;
+	username: string;
+	role: 'admin' | 'spotmanager' | 'member';
+	active: boolean;
+	trainingAttendance: 'implicit' | 'opt_in';
+	autoAbsentWeekdays: string[];
+	createdAt: string;
+	spotCount: number;
+	voteCount: number;
+};
+
+export const getAdminUsers = (trashed = false) =>
+	get<{ users: AdminUser[] }>(`/api/admin/users${trashed ? '?trashed=true' : ''}`);
+
+export const adminUserAction = (userId: number, action: string, extra: object = {}) =>
+	request<{ success?: boolean; message?: string }>('/api/admin/users', {
+		method: 'PATCH',
+		body: JSON.stringify({ userId, action, ...extra })
+	});
+
+export const getInvites = () =>
+	get<{ invites: { id: number; token: string; used: boolean; expiresAt: string }[] }>(
+		'/api/admin/invites'
+	);
+
+export const createInvite = () =>
+	post<{ invite: { token: string; expiresAt: string } }>('/api/admin/invites', {});
+
+export const getSystemInfo = () =>
+	get<{
+		hostname: string;
+		platform: string;
+		uptimeSeconds: number;
+		memory: { total: number; free: number; used: number; usedPercent: number };
+		disk: { total: number; free: number; used: number; usedPercent: number } | null;
+		load: { avg1: number; cpus: number };
+	}>('/api/admin/system');
+
+export const getAuditLog = (limit = 60) =>
+	get<{
+		logs: { id: number; createdAt: string; action: string; actorUsername: string | null }[];
+		total: number;
+	}>(`/api/admin/audit?limit=${limit}`);
+
+export const getAdminSolo = () =>
+	get<{ entries: { id: number; userId: number; username: string; date: string; note: string | null }[] }>(
+		'/api/admin/solo'
+	);
+
+export const addAdminSolo = (userId: number, date?: string, note?: string) =>
+	post<{ ok?: boolean }>('/api/admin/solo', { userId, ...(date ? { date } : {}), ...(note ? { note } : {}) });
+
+export const deleteAdminSolo = (id: number) =>
+	request<{ ok?: boolean }>('/api/admin/solo', { method: 'DELETE', body: JSON.stringify({ id }) });
+
 export type SpotChallenge = {
 	id: number;
 	title: string;
@@ -226,7 +338,41 @@ export type SpotDetailPayload = {
 	images: { id: number; url: string; filename: string }[];
 	challenges: SpotChallenge[];
 	nearbySpots: { id: number; name: string; city: string; distanceKm?: number }[];
+	mapMarkers: { id: number; name: string; city?: string; lat: number; lon: number; kind: string }[];
+	parkingLocations: { id: number; name: string | null; latitude: number; longitude: number }[];
+	childMicroSpots?: { id: number; name: string; city: string }[];
+	parentSpot?: { id: number; name: string; city: string } | null;
+	nextOpenSessionId?: number | null;
 };
+
+/** Bild oder Video an eine Challenge hängen. */
+export async function uploadChallengeMedia(
+	challengeId: number,
+	uri: string,
+	name: string,
+	type: string
+): Promise<void> {
+	const token = await getToken();
+	const form = new FormData();
+	form.append('challengeId', String(challengeId));
+	// React Native erwartet dieses Objekt-Format für Datei-Uploads.
+	form.append('image', { uri, name, type } as unknown as Blob);
+	const res = await fetch(`${BASE_URL || 'https://matetraining.duckdns.org'}/api/spots/challenges/images`, {
+		method: 'POST',
+		headers: token ? { authorization: `Bearer ${token}` } : undefined,
+		body: form
+	});
+	if (!res.ok) {
+		let message = `Fehler ${res.status}`;
+		try {
+			const body = await res.json();
+			if (body?.error) message = body.error;
+		} catch {
+			/* ohne Body */
+		}
+		throw new ApiError(res.status, message);
+	}
+}
 
 export const getSpot = (id: number) => get<SpotDetailPayload>(`/api/v1/spots/${id}`);
 

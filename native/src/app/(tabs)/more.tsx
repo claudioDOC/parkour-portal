@@ -15,8 +15,10 @@ import { useAuth } from '../_layout';
 const MENU = [
 	{ route: '/challenges', icon: 'trophy-outline', label: 'Challenges', hint: 'Arena, Leaderboard, offene Quests' },
 	{ route: '/trips', icon: 'airplane-outline', label: 'Trips', hint: 'Ausflüge & Abstimmungen' },
+	{ route: '/map', icon: 'map-outline', label: 'Karte', hint: 'Alle Spots mit Pins' },
 	{ route: '/profile/me', icon: 'person-outline', label: 'Profil & Mitglieder', hint: 'Dein Profil, alle Leute' },
-	{ route: '/activity', icon: 'notifications-outline', label: 'Aktivität', hint: 'Was zuletzt passiert ist' }
+	{ route: '/activity', icon: 'notifications-outline', label: 'Aktivität', hint: 'Was zuletzt passiert ist' },
+	{ route: '/settings', icon: 'settings-outline', label: 'Einstellungen', hint: 'Profilbild, Design, Passwort' }
 ] as const;
 
 export default function More() {
@@ -115,47 +117,18 @@ export default function More() {
 			</Card>
 
 			<Card style={{ padding: 8 }}>
-				<Pressable onPress={() => router.push('/map')}>
-					{({ pressed }) => (
-						<View style={[styles.menuRow, styles.menuDivider, pressed && { opacity: 0.7 }]}>
-							<View style={styles.menuIcon}>
-								<Ionicons name="map-outline" size={19} color={colors.accent} />
-							</View>
-							<View style={{ flex: 1 }}>
-								<Text style={styles.menuLabel}>Karte</Text>
-								<Text style={styles.menuHint}>Alle Spots auf der Portal-Karte (Browser)</Text>
-							</View>
-							<Ionicons name="open-outline" size={16} color={colors.textMuted} />
-						</View>
-					)}
-				</Pressable>
-				<Pressable onPress={() => setThemeOpen(true)}>
-					{({ pressed }) => (
-						<View style={[styles.menuRow, styles.menuDivider, pressed && { opacity: 0.7 }]}>
-							<View style={styles.menuIcon}>
-								<Ionicons name="color-palette-outline" size={19} color={colors.accent} />
-							</View>
-							<View style={{ flex: 1 }}>
-								<Text style={styles.menuLabel}>Design</Text>
-								<Text style={styles.menuHint}>
-									Aktiv: {THEME_OPTIONS.find((t) => t.id === themeId)?.label}
-								</Text>
-							</View>
-							<Ionicons name="chevron-forward" size={17} color={colors.textMuted} />
-						</View>
-					)}
-				</Pressable>
 				{me?.role === 'admin' ? (
-					<Pressable onPress={() => setPushOpen(true)}>
+					<Pressable onPress={() => router.push('/admin')}>
 						{({ pressed }) => (
 							<View style={[styles.menuRow, styles.menuDivider, pressed && { opacity: 0.7 }]}>
 								<View style={styles.menuIcon}>
-									<Ionicons name="megaphone-outline" size={19} color={colors.warning} />
+									<Ionicons name="shield-checkmark-outline" size={19} color={colors.warning} />
 								</View>
 								<View style={{ flex: 1 }}>
-									<Text style={styles.menuLabel}>Push an alle</Text>
-									<Text style={styles.menuHint}>Admin: Nachricht an alle Geräte</Text>
+									<Text style={styles.menuLabel}>Admin-Bereich</Text>
+									<Text style={styles.menuHint}>Benutzer, Einladungen, Server, Protokoll</Text>
 								</View>
+								<Ionicons name="chevron-forward" size={17} color={colors.fg + textAlpha.muted} />
 							</View>
 						)}
 					</Pressable>

@@ -119,62 +119,77 @@ export default function Challenges() {
 					? g.challenges.filter((ch) => ch.completers.some((c) => c.userId === me.id)).length
 					: 0;
 				return (
-					<Pressable key={g.spotId} onPress={() => router.push(`/spot/${g.spotId}`)}>
-						{({ pressed }) => (
-							<Card style={[{ gap: 8 }, pressed && { opacity: 0.85 }]}>
-								<View style={styles.spotHead}>
-									<View style={{ flex: 1 }}>
-										<Text style={styles.spotName}>{g.spotName}</Text>
-										<Text style={styles.spotCity}>{g.spotCity}</Text>
-									</View>
-									<Text style={styles.spotCount}>
-										{doneMine}/{g.challenges.length}
-									</Text>
-									<Ionicons name="chevron-forward" size={17} color={colors.textMuted} />
-								</View>
-								<ProgressBar percent={g.challenges.length ? (doneMine / g.challenges.length) * 100 : 0} />
-								<View style={{ gap: 12, marginTop: 4 }}>
-									{g.challenges.map((ch) => {
-										const done = me ? ch.completers.some((c) => c.userId === me.id) : false;
-										return (
-											<View key={ch.id} style={styles.chRow}>
-												{ch.images?.[0] ? (
-													<Image
-														source={{ uri: mediaUrl(ch.images[0].url) ?? undefined }}
-														style={styles.chImage}
-														contentFit="cover"
-														transition={150}
-													/>
-												) : (
-													<View style={[styles.chImage, styles.chImageEmpty]}>
-														<Ionicons name="trophy-outline" size={18} color={colors.fg + textAlpha.muted} />
-													</View>
-												)}
-												<View style={{ flex: 1, gap: 4 }}>
-													<Text style={styles.chTitle} numberOfLines={1}>
-														{ch.title}
-													</Text>
-													{ch.completers.length > 0 ? (
-														<View style={styles.chDone}>
-															<InitialsRow names={ch.completers.map((c) => c.username)} />
-															<Text style={styles.chDoneText}>
-																{ch.completers.length} geschafft
-															</Text>
-														</View>
-													) : (
-														<Text style={styles.chDoneText}>Noch niemand geschafft</Text>
-													)}
-												</View>
-												{done ? (
-													<Ionicons name="checkmark-circle" size={20} color={colors.success} />
-												) : null}
+					<Card key={g.spotId} style={{ gap: 8 }}>
+						<Pressable
+							onPress={() => router.push(`/spot/${g.spotId}`)}
+							style={({ pressed }) => [styles.spotHead, pressed && { opacity: 0.7 }]}
+						>
+							<View style={{ flex: 1 }}>
+								<Text style={styles.spotName}>{g.spotName}</Text>
+								<Text style={styles.spotCity}>{g.spotCity}</Text>
+							</View>
+							<Text style={styles.spotCount}>
+								{doneMine}/{g.challenges.length}
+							</Text>
+							<Ionicons name="chevron-forward" size={17} color={colors.fg + textAlpha.muted} />
+						</Pressable>
+						<ProgressBar
+							percent={g.challenges.length ? (doneMine / g.challenges.length) * 100 : 0}
+						/>
+						<View style={{ gap: 12, marginTop: 4 }}>
+							{g.challenges.map((ch) => {
+								const done = me ? ch.completers.some((c) => c.userId === me.id) : false;
+								return (
+									<Pressable
+										key={ch.id}
+										onPress={() => router.push(`/challenge/${ch.id}?spot=${g.spotId}`)}
+										style={({ pressed }) => [styles.chRow, pressed && { opacity: 0.7 }]}
+									>
+										{ch.images?.[0] ? (
+											<Image
+												source={{ uri: mediaUrl(ch.images[0].url) ?? undefined }}
+												style={styles.chImage}
+												contentFit="cover"
+												transition={150}
+											/>
+										) : (
+											<View style={[styles.chImage, styles.chImageEmpty]}>
+												<Ionicons
+													name="trophy-outline"
+													size={18}
+													color={colors.fg + textAlpha.muted}
+												/>
 											</View>
-										);
-									})}
-								</View>
-							</Card>
-						)}
-					</Pressable>
+										)}
+										<View style={{ flex: 1, gap: 4 }}>
+											<Text style={styles.chTitle} numberOfLines={1}>
+												{ch.title}
+											</Text>
+											{ch.completers.length > 0 ? (
+												<View style={styles.chDone}>
+													<InitialsRow names={ch.completers.map((c) => c.username)} />
+													<Text style={styles.chDoneText}>
+														{ch.completers.length} geschafft
+													</Text>
+												</View>
+											) : (
+												<Text style={styles.chDoneText}>Noch niemand geschafft</Text>
+											)}
+										</View>
+										{done ? (
+											<Ionicons name="checkmark-circle" size={20} color={colors.success} />
+										) : (
+											<Ionicons
+												name="chevron-forward"
+												size={18}
+												color={colors.fg + textAlpha.muted}
+											/>
+										)}
+									</Pressable>
+								);
+							})}
+						</View>
+					</Card>
 				);
 			})}
 

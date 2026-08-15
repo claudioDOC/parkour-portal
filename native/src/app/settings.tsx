@@ -1,0 +1,279 @@
+import { useState } from 'react';
+import { View, Text, StyleSheet, Alert, Pressable, Share } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { fonts, THEMES, THEME_OPTIONS, type ThemeColors } from '../lib/theme';
+import { textAlpha } from '../lib/tokens';
+import { useTheme, useThemedStyles } from '../lib/themeContext';
+import { Card, TopBar, Screen, Button, Input, SectionTitle, Avatar, Sheet } from '../lib/ui';
+import { useData } from '../lib/store';
+import {
+	getProfile,
+	uploadAvatar,
+	removeAvatar,
+	changePassword,
+	saveUiTheme,
+	BASE_URL
+} from '../lib/api';
+import { useAuth } from './_layout';
+
+/** Entspricht der Einstellungen-Seite des Portals. */
+export default function Settings() {
+	const { colors, themeId, setThemeId } = useTheme();
+	const styles = useThemedStyles(makeStyles);
+	const { me, signOut } = useAuth();
+	const profile = useData('profile-me', () => getProfile());
+
+	const [themeOpen, setThemeOpen] = useState(false);
+	const [pwOpen, setPwOpen] = useState(false);
+	const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
+	const [busy, setBusy] = useState(false);
+
+	const pickAvatar = async () => {
+		const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+		if (!perm.granted) {
+			Alert.alert('Kein Zugriff', 'Bitte den Galerie-Zugriff erlauben.');
+			return;
+		}
+		const picked = await ImagePicker.launchImageLibraryAsync({
+			mediaTypes: ['images'],
+			allowsEditing: true,
+			aspect: [1, 1],
+			quality: 0.9
+		});
+		if (picked.canceled || !picked.assets?.[0]) return;
+		setBusy(true);
+		try {
+			const a = picked.assets[0];
+			await uploadAvatar(a.uri, a.fileName ?? 'avatar.jpg', a.mimeType ?? 'image/jpeg');
+			await profile.refresh();
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Upload fehlgeschlagen');
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	const dropAvatar = async () => {
+		try {
+			await removeAvatar();
+			await profile.refresh();
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Entfernen fehlgeschlagen');
+		}
+	};
+
+	const pickTheme = async (id: (typeof THEME_OPTIONS)[number]['id']) => {
+		setThemeId(id);
+		setThemeOpen(false);
+		try {
+			await saveUiTheme(id);
+		} catch {
+			Alert.alert('Hinweis', 'Theme lokal aktiv, Speichern im Profil schlug fehl.');
+		}
+	};
+
+	const submitPassword = async () => {
+		if (pw.next.length < 10) {
+			Alert.alert('Zu kurz', 'Das neue Passwort braucht mindestens 10 Zeichen.');
+			return;
+		}
+		if (pw.next !== pw.confirm) {
+			Alert.alert('Ungleich', 'Die beiden neuen Passwörter stimmen nicht überein.');
+			return;
+		}
+		try {
+			await changePassword(pw.current, pw.next);
+			setPwOpen(false);
+			setPw({ current: '', next: '', confirm: '' });
+			Alert.alert('Geändert', 'Du wirst auf allen Geräten neu angemeldet.', [
+				{ text: 'OK', onPress: signOut }
+			]);
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Ändern fehlgeschlagen');
+		}
+	};
+
+	return (
+		<Screen refreshing={profile.refreshing} onRefresh={profile.onRefresh}>
+			<TopBar back kicker="Dein Konto" title="Einstellungen" />
+
+			<SectionTitle>Profilbild</SectionTitle>
+			<Card style={styles.avatarCard}>
+				<Avatar
+					username={me?.username ?? '?'}
+					avatar={profile.data?.profile.avatar}
+					size={72}
+				/>
+				<View style={{ flex: 1, gap: 8 }}>
+					<Text style={styles.name}>{me?.username}</Text>
+					<View style={styles.row}>
+						<Button
+							label={busy ? 'Lädt …' : 'Bild wählen'}
+							kind="ghost"
+							small
+							onPress={pickAvatar}
+						/>
+						{profile.data?.profile.avatar ? (
+							<Button label="Entfernen" kind="danger" small onPress={dropAvatar} />
+						) : null}
+					</View>
+				</View>
+			</Card>
+
+			<SectionTitle>Darstellung</SectionTitle>
+			<Card style={{ padding: 6 }}>
+				<Row
+					icon="color-palette-outline"
+					label="Farbschema"
+					hint={THEME_OPTIONS.find((t) => t.id === themeId)?.label}
+					onPress={() => setThemeOpen(true)}
+				/>
+			</Card>
+
+			<SectionTitle>Sicherheit</SectionTitle>
+			<Card style={{ padding: 6 }}>
+				<Row
+					icon="key-outline"
+					label="Passwort ändern"
+					hint="Meldet dich auf allen Geräten neu an"
+					onPress={() => setPwOpen(true)}
+				/>
+			</Card>
+
+			<SectionTitle>Kalender</SectionTitle>
+			<Card style={{ padding: 6 }}>
+				<Row
+					icon="calendar-outline"
+					label="Kalender abonnieren"
+					hint="Trainings und Trips im Handy-Kalender"
+					onPress={() =>
+						Share.share({
+							message: `${BASE_URL || 'https://matetraining.duckdns.org'}/calendar.ics`
+						}).catch(() => {})
+					}
+				/>
+			</Card>
+
+			<Sheet visible={themeOpen} onClose={() => setThemeOpen(false)} title="Farbschema">
+				{THEME_OPTIONS.map((opt) => (
+					<Pressable
+						key={opt.id}
+						onPress={() => pickTheme(opt.id)}
+						style={({ pressed }) => [styles.themeRow, pressed && { opacity: 0.7 }]}
+					>
+						<View style={[styles.swatch, { backgroundColor: THEMES[opt.id].bg }]}>
+							<View style={[styles.dot, { backgroundColor: THEMES[opt.id].accent }]} />
+							<View style={[styles.dot, { backgroundColor: THEMES[opt.id].accentHot }]} />
+						</View>
+						<View style={{ flex: 1 }}>
+							<Text style={styles.rowLabel}>{opt.label}</Text>
+							<Text style={styles.rowHint}>{opt.hint}</Text>
+						</View>
+						{themeId === opt.id ? (
+							<Ionicons name="checkmark-circle" size={20} color={colors.accent} />
+						) : null}
+					</Pressable>
+				))}
+			</Sheet>
+
+			<Sheet visible={pwOpen} onClose={() => setPwOpen(false)} title="Passwort ändern">
+				<Input
+					placeholder="Aktuelles Passwort"
+					secureTextEntry
+					value={pw.current}
+					onChangeText={(v) => setPw({ ...pw, current: v })}
+				/>
+				<Input
+					placeholder="Neues Passwort (mind. 10 Zeichen)"
+					secureTextEntry
+					value={pw.next}
+					onChangeText={(v) => setPw({ ...pw, next: v })}
+				/>
+				<Input
+					placeholder="Neues Passwort wiederholen"
+					secureTextEntry
+					value={pw.confirm}
+					onChangeText={(v) => setPw({ ...pw, confirm: v })}
+				/>
+				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setPwOpen(false)} />
+					<Button label="Ändern" onPress={submitPassword} />
+				</View>
+			</Sheet>
+		</Screen>
+	);
+}
+
+function Row({
+	icon,
+	label,
+	hint,
+	onPress
+}: {
+	icon: string;
+	label: string;
+	hint?: string;
+	onPress: () => void;
+}) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(makeStyles);
+	return (
+		<Pressable onPress={onPress} style={({ pressed }) => [styles.row2, pressed && { opacity: 0.7 }]}>
+			<View style={styles.rowIcon}>
+				<Ionicons name={icon as 'menu'} size={19} color={colors.accent} />
+			</View>
+			<View style={{ flex: 1 }}>
+				<Text style={styles.rowLabel}>{label}</Text>
+				{hint ? <Text style={styles.rowHint}>{hint}</Text> : null}
+			</View>
+			<Ionicons name="chevron-forward" size={17} color={colors.fg + textAlpha.muted} />
+		</Pressable>
+	);
+}
+
+const makeStyles = (colors: ThemeColors) =>
+	StyleSheet.create({
+		avatarCard: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+		name: {
+			color: colors.fg + textAlpha.primary,
+			fontSize: 16,
+			lineHeight: 22,
+			fontFamily: fonts.sansBold
+		},
+		row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+		row2: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
+		rowIcon: {
+			width: 36,
+			height: 36,
+			borderRadius: 12,
+			backgroundColor: colors.hover,
+			alignItems: 'center',
+			justifyContent: 'center'
+		},
+		rowLabel: {
+			color: colors.fg + textAlpha.primary,
+			fontSize: 14,
+			lineHeight: 20,
+			fontFamily: fonts.sansSemi
+		},
+		rowHint: {
+			color: colors.fg + textAlpha.muted,
+			fontSize: 12,
+			lineHeight: 16,
+			fontFamily: fonts.sans
+		},
+		themeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+		swatch: {
+			width: 46,
+			height: 32,
+			borderRadius: 10,
+			borderWidth: 1,
+			borderColor: colors.border,
+			flexDirection: 'row',
+			alignItems: 'center',
+			justifyContent: 'center',
+			gap: 4
+		},
+		dot: { width: 10, height: 10, borderRadius: 5 }
+	});

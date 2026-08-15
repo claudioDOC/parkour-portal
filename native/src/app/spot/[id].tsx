@@ -31,10 +31,24 @@ import {
 	Button
 } from '../../lib/ui';
 import { useData } from '../../lib/store';
+import { MiniMap } from '../../lib/MiniMap';
 import { getSpot, voteSpot, setChallengeDone, createChallenge, mediaUrl } from '../../lib/api';
 import { useAuth } from '../_layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+
+/** Farbpunkt mit Beschriftung für die Kartenlegende. */
+function Legend({ color, label }: { color: string; label: string }) {
+	const { colors } = useTheme();
+	return (
+		<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+			<View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color }} />
+			<Text style={{ color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 }}>
+				{label}
+			</Text>
+		</View>
+	);
+}
 
 export default function SpotDetailScreen() {
 	const { colors } = useTheme();
@@ -86,13 +100,6 @@ export default function SpotDetailScreen() {
 		}
 	};
 
-	const openMap = () => {
-		if (!base?.latitude || !base?.longitude) return;
-		Linking.openURL(
-			`geo:${base.latitude},${base.longitude}?q=${base.latitude},${base.longitude}(${encodeURIComponent(base.name)})`
-		).catch(() => Linking.openURL(`https://www.google.com/maps?q=${base.latitude},${base.longitude}`));
-	};
-
 	const totalDone = data?.challenges.reduce((sum, ch) => sum + ch.doneCount, 0) ?? 0;
 	const totalSlots = data?.challenges.reduce((sum, ch) => sum + ch.doneCount + ch.openCount, 0) ?? 0;
 
@@ -138,18 +145,42 @@ export default function SpotDetailScreen() {
 									</Text>
 								</View>
 							</View>
-							{base.latitude && base.longitude ? (
-								<Pressable onPress={openMap} style={({ pressed }) => [styles.mapBtn, pressed && { opacity: 0.7 }]}>
-									<Ionicons name="navigate" size={16} color={colors.onAccent} />
-									<Text style={styles.mapBtnText}>Karte</Text>
-								</Pressable>
-							) : null}
+
 						</View>
 						<View style={styles.myRate}>
 							<Text style={styles.myRateLabel}>Deine Wertung:</Text>
 							<Stars value={data.userVote ?? 0} size={20} onRate={rate} />
 						</View>
 					</Card>
+
+					{data.mapMarkers?.length ? (
+						<View style={{ gap: 8 }}>
+							<SectionTitle>Karte</SectionTitle>
+							<MiniMap markers={data.mapMarkers} height={240} />
+							<View style={styles.legendRow}>
+								<Legend color={colors.accent} label="Spot" />
+								<Legend color="#47c5ff" label="Parkplatz" />
+								{data.parkingLocations?.length ? (
+									<Text style={styles.legendMeta}>
+										{data.parkingLocations.length} Parkplätze
+									</Text>
+								) : null}
+								<Pressable
+									onPress={() =>
+										base.latitude && base.longitude
+											? Linking.openURL(
+													`geo:${base.latitude},${base.longitude}?q=${base.latitude},${base.longitude}(${encodeURIComponent(base.name)})`
+												)
+											: null
+									}
+									style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.7 }]}
+								>
+									<Ionicons name="navigate" size={14} color={colors.accent} />
+									<Text style={styles.navBtnText}>Navigation starten</Text>
+								</Pressable>
+							</View>
+						</View>
+					) : null}
 
 					{base.description ? (
 						<Card>
@@ -203,7 +234,16 @@ export default function SpotDetailScreen() {
 							{data.challenges.map((ch) => {
 								const mineDone = me ? ch.doneBy.some((d) => d.userId === me.id) : false;
 								return (
-									<Card key={ch.id} style={{ gap: 8 }}>
+									<Pressable key={ch.id} onPress={() => router.push(`/challenge/${ch.id}?spot=${spotId}`)}>
+									<Card style={{ gap: 8 }}>
+										{ch.images?.[0] ? (
+											<Image
+												source={{ uri: mediaUrl(ch.images[0].url) ?? undefined }}
+												style={styles.challengeImage}
+												contentFit="cover"
+												transition={150}
+											/>
+										) : null}
 										<View style={styles.rowBetween}>
 											<Text style={styles.challengeTitle}>{ch.title}</Text>
 											{mineDone ? <Pill label="✓ Geschafft" color={colors.success} /> : null}
@@ -229,6 +269,7 @@ export default function SpotDetailScreen() {
 											</Text>
 										</Pressable>
 									</Card>
+									</Pressable>
 								);
 							})}
 						</>
@@ -353,6 +394,11 @@ const makeStyles = (colors: ThemeColors) =>
 		marginTop: 8
 	},
 	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+	challengeImage: { width: '100%', height: 150, borderRadius: 12, backgroundColor: colors.hover },
+	legendRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+	legendMeta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
+	navBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+	navBtnText: { color: colors.accent, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansSemi },
 	nearbyRow: {
 		flexDirection: 'row',
 		alignItems: 'center',

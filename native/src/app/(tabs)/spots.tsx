@@ -24,7 +24,19 @@ export default function Spots() {
 
 	return (
 		<Screen refreshing={refreshing} onRefresh={onRefresh}>
-			<TopBar kicker="Orte" title="Spots" />
+			<TopBar
+				kicker="Orte"
+				title="Spots"
+				right={
+					<Pressable
+						onPress={() => router.push('/spot-new')}
+						hitSlop={8}
+						style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}
+					>
+						<Ionicons name="add" size={24} color={colors.onAccent} />
+					</Pressable>
+				}
+			/>
 
 			<View style={styles.search}>
 				<Ionicons name="search" size={17} color={colors.textMuted} />
@@ -94,6 +106,14 @@ export default function Spots() {
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
+	addBtn: {
+		width: 40,
+		height: 40,
+		borderRadius: 999,
+		backgroundColor: colors.accent,
+		alignItems: 'center',
+		justifyContent: 'center'
+	},
 	search: {
 		flexDirection: 'row',
 		alignItems: 'center',
