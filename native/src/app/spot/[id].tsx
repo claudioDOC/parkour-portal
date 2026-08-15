@@ -32,7 +32,20 @@ import {
 } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { MiniMap } from '../../lib/MiniMap';
-import { getSpot, voteSpot, setChallengeDone, createChallenge, mediaUrl } from '../../lib/api';
+import {
+	getSpot,
+	voteSpot,
+	removeSpotVote,
+	setChallengeDone,
+	createChallenge,
+	uploadSpotImage,
+	deleteSpotImage,
+	voteSpotForTraining,
+	editSpot,
+	trashSpot,
+	mediaUrl
+} from '../../lib/api';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../_layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -64,8 +77,100 @@ export default function SpotDetailScreen() {
 	// Neue Challenge an diesem Spot
 	const [challengeOpen, setChallengeOpen] = useState(false);
 	const [chForm, setChForm] = useState({ title: '', description: '' });
+	// Spot bearbeiten (admin/spotmanager)
+	const [editOpen, setEditOpen] = useState(false);
+	const [editForm, setEditForm] = useState({ name: '', city: '', description: '' });
+	const canEdit = me?.role === 'admin' || me?.role === 'spotmanager';
 
 	const base = data?.spot ?? null;
+
+	/** Bewertung zurückziehen (Stern erneut antippen entfernt sie nicht). */
+	const clearVote = async () => {
+		try {
+			await removeSpotVote(spotId);
+			await refresh();
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
+		}
+	};
+
+	const addPhoto = async () => {
+		const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+		if (!perm.granted) {
+			Alert.alert('Kein Zugriff', 'Bitte den Galerie-Zugriff erlauben.');
+			return;
+		}
+		const picked = await ImagePicker.launchImageLibraryAsync({
+			mediaTypes: ['images'],
+			quality: 0.85
+		});
+		if (picked.canceled || !picked.assets?.[0]) return;
+		const a = picked.assets[0];
+		try {
+			await uploadSpotImage(spotId, a.uri, a.fileName ?? 'spot.jpg', a.mimeType ?? 'image/jpeg');
+			await refresh();
+		} catch (e) {
+			Alert.alert('Upload fehlgeschlagen', e instanceof Error ? e.message : 'Unbekannt');
+		}
+	};
+
+	const removePhoto = (imageId: number) =>
+		Alert.alert('Bild löschen?', 'Das lässt sich nicht rückgängig machen.', [
+			{ text: 'Abbrechen', style: 'cancel' },
+			{
+				text: 'Löschen',
+				style: 'destructive',
+				onPress: async () => {
+					try {
+						await deleteSpotImage(imageId);
+						await refresh();
+					} catch (e) {
+						Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
+					}
+				}
+			}
+		]);
+
+	const voteForTraining = async () => {
+		if (!data?.nextOpenSessionId) return;
+		try {
+			await voteSpotForTraining(data.nextOpenSessionId, spotId);
+			Alert.alert('Gestimmt', 'Der Spot ist fürs nächste Training vorgeschlagen.');
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Abstimmen fehlgeschlagen');
+		}
+	};
+
+	const submitEdit = async () => {
+		if (!base) return;
+		if (!editForm.name.trim() || !editForm.city.trim()) {
+			Alert.alert('Unvollständig', 'Name und Ort sind Pflicht.');
+			return;
+		}
+		setEditOpen(false);
+		try {
+			await editSpot(spotId, {
+				name: editForm.name.trim(),
+				city: editForm.city.trim(),
+				latitude: base.latitude,
+				longitude: base.longitude,
+				lighting: base.lighting ?? 'teilweise',
+				techniques: (base.techniques ?? '').split(',').map((t) => t.trim()).filter(Boolean),
+				goodWeather: (base.goodWeather ?? 'trocken').split(',').map((t) => t.trim()).filter(Boolean),
+				description: editForm.description.trim(),
+				isMicro: false,
+				parentSpotId: null,
+				parkingLocations: (data?.parkingLocations ?? []).map((p) => ({
+					name: p.name,
+					latitude: p.latitude,
+					longitude: p.longitude
+				}))
+			});
+			await refresh();
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+		}
+	};
 
 	const submitChallenge = async () => {
 		if (!chForm.title.trim()) {
@@ -120,7 +225,10 @@ export default function SpotDetailScreen() {
 							contentContainerStyle={{ gap: 8 }}
 							style={{ marginHorizontal: -20, paddingHorizontal: 20 }}
 							renderItem={({ item, index }) => (
-								<Pressable onPress={() => setViewer(index)}>
+								<Pressable
+									onPress={() => setViewer(index)}
+									onLongPress={() => removePhoto(item.id)}
+								>
 									<Image
 										source={{ uri: mediaUrl(item.url) ?? undefined }}
 										style={styles.galleryImage}
@@ -150,6 +258,52 @@ export default function SpotDetailScreen() {
 						<View style={styles.myRate}>
 							<Text style={styles.myRateLabel}>Deine Wertung:</Text>
 							<Stars value={data.userVote ?? 0} size={20} onRate={rate} />
+							{data.userVote ? (
+								<Pressable onPress={clearVote} hitSlop={8}>
+									<Text style={styles.clearVote}>entfernen</Text>
+								</Pressable>
+							) : null}
+						</View>
+						<View style={styles.actionBar}>
+							<Button label="Foto hinzufügen" kind="ghost" small onPress={addPhoto} />
+							{data.nextOpenSessionId ? (
+								<Button label="Fürs Training vorschlagen" small onPress={voteForTraining} />
+							) : null}
+							{canEdit ? (
+								<Button
+									label="Bearbeiten"
+									kind="ghost"
+									small
+									onPress={() => {
+										setEditForm({
+											name: base.name,
+											city: base.city,
+											description: base.description ?? ''
+										});
+										setEditOpen(true);
+									}}
+								/>
+							) : null}
+							{me?.role === 'admin' ? (
+								<Button
+									label="Löschen"
+									kind="danger"
+									small
+									onPress={() =>
+										Alert.alert('Spot in den Papierkorb?', base.name, [
+											{ text: 'Abbrechen', style: 'cancel' },
+											{
+												text: 'Verschieben',
+												style: 'destructive',
+												onPress: async () => {
+													await trashSpot(spotId);
+													router.back();
+												}
+											}
+										])
+									}
+								/>
+							) : null}
 						</View>
 					</Card>
 
@@ -293,6 +447,29 @@ export default function SpotDetailScreen() {
 						</>
 					) : null}
 
+					<Sheet visible={editOpen} onClose={() => setEditOpen(false)} title="Spot bearbeiten">
+						<Input
+							placeholder="Name"
+							value={editForm.name}
+							onChangeText={(v) => setEditForm({ ...editForm, name: v })}
+						/>
+						<Input
+							placeholder="Ort"
+							value={editForm.city}
+							onChangeText={(v) => setEditForm({ ...editForm, city: v })}
+						/>
+						<Input
+							placeholder="Beschreibung"
+							multiline
+							value={editForm.description}
+							onChangeText={(v) => setEditForm({ ...editForm, description: v })}
+						/>
+						<View style={styles.sheetActions}>
+							<Button label="Abbrechen" kind="ghost" onPress={() => setEditOpen(false)} />
+							<Button label="Speichern" onPress={submitEdit} />
+						</View>
+					</Sheet>
+
 					{/* Neue Challenge */}
 					<Sheet
 						visible={challengeOpen}
@@ -394,6 +571,13 @@ const makeStyles = (colors: ThemeColors) =>
 		marginTop: 8
 	},
 	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+	clearVote: {
+		color: colors.fg + textAlpha.muted,
+		fontSize: 12,
+		lineHeight: 16,
+		textDecorationLine: 'underline'
+	},
+	actionBar: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
 	challengeImage: { width: '100%', height: 150, borderRadius: 12, backgroundColor: colors.hover },
 	legendRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
 	legendMeta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },

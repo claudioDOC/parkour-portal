@@ -191,6 +191,8 @@ export type SpotListItem = {
 	isMicro?: boolean;
 	parentSpotName?: string | null;
 	lighting?: string | null;
+	techniques?: string | null;
+	goodWeather?: string | null;
 };
 
 export const getSpots = () => get<{ spots: SpotListItem[] }>('/api/v1/spots');
@@ -441,6 +443,120 @@ export const getSpot = (id: number) => get<SpotDetailPayload>(`/api/v1/spots/${i
 export const voteSpot = (spotId: number, score: number) =>
 	post<{ success?: boolean }>('/api/spots/vote', { spotId, score });
 
+/** Eigene Bewertung zurückziehen. */
+export const removeSpotVote = (spotId: number) =>
+	request<{ success?: boolean }>('/api/spots/vote', {
+		method: 'DELETE',
+		body: JSON.stringify({ spotId })
+	});
+
+export const deleteSpotImage = (imageId: number) =>
+	request<{ success?: boolean }>('/api/spots/images', {
+		method: 'DELETE',
+		body: JSON.stringify({ imageId })
+	});
+
+/** Für das nächste offene Training abstimmen (vom Spot aus). */
+export const voteSpotForTraining = (sessionId: number, spotId: number) =>
+	post<{ success?: boolean }>('/api/training', { action: 'vote_spot', sessionId, spotId });
+
+/** Spot bearbeiten — admin/spotmanager. Parkplätze werden komplett ersetzt. */
+export type SpotEdit = {
+	name: string;
+	city: string;
+	latitude: number | null;
+	longitude: number | null;
+	lighting: string;
+	techniques: string[];
+	goodWeather: string[];
+	description: string;
+	isMicro: boolean;
+	parentSpotId: number | null;
+	parkingLocations: { name: string | null; latitude: number; longitude: number }[];
+};
+
+export const editSpot = (spotId: number, edit: SpotEdit) =>
+	request<{ success?: boolean }>('/api/admin/spots', {
+		method: 'PATCH',
+		body: JSON.stringify({ spotId, action: 'edit', ...edit })
+	});
+
+export const trashSpot = (spotId: number) =>
+	request<{ success?: boolean }>('/api/admin/spots', {
+		method: 'PATCH',
+		body: JSON.stringify({ spotId, action: 'trash' })
+	});
+
+// --- Challenges bearbeiten ---
+
+export const editChallenge = (challengeId: number, title: string, description: string) =>
+	request<{ success?: boolean }>('/api/spots/challenges', {
+		method: 'PATCH',
+		body: JSON.stringify({ challengeId, title, description })
+	});
+
+export const deleteChallenge = (challengeId: number) =>
+	request<{ success?: boolean }>('/api/spots/challenges', {
+		method: 'DELETE',
+		body: JSON.stringify({ challengeId })
+	});
+
+/** Erledigung bei einem anderen entfernen — admin/spotmanager. */
+export const removeChallengeCompletion = (challengeId: number, removeUserId: number) =>
+	request<{ success?: boolean }>('/api/spots/challenges', {
+		method: 'PATCH',
+		body: JSON.stringify({ challengeId, removeUserId })
+	});
+
+export const deleteChallengeImage = (imageId: number) =>
+	request<{ success?: boolean }>('/api/spots/challenges/images', {
+		method: 'DELETE',
+		body: JSON.stringify({ imageId })
+	});
+
+// --- Trips: Ablauf-Vorschläge, Zwischenstopps, Kartenziel ---
+
+export const proposePlanOption = (tripId: number, text: string) =>
+	post<{ success?: boolean }>('/api/trips', { action: 'propose_plan_option', tripId, text });
+
+export const votePlanOption = (tripId: number, destinationId: number) =>
+	post<{ success?: boolean }>('/api/trips', { action: 'vote_plan_option', tripId, destinationId });
+
+export const removePlanVote = (tripId: number) =>
+	post<{ success?: boolean }>('/api/trips', { action: 'remove_plan_vote', tripId });
+
+export const proposeStopover = (
+	tripId: number,
+	label: string,
+	latitude: number,
+	longitude: number
+) => post<{ stopoverId?: number }>('/api/trips', {
+	action: 'propose_stopover',
+	tripId,
+	label,
+	latitude,
+	longitude
+});
+
+export const deleteStopover = (tripId: number, stopoverId: number) =>
+	post<{ success?: boolean }>('/api/trips', { action: 'delete_stopover', tripId, stopoverId });
+
+export const setTripDestination = (
+	tripId: number,
+	dest: { latitude: number; longitude: number; label: string } | null
+) =>
+	post<{ success?: boolean }>('/api/trips', {
+		action: 'set_trip_destination',
+		tripId,
+		...(dest ? dest : { clear: true })
+	});
+
+/** Ortssuche für Kartenziel und Zwischenstopps. */
+export const geocode = (q: string) =>
+	get<{ results: { lat: number; lon: number; displayName: string }[] }>(
+		`/api/geocode?q=${encodeURIComponent(q)}`
+	);
+
 export const createChallenge = (spotId: number, title: string, description: string) =>
 	post<{ success?: boolean }>('/api/spots/challenges', { spotId, title, description });
 
@@ -504,6 +620,25 @@ export type Trip = {
 	participants: { userId: number; username: string; transportMode: string | null }[];
 	memberStates: { userId: number; username: string; status: 'joined' | 'declined' | 'pending'; transportMode: string | null }[];
 	dateOptions: TripDateOption[];
+	destinations: {
+		id: number;
+		name: string;
+		proposedBy: number;
+		proposedByName: string;
+		voteCount: number;
+	}[];
+	stopovers: {
+		id: number;
+		label: string;
+		latitude: number;
+		longitude: number;
+		proposedBy: number;
+		proposedByName: string;
+	}[];
+	destinationLatitude: number | null;
+	destinationLongitude: number | null;
+	createdBy: number;
+	myVoteDestinationId: number | null;
 	eligibleVoters: number;
 	votesNeeded: number;
 	myParticipation: { userId: number; transportMode: string | null } | null;

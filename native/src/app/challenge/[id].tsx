@@ -7,9 +7,18 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
 import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
-import { Card, TopBar, Screen, Pill, ErrorCard, Button, SectionTitle, Avatar } from '../../lib/ui';
+import { Card, TopBar, Screen, Pill, ErrorCard, Button, SectionTitle, Avatar, Sheet, Input } from '../../lib/ui';
 import { useData } from '../../lib/store';
-import { getSpot, setChallengeDone, uploadChallengeMedia, mediaUrl } from '../../lib/api';
+import {
+	getSpot,
+	setChallengeDone,
+	uploadChallengeMedia,
+	editChallenge,
+	deleteChallenge,
+	removeChallengeCompletion,
+	deleteChallengeImage,
+	mediaUrl
+} from '../../lib/api';
 import { useAuth } from '../_layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -34,6 +43,9 @@ export default function ChallengeDetail() {
 	);
 	const [viewer, setViewer] = useState<number | null>(null);
 	const [busy, setBusy] = useState(false);
+	const [editOpen, setEditOpen] = useState(false);
+	const [form, setForm] = useState({ title: '', description: '' });
+	const canManage = me?.role === 'admin' || me?.role === 'spotmanager';
 
 	const challenge = data?.challenges.find((c) => c.id === challengeId) ?? null;
 	const mineDone = challenge && me ? challenge.doneBy.some((d) => d.userId === me.id) : false;
@@ -76,6 +88,37 @@ export default function ChallengeDetail() {
 		}
 	};
 
+	const saveEdit = async () => {
+		if (!form.title.trim()) {
+			Alert.alert('Titel fehlt', 'Die Challenge braucht einen Namen.');
+			return;
+		}
+		setEditOpen(false);
+		try {
+			await editChallenge(challengeId, form.title.trim(), form.description.trim());
+			await refresh();
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+		}
+	};
+
+	const removeChallenge = () =>
+		Alert.alert('Challenge löschen?', 'Sie landet im Papierkorb.', [
+			{ text: 'Abbrechen', style: 'cancel' },
+			{
+				text: 'Löschen',
+				style: 'destructive',
+				onPress: async () => {
+					try {
+						await deleteChallenge(challengeId);
+						router.back();
+					} catch (e) {
+						Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
+					}
+				}
+			}
+		]);
+
 	return (
 		<Screen refreshing={refreshing} onRefresh={onRefresh}>
 			<TopBar back kicker={data?.spot.name ?? 'Challenge'} title={challenge?.title ?? '…'} />
@@ -86,7 +129,27 @@ export default function ChallengeDetail() {
 					{challenge.images.length > 0 ? (
 						<View style={{ gap: 8 }}>
 							{challenge.images.map((img, i) => (
-								<Pressable key={img.id} onPress={() => setViewer(i)}>
+								<Pressable
+									key={img.id}
+									onPress={() => setViewer(i)}
+									onLongPress={() =>
+										Alert.alert('Medium löschen?', '', [
+											{ text: 'Abbrechen', style: 'cancel' },
+											{
+												text: 'Löschen',
+												style: 'destructive',
+												onPress: async () => {
+													try {
+														await deleteChallengeImage(img.id);
+														await refresh();
+													} catch (e) {
+														Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
+													}
+												}
+											}
+										])
+									}
+								>
 									{isVideo(img.url) ? (
 										<View style={styles.videoWrap}>
 											<Ionicons name="play-circle" size={48} color="#fff" />
@@ -123,6 +186,22 @@ export default function ChallengeDetail() {
 								kind="ghost"
 								onPress={addMedia}
 							/>
+							{canManage ? (
+								<>
+									<Button
+										label="Bearbeiten"
+										kind="ghost"
+										onPress={() => {
+											setForm({
+												title: challenge.title,
+												description: challenge.description ?? ''
+											});
+											setEditOpen(true);
+										}}
+									/>
+									<Button label="Löschen" kind="danger" onPress={removeChallenge} />
+								</>
+							) : null}
 						</View>
 					</Card>
 
@@ -139,7 +218,28 @@ export default function ChallengeDetail() {
 								>
 									<Avatar username={d.username} size={32} index={i} />
 									<Text style={styles.personName}>{d.username}</Text>
-									<Ionicons name="checkmark-circle" size={18} color={colors.success} />
+									{canManage && d.userId !== me?.id ? (
+										<Pressable
+											hitSlop={8}
+											onPress={() =>
+												Alert.alert('Erledigung entfernen?', `Bei ${d.username}`, [
+													{ text: 'Abbrechen', style: 'cancel' },
+													{
+														text: 'Entfernen',
+														style: 'destructive',
+														onPress: async () => {
+															await removeChallengeCompletion(challengeId, d.userId);
+															await refresh();
+														}
+													}
+												])
+											}
+										>
+											<Ionicons name="close-circle" size={19} color={colors.danger} />
+										</Pressable>
+									) : (
+										<Ionicons name="checkmark-circle" size={18} color={colors.success} />
+									)}
 								</Pressable>
 							))
 						)}
@@ -162,6 +262,24 @@ export default function ChallengeDetail() {
 							</Card>
 						</>
 					) : null}
+
+					<Sheet visible={editOpen} onClose={() => setEditOpen(false)} title="Challenge bearbeiten">
+						<Input
+							placeholder="Titel"
+							value={form.title}
+							onChangeText={(v) => setForm({ ...form, title: v })}
+						/>
+						<Input
+							placeholder="Beschreibung"
+							multiline
+							value={form.description}
+							onChangeText={(v) => setForm({ ...form, description: v })}
+						/>
+						<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+							<Button label="Abbrechen" kind="ghost" onPress={() => setEditOpen(false)} />
+							<Button label="Speichern" onPress={saveEdit} />
+						</View>
+					</Sheet>
 
 					<Modal visible={viewer !== null} transparent animationType="fade">
 						<Pressable style={styles.viewerBackdrop} onPress={() => setViewer(null)}>

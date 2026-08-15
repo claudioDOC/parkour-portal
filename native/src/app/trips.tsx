@@ -23,6 +23,12 @@ import {
 	tripAction,
 	createTrip,
 	proposeDateOption,
+	proposePlanOption,
+	votePlanOption,
+	removePlanVote,
+	proposeStopover,
+	deleteStopover,
+	geocode,
 	myTripStatus,
 	BASE_URL,
 	type Trip
@@ -36,11 +42,13 @@ function formatRange(start: string, end: string | null): string {
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Exakt die Auswahl der Trips-Seite im Portal. */
 const TRANSPORT_MODES = [
 	{ key: 'mitfahrt', label: 'Ich fahre mit' },
-	{ key: 'auto_owner', label: 'Ich habe ein Auto' },
-	{ key: 'oev', label: 'ÖV' },
-	{ key: 'selbst', label: 'Komme selbst' }
+	{ key: 'auto_owner', label: 'Ich nehme mein Auto' },
+	{ key: 'motorrad', label: 'Motorrad' },
+	{ key: 'zug', label: 'Zug' },
+	{ key: 'unentschlossen', label: 'Noch unentschlossen' }
 ];
 
 export default function Trips() {
@@ -55,6 +63,13 @@ export default function Trips() {
 	// Termin-Alternative vorschlagen
 	const [dateFor, setDateFor] = useState<Trip | null>(null);
 	const [dateForm, setDateForm] = useState({ start: '', end: '', note: '' });
+	// Ablauf-Vorschlag (im Portal „Ablauf") und Zwischenstopps
+	const [planFor, setPlanFor] = useState<Trip | null>(null);
+	const [planText, setPlanText] = useState('');
+	const [stopFor, setStopFor] = useState<Trip | null>(null);
+	const [stopQuery, setStopQuery] = useState('');
+	const [stopHits, setStopHits] = useState<{ lat: number; lon: number; displayName: string }[]>([]);
+	const [joinNote, setJoinNote] = useState('');
 
 	const act = async (fn: () => Promise<unknown>) => {
 		try {
@@ -202,6 +217,84 @@ export default function Trips() {
 							>
 								<Ionicons name="add-circle-outline" size={16} color={colors.textSecondary} />
 								<Text style={styles.proposeText}>Anderen Termin vorschlagen</Text>
+							</Pressable>
+						</View>
+
+						{/* Ablauf-Vorschläge — im Portal „Ablauf" */}
+						<View style={{ gap: 8 }}>
+							{trip.destinations?.length ? (
+								<>
+									<Text style={styles.datesTitle}>ABLAUF-VORSCHLÄGE</Text>
+									{trip.destinations.map((d) => {
+										const mine = trip.myVoteDestinationId === d.id;
+										return (
+											<Pressable
+												key={d.id}
+												onPress={() =>
+													act(() =>
+														mine ? removePlanVote(trip.id) : votePlanOption(trip.id, d.id)
+													)
+												}
+												style={({ pressed }) => [styles.dateRow, pressed && { opacity: 0.8 }]}
+											>
+												<View style={{ flex: 1, gap: 4 }}>
+													<View style={styles.dateHead}>
+														{mine ? (
+															<Ionicons name="checkmark-circle" size={15} color={colors.accent} />
+														) : null}
+														<Text style={[styles.dateLabel, mine && { color: colors.accent }]}>
+															{d.name}
+														</Text>
+														<Text style={styles.dateVotes}>{d.voteCount}</Text>
+													</View>
+													<Text style={styles.proposeText}>von {d.proposedByName}</Text>
+												</View>
+											</Pressable>
+										);
+									})}
+								</>
+							) : null}
+							<Pressable
+								onPress={() => setPlanFor(trip)}
+								style={({ pressed }) => [styles.proposeRow, pressed && { opacity: 0.7 }]}
+							>
+								<Ionicons name="add-circle-outline" size={16} color={colors.fg + textAlpha.secondary} />
+								<Text style={styles.proposeText}>Ablauf vorschlagen</Text>
+							</Pressable>
+						</View>
+
+						{/* Zwischenstopps */}
+						<View style={{ gap: 8 }}>
+							{trip.stopovers?.length ? (
+								<>
+									<Text style={styles.datesTitle}>ZWISCHENSTOPPS</Text>
+									{trip.stopovers.map((st) => (
+										<View key={st.id} style={styles.stopRow}>
+											<Ionicons name="location-outline" size={15} color={colors.accentBlue} />
+											<Text style={styles.stopLabel} numberOfLines={1}>
+												{st.label}
+											</Text>
+											<Text style={styles.proposeText}>{st.proposedByName}</Text>
+											<Pressable
+												onPress={() => act(() => deleteStopover(trip.id, st.id))}
+												hitSlop={8}
+											>
+												<Ionicons name="close" size={16} color={colors.fg + textAlpha.muted} />
+											</Pressable>
+										</View>
+									))}
+								</>
+							) : null}
+							<Pressable
+								onPress={() => {
+									setStopFor(trip);
+									setStopQuery('');
+									setStopHits([]);
+								}}
+								style={({ pressed }) => [styles.proposeRow, pressed && { opacity: 0.7 }]}
+							>
+								<Ionicons name="add-circle-outline" size={16} color={colors.fg + textAlpha.secondary} />
+								<Text style={styles.proposeText}>Zwischenstopp vorschlagen</Text>
 							</Pressable>
 						</View>
 
@@ -385,5 +478,21 @@ const makeStyles = (colors: ThemeColors) =>
 		paddingHorizontal: 16,
 		paddingVertical: 12
 	},
-	modeText: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi }
+	modeText: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi, flex: 1 },
+	stopRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 8,
+		backgroundColor: colors.bgSecondary,
+		borderRadius: 12,
+		paddingHorizontal: 12,
+		paddingVertical: 10
+	},
+	stopLabel: {
+		color: colors.fg + textAlpha.primary,
+		fontSize: 13,
+		lineHeight: 18,
+		fontFamily: fonts.sansMedium,
+		flex: 1
+	}
 });
