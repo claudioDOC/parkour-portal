@@ -68,31 +68,31 @@ export function NativeMap({
 
 	if (!maplibre) return fallback;
 
-	const { MapView, Camera, MarkerView } = maplibre as {
-		MapView: React.ComponentType<Record<string, unknown>>;
+	// Exakte Namen dieser MapLibre-Version: Map, Marker (Prop lngLat), Camera.
+	const { Map: LibreMap, Camera, Marker } = maplibre as {
+		Map: React.ComponentType<Record<string, unknown>>;
 		Camera: React.ComponentType<Record<string, unknown>>;
-		MarkerView: React.ComponentType<Record<string, unknown>>;
+		Marker: React.ComponentType<Record<string, unknown>>;
 	};
+	if (!LibreMap || !Marker) return fallback;
 
 	return (
 		<SafeRender fallback={fallback}>
 			<View style={[styles.wrap, { height, backgroundColor: colors.hover }]}>
-				<MapView style={{ flex: 1 }} mapStyle={MAP_STYLE} logoEnabled={false}>
-					<Camera zoomLevel={zoom} centerCoordinate={[main.lon, main.lat]} animationDuration={0} />
+				<LibreMap style={{ flex: 1 }} mapStyle={MAP_STYLE}>
+					<Camera
+						initialViewState={{ centerCoordinate: [main.lon, main.lat], zoomLevel: zoom }}
+					/>
 					{pins.map((p) => (
-						<MarkerView
-							key={`${p.kind}-${p.id}`}
-							coordinate={[p.lon, p.lat]}
-							anchor={{ x: 0.5, y: 0.5 }}
-						>
+						<Marker key={`${p.kind}-${p.id}`} lngLat={[p.lon, p.lat]}>
 							<View style={[styles.pin, { backgroundColor: p.color }]}>
 								<Text style={styles.pinText}>
 									{p.kind === 'parking' ? 'P' : p.kind === 'main' ? '★' : '•'}
 								</Text>
 							</View>
-						</MarkerView>
+						</Marker>
 					))}
-				</MapView>
+				</LibreMap>
 			</View>
 		</SafeRender>
 	);
