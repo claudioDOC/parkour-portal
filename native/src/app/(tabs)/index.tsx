@@ -170,18 +170,19 @@ export default function Dashboard() {
 				</Pressable>
 			) : null}
 
+			{/* Bewusst nur eine schmale Zeile — Info ja, Bühne nein. */}
 			{data?.trainingForecast?.summaryLine ? (
-				<Card style={styles.weatherCard}>
+				<View style={styles.weatherRow}>
 					<Ionicons
 						name={data.trainingForecast.isWet ? 'rainy-outline' : 'partly-sunny-outline'}
-						size={22}
-						color={colors.accentBlue}
+						size={14}
+						color={colors.fg + textAlpha.muted}
 					/>
-					<View style={{ flex: 1 }}>
-						<Text style={styles.weatherLabel}>WETTER ZUM NÄCHSTEN TRAINING</Text>
-						<Text style={styles.weatherText}>{data.trainingForecast.summaryLine}</Text>
-					</View>
-				</Card>
+					<Text style={styles.weatherRowText} numberOfLines={1}>
+						{/* Serverzeile beginnt schon mit „Prognose:" */}
+						Training — {data.trainingForecast.summaryLine}
+					</Text>
+				</View>
 			) : null}
 
 			{pendingTrip ? (
@@ -319,15 +320,22 @@ export default function Dashboard() {
 									<GroupLabel color={colors.danger}>
 										{`Zieht nicht (${s.absences.length})`}
 									</GroupLabel>
-									<View style={styles.chipWrap}>
+									{/* Chip führt aufs Profil, der Grund steht direkt daneben. */}
+									<View style={{ gap: 6 }}>
 										{s.absences.map((a) => (
-											<NameChip
-												key={a.id ?? a.userId}
-												name={a.username}
-												tone={colors.danger}
-												userId={a.userId}
-												avatar={a.avatar ?? null}
-											/>
+											<View key={a.id ?? a.userId} style={styles.absenceRow}>
+												<NameChip
+													name={a.username}
+													tone={colors.danger}
+													userId={a.userId}
+													avatar={a.avatar ?? null}
+												/>
+												{a.reason ? (
+													<Text style={styles.absenceReason} numberOfLines={2}>
+														{a.reason}
+													</Text>
+												) : null}
+											</View>
 										))}
 										{s.absences.length === 0 ? <Text style={styles.emptyDash}>—</Text> : null}
 									</View>
@@ -564,20 +572,22 @@ const makeStyles = (colors: ThemeColors) =>
 			lineHeight: 16,
 			marginTop: 2
 		},
-		weatherCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-		weatherLabel: {
+		weatherRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
+		absenceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+		absenceReason: {
 			color: colors.fg + textAlpha.muted,
-			fontFamily: fonts.sansSemi,
-			fontSize: 11,
-			lineHeight: 14,
-			letterSpacing: 1.2
-		},
-		weatherText: {
-			color: colors.fg + textAlpha.primary,
+			fontSize: 12,
+			lineHeight: 16,
 			fontFamily: fonts.sans,
-			fontSize: 14,
-			lineHeight: 20,
-			marginTop: 2
+			fontStyle: 'italic',
+			flexShrink: 1
+		},
+		weatherRowText: {
+			color: colors.fg + textAlpha.muted,
+			fontFamily: fonts.sans,
+			fontSize: 12,
+			lineHeight: 16,
+			flex: 1
 		},
 		tripCard: { backgroundColor: colors.accentBlue + '14' },
 		tripKicker: {
