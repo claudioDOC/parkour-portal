@@ -48,6 +48,16 @@ export const GET: RequestHandler = async ({ request }) => {
 		throw error(404, 'Keine Updates für diese Runtime-Version');
 	}
 
+	/**
+	 * Entscheidend: Die App prüft die Runtime SELBST noch einmal und wirft
+	 * ein Update weg, dessen `runtimeVersion` nicht exakt zu ihrer passt.
+	 * Ein Server, der nur mit 200 antwortet, reicht also nicht — das
+	 * Manifest muss die Runtime des Anfragenden tragen.
+	 */
+	if (clientRuntime && COMPATIBLE_RUNTIMES.includes(clientRuntime)) {
+		manifest.runtimeVersion = clientRuntime;
+	}
+
 	const protocol = request.headers.get('expo-protocol-version') ?? '0';
 	const json = JSON.stringify(manifest);
 

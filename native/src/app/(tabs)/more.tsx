@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
+import Constants from 'expo-constants';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
 import { textAlpha } from '../../lib/tokens';
@@ -167,8 +168,20 @@ export default function More() {
 				</Pressable>
 			</Card>
 
+			{/* Version sichtbar machen — sonst lässt sich nie prüfen, ob ein
+			    Update tatsächlich angekommen ist. */}
 			<Text style={styles.footer}>
-				Parkour Portal · matetraining.duckdns.org{'\n'}Web und App teilen denselben Stand.
+				App {Constants.expoConfig?.version ?? '?'} · Stand{' '}
+				{Updates.updateId ? Updates.updateId.slice(0, 8) : 'eingebaut'}
+				{'\n'}
+				{Updates.createdAt
+					? `vom ${new Date(Updates.createdAt).toLocaleString('de-CH', {
+							day: 'numeric',
+							month: 'short',
+							hour: '2-digit',
+							minute: '2-digit'
+						})}`
+					: 'noch kein Update geladen'}
 			</Text>
 
 			{/* Theme-Wahl — wie Einstellungen → Design im Web */}
