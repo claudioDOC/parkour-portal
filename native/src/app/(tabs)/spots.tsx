@@ -178,7 +178,7 @@ function SpotRow({ spot, onPress }: { spot: SpotListItem; onPress: () => void })
 							</Text>
 							{spot.techniques ? (
 								<Text style={styles.city} numberOfLines={1}>
-									{spot.techniques}
+									{spot.techniques.split(',').map((t) => t.trim()).filter(Boolean).join(' · ')}
 								</Text>
 							) : null}
 						</View>

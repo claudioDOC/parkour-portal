@@ -358,13 +358,17 @@ export default function SpotDetailScreen() {
 							{base.goodWeather ? (
 								<View style={styles.infoRow}>
 									<Ionicons name="cloud-outline" size={15} color={colors.textSecondary} />
-									<Text style={styles.infoText}>Geeignet bei: {base.goodWeather}</Text>
+									<Text style={styles.infoText}>
+										Geeignet bei: {base.goodWeather.split(',').map((t: string) => t.trim()).filter(Boolean).join(' und ')}
+									</Text>
 								</View>
 							) : null}
 							{base.techniques ? (
 								<View style={styles.infoRow}>
 									<Ionicons name="body-outline" size={15} color={colors.textSecondary} />
-									<Text style={styles.infoText}>{base.techniques}</Text>
+									<Text style={styles.infoText}>
+										{base.techniques.split(',').map((t: string) => t.trim()).filter(Boolean).join(' · ')}
+									</Text>
 								</View>
 							) : null}
 						</Card>

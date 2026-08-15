@@ -722,6 +722,7 @@ export type StatsPayload = {
 		};
 		leaderboard: StatsRow[];
 		monthly: MonthRow[];
+		monthDetail: (MonthRow & { leaderboard: StatsRow[] })[];
 	};
 	solo: {
 		leaderboard: { userId: number; username: string; total: number; last90: number }[];

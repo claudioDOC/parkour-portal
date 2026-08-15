@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
 import { textAlpha } from '../../lib/tokens';
@@ -15,6 +16,11 @@ export default function Stats() {
 	const { data, error, refreshing, onRefresh } = useData('stats', getStats);
 
 	const lb = data?.stats.leaderboard ?? [];
+
+	// Neuester Monat zuerst; „gesamt" = null zeigt die Hall of Fame ab Beginn.
+	const months = [...(data?.stats.monthDetail ?? [])].reverse();
+	const [monthKey, setMonthKey] = useState<string | null>(null);
+	const selectedMonth = monthKey ? months.find((m) => m.key === monthKey) : null;
 
 	return (
 		<Screen refreshing={refreshing} onRefresh={onRefresh}>
@@ -51,8 +57,39 @@ export default function Stats() {
 			) : null}
 
 			<SectionTitle>Hall of Fame</SectionTitle>
+			{months.length ? (
+				<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+					<View style={styles.monthChips}>
+						<Pressable
+							onPress={() => setMonthKey(null)}
+							style={[styles.monthChip, monthKey === null && { backgroundColor: colors.accent, borderColor: colors.accent }]}
+						>
+							<Text style={[styles.monthChipText, monthKey === null && { color: colors.onAccent }]}>
+								Gesamt
+							</Text>
+						</Pressable>
+						{months.map((m) => (
+							<Pressable
+								key={m.key}
+								onPress={() => setMonthKey(m.key)}
+								style={[styles.monthChip, monthKey === m.key && { backgroundColor: colors.accent, borderColor: colors.accent }]}
+							>
+								<Text style={[styles.monthChipText, monthKey === m.key && { color: colors.onAccent }]}>
+									{m.label}
+								</Text>
+							</Pressable>
+						))}
+					</View>
+				</ScrollView>
+			) : null}
 			<Card style={{ gap: 12 }}>
-				{lb.map((row, i) => (
+				{selectedMonth ? (
+					<Text style={styles.monthMeta}>
+						{selectedMonth.label}: {selectedMonth.sessionCount} Trainings ·{' '}
+						{selectedMonth.absenceCount} Abmeldungen
+					</Text>
+				) : null}
+				{(selectedMonth?.leaderboard ?? lb).map((row, i) => (
 					<View key={row.userId} style={{ gap: 4 }}>
 						<View style={styles.lbRow}>
 							<Text style={[styles.lbRank, i < 3 && { color: colors.accent }]}>{i + 1}</Text>
@@ -81,8 +118,6 @@ export default function Stats() {
 					<SectionTitle>Verlauf nach Monat</SectionTitle>
 					<Card style={{ gap: 12 }}>
 						{data.stats.monthly.slice(0, 8).map((m) => {
-							const total = Math.max(1, m.sessionCount);
-							const pulled = Math.max(0, m.sessionCount - 0);
 							return (
 								<View key={m.key} style={{ gap: 6 }}>
 									<View style={styles.monthRow}>
@@ -165,6 +200,21 @@ const makeStyles = (colors: ThemeColors) =>
 		fontFamily: fonts.sans
 	},
 	monthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+	monthChips: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
+	monthChip: {
+		borderRadius: 999,
+		borderWidth: 1,
+		borderColor: colors.border,
+		backgroundColor: colors.card,
+		paddingHorizontal: 14,
+		paddingVertical: 7
+	},
+	monthChipText: {
+		color: colors.fg + textAlpha.primary,
+		fontSize: 13,
+		lineHeight: 18,
+		fontFamily: fonts.sansMedium
+	},
 	monthLabel: {
 		color: colors.fg + textAlpha.primary,
 		fontSize: 14,

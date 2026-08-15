@@ -8,7 +8,7 @@ import { fonts, type ThemeColors } from '../lib/theme';
 import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
 import { Card, TopBar, Screen, Button, Input, SectionTitle } from '../lib/ui';
-import { createSpot, uploadSpotImage } from '../lib/api';
+import { createSpot, uploadSpotImage, geocode } from '../lib/api';
 
 const LIGHTING = [
 	{ key: 'ja', label: 'Beleuchtet' },
@@ -19,7 +19,12 @@ const WEATHER = [
 	{ key: 'trocken', label: 'Trocken' },
 	{ key: 'nass', label: 'Auch bei Nässe' }
 ];
-const TECHNIQUES = ['Präzisionen', 'Kong', 'Wall', 'Rails', 'Klettern', 'Flips', 'Balance'];
+// Gleiche Liste wie im Web-Portal — sonst passen Filter und Finder nicht zusammen.
+const TECHNIQUES = [
+	'Präzisionssprung', 'Schwingen', 'Flow', 'Armsprung',
+	'Klettern', 'Tic-Tac', 'Vault', 'Balance',
+	'Drops', 'Katz', 'Roofgap'
+];
 
 /**
  * Neuen Spot anlegen — inklusive Standort vom Gerät und Fotos aus der
@@ -37,6 +42,11 @@ export default function NewSpot() {
 	const [weather, setWeather] = useState<string[]>(['trocken']);
 	const [techniques, setTechniques] = useState<string[]>([]);
 	const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+	const [addressQuery, setAddressQuery] = useState('');
+	const [addressResults, setAddressResults] = useState<
+		{ lat: number; lon: number; displayName: string }[]
+	>([]);
+	const [searching, setSearching] = useState(false);
 	const [photos, setPhotos] = useState<{ uri: string; fileName?: string | null; mimeType?: string | null }[]>([]);
 	const [busy, setBusy] = useState(false);
 
@@ -53,6 +63,21 @@ export default function NewSpot() {
 		}
 		const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
 		setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+	};
+
+	const searchAddress = async () => {
+		const q = addressQuery.trim();
+		if (q.length < 2) return;
+		setSearching(true);
+		try {
+			const res = await geocode(q);
+			setAddressResults(res.results);
+			if (!res.results.length) Alert.alert('Nichts gefunden', `Keine Treffer für „${q}".`);
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Suche fehlgeschlagen');
+		} finally {
+			setSearching(false);
+		}
 	};
 
 	const addPhoto = async (fromCamera: boolean) => {
@@ -139,6 +164,33 @@ export default function NewSpot() {
 					<Text style={styles.muted}>Noch kein Standort — hilft beim Finden auf der Karte.</Text>
 				)}
 				<Button label="Aktuellen Standort übernehmen" kind="ghost" onPress={useMyLocation} />
+				<View style={styles.searchRow}>
+					<View style={{ flex: 1 }}>
+						<Input
+							placeholder="Oder Adresse suchen …"
+							value={addressQuery}
+							onChangeText={setAddressQuery}
+							onSubmitEditing={searchAddress}
+							returnKeyType="search"
+						/>
+					</View>
+					<Button label={searching ? '…' : 'Suchen'} kind="ghost" onPress={searchAddress} />
+				</View>
+				{addressResults.map((r, i) => (
+					<Pressable
+						key={i}
+						onPress={() => {
+							setCoords({ lat: r.lat, lon: r.lon });
+							setAddressResults([]);
+						}}
+						style={({ pressed }) => [styles.resultRow, pressed && { opacity: 0.7 }]}
+					>
+						<Ionicons name="location-outline" size={16} color={colors.accent} />
+						<Text style={styles.resultText} numberOfLines={2}>
+							{r.displayName}
+						</Text>
+					</Pressable>
+				))}
 			</Card>
 
 			<SectionTitle>Beleuchtung</SectionTitle>
@@ -226,6 +278,15 @@ const makeStyles = (colors: ThemeColors) =>
 			fontFamily: fonts.sansSemi
 		},
 		chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+		searchRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+		resultRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
+		resultText: {
+			color: colors.fg + textAlpha.secondary,
+			fontSize: 13,
+			lineHeight: 18,
+			fontFamily: fonts.sans,
+			flex: 1
+		},
 		chip: {
 			borderRadius: 999,
 			borderWidth: 1,

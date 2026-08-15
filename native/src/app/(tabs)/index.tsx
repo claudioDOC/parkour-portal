@@ -160,8 +160,8 @@ export default function Dashboard() {
 							<View style={{ flex: 1 }}>
 								<Text style={styles.updateTitle}>Neue App-Version verfügbar</Text>
 								<Text style={styles.updateText}>
-									Karte, Fotos und Standort brauchen Version 1.2. Einmal installieren —
-									danach läuft alles wieder automatisch.
+									Native Karte, Fotos und Standort brauchen die neuste App von der
+									Portal-Seite. Einmal installieren — danach läuft alles automatisch.
 								</Text>
 							</View>
 							<Ionicons name="chevron-forward" size={20} color={colors.accent} />
