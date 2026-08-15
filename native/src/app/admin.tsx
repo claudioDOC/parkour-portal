@@ -14,15 +14,26 @@ import {
 	getSystemInfo,
 	getAuditLog,
 	adminBroadcast,
+	getAdminSessions,
+	adminSessionAction,
+	adminSessionDelete,
+	getTrashedSpots,
+	restoreSpot,
+	getTrashedChallenges,
+	restoreChallenge,
+	getTrashedTrips,
+	restoreTrip,
 	BASE_URL,
 	type AdminUser
 } from '../lib/api';
 import { useAuth } from './_layout';
 
-type Tab = 'users' | 'invites' | 'system' | 'log';
+type Tab = 'users' | 'trainings' | 'trash' | 'invites' | 'system' | 'log';
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
 	{ key: 'users', label: 'Benutzer', icon: 'people-outline' },
+	{ key: 'trainings', label: 'Trainings', icon: 'calendar-outline' },
+	{ key: 'trash', label: 'Papierkorb', icon: 'trash-outline' },
 	{ key: 'invites', label: 'Einladungen', icon: 'mail-outline' },
 	{ key: 'system', label: 'Server', icon: 'hardware-chip-outline' },
 	{ key: 'log', label: 'Protokoll', icon: 'list-outline' }
@@ -47,6 +58,12 @@ export default function Admin() {
 	const invites = useData('admin-invites', getInvites);
 	const system = useData('admin-system', getSystemInfo);
 	const audit = useData('admin-audit', () => getAuditLog(60));
+	const sessions = useData('admin-sessions', getAdminSessions);
+	const trashSpots = useData('trash-spots', getTrashedSpots);
+	const trashChallenges = useData('trash-challenges', getTrashedChallenges);
+	const trashTrips = useData('trash-trips', getTrashedTrips);
+	const [guestFor, setGuestFor] = useState<number | null>(null);
+	const [guestName, setGuestName] = useState('');
 
 	const [userFor, setUserFor] = useState<AdminUser | null>(null);
 	const [pwOpen, setPwOpen] = useState(false);
@@ -68,7 +85,7 @@ export default function Admin() {
 	const act = async (fn: () => Promise<unknown>) => {
 		try {
 			await fn();
-			await users.refresh();
+			await Promise.all([users.refresh(), sessions.refresh()]);
 		} catch (e) {
 			Alert.alert('Fehler', e instanceof Error ? e.message : 'Aktion fehlgeschlagen');
 		}
@@ -201,6 +218,150 @@ export default function Admin() {
 					))
 				: null}
 
+			{tab === 'trainings'
+				? (sessions.data?.sessions ?? []).slice(0, 12).map((sess) => (
+						<Card key={sess.id} style={{ gap: 12 }}>
+							<View style={styles.userHead}>
+								<View style={{ flex: 1 }}>
+									<Text style={styles.userName}>
+										{new Date(`${sess.date}T12:00:00`).toLocaleDateString('de-CH', {
+											weekday: 'short',
+											day: 'numeric',
+											month: 'short'
+										})}{' '}
+										· {sess.timeStart}–{sess.timeEnd}
+									</Text>
+									<Text style={styles.muted}>
+										{sess.attending.length} dabei · {sess.absences.length} abgemeldet ·{' '}
+										{sess.guests.length} Gäste
+									</Text>
+								</View>
+								{sess.cancelled ? <Pill label="Abgesagt" color={colors.danger} /> : null}
+							</View>
+
+							{sess.guests.length > 0 ? (
+								<View style={styles.chipRow}>
+									{sess.guests.map((g) => (
+										<Pressable
+											key={g.id}
+											onPress={() =>
+												act(() => adminSessionDelete('remove_guest', { id: g.id }))
+											}
+											style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}
+										>
+											<Text style={styles.chipText}>{g.name} ✕</Text>
+										</Pressable>
+									))}
+								</View>
+							) : null}
+
+							{sess.absences.filter((a) => a.id !== null).length > 0 ? (
+								<View style={{ gap: 6 }}>
+									<Text style={styles.muted}>Abmeldungen aufheben:</Text>
+									<View style={styles.chipRow}>
+										{sess.absences
+											.filter((a) => a.id !== null)
+											.map((a) => (
+												<Pressable
+													key={a.id}
+													onPress={() =>
+														act(() => adminSessionDelete('remove_absence', { id: a.id }))
+													}
+													style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}
+												>
+													<Text style={styles.chipText}>{a.username} ✕</Text>
+												</Pressable>
+											))}
+									</View>
+								</View>
+							) : null}
+
+							<View style={styles.chipRow}>
+								<Button
+									label="Gast hinzufügen"
+									kind="ghost"
+									small
+									onPress={() => setGuestFor(sess.id)}
+								/>
+								<Button
+									label={sess.cancelled ? 'Absage aufheben' : 'Training absagen'}
+									kind={sess.cancelled ? 'ghost' : 'danger'}
+									small
+									onPress={() =>
+										act(() =>
+											adminSessionAction(
+												sess.cancelled ? 'uncancel_session' : 'cancel_session',
+												{ sessionId: sess.id }
+											)
+										)
+									}
+								/>
+							</View>
+						</Card>
+					))
+				: null}
+
+			{tab === 'trash' ? (
+				<>
+					<SectionTitle>{`Spots · ${trashSpots.data?.spots.length ?? 0}`}</SectionTitle>
+					{(trashSpots.data?.spots ?? []).map((sp) => (
+						<Card key={sp.id} style={styles.trashRow}>
+							<View style={{ flex: 1 }}>
+								<Text style={styles.userName}>{sp.name}</Text>
+								<Text style={styles.muted}>{sp.city}</Text>
+							</View>
+							<Button
+								label="Wiederherstellen"
+								kind="ghost"
+								small
+								onPress={async () => {
+									await restoreSpot(sp.id);
+									await trashSpots.refresh();
+								}}
+							/>
+						</Card>
+					))}
+
+					<SectionTitle>{`Challenges · ${trashChallenges.data?.challenges.length ?? 0}`}</SectionTitle>
+					{(trashChallenges.data?.challenges ?? []).map((ch) => (
+						<Card key={ch.id} style={styles.trashRow}>
+							<View style={{ flex: 1 }}>
+								<Text style={styles.userName}>{ch.title}</Text>
+								<Text style={styles.muted}>{ch.spotName}</Text>
+							</View>
+							<Button
+								label="Zurück"
+								kind="ghost"
+								small
+								onPress={async () => {
+									await restoreChallenge(ch.id);
+									await trashChallenges.refresh();
+								}}
+							/>
+						</Card>
+					))}
+
+					<SectionTitle>{`Trips · ${trashTrips.data?.trips.length ?? 0}`}</SectionTitle>
+					{(trashTrips.data?.trips ?? []).map((t) => (
+						<Card key={t.id} style={styles.trashRow}>
+							<View style={{ flex: 1 }}>
+								<Text style={styles.userName}>{t.title}</Text>
+								<Text style={styles.muted}>{t.startDate}</Text>
+							</View>
+							<Button
+								label="Zurück"
+								kind="ghost"
+								small
+								onPress={async () => {
+									await restoreTrip(t.id);
+									await trashTrips.refresh();
+								}}
+							/>
+						</Card>
+					))}
+				</>
+			) : null}
+
 			{tab === 'invites' ? (
 				<>
 					<Button
@@ -314,6 +475,33 @@ export default function Admin() {
 				</View>
 			</Sheet>
 
+			<Sheet
+				visible={guestFor !== null}
+				onClose={() => setGuestFor(null)}
+				title="Gast hinzufügen"
+			>
+				<Input placeholder="Name des Gasts" value={guestName} onChangeText={setGuestName} />
+				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setGuestFor(null)} />
+					<Button
+						label="Hinzufügen"
+						onPress={async () => {
+							const sid = guestFor!;
+							const name = guestName.trim();
+							setGuestFor(null);
+							setGuestName('');
+							if (!name) return;
+							try {
+								await adminSessionAction('add_guest', { sessionId: sid, name });
+								await sessions.refresh();
+							} catch (e) {
+								Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
+							}
+						}}
+					/>
+				</View>
+			</Sheet>
+
 			<Sheet visible={pushOpen} onClose={() => setPushOpen(false)} title="Push an alle">
 				<Input
 					placeholder="Titel"
@@ -395,6 +583,7 @@ const makeStyles = (colors: ThemeColors) =>
 			flexShrink: 1,
 			textAlign: 'right'
 		},
+		trashRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
 		logRow: { gap: 2 },
 		logAction: {
 			color: colors.fg + textAlpha.primary,

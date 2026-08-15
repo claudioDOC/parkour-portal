@@ -304,6 +304,68 @@ export const getAdminSolo = () =>
 export const addAdminSolo = (userId: number, date?: string, note?: string) =>
 	post<{ ok?: boolean }>('/api/admin/solo', { userId, ...(date ? { date } : {}), ...(note ? { note } : {}) });
 
+// Papierkorb
+export const getTrashedSpots = () =>
+	get<{ spots: { id: number; name: string; city: string }[] }>('/api/admin/spots?deleted=true');
+
+export const restoreSpot = (spotId: number) =>
+	request<{ success?: boolean }>('/api/admin/spots', {
+		method: 'PATCH',
+		body: JSON.stringify({ spotId, action: 'restore' })
+	});
+
+export const getTrashedChallenges = () =>
+	get<{ challenges: { id: number; title: string; spotName: string }[] }>(
+		'/api/admin/challenges?trashed=true'
+	);
+
+export const restoreChallenge = (challengeId: number) =>
+	request<{ success?: boolean }>('/api/spots/challenges', {
+		method: 'PUT',
+		body: JSON.stringify({ challengeId })
+	});
+
+export const purgeChallenge = (challengeId: number) =>
+	request<{ success?: boolean }>('/api/admin/challenges', {
+		method: 'DELETE',
+		body: JSON.stringify({ challengeId })
+	});
+
+export const getTrashedTrips = () =>
+	get<{ trips: { id: number; title: string; startDate: string }[] }>('/api/admin/trips?trashed=1');
+
+export const restoreTrip = (tripId: number) =>
+	request<{ success?: boolean }>('/api/admin/trips', {
+		method: 'PATCH',
+		body: JSON.stringify({ tripId, action: 'restore' })
+	});
+
+// Trainings-Verwaltung
+export type AdminSession = {
+	id: number;
+	date: string;
+	dayOfWeek: string;
+	timeStart: string;
+	timeEnd: string;
+	cancelled: boolean;
+	absences: { id: number | null; userId: number; username: string; reason: string; virtual?: boolean }[];
+	attending: { id: number; username: string }[];
+	guests: { id: number; name: string }[];
+	hiddenUsers: { id: number; userId: number; username: string }[];
+};
+
+export const getAdminSessions = () =>
+	get<{ sessions: AdminSession[] }>('/api/admin/training');
+
+export const adminSessionAction = (type: string, body: object) =>
+	post<{ success?: boolean; sent?: number }>('/api/admin/training', { type, ...body });
+
+export const adminSessionDelete = (type: string, body: object) =>
+	request<{ success?: boolean }>('/api/admin/training', {
+		method: 'DELETE',
+		body: JSON.stringify({ type, ...body })
+	});
+
 export const deleteAdminSolo = (id: number) =>
 	request<{ ok?: boolean }>('/api/admin/solo', { method: 'DELETE', body: JSON.stringify({ id }) });
 
