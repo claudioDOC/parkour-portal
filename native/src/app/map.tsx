@@ -36,7 +36,7 @@ export default function MapScreen() {
 			</View>
 			<View style={{ flex: 1, marginTop: 12, marginHorizontal: 12, marginBottom: insets.bottom + 12 }}>
 				{markers.length > 0 ? (
-					<NativeMap markers={markers} height={10000} zoom={11} />
+					<NativeMap markers={markers} fill zoom={11} />
 				) : (
 					<Text style={{ color: colors.fg, padding: 20 }}>
 						Für keinen Spot sind Koordinaten hinterlegt.

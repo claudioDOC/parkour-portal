@@ -4,6 +4,14 @@ import { useTheme } from './themeContext';
 import { getNativeMap } from './nativeModules';
 import { SafeRender } from './SafeRender';
 
+/**
+ * Nur der TYP des Moduls — wird beim Kompilieren gelöscht, lädt also nichts.
+ * Entscheidend: Dadurch prüft TypeScript jede Prop gegen die echte
+ * MapLibre-API. Ein falscher Prop-Name ging vorher ungeprüft an die native
+ * Seite durch und stürzte dort die ganze App ab (Boundary fängt das nicht).
+ */
+type MapLibreModule = typeof import('@maplibre/maplibre-react-native');
+
 export type MapMarker = {
 	id: number;
 	name: string;
@@ -25,27 +33,33 @@ const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 export function NativeMap({
 	markers,
 	height = 240,
+	fill = false,
 	zoom = 15
 }: {
 	markers: MapMarker[];
 	height?: number;
+	/** Füllt den verfügbaren Platz (flex) statt fester Höhe — für Vollbild. */
+	fill?: boolean;
 	zoom?: number;
 }) {
 	const { colors } = useTheme();
-	const main = markers.find((m) => m.kind === 'main') ?? markers[0];
-	const maplibre = getNativeMap();
+	const maplibre = getNativeMap() as MapLibreModule | null;
 	// Bewusst KEINE Vorab-Erkennung mehr: die hat in beide Richtungen
 	// falsch gelegen. Die Karte wird gezeichnet; klappt es nicht, greift
 	// die Absturzsicherung und zeigt den Ersatzinhalt.
 
+	// Ungültige Koordinaten dürfen die native Seite nie erreichen.
 	const pins = useMemo(
 		() =>
-			markers.map((m) => ({
-				...m,
-				color: m.kind === 'main' ? colors.accent : m.kind === 'parking' ? '#47c5ff' : '#9ca3af'
-			})),
+			markers
+				.filter((m) => Number.isFinite(m.lat) && Number.isFinite(m.lon))
+				.map((m) => ({
+					...m,
+					color: m.kind === 'main' ? colors.accent : m.kind === 'parking' ? '#47c5ff' : '#9ca3af'
+				})),
 		[markers, colors]
 	);
+	const main = pins.find((m) => m.kind === 'main') ?? pins[0];
 
 	if (!main) return null;
 
@@ -68,21 +82,14 @@ export function NativeMap({
 
 	if (!maplibre) return fallback;
 
-	// Exakte Namen dieser MapLibre-Version: Map, Marker (Prop lngLat), Camera.
-	const { Map: LibreMap, Camera, Marker } = maplibre as {
-		Map: React.ComponentType<Record<string, unknown>>;
-		Camera: React.ComponentType<Record<string, unknown>>;
-		Marker: React.ComponentType<Record<string, unknown>>;
-	};
-	if (!LibreMap || !Marker) return fallback;
+	const { Map: LibreMap, Camera, Marker } = maplibre;
+	if (!LibreMap || !Marker || !Camera) return fallback;
 
 	return (
 		<SafeRender fallback={fallback}>
-			<View style={[styles.wrap, { height, backgroundColor: colors.hover }]}>
+			<View style={[styles.wrap, fill ? { flex: 1 } : { height }, { backgroundColor: colors.hover }]}>
 				<LibreMap style={{ flex: 1 }} mapStyle={MAP_STYLE}>
-					<Camera
-						initialViewState={{ centerCoordinate: [main.lon, main.lat], zoomLevel: zoom }}
-					/>
+					<Camera initialViewState={{ center: [main.lon, main.lat], zoom }} />
 					{pins.map((p) => (
 						<Marker key={`${p.kind}-${p.id}`} lngLat={[p.lon, p.lat]}>
 							<View style={[styles.pin, { backgroundColor: p.color }]}>
