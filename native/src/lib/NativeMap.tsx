@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
 import { useTheme } from './themeContext';
-import { getNativeMap, hasNativeMap } from './nativeModules';
+import { getNativeMap } from './nativeModules';
 import { SafeRender } from './SafeRender';
 
 export type MapMarker = {
@@ -34,7 +34,9 @@ export function NativeMap({
 	const { colors } = useTheme();
 	const main = markers.find((m) => m.kind === 'main') ?? markers[0];
 	const maplibre = getNativeMap();
-	const available = hasNativeMap() && maplibre;
+	// Bewusst KEINE Vorab-Erkennung mehr: die hat in beide Richtungen
+	// falsch gelegen. Die Karte wird gezeichnet; klappt es nicht, greift
+	// die Absturzsicherung und zeigt den Ersatzinhalt.
 
 	const pins = useMemo(
 		() =>
@@ -64,7 +66,7 @@ export function NativeMap({
 		</View>
 	);
 
-	if (!available) return fallback;
+	if (!maplibre) return fallback;
 
 	const { MapView, Camera, MarkerView } = maplibre as {
 		MapView: React.ComponentType<Record<string, unknown>>;

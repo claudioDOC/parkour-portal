@@ -56,6 +56,18 @@ export function getLocation() {
 }
 
 /**
+ * Version der installierten App-Datei (nicht des Update-Pakets).
+ * Kommt aus der nativen Seite; ohne sie bleibt es bei „unbekannt".
+ */
+export function installedAppVersion(): string | null {
+	const c = tryRequire(() => require('expo-constants').default as Record<string, unknown>);
+	const native = c?.nativeAppVersion ?? c?.nativeBuildVersion;
+	if (typeof native === 'string' && native) return native;
+	const cfg = c?.expoConfig as { version?: string } | undefined;
+	return cfg?.version ?? null;
+}
+
+/**
  * Kurzbericht für die Anzeige unter „Mehr" — damit sich ohne Rätselraten
  * feststellen lässt, welche Bausteine die installierte App mitbringt.
  */
