@@ -1,37 +1,37 @@
-# Parkour Portal als App
+# Parkour Portal als App (PWA / iPhone)
 
-Das Portal läuft auf Android und iPhone als App — **mit derselben Codebasis wie
-die Website**. Es gibt keinen zweiten Quellcode: jede Änderung am Web ist sofort
-auch in der App.
+> **Android hat inzwischen eine echte native App** (React Native, eigener
+> Ordner `native/`, Doku in [native/README.md](../native/README.md), Download
+> auf der Portal-Seite `/app`). Diese Datei beschreibt den **PWA-Weg**, der
+> weiterhin für iPhone und Browser gilt. Die frühere TWA-Hülle unter
+> `android/` ist durch die native App abgelöst.
+
+Die PWA nutzt dieselbe Codebasis wie die Website: jede Änderung am Web ist
+sofort auch in der installierten PWA.
 
 ---
 
 ## 1. Wie es funktioniert
 
-Die App ist eine **PWA** (Progressive Web App). Das heisst: die Website selbst
-ist die App. Auf Android gibt es zusätzlich eine dünne native Hülle (**TWA** —
-Trusted Web Activity), damit sie sich installieren und in den Play Store stellen
-lässt. Die Hülle enthält keinen eigenen Inhalt, sie öffnet
-`https://matetraining.duckdns.org` im Vollbild.
+Eine **PWA** (Progressive Web App) ist die Website selbst, installiert als App:
+Icon auf dem Home-Bildschirm, Vollbild, Offline-Grundfunktionen über den
+Service Worker, Push-Benachrichtigungen.
 
 | Änderung                       | Was ist zu tun?                          |
 |--------------------------------|------------------------------------------|
-| Seiten, Funktionen, Design     | Nur deployen — App aktualisiert sich selbst |
-| App-Name, Icon, Ziel-URL       | Android-Workflow neu laufen lassen       |
+| Seiten, Funktionen, Design     | Nur deployen — PWA aktualisiert sich selbst |
 
 ---
 
 ## 2. Installation für Nutzer
 
-**Android (Chrome):** Beim Besuch erscheint unten ein Banner „App installieren".
-Alternativ Menü ⋮ → *App installieren*.
+**Android:** Die **native App** von der Portal-Seite `/app` installieren
+(APK, „Unbekannte Quellen" einmal erlauben). Die PWA über Chrome ist nur noch
+die Notlösung.
 
 **iPhone (nur Safari):** Teilen-Symbol → *Zum Home-Bildschirm* → *Hinzufügen*.
 Ein Banner in der App führt Schritt für Schritt durch. Wichtig: Nur so
 funktionieren Benachrichtigungen auf dem iPhone — im normalen Safari-Tab nicht.
-
-**Android als APK:** Die Datei aus dem GitHub-Workflow (siehe unten) lässt sich
-direkt auf dem Handy installieren („Unbekannte Quellen" erlauben).
 
 ---
 
@@ -89,18 +89,17 @@ Fehlen die Schlüssel, ist Push einfach aus; die App läuft normal weiter.
 
 ## 5. Android-App bauen
 
+**Die aktuelle native App wird in [native/README.md](../native/README.md)
+gebaut und veröffentlicht** — dieser Abschnitt betrifft nur noch die alte
+TWA-Hülle unter `android/` (abgelöst, bleibt als Referenz).
+
 Die Toolchain liegt auf dem Server unter `tools/` (JDK 21 via apt, Android-SDK
-und Gradle 8.9, zusammen ~600 MB — per `.gitignore` ausgenommen).
+und Gradle 8.9 — per `.gitignore` ausgenommen). Beide Apps nutzen **denselben
+Signaturschlüssel** unter `backups/android/`.
 
 ```bash
-./android/build-app.sh              # Version 1.0.0, Nummer 1
-./android/build-app.sh 1.0.1 2      # Versionsname und -nummer setzen
+./android/build-app.sh              # TWA: Version 1.0.0, Nummer 1
 ```
-
-Dauer: rund eine Minute. Ergebnis:
-
-- `android/app/build/outputs/apk/release/app-release.apk` — direkt aufs Handy
-- `android/app/build/outputs/bundle/release/app-release.aab` — für den Play Store
 
 Die **Versionsnummer muss bei jedem Update steigen**, sonst verweigern Android
 und der Play Store die Installation.

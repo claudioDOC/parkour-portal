@@ -31,9 +31,10 @@
 			</ol>
 		{:else}
 			<p class="text-text-secondary text-sm">
-				Aktuell ist keine APK hinterlegt. Auf dem Server bauen mit
-				<code class="rounded bg-bg-secondary px-1.5 py-0.5 text-xs">./android/build-app.sh</code>
-				— das Skript legt sie automatisch hier ab.
+				Aktuell ist keine APK hinterlegt. Bauen und bereitstellen wie in
+				<code class="rounded bg-bg-secondary px-1.5 py-0.5 text-xs">native/README.md</code>
+				beschrieben — die fertige Datei gehört nach
+				<code class="rounded bg-bg-secondary px-1.5 py-0.5 text-xs">data/app/parkour-portal.apk</code>.
 			</p>
 		{/if}
 	</div>

@@ -1,70 +1,120 @@
-# Welcome to your Expo app 👋
+# Parkour Portal — Native Android-App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Echte native App (React Native / Expo SDK 57, expo-router) für das Parkour
+Portal. Kein WebView-Wrapper: Alle Screens sind nativ gebaut und sprechen mit
+dem Portal über die JSON-API (`/api/v1/…`, Bearer-JWT). Die Karte zeichnet
+MapLibre nativ auf dem Gerät.
 
-## Get started
+**Grundsatz:** Die App kann mindestens alles, was die Website kann. Wer eine
+Funktion im Web ändert oder ergänzt, denkt sie hier mit (siehe
+`native-app-architektur` in den Projektnotizen).
 
-1. Install dependencies
+## Wie Updates die Nutzer erreichen
 
-   ```bash
-   npm install
-   ```
+Es gibt zwei getrennte Wege — das ist der wichtigste Punkt in diesem Ordner:
 
-2. Start the app
+1. **JS-Update (der Normalfall, täglich nutzbar):**
+   `./deploy.sh` baut das JavaScript-Bundle und legt es unter
+   `../data/expo-updates/android/` ab. Das Portal liefert es über
+   `/api/expo/manifest` + `/api/expo/assets/…` aus (self-hosted expo-updates).
+   Jede installierte App lädt es beim nächsten Start automatisch — ohne Store,
+   ohne Zutun der Nutzer.
 
-   ```bash
-   npx expo start
-   ```
+2. **Neue APK (nur bei nativen Änderungen):**
+   Nötig, sobald sich native Module, Berechtigungen, Icons oder der Splash
+   ändern. Die APK landet unter `../data/app/parkour-portal.apk` und wird auf
+   der Portal-Seite `/app` mit versioniertem Dateinamen
+   (`parkour-portal-<version>.apk`) angeboten.
 
-In the output, you'll find options to open the app in a
+### runtimeVersion — Vorsicht
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+`runtimeVersion` in `app.json` ist bewusst auf **`1.1.0` eingefroren**, obwohl
+die APK-Version weiterläuft (1.1 → 1.2 → 1.3 …). Der Update-Server
+(`src/routes/api/expo/manifest/+server.ts`) kennt eine Liste
+`COMPATIBLE_RUNTIMES` und **schreibt die runtimeVersion im Manifest auf die des
+anfragenden Clients um** — die App prüft das selbst und verwirft sonst das
+Update. Wer die runtimeVersion erhöht, schneidet alle bestehenden
+Installationen vom Update-Kanal ab. Nur erhöhen, wenn ein JS-Bundle mit alten
+APKs wirklich crashen würde — und dann die Server-Liste mitpflegen.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Fehlende native Module dürfen die App nie crashen: Zugriffe laufen über
+`src/lib/nativeModules.ts` (Erkennung via TurboModuleRegistry — unter der neuen
+RN-Architektur sind NativeModules nicht mehr zuverlässig aufzählbar) und über
+die Absturzsicherung `src/lib/SafeRender.tsx`. Fällt ein Modul aus, erscheint
+ein Hinweis mit Download-Link statt eines Absturzes.
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-
-## Design-Vorschau (Screenshots ohne Gerät)
-
-Damit die App nicht blind gebaut wird, lässt sie sich als Web-Export
-rendern und fotografieren — im selben Format wie die Website:
+## JS-Update veröffentlichen
 
 ```bash
-npx expo export --platform web
-node <scratchpad>/preview-server.mjs      # serviert dist/, proxyt /api ans Portal
-node <scratchpad>/appshots.mjs            # Screenshots aller Screens
+cd native
+./deploy.sh        # expo export + scripts/deploy-update.mjs
 ```
 
-Die Website-Screenshots zum Abgleich entstehen mit `shots.mjs` (Puppeteer,
-eingeloggt via JWT-Cookie, 412×915).
+Danach: App komplett schliessen und neu öffnen (Update lädt beim Start und
+greift beim nächsten Start) — oder in der App **Mehr → „Nach Update suchen"**.
+Unter **Mehr** steht unten die Update-ID (`Stand xxxxxxxx vom …`) zur Kontrolle.
+
+## APK bauen (auf diesem Server)
+
+Voraussetzungen liegen im Repo bzw. auf dem Server: JDK 21, Android-SDK unter
+`tools/android-sdk`, Signaturschlüssel unter `backups/android/` (niemals neu
+erzeugen — sonst lassen sich bestehende Installationen nicht aktualisieren).
+
+```bash
+cd native
+# 1. Version in app.json erhöhen (expo.version + android.versionCode)
+# 2. Native Projektdateien erzeugen/aktualisieren:
+npx expo prebuild --platform android
+
+# 3. WICHTIG: prebuild ÜBERSCHREIBT android/gradle.properties und
+#    android/app/build.gradle. Danach immer wieder einpatchen:
+#    - android/app/build.gradle: release-signingConfig aus den
+#      Umgebungsvariablen ANDROID_KEYSTORE_PATH/…_PASSWORD/…_ALIAS
+#    - android/gradle.properties: org.gradle.jvmargs=-Xmx4096m,
+#      reactNativeArchitectures=arm64-v8a
+#    (Vorlage: der aktuell eingecheckte Stand dieser Dateien)
+
+# 4. Bauen (Env aus backups/android/keystore-credentials.txt):
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export ANDROID_HOME=/opt/parkour-portal/tools/android-sdk
+export ANDROID_KEYSTORE_PATH=/opt/parkour-portal/backups/android/parkour-release.jks
+. /opt/parkour-portal/backups/android/keystore-credentials.txt
+cd android && ./gradlew assembleRelease
+
+# 5. Bereitstellen:
+cp app/build/outputs/apk/release/app-release.apk /opt/parkour-portal/data/app/parkour-portal.apk
+```
+
+Der Build braucht viel RAM/CPU (2-GB-Container reicht nicht — vorher
+hochskalieren, siehe `parkour-portal-deploy` in den Projektnotizen).
+Verifizieren: `aapt2 dump badging`, `apksigner verify --print-certs`.
+
+## Screens & Struktur
+
+```
+src/app/(tabs)/        Finder · Spots · Start (Mitte, erhöht) · Stats · Mehr
+src/app/               map, trips, challenges, challenge/[id], spot/[id],
+                       spot-new, profile, activity, settings, admin, login
+src/lib/api.ts         kompletter API-Client (Bearer-JWT, Upload-Feld „image")
+src/lib/store.ts       useData(key, fetcher): Cache + Refresh bei Fokus
+src/lib/theme.ts       alle 8 Portal-Themes; Textfarben über fg + textAlpha
+src/lib/NativeMap.tsx  MapLibre-Karte (Exports: Map, Marker[lngLat], Camera)
+src/lib/nativeModules.ts  vorsichtige Modul-Erkennung (siehe oben)
+```
+
+Design-Regeln: Schriften Teko (Display) + Plus Jakarta Sans über
+`@expo-google-fonts` — **nie `fontWeight` mit einer Custom-`fontFamily`
+kombinieren** (fällt sonst auf die Systemschrift zurück). Grössen/Radien aus
+`src/lib/tokens.ts`. Standard-Theme ist hell; `uiTheme` kommt aus
+`/api/v1/me` (Antwort ist in `{ user: { … } }` verpackt).
+
+## Vorschau ohne Gerät (Screenshots)
+
+Die App lässt sich als Web-Export rendern und mit Puppeteer in
+Handy-Auflösung fotografieren — so wird nichts blind ausgeliefert:
+
+```bash
+npx expo export --platform web            # erzeugt dist/
+node <scratchpad>/preview-server.mjs      # serviert dist/ auf :4173, proxyt /api → :3000
+node <scratchpad>/appshots.mjs            # Screenshots aller Screens (412×915)
+```

@@ -1,8 +1,18 @@
 # Parkour Training Portal
 
-Ein selbst gehostetes Webportal für Parkour-Gruppen. Verwaltet Trainings, Spot-Datenbank, Spot-Voting und vieles mehr.
+Ein selbst gehostetes Portal für Parkour-Gruppen. Verwaltet Trainings, Spot-Datenbank, Spot-Voting, Challenges, Trips, Statistik und vieles mehr.
 
 Gebaut für unsere Trainingsgruppe im Raum Thun/Bern, aber so aufgebaut, dass es jede Parkour-Gruppe nutzen kann.
+
+Das Projekt besteht aus drei Teilen mit **einem** Server als Herzstück:
+
+| Teil | Was es ist | Wo |
+|---|---|---|
+| **Website** | SvelteKit-App, Produktion auf Port 3000 | `src/` |
+| **PWA** | Dieselbe Website, installierbar (v. a. iPhone), inkl. Push | `src/service-worker.ts`, [docs/APP.md](docs/APP.md) |
+| **Native Android-App** | Eigenständige React-Native-App (kein WebView), lädt Updates direkt vom Portal | `native/`, [native/README.md](native/README.md) |
+
+Die native App spricht mit dem Server über die JSON-API (`/api/v1/…`, Bearer-JWT, siehe [docs/API.md](docs/API.md)) und bekommt JS-Updates über den eingebauten Update-Server (`/api/expo/manifest`) — ohne Play Store. Die APK zum Installieren liegt auf der Portal-Seite **`/app`**.
 
 **Bedienung für Mitglieder & Admins:** [docs/BENUTZER-ANLEITUNG.md](docs/BENUTZER-ANLEITUNG.md) (Tutorial / How-to).
 
@@ -51,15 +61,46 @@ Gebaut für unsere Trainingsgruppe im Raum Thun/Bern, aber so aufgebaut, dass es
 - **Spots**: Bearbeiten; **Papierkorb** mit Wiederherstellen (kein permanentes Spot-Löschen über die UI)
 - Einladungslinks erstellen und verwalten, Server-Infos, Audit-Log
 
+### Challenges
+- Spot-Quests: pro Spot Aufgaben anlegen, mit Foto/Video belegen
+- Wer hat was geschafft — Leaderboard und offene Quests pro Person
+
+### Trips
+- Ausflüge planen: Terminvorschläge mit Mehrheits-Balken, Ablauf-Optionen, Zwischenstopps (Ortssuche)
+- Zusagen mit Transportmittel (Mitfahrt, Auto, Motorrad, Zug, unentschlossen)
+
+### Native Android-App
+- Alle Funktionen der Website als echte native App (Tabs: Finder · Spots · Start · Stats · Mehr)
+- Native MapLibre-Karte mit eigenen Pins, Fotos direkt von Kamera/Galerie, Standort beim Spot-Anlegen
+- Aktualisiert sich bei jedem Start selbst vom eigenen Server — Details in [native/README.md](native/README.md)
+
 ## Tech Stack
 
 - **Frontend & Backend**: [SvelteKit](https://kit.svelte.dev/) (Svelte 5)
+- **Native App**: React Native / [Expo](https://expo.dev) SDK 57, expo-router, self-hosted expo-updates, MapLibre
 - **Datenbank**: SQLite über [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)
 - **ORM**: [Drizzle ORM](https://orm.drizzle.team/)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/) v4 (Dark Theme)
-- **Auth**: bcrypt + JWT Cookies
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) v4, mehrere Farbschemata (Web und App identisch)
+- **Auth**: bcrypt + JWT (Web: Cookie, App: Bearer-Token — siehe [docs/API.md](docs/API.md))
 - **Wetter**: [Open-Meteo API](https://open-meteo.com/) (kostenlos, kein API-Key nötig)
 - **Geocoding**: [Nominatim/OpenStreetMap](https://nominatim.org/) (kostenlos)
+
+## Ordner-Überblick
+
+```
+src/                SvelteKit: Seiten, API-Routen, Server-Logik
+  routes/api/v1/    JSON-API für die native App (Bearer-JWT)
+  routes/api/expo/  Update-Server der nativen App (Manifest + Assets)
+  routes/app/       Download-Seite und Auslieferung der APK
+native/             Native Android-App (eigenes README)
+docs/               API.md · APP.md (PWA/Push) · BENUTZER-ANLEITUNG.md
+drizzle/            SQL-Migrationen
+data/               Laufzeitdaten: parkour.db, uploads/, expo-updates/, app/ (nicht im Repo)
+backups/            DB- und Code-Backups, Android-Signaturschlüssel
+android/            Alte TWA-Hülle (durch native/ abgelöst)
+```
+
+**Regel vor jeder Änderung am Server:** zuerst Datenbank und Code sichern (`backups/`).
 
 ## Setup
 
