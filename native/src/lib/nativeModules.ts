@@ -75,10 +75,18 @@ export function getNativeMap() {
 
 export function hasNativeMap(): boolean {
 	if (getNativeMap() === null) return false;
-	// MapLibre registriert mehrere Module (MLRNCameraModule, MLRNLogModule …)
-	// und Ansichten — es genügt, eines davon zu finden.
-	const hasModule = Object.keys(NativeModules).some((k) => k.startsWith('MLRN'));
-	if (hasModule) return true;
+	/**
+	 * Bewusst streng: Es muss BEIDES da sein — ein registriertes MLRN-Modul
+	 * UND der View-Manager der Kartenansicht. Eine lockerere Prüfung hatte
+	 * fälschlich „nativ" gemeldet, woraufhin die App beim Zeichnen abstürzte.
+	 */
+	let hasModule = false;
+	try {
+		hasModule = Object.keys(NativeModules).some((k) => k.startsWith('MLRN'));
+	} catch {
+		hasModule = false;
+	}
+	if (!hasModule) return false;
 	try {
 		return Boolean(
 			UIManager.getViewManagerConfig?.('MLRNMapView') ??

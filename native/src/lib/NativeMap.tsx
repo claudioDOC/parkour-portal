@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
 import { useTheme } from './themeContext';
-import { getNativeMap, hasNativeMap, getWebView } from './nativeModules';
+import { getNativeMap, hasNativeMap } from './nativeModules';
+import { SafeRender } from './SafeRender';
 
 export type MapMarker = {
 	id: number;
@@ -46,24 +47,24 @@ export function NativeMap({
 
 	if (!main) return null;
 
-	if (!available) {
-		return (
-			<View style={[styles.wrap, styles.fallback, { height: 150, backgroundColor: colors.hover }]}>
-				<Text style={[styles.title, { color: colors.fg }]}>Native Karte ab App-Paket 1.3</Text>
-				<Text style={[styles.hint, { color: colors.fg }]}>
-					Einmal neu installieren — danach zeichnet die App die Karte selbst.
+	const fallback = (
+		<View style={[styles.wrap, styles.fallback, { height: 150, backgroundColor: colors.hover }]}>
+			<Text style={[styles.title, { color: colors.fg }]}>Native Karte ab App-Version 1.3</Text>
+			<Text style={[styles.hint, { color: colors.fg }]}>
+				Einmal neu installieren — danach zeichnet die App die Karte selbst.
+			</Text>
+			<Pressable
+				onPress={() => Linking.openURL('https://matetraining.duckdns.org/app')}
+				style={[styles.btn, { backgroundColor: colors.accent }]}
+			>
+				<Text style={{ color: colors.onAccent, fontSize: 14, fontWeight: '700' }}>
+					App herunterladen
 				</Text>
-				<Pressable
-					onPress={() => Linking.openURL('https://matetraining.duckdns.org/app')}
-					style={[styles.btn, { backgroundColor: colors.accent }]}
-				>
-					<Text style={{ color: colors.onAccent, fontSize: 14, fontWeight: '700' }}>
-						App herunterladen
-					</Text>
-				</Pressable>
-			</View>
-		);
-	}
+			</Pressable>
+		</View>
+	);
+
+	if (!available) return fallback;
 
 	const { MapView, Camera, MarkerView } = maplibre as {
 		MapView: React.ComponentType<Record<string, unknown>>;
@@ -72,20 +73,26 @@ export function NativeMap({
 	};
 
 	return (
-		<View style={[styles.wrap, { height, backgroundColor: colors.hover }]}>
-			<MapView style={{ flex: 1 }} mapStyle={MAP_STYLE} logoEnabled={false}>
-				<Camera zoomLevel={zoom} centerCoordinate={[main.lon, main.lat]} animationDuration={0} />
-				{pins.map((p) => (
-					<MarkerView key={`${p.kind}-${p.id}`} coordinate={[p.lon, p.lat]} anchor={{ x: 0.5, y: 0.5 }}>
-						<View style={[styles.pin, { backgroundColor: p.color }]}>
-							<Text style={styles.pinText}>
-								{p.kind === 'parking' ? 'P' : p.kind === 'main' ? '★' : '•'}
-							</Text>
-						</View>
-					</MarkerView>
-				))}
-			</MapView>
-		</View>
+		<SafeRender fallback={fallback}>
+			<View style={[styles.wrap, { height, backgroundColor: colors.hover }]}>
+				<MapView style={{ flex: 1 }} mapStyle={MAP_STYLE} logoEnabled={false}>
+					<Camera zoomLevel={zoom} centerCoordinate={[main.lon, main.lat]} animationDuration={0} />
+					{pins.map((p) => (
+						<MarkerView
+							key={`${p.kind}-${p.id}`}
+							coordinate={[p.lon, p.lat]}
+							anchor={{ x: 0.5, y: 0.5 }}
+						>
+							<View style={[styles.pin, { backgroundColor: p.color }]}>
+								<Text style={styles.pinText}>
+									{p.kind === 'parking' ? 'P' : p.kind === 'main' ? '★' : '•'}
+								</Text>
+							</View>
+						</MarkerView>
+					))}
+				</MapView>
+			</View>
+		</SafeRender>
 	);
 }
 

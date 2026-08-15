@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
-import { hasNativeExtras, nativeReport } from '../../lib/nativeModules';
+import { hasNativeExtras, nativeReport, hasNativeMap } from '../../lib/nativeModules';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
 import { textAlpha } from '../../lib/tokens';
@@ -171,7 +171,7 @@ export default function More() {
 			{/* Version sichtbar machen — sonst lässt sich nie prüfen, ob ein
 			    Update tatsächlich angekommen ist. */}
 			<Text style={styles.footer}>
-				App-Paket {hasNativeExtras() ? '1.2 ✓' : '1.0 — bitte neu installieren'}
+				App-Version {hasNativeMap() ? '1.3 ✓' : hasNativeExtras() ? '1.2 — Karte braucht 1.3' : '1.0 — bitte neu installieren'}
 				{'\n'}
 				{nativeReport()}
 				{'\n'}Stand {Updates.updateId ? Updates.updateId.slice(0, 8) : 'eingebaut'}
