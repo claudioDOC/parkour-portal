@@ -34,138 +34,102 @@ type TabBarProps = {
 };
 
 /**
- * Normaler Tab in der Pille: Icon, darunter ein kleines Label. Aktiv
- * rutscht das Icon in einen gefüllten Akzent-Kreis. Antippen federt.
+ * Ein Tab: Icon oben, Label darunter, alles in einer Reihe mit den
+ * anderen — keine Überlappungen, die Trefffläche ist exakt der Knopf.
+ * Aktiv wandert das Icon in eine weiche Akzent-Pille; „Start" trägt
+ * seine Pille immer, gefüllt, als ruhige Mitte der Leiste.
+ * Feedback nur über die Feder-Animation — bewusst kein Android-Ripple,
+ * der zeichnete auf manchen Geräten ein hartes Rechteck.
  */
 function TabItem({
 	label,
 	meta,
 	focused,
+	isCenter,
 	onPress
 }: {
 	label: string;
 	meta: { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap };
 	focused: boolean;
+	isCenter: boolean;
 	onPress: () => void;
 }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
 	const scale = useRef(new Animated.Value(1)).current;
-	const springTo = (v: number) =>
-		Animated.spring(scale, { toValue: v, useNativeDriver: true, speed: 40, bounciness: 10 }).start();
+	const springTo = (v: number, bounce = 8) =>
+		Animated.spring(scale, { toValue: v, useNativeDriver: true, speed: 40, bounciness: bounce }).start();
 	useEffect(() => {
 		if (focused) {
-			scale.setValue(0.8);
-			springTo(1);
+			scale.setValue(0.85);
+			springTo(1, 12);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [focused]);
+
+	const filled = isCenter || focused;
 	return (
 		<Pressable
 			onPress={onPress}
-			onPressIn={() => springTo(0.85)}
+			onPressIn={() => springTo(0.88)}
 			onPressOut={() => springTo(1)}
-			android_ripple={{ color: colors.accent + '22', borderless: true, radius: 40 }}
 			style={styles.slot}
 		>
 			<Animated.View style={[styles.item, { transform: [{ scale }] }]}>
-				<View style={[styles.iconDot, focused && { backgroundColor: colors.accent }]}>
+				<View
+					style={[
+						styles.pill,
+						isCenter && styles.centerPill,
+						filled && {
+							backgroundColor: focused ? colors.accent : colors.hover
+						}
+					]}
+				>
 					<Ionicons
 						name={focused ? meta.active : meta.inactive}
-						size={20}
-						color={focused ? colors.onAccent : colors.textMuted}
+						size={isCenter ? 24 : 21}
+						color={focused ? colors.onAccent : isCenter ? colors.text : colors.textMuted}
 					/>
 				</View>
-				<Text style={[styles.label, focused && { color: colors.accent }]}>{label}</Text>
+				<Text style={[styles.label, focused && { color: colors.accent, fontFamily: fonts.sansBold }]}>
+					{label}
+				</Text>
 			</Animated.View>
 		</Pressable>
 	);
 }
 
 /**
- * Frei schwebende Pillen-Leiste: löst sich mit Abstand vom Rand, volle
- * Rundung, weicher Schatten. Der Start-Kreis thront mittig darüber —
- * absolut positioniert, damit Android nichts wegschneiden kann.
+ * Ruhige, geschlossene Leiste: eine Karte mit runden oberen Ecken,
+ * fünf gleich breite Knöpfe, nichts schwebt, nichts überlappt.
  */
 function TabBar({ state, navigation }: TabBarProps) {
-	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
 	const insets = useSafeAreaInsets();
-	const startScale = useRef(new Animated.Value(1)).current;
-	const startSpring = (v: number, bounce = 10) =>
-		Animated.spring(startScale, {
-			toValue: v,
-			useNativeDriver: true,
-			speed: 40,
-			bounciness: bounce
-		}).start();
-
-	const startRoute = state.routes.find((r) => r.name === 'index');
-	const startFocused = startRoute ? state.index === state.routes.indexOf(startRoute) : false;
-	useEffect(() => {
-		if (startFocused) {
-			startScale.setValue(0.82);
-			startSpring(1, 14);
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [startFocused]);
-
-	const pressRoute = (route: { key: string; name: string }, focused: boolean) => {
-		const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-		if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
-	};
-
 	return (
-		<View style={[styles.wrap, { paddingBottom: insets.bottom + 10 }]}>
-			<View style={styles.bar}>
-				{state.routes.map((route, i) => {
-					const meta = TAB_META[route.name];
-					if (!meta) return null;
-					const focused = state.index === i;
-					if (route.name === 'index') {
-						// Platzhalter — der Kreis selbst schwebt darüber.
-						return <View key={route.key} style={styles.centerGap} />;
-					}
-					return (
-						<TabItem
-							key={route.key}
-							label={meta.label}
-							meta={meta}
-							focused={focused}
-							onPress={() => pressRoute(route, focused)}
-						/>
-					);
-				})}
-			</View>
-
-			{startRoute ? (
-				<Pressable
-					onPress={() => pressRoute(startRoute, startFocused)}
-					onPressIn={() => startSpring(0.88)}
-					onPressOut={() => startSpring(1)}
-					style={styles.centerWrap}
-				>
-					<Animated.View
-						style={[
-							styles.center,
-							{ transform: [{ scale: startScale }] },
-							startFocused
-								? { backgroundColor: colors.accent, shadowColor: colors.accent }
-								: {
-										backgroundColor: colors.card,
-										borderWidth: 1,
-										borderColor: colors.border
-									}
-						]}
-					>
-						<Ionicons
-							name={startFocused ? 'calendar' : 'calendar-outline'}
-							size={25}
-							color={startFocused ? colors.onAccent : colors.textMuted}
-						/>
-					</Animated.View>
-				</Pressable>
-			) : null}
+		<View style={[styles.bar, { paddingBottom: insets.bottom + 8 }]}>
+			{state.routes.map((route, i) => {
+				const meta = TAB_META[route.name];
+				if (!meta) return null;
+				const focused = state.index === i;
+				return (
+					<TabItem
+						key={route.key}
+						label={meta.label}
+						meta={meta}
+						focused={focused}
+						isCenter={route.name === 'index'}
+						onPress={() => {
+							const event = navigation.emit({
+								type: 'tabPress',
+								target: route.key,
+								canPreventDefault: true
+							});
+							if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+						}}
+					/>
+				);
+			})}
 		</View>
 	);
 }
@@ -188,58 +152,38 @@ export default function TabsLayout() {
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-		wrap: {
-			backgroundColor: 'transparent',
-			paddingHorizontal: 14,
-			paddingTop: 30
-		},
 		bar: {
 			flexDirection: 'row',
-			alignItems: 'center',
 			backgroundColor: colors.card,
-			borderRadius: 999,
-			height: 66,
-			paddingHorizontal: 6,
-			elevation: 18,
+			borderTopLeftRadius: 22,
+			borderTopRightRadius: 22,
+			paddingTop: 10,
+			paddingHorizontal: 8,
+			elevation: 16,
 			shadowColor: '#000',
-			shadowOpacity: 0.22,
-			shadowRadius: 18,
-			shadowOffset: { width: 0, height: 6 }
+			shadowOpacity: 0.15,
+			shadowRadius: 14,
+			shadowOffset: { width: 0, height: -3 }
 		},
-		slot: { flex: 1, alignItems: 'center', justifyContent: 'center', height: '100%' },
-		item: { alignItems: 'center', gap: 2 },
-		iconDot: {
-			width: 34,
-			height: 34,
-			borderRadius: 17,
+		slot: { flex: 1, alignItems: 'center', paddingVertical: 2 },
+		item: { alignItems: 'center', gap: 3 },
+		pill: {
+			width: 46,
+			height: 30,
+			borderRadius: 999,
 			alignItems: 'center',
 			justifyContent: 'center',
 			backgroundColor: 'transparent'
+		},
+		centerPill: {
+			width: 52,
+			height: 36,
+			marginTop: -4
 		},
 		label: {
 			color: colors.fg + textAlpha.muted,
 			fontSize: 10,
 			lineHeight: 13,
 			fontFamily: fonts.sansSemi
-		},
-		centerGap: { flex: 1 },
-		centerWrap: {
-			position: 'absolute',
-			left: 0,
-			right: 0,
-			top: 0,
-			alignItems: 'center'
-		},
-		center: {
-			width: 60,
-			height: 60,
-			borderRadius: 999,
-			alignItems: 'center',
-			justifyContent: 'center',
-			elevation: 14,
-			shadowColor: '#000',
-			shadowOpacity: 0.3,
-			shadowRadius: 10,
-			shadowOffset: { width: 0, height: 4 }
 		}
 	});
