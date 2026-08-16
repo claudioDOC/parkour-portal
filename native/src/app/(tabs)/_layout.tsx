@@ -34,64 +34,69 @@ type TabBarProps = {
 };
 
 /**
- * Ein Tab: Icon oben, Label darunter, alles in einer Reihe mit den
- * anderen — keine Überlappungen, die Trefffläche ist exakt der Knopf.
- * Aktiv wandert das Icon in eine weiche Akzent-Pille; „Start" trägt
- * seine Pille immer, gefüllt, als ruhige Mitte der Leiste.
- * Feedback nur über die Feder-Animation — bewusst kein Android-Ripple,
- * der zeichnete auf manchen Geräten ein hartes Rechteck.
+ * Ein Tab: schmaler Indikator-Strich oben, Icon, Label. Der aktive Tab
+ * ist über Farbe und Strich markiert — bewusst KEINE gefüllte Fläche
+ * hinter dem Icon: übergrosse Rundungen zeichnen manche Android-
+ * Renderer als hartes Rechteck (genau das war die eckige Markierung).
+ * Der Strich ist 3 Pixel hoch mit Radius 1.5 — das rundet überall.
  */
 function TabItem({
 	label,
 	meta,
 	focused,
-	isCenter,
 	onPress
 }: {
 	label: string;
 	meta: { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap };
 	focused: boolean;
-	isCenter: boolean;
 	onPress: () => void;
 }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
 	const scale = useRef(new Animated.Value(1)).current;
+	const indicator = useRef(new Animated.Value(focused ? 1 : 0)).current;
 	const springTo = (v: number, bounce = 8) =>
 		Animated.spring(scale, { toValue: v, useNativeDriver: true, speed: 40, bounciness: bounce }).start();
 	useEffect(() => {
+		Animated.spring(indicator, {
+			toValue: focused ? 1 : 0,
+			useNativeDriver: true,
+			speed: 30,
+			bounciness: 8
+		}).start();
 		if (focused) {
-			scale.setValue(0.85);
+			scale.setValue(0.88);
 			springTo(1, 12);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [focused]);
 
-	const filled = isCenter || focused;
 	return (
 		<Pressable
 			onPress={onPress}
-			onPressIn={() => springTo(0.88)}
+			onPressIn={() => springTo(0.9)}
 			onPressOut={() => springTo(1)}
 			style={styles.slot}
 		>
+			<Animated.View
+				style={[
+					styles.indicator,
+					{
+						backgroundColor: colors.accent,
+						opacity: indicator,
+						transform: [{ scaleX: indicator }]
+					}
+				]}
+			/>
 			<Animated.View style={[styles.item, { transform: [{ scale }] }]}>
-				<View
-					style={[
-						styles.pill,
-						isCenter && styles.centerPill,
-						filled && {
-							backgroundColor: focused ? colors.accent : colors.hover
-						}
-					]}
+				<Ionicons
+					name={focused ? meta.active : meta.inactive}
+					size={23}
+					color={focused ? colors.accent : colors.textMuted}
+				/>
+				<Text
+					style={[styles.label, focused && { color: colors.accent, fontFamily: fonts.sansBold }]}
 				>
-					<Ionicons
-						name={focused ? meta.active : meta.inactive}
-						size={isCenter ? 24 : 21}
-						color={focused ? colors.onAccent : isCenter ? colors.text : colors.textMuted}
-					/>
-				</View>
-				<Text style={[styles.label, focused && { color: colors.accent, fontFamily: fonts.sansBold }]}>
 					{label}
 				</Text>
 			</Animated.View>
@@ -100,14 +105,14 @@ function TabItem({
 }
 
 /**
- * Ruhige, geschlossene Leiste: eine Karte mit runden oberen Ecken,
- * fünf gleich breite Knöpfe, nichts schwebt, nichts überlappt.
+ * Geschlossene, ruhige Leiste: Karte mit runden oberen Ecken, fünf
+ * gleich breite Knöpfe, keine Überlappungen — Trefffläche = Knopf.
  */
 function TabBar({ state, navigation }: TabBarProps) {
 	const styles = useThemedStyles(makeStyles);
 	const insets = useSafeAreaInsets();
 	return (
-		<View style={[styles.bar, { paddingBottom: insets.bottom + 8 }]}>
+		<View style={[styles.bar, { paddingBottom: insets.bottom + 10 }]}>
 			{state.routes.map((route, i) => {
 				const meta = TAB_META[route.name];
 				if (!meta) return null;
@@ -118,7 +123,6 @@ function TabBar({ state, navigation }: TabBarProps) {
 						label={meta.label}
 						meta={meta}
 						focused={focused}
-						isCenter={route.name === 'index'}
 						onPress={() => {
 							const event = navigation.emit({
 								type: 'tabPress',
@@ -155,9 +159,8 @@ const makeStyles = (colors: ThemeColors) =>
 		bar: {
 			flexDirection: 'row',
 			backgroundColor: colors.card,
-			borderTopLeftRadius: 22,
-			borderTopRightRadius: 22,
-			paddingTop: 10,
+			borderTopLeftRadius: 20,
+			borderTopRightRadius: 20,
 			paddingHorizontal: 8,
 			elevation: 16,
 			shadowColor: '#000',
@@ -165,21 +168,14 @@ const makeStyles = (colors: ThemeColors) =>
 			shadowRadius: 14,
 			shadowOffset: { width: 0, height: -3 }
 		},
-		slot: { flex: 1, alignItems: 'center', paddingVertical: 2 },
-		item: { alignItems: 'center', gap: 3 },
-		pill: {
-			width: 46,
-			height: 30,
-			borderRadius: 999,
-			alignItems: 'center',
-			justifyContent: 'center',
-			backgroundColor: 'transparent'
+		slot: { flex: 1, alignItems: 'center' },
+		indicator: {
+			width: 22,
+			height: 3,
+			borderRadius: 1.5,
+			marginBottom: 9
 		},
-		centerPill: {
-			width: 52,
-			height: 36,
-			marginTop: -4
-		},
+		item: { alignItems: 'center', gap: 4 },
 		label: {
 			color: colors.fg + textAlpha.muted,
 			fontSize: 10,
