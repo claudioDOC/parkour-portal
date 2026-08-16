@@ -14,7 +14,7 @@ import { getProfile, saveUiTheme, adminBroadcast } from '../../lib/api';
 import { useAuth } from '../_layout';
 
 const MENU = [
-	{ route: '/challenges', icon: 'trophy-outline', label: 'Challenges', hint: 'Arena, Leaderboard, offene Quests' },
+	{ route: '/stats', icon: 'stats-chart-outline', label: 'Statistik', hint: 'Hall of Fame, Monate, Solo' },
 	{ route: '/trips', icon: 'airplane-outline', label: 'Trips', hint: 'Ausflüge & Abstimmungen' },
 	{ route: '/map', icon: 'map-outline', label: 'Karte', hint: 'Alle Spots mit Pins' },
 	{ route: '/profile/me', icon: 'person-outline', label: 'Profil & Mitglieder', hint: 'Dein Profil, alle Leute' },

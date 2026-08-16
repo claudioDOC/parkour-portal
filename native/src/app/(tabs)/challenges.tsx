@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, Switch } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { fonts, type ThemeColors } from '../lib/theme';
-import { textAlpha } from '../lib/tokens';
-import { useTheme, useThemedStyles } from '../lib/themeContext';
+import { fonts, type ThemeColors } from '../../lib/theme';
+import { textAlpha } from '../../lib/tokens';
+import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import {
 	Card,
 	TopBar,
@@ -16,12 +16,12 @@ import {
 	Stat,
 	StatGrid,
 	InitialsRow
-} from '../lib/ui';
+} from '../../lib/ui';
 import { Image } from 'expo-image';
-import { mediaUrl } from '../lib/api';
-import { useData } from '../lib/store';
-import { getArena } from '../lib/api';
-import { useAuth } from './_layout';
+import { mediaUrl } from '../../lib/api';
+import { useData } from '../../lib/store';
+import { getArena } from '../../lib/api';
+import { useAuth } from '../_layout';
 
 export default function Challenges() {
 	const { colors } = useTheme();

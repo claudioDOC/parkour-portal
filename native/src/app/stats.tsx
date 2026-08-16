@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { fonts, type ThemeColors } from '../../lib/theme';
-import { textAlpha } from '../../lib/tokens';
-import { useTheme, useThemedStyles } from '../../lib/themeContext';
-import { Card, TopBar, Screen, SectionTitle, ErrorCard, ProgressBar, Stat, StatGrid } from '../../lib/ui';
-import { useData } from '../../lib/store';
-import { getStats } from '../../lib/api';
-import { useAuth } from '../_layout';
+import { fonts, type ThemeColors } from '../lib/theme';
+import { textAlpha } from '../lib/tokens';
+import { useTheme, useThemedStyles } from '../lib/themeContext';
+import { Card, TopBar, Screen, SectionTitle, ErrorCard, ProgressBar, Stat, StatGrid } from '../lib/ui';
+import { useData } from '../lib/store';
+import { getStats } from '../lib/api';
+import { useAuth } from './_layout';
 
 export default function Stats() {
 	const { colors } = useTheme();
