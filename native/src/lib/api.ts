@@ -801,6 +801,12 @@ export const runFinder = (query: FinderQuery) =>
 		nextOpenSessionId: number | null;
 	}>('/api/finder', query);
 
+// --- Benachrichtigungen ---
+
+/** FCM-Geräte-Token der App beim Portal an-/abmelden (ab APK 1.4). */
+export const registerFcmDevice = (token: string) =>
+	post<{ success?: boolean }>('/api/v1/fcm', { token });
+
 // --- Benachrichtigungen (Google-frei über ntfy) ---
 
 export const getNtfyInfo = () =>

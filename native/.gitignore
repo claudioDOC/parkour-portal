@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# Firebase-Konfiguration (enthält API-Key) — bleibt lokal auf dem Server
+google-services.json

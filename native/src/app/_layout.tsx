@@ -16,6 +16,7 @@ import { THEMES, DEFAULT_THEME, isThemeId, type UiThemeId } from '../lib/theme';
 import { ThemeProvider } from '../lib/themeContext';
 import { getMe, getToken, logout, type Me } from '../lib/api';
 import { loadPrefs } from '../lib/prefs';
+import { setupPush } from '../lib/pushSetup';
 import { clearDataCache } from '../lib/store';
 import { ActivityProvider } from '../lib/activity';
 import { Splash } from '../lib/Splash';
@@ -120,6 +121,14 @@ export default function RootLayout() {
 			}
 		})();
 	}, []);
+
+	// Push (FCM) einrichten, sobald jemand eingeloggt ist — nativer
+	// Erlaubnis-Dialog beim ersten Mal, danach still. Ab APK 1.4 wirksam.
+	useEffect(() => {
+		if (!me) return;
+		setupPush((url) => router.push(url as never)).catch(() => {});
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [me?.id]);
 
 	// Routen-Wache: ohne Login nur /login, mit Login nie /login.
 	useEffect(() => {

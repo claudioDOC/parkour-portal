@@ -365,6 +365,21 @@ export const pushSubscriptions = sqliteTable(
 	]
 );
 
+/** Geräte-Token der nativen App für Firebase Cloud Messaging (Migration 0023). */
+export const fcmTokens = sqliteTable(
+	'fcm_tokens',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		token: text('token').notNull(),
+		failureCount: integer('failure_count').notNull().default(0),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [uniqueIndex('fcm_tokens_token').on(t.token), index('idx_fcm_tokens_user').on(t.userId)]
+);
+
 /**
  * Merkt sich verschickte Erinnerungen, damit ein Neustart des Servers keine
  * zweite Benachrichtigung für denselben Termin auslöst.
