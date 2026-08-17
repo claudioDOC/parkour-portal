@@ -1,0 +1,6 @@
+{
+  "name": "launcher-icon",
+  "version": "0.1.0",
+  "description": "Startbildschirm-Symbol umschalten (lokales Expo-Modul)",
+  "main": "index.ts"
+}

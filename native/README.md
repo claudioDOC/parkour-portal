@@ -93,11 +93,25 @@ Verifizieren: `aapt2 dump badging`, `apksigner verify --print-certs`.
 
 ## Startbildschirm-Icon (Farbvarianten)
 
-`expo-dynamic-app-icon` legt pro Farbe einen Activity-Alias an; die
-Bilder erzeugt `scripts/generate-brand.mjs` nach
-`assets/images/icons/icon-<farbe>.png`. Umschalten in der App unter
-Einstellungen → Startbildschirm-Icon. Neue Farben brauchen deshalb
-immer eine neue APK — reine JS-Updates reichen dafür nicht.
+Eigenbau statt Fertigpaket, und zwar aus einem konkreten Grund:
+`expo-dynamic-app-icon` (und ebenso `expo-alternate-app-icons`) schalten
+beim Zurückwechseln die **MainActivity selbst** ab. Die ist aber das Ziel
+aller Aliase — Android verweigert das, das alte Symbol bleibt stehen und
+man hat zwei App-Einträge im Launcher.
+
+Unsere Lösung:
+- `plugins/withLauncherIcons.js` nimmt der MainActivity den
+  LAUNCHER-Eintrag und legt für **jede** Variante einen Alias an —
+  auch für „Standard" (`MainActivityStandard`, als einziger
+  `enabled="true"`). Dasselbe Plugin kopiert die PNGs aus
+  `assets/images/icons/` nach `res/mipmap-xxxhdpi/`.
+- `modules/launcher-icon/` (lokales Expo-Modul) schaltet um:
+  gewünschten Alias ein, alle anderen aus — die MainActivity wird nie
+  angefasst. Der Wechsel gilt sofort, ohne App-Neustart.
+
+Neue Farben brauchen eine neue APK (Manifest + Ressourcen); die Liste
+steht an drei Stellen synchron: `scripts/generate-brand.mjs`,
+`plugins/withLauncherIcons.js`, `src/app/settings.tsx`.
 
 ## Screens & Struktur
 

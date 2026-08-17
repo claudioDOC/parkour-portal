@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Alert, Pressable, Share, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, Alert, Pressable, Share } from 'react-native';
 import { getImagePicker } from '../lib/nativeModules';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, THEMES, THEME_OPTIONS, type ThemeColors } from '../lib/theme';
@@ -26,11 +26,9 @@ import { useAuth } from './_layout';
  */
 function getIconSwitcher() {
 	try {
-		return require('expo-dynamic-app-icon') as {
-			/** Name der Variante; '' setzt auf das Standard-Icon zurück. */
-			setAppIcon: (name: string) => string | false;
-			/** Aktuelle Variante oder 'DEFAULT'. */
-			getAppIcon: () => string;
+		return require('../../modules/launcher-icon').default as {
+			setIcon: (name: string, all: string[]) => boolean;
+			getIcon: (all: string[]) => string | null;
 		};
 	} catch {
 		return null;
@@ -39,7 +37,7 @@ function getIconSwitcher() {
 
 /** Farben, die es auch als Startbildschirm-Icon gibt. */
 const LAUNCHER_ICONS: { label: string; name: string; color: string }[] = [
-	{ label: 'Standard', name: '', color: '#fafafa' },
+	{ label: 'Standard', name: 'Standard', color: '#fafafa' },
 	{ label: 'Terracotta', name: 'terracotta', color: '#c05f21' },
 	{ label: 'Neon', name: 'neon', color: '#e8ff47' },
 	{ label: 'Türkis', name: 'tuerkis', color: '#2dd4bf' },
@@ -74,10 +72,9 @@ export default function Settings() {
 	const iconSwitcher = getIconSwitcher();
 	const [launcherIcon, setLauncherIcon] = useState<string>(() => {
 		try {
-			const current = iconSwitcher?.getAppIcon();
-			return current && current !== 'DEFAULT' ? current : '';
+			return iconSwitcher?.getIcon(LAUNCHER_ICONS.map((i) => i.name)) ?? 'Standard';
 		} catch {
-			return '';
+			return 'Standard';
 		}
 	});
 	const [pwOpen, setPwOpen] = useState(false);
@@ -301,9 +298,9 @@ export default function Settings() {
 					<SectionTitle>Startbildschirm-Icon</SectionTitle>
 					<Card style={{ gap: 10 }}>
 						<Text style={styles.ntfyHint}>
-							Farbe des App-Symbols auf dem Startbildschirm. Android entfernt das
-							alte Symbol erst, wenn die App geschlossen wird — deshalb bietet die
-							App danach an, sich kurz zu beenden.
+							Farbe des App-Symbols auf dem Startbildschirm. Der Wechsel gilt
+							sofort — der Launcher braucht manchmal ein paar Sekunden, bis er
+							das neue Symbol zeichnet.
 						</Text>
 						<View style={styles.prefRow}>
 							{LAUNCHER_ICONS.map((ic) => {
@@ -313,26 +310,11 @@ export default function Settings() {
 										key={ic.label}
 										onPress={() => {
 											try {
-												const res = iconSwitcher.setAppIcon(ic.name);
-												if (res === false) {
-													Alert.alert(
-														'Nicht möglich',
-														'Android hat den Wechsel abgelehnt. Startbildschirm kurz aktualisieren und nochmal versuchen.'
-													);
-													return;
-												}
-												setLauncherIcon(ic.name);
-												Alert.alert(
-													'Symbol gewechselt',
-													'Android räumt das alte Symbol weg, sobald die App geschlossen wird. Jetzt schliessen?',
-													[
-														{ text: 'Später', style: 'cancel' },
-														{
-															text: 'App schliessen',
-															onPress: () => BackHandler.exitApp()
-														}
-													]
+												iconSwitcher.setIcon(
+													ic.name,
+													LAUNCHER_ICONS.map((i) => i.name)
 												);
+												setLauncherIcon(ic.name);
 											} catch (e) {
 												Alert.alert(
 													'Fehler',

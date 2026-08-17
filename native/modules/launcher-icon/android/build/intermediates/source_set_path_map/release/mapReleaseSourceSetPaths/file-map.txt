@@ -1,0 +1,7 @@
+expo.modules.launchericon.launcher-icon-pngs-0 /opt/parkour-portal/native/modules/launcher-icon/android/build/generated/res/pngs/release
+expo.modules.launchericon.launcher-icon-resValues-1 /opt/parkour-portal/native/modules/launcher-icon/android/build/generated/res/resValues/release
+expo.modules.launchericon.launcher-icon-mergeReleaseResources-2 /opt/parkour-portal/native/modules/launcher-icon/android/build/intermediates/incremental/release/mergeReleaseResources/merged.dir
+expo.modules.launchericon.launcher-icon-mergeReleaseResources-3 /opt/parkour-portal/native/modules/launcher-icon/android/build/intermediates/incremental/release/mergeReleaseResources/stripped.dir
+expo.modules.launchericon.launcher-icon-release-4 /opt/parkour-portal/native/modules/launcher-icon/android/build/intermediates/merged_res/release/mergeReleaseResources
+expo.modules.launchericon.launcher-icon-main-5 /opt/parkour-portal/native/modules/launcher-icon/android/src/main/res
+expo.modules.launchericon.launcher-icon-release-6 /opt/parkour-portal/native/modules/launcher-icon/android/src/release/res
