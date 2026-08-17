@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Alert, Pressable, Share } from 'react-native';
+import { View, Text, StyleSheet, Alert, Pressable, Share, BackHandler } from 'react-native';
 import { getImagePicker } from '../lib/nativeModules';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, THEMES, THEME_OPTIONS, type ThemeColors } from '../lib/theme';
@@ -301,9 +301,9 @@ export default function Settings() {
 					<SectionTitle>Startbildschirm-Icon</SectionTitle>
 					<Card style={{ gap: 10 }}>
 						<Text style={styles.ntfyHint}>
-							Farbe des App-Symbols auf dem Startbildschirm. Android tauscht es
-							kurz aus — es kann ein paar Sekunden dauern, bis der Launcher das
-							neue Symbol zeigt.
+							Farbe des App-Symbols auf dem Startbildschirm. Android entfernt das
+							alte Symbol erst, wenn die App geschlossen wird — deshalb bietet die
+							App danach an, sich kurz zu beenden.
 						</Text>
 						<View style={styles.prefRow}>
 							{LAUNCHER_ICONS.map((ic) => {
@@ -322,6 +322,17 @@ export default function Settings() {
 													return;
 												}
 												setLauncherIcon(ic.name);
+												Alert.alert(
+													'Symbol gewechselt',
+													'Android räumt das alte Symbol weg, sobald die App geschlossen wird. Jetzt schliessen?',
+													[
+														{ text: 'Später', style: 'cancel' },
+														{
+															text: 'App schliessen',
+															onPress: () => BackHandler.exitApp()
+														}
+													]
+												);
 											} catch (e) {
 												Alert.alert(
 													'Fehler',
