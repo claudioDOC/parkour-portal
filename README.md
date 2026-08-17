@@ -70,9 +70,14 @@ Die native App spricht mit dem Server über die JSON-API (`/api/v1/…`, Bearer-
 - Zusagen mit Transportmittel (Mitfahrt, Auto, Motorrad, Zug, unentschlossen)
 
 ### Native Android-App
-- Alle Funktionen der Website als echte native App (Tabs: Finder · Spots · Start · Stats · Mehr)
-- Native MapLibre-Karte mit eigenen Pins, Fotos direkt von Kamera/Galerie, Standort beim Spot-Anlegen
+- Alle Funktionen der Website als echte native App (Tabs: Finder · Spots · Start · Arena · Mehr)
+- Native MapLibre-Karte (Strasse/Satellit) mit Filtern und eigenem Standort, Fotos direkt von Kamera/Galerie
 - Aktualisiert sich bei jedem Start selbst vom eigenen Server — Details in [native/README.md](native/README.md)
+
+### Benachrichtigungen (drei Kanäle, ein Versand)
+- **Web-Push** (VAPID) für Browser und PWA
+- **Firebase/FCM** für die native App ab 1.4 — weckt sie auch geschlossen; Dienstkonto liegt ausserhalb des Repos (`backups/firebase/`)
+- **ntfy** als Google-freie Option (geheimes Thema pro Person, Server per `NTFY_BASE` wechselbar)
 
 ## Tech Stack
 
