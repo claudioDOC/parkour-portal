@@ -27,7 +27,9 @@ import { useAuth } from './_layout';
 function getIconSwitcher() {
 	try {
 		return require('expo-dynamic-app-icon') as {
-			setAppIcon: (name: string | null) => string | false;
+			/** Name der Variante; '' setzt auf das Standard-Icon zurück. */
+			setAppIcon: (name: string) => string | false;
+			/** Aktuelle Variante oder 'DEFAULT'. */
 			getAppIcon: () => string;
 		};
 	} catch {
@@ -36,8 +38,8 @@ function getIconSwitcher() {
 }
 
 /** Farben, die es auch als Startbildschirm-Icon gibt. */
-const LAUNCHER_ICONS: { label: string; name: string | null; color: string }[] = [
-	{ label: 'Standard', name: null, color: '#fafafa' },
+const LAUNCHER_ICONS: { label: string; name: string; color: string }[] = [
+	{ label: 'Standard', name: '', color: '#fafafa' },
 	{ label: 'Terracotta', name: 'terracotta', color: '#c05f21' },
 	{ label: 'Neon', name: 'neon', color: '#e8ff47' },
 	{ label: 'Türkis', name: 'tuerkis', color: '#2dd4bf' },
@@ -70,12 +72,12 @@ export default function Settings() {
 	const [startTab, setStartTabState] = useState<StartTab>(getStartTab());
 	const { fontScale, setFontScaleState, markColor, setMarkColorState } = useTheme();
 	const iconSwitcher = getIconSwitcher();
-	const [launcherIcon, setLauncherIcon] = useState<string | null>(() => {
+	const [launcherIcon, setLauncherIcon] = useState<string>(() => {
 		try {
 			const current = iconSwitcher?.getAppIcon();
-			return current && current !== 'DEFAULT' ? current : null;
+			return current && current !== 'DEFAULT' ? current : '';
 		} catch {
-			return null;
+			return '';
 		}
 	});
 	const [pwOpen, setPwOpen] = useState(false);
@@ -313,14 +315,17 @@ export default function Settings() {
 											try {
 												const res = iconSwitcher.setAppIcon(ic.name);
 												if (res === false) {
-													Alert.alert('Nicht möglich', 'Das Icon liess sich nicht wechseln.');
+													Alert.alert(
+														'Nicht möglich',
+														'Android hat den Wechsel abgelehnt. Startbildschirm kurz aktualisieren und nochmal versuchen.'
+													);
 													return;
 												}
 												setLauncherIcon(ic.name);
 											} catch (e) {
 												Alert.alert(
-													'Neue App-Version nötig',
-													'Das Umschalten gibt es ab App-Version 1.5.'
+													'Fehler',
+													e instanceof Error ? e.message : 'Icon-Wechsel fehlgeschlagen'
 												);
 											}
 										}}
