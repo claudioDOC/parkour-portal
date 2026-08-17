@@ -20,6 +20,32 @@ import {
 import { Linking } from 'react-native';
 import { useAuth } from './_layout';
 
+/**
+ * Icon auf dem Startbildschirm umschalten (ab APK 1.5). Auf älteren
+ * Installationen fehlt das native Modul — dann bleibt der Abschnitt aus.
+ */
+function getIconSwitcher() {
+	try {
+		return require('expo-dynamic-app-icon') as {
+			setAppIcon: (name: string | null) => string | false;
+			getAppIcon: () => string;
+		};
+	} catch {
+		return null;
+	}
+}
+
+/** Farben, die es auch als Startbildschirm-Icon gibt. */
+const LAUNCHER_ICONS: { label: string; name: string | null; color: string }[] = [
+	{ label: 'Standard', name: null, color: '#fafafa' },
+	{ label: 'Terracotta', name: 'terracotta', color: '#c05f21' },
+	{ label: 'Neon', name: 'neon', color: '#e8ff47' },
+	{ label: 'Türkis', name: 'tuerkis', color: '#2dd4bf' },
+	{ label: 'Violett', name: 'violett', color: '#a78bfa' },
+	{ label: 'Rot', name: 'rot', color: '#ef4444' },
+	{ label: 'Blau', name: 'blau', color: '#38bdf8' }
+];
+
 /** Auswahl für die Logo-Farbe — bewusst wenige, klare Töne. */
 const MARK_COLORS: { label: string; value: string | null }[] = [
 	{ label: 'Theme', value: null },
@@ -43,6 +69,15 @@ export default function Settings() {
 	const [themeOpen, setThemeOpen] = useState(false);
 	const [startTab, setStartTabState] = useState<StartTab>(getStartTab());
 	const { fontScale, setFontScaleState, markColor, setMarkColorState } = useTheme();
+	const iconSwitcher = getIconSwitcher();
+	const [launcherIcon, setLauncherIcon] = useState<string | null>(() => {
+		try {
+			const current = iconSwitcher?.getAppIcon();
+			return current && current !== 'DEFAULT' ? current : null;
+		} catch {
+			return null;
+		}
+	});
 	const [pwOpen, setPwOpen] = useState(false);
 	const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
 	const [busy, setBusy] = useState(false);
@@ -258,6 +293,51 @@ export default function Settings() {
 					})}
 				</View>
 			</Card>
+
+			{iconSwitcher ? (
+				<>
+					<SectionTitle>Startbildschirm-Icon</SectionTitle>
+					<Card style={{ gap: 10 }}>
+						<Text style={styles.ntfyHint}>
+							Farbe des App-Symbols auf dem Startbildschirm. Android tauscht es
+							kurz aus — es kann ein paar Sekunden dauern, bis der Launcher das
+							neue Symbol zeigt.
+						</Text>
+						<View style={styles.prefRow}>
+							{LAUNCHER_ICONS.map((ic) => {
+								const active = launcherIcon === ic.name;
+								return (
+									<Pressable
+										key={ic.label}
+										onPress={() => {
+											try {
+												const res = iconSwitcher.setAppIcon(ic.name);
+												if (res === false) {
+													Alert.alert('Nicht möglich', 'Das Icon liess sich nicht wechseln.');
+													return;
+												}
+												setLauncherIcon(ic.name);
+											} catch (e) {
+												Alert.alert(
+													'Neue App-Version nötig',
+													'Das Umschalten gibt es ab App-Version 1.5.'
+												);
+											}
+										}}
+										style={[
+											styles.colorChip,
+											active && { borderColor: colors.accent, borderWidth: 2 }
+										]}
+									>
+										<View style={[styles.colorDot, { backgroundColor: ic.color }]} />
+										<Text style={styles.prefChipText}>{ic.label}</Text>
+									</Pressable>
+								);
+							})}
+						</View>
+					</Card>
+				</>
+			) : null}
 
 			<SectionTitle>Benachrichtigungen</SectionTitle>
 			<Card style={{ gap: 10 }}>

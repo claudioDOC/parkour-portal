@@ -2,7 +2,7 @@
   "expo": {
     "name": "Parkour Portal",
     "slug": "parkour-portal",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "parkourportal",
@@ -14,7 +14,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "org.duckdns.matetraining.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -33,7 +33,37 @@
         }
       ],
       "expo-secure-store",
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-dynamic-app-icon",
+        {
+          "terracotta": {
+            "image": "./assets/images/icons/icon-terracotta.png",
+            "prerendered": true
+          },
+          "neon": {
+            "image": "./assets/images/icons/icon-neon.png",
+            "prerendered": true
+          },
+          "tuerkis": {
+            "image": "./assets/images/icons/icon-tuerkis.png",
+            "prerendered": true
+          },
+          "violett": {
+            "image": "./assets/images/icons/icon-violett.png",
+            "prerendered": true
+          },
+          "rot": {
+            "image": "./assets/images/icons/icon-rot.png",
+            "prerendered": true
+          },
+          "blau": {
+            "image": "./assets/images/icons/icon-blau.png",
+            "prerendered": true
+          }
+        }
+      ],
+      "./plugins/withKotlinJvmTarget.js"
     ],
     "experiments": {
       "typedRoutes": true,

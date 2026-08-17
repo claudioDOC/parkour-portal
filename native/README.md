@@ -72,6 +72,8 @@ npx expo prebuild --platform android
 #      Umgebungsvariablen ANDROID_KEYSTORE_PATH/…_PASSWORD/…_ALIAS
 #    - android/gradle.properties: org.gradle.jvmargs=-Xmx4096m,
 #      reactNativeArchitectures=arm64-v8a
+#    (Das JVM-Ziel 17 trägt inzwischen das Config-Plugin
+#     plugins/withKotlinJvmTarget.js selbst wieder ein.)
 #    (Vorlage: der aktuell eingecheckte Stand dieser Dateien)
 
 # 4. Bauen (Env aus backups/android/keystore-credentials.txt):
@@ -88,6 +90,14 @@ cp app/build/outputs/apk/release/app-release.apk /opt/parkour-portal/data/app/pa
 Der Build braucht viel RAM/CPU (2-GB-Container reicht nicht — vorher
 hochskalieren, siehe `parkour-portal-deploy` in den Projektnotizen).
 Verifizieren: `aapt2 dump badging`, `apksigner verify --print-certs`.
+
+## Startbildschirm-Icon (Farbvarianten)
+
+`expo-dynamic-app-icon` legt pro Farbe einen Activity-Alias an; die
+Bilder erzeugt `scripts/generate-brand.mjs` nach
+`assets/images/icons/icon-<farbe>.png`. Umschalten in der App unter
+Einstellungen → Startbildschirm-Icon. Neue Farben brauchen deshalb
+immer eine neue APK — reine JS-Updates reichen dafür nicht.
 
 ## Screens & Struktur
 

@@ -158,4 +158,28 @@ await sharp(Buffer.from(markOnlySvg({ markScale: 0.94 })))
 	.png()
 	.toFile(join(NATIVE, 'mark-mono.png'));
 
-console.log(`Marken-Assets erzeugt (Route-Muster, Variante: ${VARIANT}).`);
+// --- Farbvarianten fürs Startbildschirm-Icon --------------------------
+// Gleiches Muster, nur die Blöcke eingefärbt — umschaltbar in den
+// App-Einstellungen (expo-dynamic-app-icon, ab APK 1.5).
+const ICON_COLORS = {
+	terracotta: '#c05f21',
+	neon: '#e8ff47',
+	tuerkis: '#2dd4bf',
+	violett: '#a78bfa',
+	rot: '#ef4444',
+	blau: '#38bdf8'
+};
+const ICON_DIR = join(NATIVE, 'icons');
+mkdirSync(ICON_DIR, { recursive: true });
+for (const [name, color] of Object.entries(ICON_COLORS)) {
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+	<clipPath id="c"><rect width="512" height="512" rx="110"/></clipPath>
+	<g clip-path="url(#c)">
+		<rect width="512" height="512" fill="${BG_DARK}"/>
+		${markSvg({ color })}
+	</g>
+</svg>`;
+	await sharp(Buffer.from(svg)).resize(1024, 1024).png().toFile(join(ICON_DIR, `icon-${name}.png`));
+}
+
+console.log(`Marken-Assets erzeugt (Route-Muster, Variante: ${VARIANT}) + ${Object.keys(ICON_COLORS).length} Icon-Farben.`);
