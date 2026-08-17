@@ -3,14 +3,19 @@
 	<g clip-path="url(#tileClip)">
 		<rect width="512" height="512" fill="#111214"/>
 		
-	<g transform="translate(256 256) scale(1) skewX(0) translate(-265 -256)">
-		
-		<g fill="none" stroke="#fafafa" stroke-width="46" stroke-linejoin="miter" stroke-linecap="butt">
-			<path d="M124 382 L124 130 L206 130 L206 236 L124 236"/>
-			<path d="M300 130 L300 382"/>
-			<path d="M300 252 L402 130"/>
-			<path d="M300 252 L406 382"/>
-		</g>
+	<g transform="translate(256 256) scale(1) rotate(0) translate(-256 -256)">
+		<rect x="96" y="96" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
+		<rect x="194" y="96" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
+		<rect x="292" y="96" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
+		<rect x="96" y="194" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
+		<rect x="194" y="194" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
+		<rect x="390" y="194" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
+		<rect x="96" y="292" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
+		<rect x="292" y="292" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
+		<rect x="390" y="292" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
+		<rect x="194" y="390" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
+		<rect x="292" y="390" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
+		<rect x="390" y="390" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
 	</g>
 	</g>
 </svg>

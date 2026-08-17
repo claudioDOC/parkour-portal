@@ -1,12 +1,12 @@
 /**
  * Erzeugt sämtliche Marken-Assets aus einer SVG-Quelle:
- *   node scripts/generate-brand.mjs            (Standard: aufrecht)
- *   node scripts/generate-brand.mjs slant      (kursiv, mehr Tempo)
- *   node scripts/generate-brand.mjs bold       (kräftigere Striche)
+ *   node scripts/generate-brand.mjs            (Standard: 4x4-Raster)
+ *   node scripts/generate-brand.mjs slant      (leicht gekippt, mehr Tempo)
+ *   node scripts/generate-brand.mjs solid      (alle Blöcke gleich stark)
  *
- * Motiv: Monogramm PK — geometrisch aus gleich starken Strichen gebaut,
- * eckige P-Schale, K-Verbindung leicht über der Mitte (wirkt aufwärts).
- * Monochrom, keine Verläufe.
+ * Motiv: Route — ein Blockraster, durch das eine Diagonale frei bleibt.
+ * Muster statt Buchstaben: der Weg durchs Hindernis. Die Blöcke vor der
+ * Route stehen zurück, die dahinter stehen voll — monochrom, keine Verläufe.
  *
  * Ausgaben static/:
  *   logo.svg · pwa-192x192.png · pwa-512x512.png ·
@@ -33,28 +33,36 @@ mkdirSync(NATIVE, { recursive: true });
 const BG_DARK = '#111214';
 const INK = '#fafafa';
 
-const VARIANT = process.argv[2] ?? 'upright';
-const STROKE = VARIANT === 'bold' ? 56 : 46;
-/** Kursive Neigung nur in der Slant-Variante. */
-const SKEW = VARIANT === 'slant' ? -9 : 0;
+const VARIANT = process.argv[2] ?? 'standard';
+/** Leichte Kippung nur in der Slant-Variante. */
+const TILT = VARIANT === 'slant' ? -8 : 0;
+/** „solid": alle Blöcke gleich stark statt zurückgesetzter Vorderreihe. */
+const DIM = VARIANT === 'solid' ? 1 : 0.42;
 
 /**
- * Das Monogramm. Alle Striche gleich stark, Ecken auf Gehrung —
- * dieselbe Bauweise wie die Display-Schrift des Portals.
+ * Das Mark: 4x4-Raster, die Gegendiagonale bleibt leer — das ist die
+ * Route. Blöcke oberhalb der Route stehen zurück, die darunter voll:
+ * dadurch liest sich die Diagonale als Weg und nicht als Zufallslücke.
  */
 function markSvg({ scale = 1, color = INK } = {}) {
-	// Leichte Linksverschiebung: das K trägt rechts weiter, sonst sitzt
-	// das Monogramm optisch zu weit rechts in der Kachel.
-	const inner = `
-		<g fill="none" stroke="${color}" stroke-width="${STROKE}" stroke-linejoin="miter" stroke-linecap="butt">
-			<path d="M124 382 L124 130 L206 130 L206 236 L124 236"/>
-			<path d="M300 130 L300 382"/>
-			<path d="M300 252 L402 130"/>
-			<path d="M300 252 L406 382"/>
-		</g>`;
+	const size = 84;
+	const gap = 14;
+	const start = 96;
+	const cells = [];
+	for (let row = 0; row < 4; row++) {
+		for (let col = 0; col < 4; col++) {
+			if (row + col === 3) continue; // die freie Route
+			const x = start + col * (size + gap);
+			const y = start + row * (size + gap);
+			const opacity = row + col < 3 ? DIM : 1;
+			cells.push(
+				`<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="10" fill="${color}" opacity="${opacity}"/>`
+			);
+		}
+	}
 	return `
-	<g transform="translate(256 256) scale(${scale}) skewX(${SKEW}) translate(-265 -256)">
-		${inner}
+	<g transform="translate(256 256) scale(${scale}) rotate(${TILT}) translate(-256 -256)">
+		${cells.join('\n\t\t')}
 	</g>`;
 }
 
@@ -93,11 +101,13 @@ await sharp(Buffer.from(tileFull)).resize(180, 180).png().toFile(join(OUT, 'appl
 // Badge für die Android-Statusleiste: nur das Mark, wird vom System
 // eingefärbt — kräftiger Strich, damit bei 24 px nichts zuläuft.
 const badgeSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-	<g fill="none" stroke="${INK}" stroke-width="64" stroke-linejoin="miter">
-		<path d="M132 400 L132 112 L232 112 L232 240 L132 240"/>
-		<path d="M320 112 L320 400"/>
-		<path d="M320 256 L424 112"/>
-		<path d="M320 256 L428 400"/>
+	<g fill="${INK}">
+		<rect x="72" y="72" width="112" height="112" rx="14"/>
+		<rect x="200" y="72" width="112" height="112" rx="14"/>
+		<rect x="72" y="200" width="112" height="112" rx="14"/>
+		<rect x="328" y="200" width="112" height="112" rx="14"/>
+		<rect x="200" y="328" width="112" height="112" rx="14"/>
+		<rect x="328" y="328" width="112" height="112" rx="14"/>
 	</g>
 </svg>`;
 await sharp(Buffer.from(badgeSvg)).resize(96, 96).png().toFile(join(OUT, 'notification-badge.png'));
@@ -147,4 +157,4 @@ await sharp(Buffer.from(markOnlySvg({ markScale: 0.94 })))
 	.png()
 	.toFile(join(NATIVE, 'mark-mono.png'));
 
-console.log(`Marken-Assets erzeugt (Monogramm PK, Variante: ${VARIANT}).`);
+console.log(`Marken-Assets erzeugt (Route-Muster, Variante: ${VARIANT}).`);
