@@ -6,8 +6,9 @@ import { fonts, type ThemeColors } from '../../lib/theme';
 import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getStartTab } from '../../lib/prefs';
 
-/** App öffnet immer auf „Start", egal wo man zuletzt war. */
+/** App öffnet auf der eingestellten Startseite (Standard: „Start"). */
 export const unstable_settings = { initialRouteName: 'index' };
 
 /** Reihenfolge, Icons und Beschriftung der fünf Tabs. */
@@ -141,7 +142,7 @@ function TabBar({ state, navigation }: TabBarProps) {
 export default function TabsLayout() {
 	return (
 		<Tabs
-			initialRouteName="index"
+			initialRouteName={getStartTab()}
 			tabBar={(props) => <TabBar {...props} />}
 			screenOptions={{ headerShown: false }}
 		>

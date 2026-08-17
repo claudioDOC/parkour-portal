@@ -6,7 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
 import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
-import { Card, TopBar, Screen, SectionTitle, ErrorCard, Avatar } from '../../lib/ui';
+import { Card, TopBar, Screen, SectionTitle, ErrorCard, Avatar, ProgressBar } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { getProfile, mediaUrl } from '../../lib/api';
 import { useRouter } from 'expo-router';
@@ -61,6 +61,30 @@ export default function Profile() {
 							<Text style={styles.statLabel}>Solo</Text>
 						</View>
 					</View>
+
+					{data.monthly?.length ? (
+						<>
+							<SectionTitle>Monatsverlauf</SectionTitle>
+							<Card style={{ gap: 10 }}>
+								{data.monthly.map((m) => (
+									<View key={m.key} style={{ gap: 4 }}>
+										<View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+											<Text style={styles.chText}>
+												{new Date(`${m.key}-15T12:00:00`).toLocaleDateString('de-CH', {
+													month: 'long',
+													year: 'numeric'
+												})}
+											</Text>
+											<Text style={styles.chSpot}>
+												{m.pulled}/{m.trainings} gezogen · {m.percent}%
+											</Text>
+										</View>
+										<ProgressBar percent={m.percent} />
+									</View>
+								))}
+							</Card>
+						</>
+					) : null}
 
 					{data.completedChallenges.length > 0 ? (
 						<>

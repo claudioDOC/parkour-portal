@@ -760,7 +760,7 @@ export type ProfilePayload = {
 	me: StatsRow | null;
 	myRank: number | null;
 	totalMembers: number;
-	monthly: { label: string; present?: number; absences?: number }[];
+	monthly: { key: string; trainings: number; pulled: number; percent: number }[];
 	completedChallenges: { title: string; spotName?: string; spotId?: number }[];
 	openChallengeCount: number;
 	soloCount: number;

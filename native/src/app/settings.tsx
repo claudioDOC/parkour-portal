@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, THEMES, THEME_OPTIONS, type ThemeColors } from '../lib/theme';
 import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
+import { getStartTab, setStartTab, setFontScale, type StartTab } from '../lib/prefs';
 import { Card, TopBar, Screen, Button, Input, SectionTitle, Avatar, Sheet } from '../lib/ui';
 import { useData } from '../lib/store';
 import {
@@ -25,6 +26,8 @@ export default function Settings() {
 	const profile = useData('profile-me', () => getProfile());
 
 	const [themeOpen, setThemeOpen] = useState(false);
+	const [startTab, setStartTabState] = useState<StartTab>(getStartTab());
+	const { fontScale, setFontScaleState } = useTheme();
 	const [pwOpen, setPwOpen] = useState(false);
 	const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
 	const [busy, setBusy] = useState(false);
@@ -146,6 +149,71 @@ export default function Settings() {
 				/>
 			</Card>
 
+			<SectionTitle>App</SectionTitle>
+			<Card style={{ gap: 10 }}>
+				<Text style={styles.prefLabel}>Startseite beim Öffnen</Text>
+				<View style={styles.prefRow}>
+					{(
+						[
+							{ key: 'index', label: 'Start' },
+							{ key: 'finder', label: 'Finder' },
+							{ key: 'spots', label: 'Spots' },
+							{ key: 'challenges', label: 'Arena' },
+							{ key: 'more', label: 'Mehr' }
+						] as const
+					).map((t) => (
+						<Pressable
+							key={t.key}
+							onPress={async () => {
+								await setStartTab(t.key);
+								setStartTabState(t.key);
+							}}
+							style={({ pressed }) => [
+								styles.prefChip,
+								startTab === t.key && { backgroundColor: colors.accent, borderColor: colors.accent },
+								pressed && { opacity: 0.8 }
+							]}
+						>
+							<Text style={[styles.prefChipText, startTab === t.key && { color: colors.onAccent }]}>
+								{t.label}
+							</Text>
+						</Pressable>
+					))}
+				</View>
+				<Text style={styles.prefLabel}>Schriftgrösse</Text>
+				<View style={styles.prefRow}>
+					{(
+						[
+							{ value: 1, label: 'Normal' },
+							{ value: 1.1, label: 'Gross' },
+							{ value: 1.2, label: 'Sehr gross' }
+						] as const
+					).map((f) => (
+						<Pressable
+							key={f.value}
+							onPress={async () => {
+								await setFontScale(f.value);
+								setFontScaleState(f.value);
+							}}
+							style={({ pressed }) => [
+								styles.prefChip,
+								fontScale === f.value && {
+									backgroundColor: colors.accent,
+									borderColor: colors.accent
+								},
+								pressed && { opacity: 0.8 }
+							]}
+						>
+							<Text
+								style={[styles.prefChipText, fontScale === f.value && { color: colors.onAccent }]}
+							>
+								{f.label}
+							</Text>
+						</Pressable>
+					))}
+				</View>
+			</Card>
+
 			<SectionTitle>Kalender</SectionTitle>
 			<Card style={{ padding: 6 }}>
 				<Row
@@ -239,6 +307,28 @@ function Row({
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
+		prefLabel: {
+			color: colors.fg + textAlpha.muted,
+			fontSize: 12,
+			lineHeight: 16,
+			fontFamily: fonts.sansBold,
+			letterSpacing: 1
+		},
+		prefRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+		prefChip: {
+			borderRadius: 16,
+			borderWidth: 1,
+			borderColor: colors.border,
+			backgroundColor: colors.hover,
+			paddingHorizontal: 13,
+			paddingVertical: 7
+		},
+		prefChipText: {
+			color: colors.fg + textAlpha.primary,
+			fontSize: 13,
+			lineHeight: 18,
+			fontFamily: fonts.sansMedium
+		},
 		avatarCard: { flexDirection: 'row', alignItems: 'center', gap: 16 },
 		name: {
 			color: colors.fg + textAlpha.primary,

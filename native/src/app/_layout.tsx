@@ -15,6 +15,7 @@ import {
 import { THEMES, DEFAULT_THEME, isThemeId, type UiThemeId } from '../lib/theme';
 import { ThemeProvider } from '../lib/themeContext';
 import { getMe, getToken, logout, type Me } from '../lib/api';
+import { loadPrefs } from '../lib/prefs';
 import { clearDataCache } from '../lib/store';
 import { ActivityProvider } from '../lib/activity';
 import { Splash } from '../lib/Splash';
@@ -108,6 +109,8 @@ export default function RootLayout() {
 	useEffect(() => {
 		(async () => {
 			try {
+				// Einstellungen (Startseite, Schriftgrösse) VOR dem ersten Render.
+				await loadPrefs();
 				const token = await getToken();
 				if (token) setMe(await getMe());
 			} catch {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Alert, Pressable, Share } from 'react-native';
+import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../lib/theme';
 import { textAlpha } from '../lib/tokens';
@@ -23,16 +24,22 @@ import {
 	restoreChallenge,
 	getTrashedTrips,
 	restoreTrip,
+	getSpots,
+	trashSpot,
+	getTrips,
+	adminTrashTrip,
 	BASE_URL,
 	type AdminUser
 } from '../lib/api';
 import { useAuth } from './_layout';
 
-type Tab = 'users' | 'trainings' | 'trash' | 'invites' | 'system' | 'log';
+type Tab = 'users' | 'trainings' | 'spots' | 'trips' | 'trash' | 'invites' | 'system' | 'log';
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
 	{ key: 'users', label: 'Benutzer', icon: 'people-outline' },
 	{ key: 'trainings', label: 'Trainings', icon: 'calendar-outline' },
+	{ key: 'spots', label: 'Spots', icon: 'location-outline' },
+	{ key: 'trips', label: 'Trips', icon: 'airplane-outline' },
 	{ key: 'trash', label: 'Papierkorb', icon: 'trash-outline' },
 	{ key: 'invites', label: 'Einladungen', icon: 'mail-outline' },
 	{ key: 'system', label: 'Server', icon: 'hardware-chip-outline' },
@@ -62,8 +69,16 @@ export default function Admin() {
 	const trashSpots = useData('trash-spots', getTrashedSpots);
 	const trashChallenges = useData('trash-challenges', getTrashedChallenges);
 	const trashTrips = useData('trash-trips', getTrashedTrips);
+	const allSpots = useData('spots', getSpots);
+	const allTrips = useData('trips', getTrips);
+	const router = useRouter();
 	const [guestFor, setGuestFor] = useState<number | null>(null);
 	const [guestName, setGuestName] = useState('');
+	// Nachträglich abmelden: Session → Mitglied wählen + Grund
+	const [absentFor, setAbsentFor] = useState<number | null>(null);
+	const [absentUserId, setAbsentUserId] = useState<number | null>(null);
+	const [absentReason, setAbsentReason] = useState('');
+	const [logFilter, setLogFilter] = useState('');
 
 	const [userFor, setUserFor] = useState<AdminUser | null>(null);
 	const [pwOpen, setPwOpen] = useState(false);
@@ -182,6 +197,69 @@ export default function Admin() {
 								))}
 							</View>
 
+							<Text style={styles.muted}>Trainingsmodus:</Text>
+							<View style={styles.chipRow}>
+								{([
+									{ key: 'implicit', label: 'Wie alle (Zieht)' },
+									{ key: 'opt_in', label: 'Nur mit Zusage' }
+								] as const).map((m) => (
+									<Pressable
+										key={m.key}
+										onPress={() =>
+											act(() =>
+												adminUserAction(u.id, 'set_training_attendance', {
+													trainingAttendance: m.key
+												})
+											)
+										}
+										style={({ pressed }) => [
+											styles.chip,
+											u.trainingAttendance === m.key && {
+												backgroundColor: colors.accent,
+												borderColor: colors.accent
+											},
+											pressed && { opacity: 0.8 }
+										]}
+									>
+										<Text
+											style={[
+												styles.chipText,
+												u.trainingAttendance === m.key && { color: colors.onAccent }
+											]}
+										>
+											{m.label}
+										</Text>
+									</Pressable>
+								))}
+							</View>
+							<Text style={styles.muted}>Auto-Abmeldung an:</Text>
+							<View style={styles.chipRow}>
+								{(['Dienstag', 'Donnerstag'] as const).map((day) => {
+									const on = u.autoAbsentWeekdays.includes(day);
+									return (
+										<Pressable
+											key={day}
+											onPress={() =>
+												act(() =>
+													adminUserAction(u.id, 'set_auto_absent_weekdays', {
+														autoAbsentWeekdays: on
+															? u.autoAbsentWeekdays.filter((d) => d !== day)
+															: [...u.autoAbsentWeekdays, day]
+													})
+												)
+											}
+											style={({ pressed }) => [
+												styles.chip,
+												on && { backgroundColor: colors.warning, borderColor: colors.warning },
+												pressed && { opacity: 0.8 }
+											]}
+										>
+											<Text style={[styles.chipText, on && { color: '#111' }]}>{day}</Text>
+										</Pressable>
+									);
+								})}
+							</View>
+
 							<View style={styles.chipRow}>
 								<Button
 									label={u.active ? 'Deaktivieren' : 'Aktivieren'}
@@ -219,7 +297,10 @@ export default function Admin() {
 				: null}
 
 			{tab === 'trainings'
-				? (sessions.data?.sessions ?? []).slice(0, 12).map((sess) => (
+				? [...(sessions.data?.sessions ?? [])]
+						.sort((a, b) => a.date.localeCompare(b.date) || a.timeStart.localeCompare(b.timeStart))
+						.slice(0, 12)
+						.map((sess) => (
 						<Card key={sess.id} style={{ gap: 12 }}>
 							<View style={styles.userHead}>
 								<View style={{ flex: 1 }}>
@@ -255,6 +336,57 @@ export default function Admin() {
 								</View>
 							) : null}
 
+							{sess.attending.length > 0 ? (
+								<View style={{ gap: 6 }}>
+									<Text style={styles.muted}>Zieht — antippen entfernt aus der Liste:</Text>
+									<View style={styles.chipRow}>
+										{sess.attending.map((a) => (
+											<Pressable
+												key={a.id}
+												onPress={() =>
+													Alert.alert('Aus „Zieht" entfernen?', a.username, [
+														{ text: 'Abbrechen', style: 'cancel' },
+														{
+															text: 'Entfernen',
+															style: 'destructive',
+															onPress: () =>
+																act(() =>
+																	adminSessionAction('hide_user', {
+																		sessionId: sess.id,
+																		userId: a.id
+																	})
+																)
+														}
+													])
+												}
+												style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}
+											>
+												<Text style={styles.chipText}>{a.username} ✕</Text>
+											</Pressable>
+										))}
+									</View>
+								</View>
+							) : null}
+
+							{(sess.hiddenUsers ?? []).length > 0 ? (
+								<View style={{ gap: 6 }}>
+									<Text style={styles.muted}>Entfernt — antippen holt zurück:</Text>
+									<View style={styles.chipRow}>
+										{sess.hiddenUsers.map((h) => (
+											<Pressable
+												key={h.id}
+												onPress={() =>
+													act(() => adminSessionDelete('unhide_user', { id: h.id }))
+												}
+												style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}
+											>
+												<Text style={styles.chipText}>{h.username} ↩</Text>
+											</Pressable>
+										))}
+									</View>
+								</View>
+							) : null}
+
 							{sess.absences.filter((a) => a.id !== null).length > 0 ? (
 								<View style={{ gap: 6 }}>
 									<Text style={styles.muted}>Abmeldungen aufheben:</Text>
@@ -284,6 +416,16 @@ export default function Admin() {
 									onPress={() => setGuestFor(sess.id)}
 								/>
 								<Button
+									label="Jemanden abmelden"
+									kind="ghost"
+									small
+									onPress={() => {
+										setAbsentFor(sess.id);
+										setAbsentUserId(null);
+										setAbsentReason('');
+									}}
+								/>
+								<Button
 									label={sess.cancelled ? 'Absage aufheben' : 'Training absagen'}
 									kind={sess.cancelled ? 'ghost' : 'danger'}
 									small
@@ -300,6 +442,89 @@ export default function Admin() {
 						</Card>
 					))
 				: null}
+
+			{tab === 'spots' ? (
+				<>
+					<Text style={styles.muted}>
+						Antippen öffnet den Spot mit dem vollen Bearbeiten-Formular.
+					</Text>
+					{(allSpots.data?.spots ?? []).map((sp) => (
+						<Card key={sp.id} style={styles.trashRow}>
+							<Pressable style={{ flex: 1 }} onPress={() => router.push(`/spot/${sp.id}`)}>
+								<Text style={styles.userName}>{sp.name}</Text>
+								<Text style={styles.muted}>
+									{sp.city}
+									{sp.isMicro ? ' · Microspot' : ''} · Ø {sp.avgScore.toFixed(1)}
+								</Text>
+							</Pressable>
+							<Button
+								label="Papierkorb"
+								kind="danger"
+								small
+								onPress={() =>
+									Alert.alert('Spot in den Papierkorb?', sp.name, [
+										{ text: 'Abbrechen', style: 'cancel' },
+										{
+											text: 'Verschieben',
+											style: 'destructive',
+											onPress: async () => {
+												try {
+													await trashSpot(sp.id);
+													await allSpots.refresh();
+												} catch (e) {
+													Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
+												}
+											}
+										}
+									])
+								}
+							/>
+						</Card>
+					))}
+				</>
+			) : null}
+
+			{tab === 'trips' ? (
+				<>
+					<Text style={styles.muted}>
+						Gelöschte Trips liegen im Papierkorb und lassen sich dort zurückholen.
+					</Text>
+					{(allTrips.data?.trips ?? []).map((t) => (
+						<Card key={t.id} style={styles.trashRow}>
+							<View style={{ flex: 1 }}>
+								<Text style={styles.userName}>{t.title}</Text>
+								<Text style={styles.muted}>
+									{t.startDate}
+									{t.endDate && t.endDate !== t.startDate ? ` – ${t.endDate}` : ''} ·{' '}
+									{t.joinedCount} dabei
+								</Text>
+							</View>
+							<Button
+								label="Papierkorb"
+								kind="danger"
+								small
+								onPress={() =>
+									Alert.alert('Trip in den Papierkorb?', t.title, [
+										{ text: 'Abbrechen', style: 'cancel' },
+										{
+											text: 'Verschieben',
+											style: 'destructive',
+											onPress: async () => {
+												try {
+													await adminTrashTrip(t.id);
+													await Promise.all([allTrips.refresh(), trashTrips.refresh()]);
+												} catch (e) {
+													Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
+												}
+											}
+										}
+									])
+								}
+							/>
+						</Card>
+					))}
+				</>
+			) : null}
 
 			{tab === 'trash' ? (
 				<>
@@ -442,7 +667,22 @@ export default function Admin() {
 
 			{tab === 'log' ? (
 				<Card style={{ gap: 10 }}>
-					{(audit.data?.logs ?? []).map((l) => (
+					<Input
+						placeholder="Filtern — Aktion oder Person …"
+						value={logFilter}
+						onChangeText={setLogFilter}
+						autoCapitalize="none"
+					/>
+					{(audit.data?.logs ?? [])
+						.filter((l) => {
+							const q = logFilter.trim().toLowerCase();
+							if (!q) return true;
+							return (
+								l.action.toLowerCase().includes(q) ||
+								(l.actorUsername ?? 'system').toLowerCase().includes(q)
+							);
+						})
+						.map((l) => (
 						<View key={l.id} style={styles.logRow}>
 							<Text style={styles.logAction}>{l.action}</Text>
 							<Text style={styles.muted}>
@@ -455,9 +695,70 @@ export default function Admin() {
 								})}
 							</Text>
 						</View>
-					))}
+						))}
 				</Card>
 			) : null}
+
+			<Sheet
+				visible={absentFor !== null}
+				onClose={() => setAbsentFor(null)}
+				title="Jemanden abmelden"
+				scroll
+			>
+				<Text style={styles.muted}>Wen abmelden?</Text>
+				<View style={styles.chipRow}>
+					{(users.data?.users ?? [])
+						.filter((u) => u.active)
+						.map((u) => (
+							<Pressable
+								key={u.id}
+								onPress={() => setAbsentUserId(u.id)}
+								style={({ pressed }) => [
+									styles.chip,
+									absentUserId === u.id && {
+										backgroundColor: colors.accent,
+										borderColor: colors.accent
+									},
+									pressed && { opacity: 0.8 }
+								]}
+							>
+								<Text
+									style={[styles.chipText, absentUserId === u.id && { color: colors.onAccent }]}
+								>
+									{u.username}
+								</Text>
+							</Pressable>
+						))}
+				</View>
+				<Input
+					placeholder="Grund (optional)"
+					value={absentReason}
+					onChangeText={setAbsentReason}
+				/>
+				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setAbsentFor(null)} />
+					<Button
+						label="Abmelden"
+						onPress={() => {
+							if (!absentFor || !absentUserId) {
+								Alert.alert('Unvollständig', 'Bitte ein Mitglied auswählen.');
+								return;
+							}
+							const sid = absentFor;
+							const uid = absentUserId;
+							const reason = absentReason.trim();
+							setAbsentFor(null);
+							act(() =>
+								adminSessionAction('add_absence', {
+									sessionId: sid,
+									userId: uid,
+									...(reason ? { reason } : {})
+								})
+							);
+						}}
+					/>
+				</View>
+			</Sheet>
 
 			<Sheet
 				visible={pwOpen}

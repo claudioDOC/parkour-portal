@@ -116,9 +116,10 @@ export default function Stats() {
 
 			{data?.stats.monthly?.length ? (
 				<>
-					<SectionTitle>Verlauf nach Monat</SectionTitle>
+					<SectionTitle>Monatsverlauf</SectionTitle>
 					<Card style={{ gap: 12 }}>
-						{data.stats.monthly.slice(0, 8).map((m) => {
+						{/* Neueste zuerst — vorher zeigte slice(0,8) die ÄLTESTEN Monate. */}
+					{[...data.stats.monthly].slice(-8).reverse().map((m) => {
 							return (
 								<View key={m.key} style={{ gap: 6 }}>
 									<View style={styles.monthRow}>
