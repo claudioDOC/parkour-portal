@@ -113,6 +113,32 @@ Neue Farben brauchen eine neue APK (Manifest + Ressourcen); die Liste
 steht an drei Stellen synchron: `scripts/generate-brand.mjs`,
 `plugins/withLauncherIcons.js`, `src/app/settings.tsx`.
 
+## iOS ohne Apple-Developer-Programm
+
+Für einzelne iPhones geht es kostenlos — ohne Mac, ohne App Store:
+
+1. **Bauen:** GitHub → Actions → „iOS-App bauen (unsigniert)" → *Run
+   workflow*. Läuft auf GitHubs macOS-Maschine (für öffentliche Repos
+   gratis) und legt eine **unsignierte .ipa** als Artifact ab.
+2. **Installieren:** Jede Person signiert die .ipa mit ihrer eigenen,
+   kostenlosen Apple-ID über **AltStore** oder **SideStore**.
+
+Grenzen des kostenlosen Wegs (Apple-Regeln, nicht unsere):
+- Die Signatur einer kostenlosen Apple-ID gilt **7 Tage** — AltStore/
+  SideStore erneuern sie automatisch, das Gerät muss dafür gelegentlich
+  Kontakt zum Rechner bzw. zur SideStore-Gegenstelle haben.
+- **Kein APNs-Push** ohne bezahltes Programm. Ersatz: die kostenlose
+  **ntfy-App** aus dem App Store, der Kanal liegt in den Einstellungen
+  (siehe `sendToUsers` in `src/lib/server/push.ts`).
+- Höchstens drei selbst signierte Apps pro Gerät.
+
+Wer das nicht will: Apple Developer Program (99 $/Jahr) → TestFlight,
+90 Tage pro Build, Push inklusive. Nur dann lohnt sich der Aufwand.
+
+Android-spezifische Teile sind sauber gekapselt: `pushSetup.ts` steigt
+auf iOS sofort aus, das Icon-Modul ist `platforms: ["android"]` und wird
+in den Einstellungen still ausgeblendet.
+
 ## Screens & Struktur
 
 ```

@@ -47,6 +47,15 @@
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 3000
     },
-    "runtimeVersion": "1.1.0"
+    "runtimeVersion": "1.1.0",
+    "ios": {
+      "bundleIdentifier": "org.duckdns.matetraining.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Für „Bin da\" und den Standort beim Spot-Anlegen.",
+        "NSPhotoLibraryUsageDescription": "Damit du Fotos zu Spots und Challenges hinzufügen kannst.",
+        "NSCameraUsageDescription": "Damit du Fotos direkt aufnehmen kannst."
+      }
+    }
   }
 }

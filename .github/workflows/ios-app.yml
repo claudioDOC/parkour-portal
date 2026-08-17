@@ -1,0 +1,73 @@
+name: iOS-App bauen (unsigniert)
+
+# Baut die native iOS-App auf GitHubs macOS-Maschine — für öffentliche
+# Repos kostenlos, kein eigener Mac nötig. Ergebnis ist eine UNSIGNIERTE
+# .ipa: Die signiert sich jede Person beim Installieren selbst mit ihrer
+# eigenen (kostenlosen) Apple-ID über AltStore/SideStore.
+#
+# Starten: GitHub → Actions → „iOS-App bauen (unsigniert)" → Run workflow.
+# Ergebnis steht danach unten beim Lauf unter „Artifacts".
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: native/package-lock.json
+
+      - name: Abhängigkeiten installieren
+        working-directory: native
+        run: npm ci
+
+      - name: Xcode-Projekt erzeugen
+        working-directory: native
+        # Der Firebase-Teil ist Android-only; für iOS ohne Dienstkonto bauen.
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: CocoaPods installieren
+        working-directory: native/ios
+        run: pod install --repo-update
+
+      - name: Bauen ohne Signatur
+        working-directory: native/ios
+        run: |
+          WORKSPACE=$(ls -d *.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "Workspace: $WORKSPACE · Scheme: $SCHEME"
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            | tail -40
+
+      - name: IPA packen
+        working-directory: native/ios
+        run: |
+          APP=$(ls -d build/Build/Products/Release-iphoneos/*.app | head -1)
+          echo "App: $APP"
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry parkour-portal-unsigniert.ipa Payload
+          ls -lh parkour-portal-unsigniert.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parkour-portal-ios-unsigniert
+          path: native/ios/parkour-portal-unsigniert.ipa
+          retention-days: 30
