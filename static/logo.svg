@@ -3,10 +3,14 @@
 	<g clip-path="url(#tileClip)">
 		<rect width="512" height="512" fill="#111214"/>
 		
-	<g transform="translate(256 256) scale(1) translate(-256 -256) rotate(-14 256 256)">
-		<path d="M96 168 L202 268 L96 368" fill="none" stroke="#fafafa" stroke-width="46" stroke-linejoin="miter" opacity="0.25"/>
-		<path d="M196 168 L302 268 L196 368" fill="none" stroke="#fafafa" stroke-width="46" stroke-linejoin="miter" opacity="0.55"/>
-		<path d="M296 168 L402 268 L296 368" fill="none" stroke="#fafafa" stroke-width="46" stroke-linejoin="miter" opacity="1"/>
+	<g transform="translate(256 256) scale(1) skewX(0) translate(-265 -256)">
+		
+		<g fill="none" stroke="#fafafa" stroke-width="46" stroke-linejoin="miter" stroke-linecap="butt">
+			<path d="M124 382 L124 130 L206 130 L206 236 L124 236"/>
+			<path d="M300 130 L300 382"/>
+			<path d="M300 252 L402 130"/>
+			<path d="M300 252 L406 382"/>
+		</g>
 	</g>
 	</g>
 </svg>

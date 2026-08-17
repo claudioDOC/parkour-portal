@@ -1,17 +1,23 @@
 /**
  * Erzeugt sämtliche Marken-Assets aus einer SVG-Quelle:
- *   node scripts/generate-brand.mjs
+ *   node scripts/generate-brand.mjs            (Standard: aufrecht)
+ *   node scripts/generate-brand.mjs slant      (kursiv, mehr Tempo)
+ *   node scripts/generate-brand.mjs bold       (kräftigere Striche)
  *
- * Motiv: drei gestaffelte Chevrons — Bewegung, Tempo, vorwärts-aufwärts.
- * Monochrom: Weiss auf Nachtschwarz, die hinteren Chevrons blenden aus.
+ * Motiv: Monogramm PK — geometrisch aus gleich starken Strichen gebaut,
+ * eckige P-Schale, K-Verbindung leicht über der Mitte (wirkt aufwärts).
+ * Monochrom, keine Verläufe.
  *
- * Ausgaben (alle nach static/):
- *   logo.svg                   Kachel mit Mark (Favicon, Docs)
- *   pwa-192x192.png            App-Icon
- *   pwa-512x512.png            App-Icon gross
- *   pwa-maskable-512x512.png   Android Adaptive Icon (Safe-Zone beachtet)
- *   apple-touch-icon.png       iOS Home-Bildschirm (180px, ohne Transparenz)
- *   splash/*.png               iOS-Startbilder (dunkler Grund, Logo zentriert)
+ * Ausgaben static/:
+ *   logo.svg · pwa-192x192.png · pwa-512x512.png ·
+ *   pwa-maskable-512x512.png · apple-touch-icon.png ·
+ *   notification-badge.png · splash/*.png
+ *
+ * Ausgaben native/assets/images/:
+ *   icon.png · splash-icon.png · favicon.png ·
+ *   android-icon-foreground.png · android-icon-background.png ·
+ *   android-icon-monochrome.png · mark-mono.png (für den App-Kopf,
+ *   wird dort in der Themefarbe eingefärbt)
  */
 import sharp from 'sharp';
 import { mkdirSync, writeFileSync } from 'fs';
@@ -20,41 +26,61 @@ import { fileURLToPath } from 'url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'static');
+const NATIVE = join(ROOT, 'native', 'assets', 'images');
 mkdirSync(join(OUT, 'splash'), { recursive: true });
+mkdirSync(NATIVE, { recursive: true });
 
 const BG_DARK = '#111214';
 const INK = '#fafafa';
 
-/** Ein Chevron: Spitze nach rechts, `x` = linke Kante. */
-const chevron = (x, opacity, w = 46) =>
-	`<path d="M${x} 168 L${x + 106} 268 L${x} 368" fill="none" stroke="${INK}" stroke-width="${w}" stroke-linejoin="miter" opacity="${opacity}"/>`;
+const VARIANT = process.argv[2] ?? 'upright';
+const STROKE = VARIANT === 'bold' ? 56 : 46;
+/** Kursive Neigung nur in der Slant-Variante. */
+const SKEW = VARIANT === 'slant' ? -9 : 0;
 
-/** Das Mark: drei gestaffelte Chevrons, leicht aufwärts rotiert. */
-function markSvg({ scale = 1 } = {}) {
+/**
+ * Das Monogramm. Alle Striche gleich stark, Ecken auf Gehrung —
+ * dieselbe Bauweise wie die Display-Schrift des Portals.
+ */
+function markSvg({ scale = 1, color = INK } = {}) {
+	// Leichte Linksverschiebung: das K trägt rechts weiter, sonst sitzt
+	// das Monogramm optisch zu weit rechts in der Kachel.
+	const inner = `
+		<g fill="none" stroke="${color}" stroke-width="${STROKE}" stroke-linejoin="miter" stroke-linecap="butt">
+			<path d="M124 382 L124 130 L206 130 L206 236 L124 236"/>
+			<path d="M300 130 L300 382"/>
+			<path d="M300 252 L402 130"/>
+			<path d="M300 252 L406 382"/>
+		</g>`;
 	return `
-	<g transform="translate(256 256) scale(${scale}) translate(-256 -256) rotate(-14 256 256)">
-		${chevron(96, 0.25)}
-		${chevron(196, 0.55)}
-		${chevron(296, 1)}
+	<g transform="translate(256 256) scale(${scale}) skewX(${SKEW}) translate(-265 -256)">
+		${inner}
 	</g>`;
 }
 
 /** Kachel; bei `rounded` mit Ecken wie ein App-Icon. */
-function tileSvg({ rounded = true, markScale = 1 } = {}) {
+function tileSvg({ rounded = true, markScale = 1, bg = BG_DARK } = {}) {
 	const r = rounded ? 110 : 0;
 	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 	<clipPath id="tileClip"><rect width="512" height="512" rx="${r}"/></clipPath>
 	<g clip-path="url(#tileClip)">
-		<rect width="512" height="512" fill="${BG_DARK}"/>
+		<rect width="512" height="512" fill="${bg}"/>
 		${markSvg({ scale: markScale })}
 	</g>
 </svg>`;
 }
 
+/** Nur das Mark, transparenter Grund — zum Einfärben durch die App. */
+function markOnlySvg({ markScale = 1, color = INK } = {}) {
+	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+	${markSvg({ scale: markScale, color })}
+</svg>`;
+}
+
 const tileRounded = tileSvg({ rounded: true });
 const tileFull = tileSvg({ rounded: false });
-// Maskable: Launcher schneiden bis zu 20 % Rand ab — Motiv in die Safe-Zone.
-const tileMaskable = tileSvg({ rounded: false, markScale: 0.78 });
+// Maskable/Adaptive: Launcher schneiden bis zu 20 % Rand ab — in die Safe-Zone.
+const tileMaskable = tileSvg({ rounded: false, markScale: 0.74 });
 
 writeFileSync(join(OUT, 'logo.svg'), tileRounded);
 
@@ -64,12 +90,14 @@ await sharp(Buffer.from(tileMaskable)).resize(512, 512).png().toFile(join(OUT, '
 // iOS rundet selbst ab — volle Kachel ohne Transparenz.
 await sharp(Buffer.from(tileFull)).resize(180, 180).png().toFile(join(OUT, 'apple-touch-icon.png'));
 
-// Badge für Android-Statusleiste: nur das Mark, weiss auf transparent (wird
-// vom System eingefärbt — Details gehen verloren, darum ohne Staffelung).
+// Badge für die Android-Statusleiste: nur das Mark, wird vom System
+// eingefärbt — kräftiger Strich, damit bei 24 px nichts zuläuft.
 const badgeSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-	<g transform="rotate(-14 256 256)">
-		${chevron(146, 1, 62)}
-		${chevron(280, 1, 62)}
+	<g fill="none" stroke="${INK}" stroke-width="64" stroke-linejoin="miter">
+		<path d="M132 400 L132 112 L232 112 L232 240 L132 240"/>
+		<path d="M320 112 L320 400"/>
+		<path d="M320 256 L424 112"/>
+		<path d="M320 256 L428 400"/>
 	</g>
 </svg>`;
 await sharp(Buffer.from(badgeSvg)).resize(96, 96).png().toFile(join(OUT, 'notification-badge.png'));
@@ -97,4 +125,26 @@ for (const s of SPLASHES) {
 		.toFile(join(OUT, 'splash', `splash-${s.w}x${s.h}.png`));
 }
 
-console.log('Marken-Assets erzeugt (Chevron-Staffel, monochrom).');
+// --- Assets der nativen App ---------------------------------------------
+await sharp(Buffer.from(tileRounded)).resize(1024, 1024).png().toFile(join(NATIVE, 'icon.png'));
+await sharp(Buffer.from(tileRounded)).resize(512, 512).png().toFile(join(NATIVE, 'splash-icon.png'));
+await sharp(Buffer.from(tileRounded)).resize(64, 64).png().toFile(join(NATIVE, 'favicon.png'));
+// Adaptive Icon: Vordergrund transparent + eigener Hintergrund.
+await sharp(Buffer.from(markOnlySvg({ markScale: 0.7 })))
+	.resize(1024, 1024)
+	.png()
+	.toFile(join(NATIVE, 'android-icon-foreground.png'));
+await sharp({ create: { width: 1024, height: 1024, channels: 4, background: '#0d0d0f' } })
+	.png()
+	.toFile(join(NATIVE, 'android-icon-background.png'));
+await sharp(Buffer.from(markOnlySvg({ markScale: 0.7 })))
+	.resize(1024, 1024)
+	.png()
+	.toFile(join(NATIVE, 'android-icon-monochrome.png'));
+// Kopfzeilen-Mark: weiss auf transparent, wird in der App eingefärbt.
+await sharp(Buffer.from(markOnlySvg({ markScale: 0.94 })))
+	.resize(256, 256)
+	.png()
+	.toFile(join(NATIVE, 'mark-mono.png'));
+
+console.log(`Marken-Assets erzeugt (Monogramm PK, Variante: ${VARIANT}).`);

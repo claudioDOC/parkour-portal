@@ -97,13 +97,14 @@ export const THEMES: Record<UiThemeId, ThemeColors> = {
 		danger: '#e07080', warning: '#d9a85e', success: '#6bbe9a',
 		onAccent: '#0a0a0c', dark: true, fg: '#f2f0f7'
 	},
+	// „Sand" — das Dazwischen: warmes Abendlicht, Papierton, Terracotta.
 	ocean: {
-		bg: '#0c1520', bgSecondary: '#132535', card: '#1a3045', hover: '#224056',
-		accent: '#2dd4bf', accentHot: '#67e8f9', accentDim: '#0f766e', accentBlue: '#38bdf8',
-		text: '#f0fdfa', textSecondary: '#a8d4ce', textMuted: '#6b9a94',
-		border: 'rgba(165,243,252,0.12)',
-		danger: '#fb7185', warning: '#fbbf24', success: '#4ade80',
-		onAccent: '#0c1520', dark: true, fg: '#f0fdfa'
+		bg: '#ded4c2', bgSecondary: '#e7ddcb', card: '#f0e8d8', hover: '#d3c7b1',
+		accent: '#c05f21', accentHot: '#e08a3c', accentDim: '#8f4517', accentBlue: '#4a7fa5',
+		text: '#322818', textSecondary: '#64543d', textMuted: '#8d7c62',
+		border: 'rgba(80,60,35,0.18)',
+		danger: '#b3402f', warning: '#a8721c', success: '#4a7d47',
+		onAccent: '#fdf6ea', dark: false, fg: '#322818'
 	}
 };
 
@@ -115,7 +116,7 @@ export const THEME_OPTIONS: { id: UiThemeId; label: string; hint: string }[] = [
 	{ id: 'urban', label: 'Urban', hint: 'Warmes Dunkel, Petrol' },
 	{ id: 'nord', label: 'Nord', hint: 'Polar Night, Frost-Blau' },
 	{ id: 'noir', label: 'Noir', hint: 'Tiefschwarz, Violett' },
-	{ id: 'ocean', label: 'Ocean', hint: 'Tiefblau, Türkis' }
+	{ id: 'ocean', label: 'Sand', hint: 'Warmes Abendlicht — das Dazwischen' }
 ];
 
 export const DEFAULT_THEME: UiThemeId = 'light';
