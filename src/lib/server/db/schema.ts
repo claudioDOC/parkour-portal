@@ -365,6 +365,16 @@ export const pushSubscriptions = sqliteTable(
 	]
 );
 
+/** Live-Standort am Spot (Migration 0024) — eine Zeile pro Person, TTL 45 min. */
+export const livePositions = sqliteTable('live_positions', {
+	userId: integer('user_id')
+		.primaryKey()
+		.references(() => users.id),
+	latitude: real('latitude').notNull(),
+	longitude: real('longitude').notNull(),
+	updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`)
+});
+
 /** Geräte-Token der nativen App für Firebase Cloud Messaging (Migration 0023). */
 export const fcmTokens = sqliteTable(
 	'fcm_tokens',

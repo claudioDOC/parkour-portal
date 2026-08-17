@@ -28,8 +28,14 @@ import {
 	logSolo,
 	trainingAction,
 	adminTraining,
+	getLivePositions,
+	shareLivePosition,
+	stopLivePosition,
+	type LivePosition,
 	type TrainingSession
 } from '../../lib/api';
+import { NativeMap } from '../../lib/NativeMap';
+import { getLocation } from '../../lib/nativeModules';
 import { useAuth } from '../_layout';
 import { hasNativeExtras } from '../../lib/nativeModules';
 import { Linking } from 'react-native';
@@ -91,6 +97,41 @@ export default function Dashboard() {
 	// Spot-Voting: eigenen Vorschlag mit Suchfeld einreichen (wie im Web).
 	const [voteFor, setVoteFor] = useState<TrainingSession | null>(null);
 	const [voteQuery, setVoteQuery] = useState('');
+	// „Bin da": Standort teilen und die anderen am Spot finden.
+	const [meetOpen, setMeetOpen] = useState(false);
+	const [live, setLive] = useState<{ sharing: boolean; positions: LivePosition[] } | null>(null);
+	const [liveBusy, setLiveBusy] = useState(false);
+
+	const loadLive = async () => {
+		try {
+			setLive(await getLivePositions());
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Standorte nicht abrufbar');
+		}
+	};
+
+	const shareMyLocation = async () => {
+		const Location = getLocation();
+		if (!Location) {
+			Alert.alert('Neue App-Version nötig', 'Standort teilen geht ab App-Version 1.1.');
+			return;
+		}
+		setLiveBusy(true);
+		try {
+			const perm = await Location.requestForegroundPermissionsAsync();
+			if (!perm.granted) {
+				Alert.alert('Kein Zugriff', 'Für „Bin da" braucht die App die Ortungsberechtigung.');
+				return;
+			}
+			const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+			await shareLivePosition(pos.coords.latitude, pos.coords.longitude);
+			await loadLive();
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Teilen fehlgeschlagen');
+		} finally {
+			setLiveBusy(false);
+		}
+	};
 	// Admin-Aktionen liegen hinter „…", damit die Karte ruhig bleibt.
 	const [adminFor, setAdminFor] = useState<TrainingSession | null>(null);
 	const isAdmin = me?.role === 'admin';
@@ -255,10 +296,25 @@ export default function Dashboard() {
 							{!s.cancelled ? (
 								<>
 									{spot ? (
-										<View style={styles.spotRow}>
-											<Ionicons name="location" size={15} color={colors.accent} />
-											<Text style={styles.spotText}>{spot.label}</Text>
-											{spot.fixed ? <Pill label="Fix" color={colors.accent} filled /> : null}
+									<View style={{ gap: 6 }}>
+											<View style={styles.spotRow}>
+												<Ionicons name="location" size={15} color={colors.accent} />
+												<Text style={styles.spotText}>{spot.label}</Text>
+												{spot.fixed ? <Pill label="Fix" color={colors.accent} filled /> : null}
+											</View>
+											{data && s.date === data.calendarToday ? (
+												<Pressable
+													onPress={() => {
+														setMeetOpen(true);
+														setLive(null);
+														loadLive();
+													}}
+													style={({ pressed }) => [styles.proposeSpotRow, pressed && { opacity: 0.7 }]}
+												>
+													<Ionicons name="people-outline" size={16} color={colors.accentBlue} />
+													<Text style={styles.proposeSpotText}>Bin da — wer ist am Spot?</Text>
+												</Pressable>
+											) : null}
 										</View>
 									) : s.spotVotes.length > 0 ? (
 										<View style={{ gap: 8, marginTop: 4 }}>
@@ -556,6 +612,62 @@ export default function Dashboard() {
 				</ScrollView>
 			</Sheet>
 
+			{/* „Bin da": Standort teilen, andere am Spot finden */}
+			<Sheet visible={meetOpen} onClose={() => setMeetOpen(false)} title="Wer ist am Spot?">
+				{live === null ? (
+					<Text style={styles.meetHint}>Lade …</Text>
+				) : !live.sharing ? (
+					<>
+						<Text style={styles.meetHint}>
+							Teile deinen Standort, um zu sehen, wer schon da ist. Sichtbar bist
+							du nur für Leute, die ebenfalls teilen — und nach 45 Minuten ohne
+							Aktualisierung verschwindet dein Punkt automatisch.
+						</Text>
+						<Button
+							label={liveBusy ? 'Ortet …' : '📍 Meinen Standort teilen'}
+							wide
+							onPress={shareMyLocation}
+						/>
+					</>
+				) : (
+					<>
+						<NativeMap
+							markers={live.positions.map((pos) => ({
+								id: pos.userId,
+								name: pos.username,
+								lat: pos.latitude,
+								lon: pos.longitude,
+								kind: pos.userId === me?.id ? 'main' : 'person',
+								color: pos.userId === me?.id ? colors.accent : '#2563eb',
+								avatarUrl: pos.avatar
+							}))}
+							height={300}
+							zoom={16}
+						/>
+						<Text style={styles.meetHint}>
+							{live.positions.length === 1
+								? 'Nur du teilst gerade — die anderen erscheinen, sobald sie auch teilen.'
+								: `${live.positions.length} Personen am Start: ${live.positions.map((pos) => pos.username).join(', ')}`}
+						</Text>
+						<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+							<Button
+								label="Nicht mehr teilen"
+								kind="ghost"
+								onPress={async () => {
+									try {
+										await stopLivePosition();
+										await loadLive();
+									} catch (e) {
+										Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
+									}
+								}}
+							/>
+							<Button label={liveBusy ? '…' : 'Aktualisieren'} onPress={shareMyLocation} />
+						</View>
+					</>
+				)}
+			</Sheet>
+
 			{/* Spot-Voting: Vorschlag mit Suchfeld — wie auf der Website */}
 			<Sheet
 				visible={voteFor !== null}
@@ -738,6 +850,12 @@ const makeStyles = (colors: ThemeColors) =>
 			paddingVertical: 12
 		},
 		proposeSpotRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2 },
+	meetHint: {
+		color: colors.fg + textAlpha.secondary,
+		fontSize: 13,
+		lineHeight: 19,
+		fontFamily: fonts.sans
+	},
 	proposeSpotText: {
 		color: colors.accentBlue,
 		fontSize: 13,

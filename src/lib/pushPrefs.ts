@@ -14,6 +14,10 @@ export type PushPrefs = {
 	challenges: boolean;
 	/** Neue Trips und Terminabstimmungen. */
 	trips: boolean;
+	/** Jemand eröffnet das Spot-Voting für ein Training. */
+	spotVoting: boolean;
+	/** Jemand legt einen neuen Spot an. */
+	spots: boolean;
 };
 
 export const DEFAULT_PUSH_PREFS: PushPrefs = {
@@ -21,7 +25,9 @@ export const DEFAULT_PUSH_PREFS: PushPrefs = {
 	spotFix: true,
 	trainingRsvpReminder: true,
 	challenges: true,
-	trips: true
+	trips: true,
+	spotVoting: true,
+	spots: true
 };
 
 export const PUSH_PREF_LABELS: Record<keyof PushPrefs, { title: string; hint: string }> = {
@@ -44,6 +50,14 @@ export const PUSH_PREF_LABELS: Record<keyof PushPrefs, { title: string; hint: st
 	trips: {
 		title: 'Trips',
 		hint: 'Neue Trips und offene Terminabstimmungen.'
+	},
+	spotVoting: {
+		title: 'Spot-Voting eröffnet',
+		hint: 'Wenn jemand den ersten Spot fürs nächste Training vorschlägt.'
+	},
+	spots: {
+		title: 'Neue Spots',
+		hint: 'Wenn jemand einen neuen Spot anlegt.'
 	}
 };
 

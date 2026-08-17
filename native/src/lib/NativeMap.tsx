@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
+import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from './themeContext';
 import { getNativeMap } from './nativeModules';
@@ -30,6 +31,8 @@ export type MapMarker = {
 	color?: string;
 	/** Textfarbe zur eigenen Blasenfarbe. */
 	fg?: string;
+	/** Profilbild-URL — Pin wird zum runden Avatar (Personen auf der Karte). */
+	avatarUrl?: string | null;
 };
 
 /** Freier Vektorkarten-Stil ohne Konto und ohne Schlüssel. */
@@ -145,6 +148,19 @@ export function NativeMap({
 							lngLat={[p.lon, p.lat]}
 							onPress={onMarkerPress ? () => onMarkerPress(p) : undefined}
 						>
+						{p.avatarUrl !== undefined ? (
+								<View style={[styles.avatarPin, { borderColor: p.color }]}>
+									{p.avatarUrl ? (
+										<Image source={{ uri: p.avatarUrl }} style={styles.avatarImg} />
+									) : (
+										<View style={[styles.avatarImg, { backgroundColor: p.color, alignItems: 'center', justifyContent: 'center' }]}>
+											<Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+												{p.name.slice(0, 1).toUpperCase()}
+											</Text>
+										</View>
+									)}
+								</View>
+							) : (
 							<View style={p.label ? [styles.bubble, { backgroundColor: p.color }] : [styles.pin, { backgroundColor: p.color }]}>
 								<Text style={[styles.pinText, p.fg ? { color: p.fg } : null]}>
 									{p.kind === 'training'
@@ -160,6 +176,7 @@ export function NativeMap({
 									</View>
 								) : null}
 							</View>
+							)}
 						</Marker>
 					))}
 				</LibreMap>
@@ -202,6 +219,15 @@ const styles = StyleSheet.create({
 		borderColor: '#fff'
 	},
 	pinText: { color: '#111', fontSize: 13, fontWeight: '700' },
+	avatarPin: {
+		width: 38,
+		height: 38,
+		borderRadius: 19,
+		borderWidth: 3,
+		overflow: 'hidden',
+		backgroundColor: '#fff'
+	},
+	avatarImg: { width: 32, height: 32, borderRadius: 16 },
 	modeBtn: {
 		position: 'absolute',
 		top: 10,

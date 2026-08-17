@@ -3,6 +3,7 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { formatStimmen } from '$lib/formatStimmen';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import LiveMeetup from '$lib/components/LiveMeetup.svelte';
 	import { tapFeedback } from '$lib/haptics';
 	import type { PageData } from './$types';
 
@@ -317,6 +318,9 @@
 								<p class="mt-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
 									Dieses Training findet nicht statt.
 								</p>
+							{/if}
+							{#if isToday(session.date) && !session.cancelled && (session.overrideSpot || session.winnerSpot || session.autoSpot)}
+								<LiveMeetup />
 							{/if}
 						</div>
 

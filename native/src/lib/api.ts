@@ -801,6 +801,26 @@ export const runFinder = (query: FinderQuery) =>
 		nextOpenSessionId: number | null;
 	}>('/api/finder', query);
 
+// --- Live-Standort am Spot („Bin da") ---
+
+export type LivePosition = {
+	userId: number;
+	username: string;
+	avatar: string | null;
+	latitude: number;
+	longitude: number;
+	updatedAt: string;
+};
+
+export const getLivePositions = () =>
+	get<{ sharing: boolean; positions: LivePosition[]; ttlMinutes: number }>('/api/live-location');
+
+export const shareLivePosition = (latitude: number, longitude: number) =>
+	post<{ success?: boolean }>('/api/live-location', { latitude, longitude });
+
+export const stopLivePosition = () =>
+	request<{ success?: boolean }>('/api/live-location', { method: 'DELETE' });
+
 // --- Benachrichtigungen ---
 
 /** FCM-Geräte-Token der App beim Portal an-/abmelden (ab APK 1.4). */

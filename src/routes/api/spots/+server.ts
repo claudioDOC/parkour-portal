@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { spots, users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
+import { sendToUsersWithPref } from '$lib/server/push';
 import { spotsTableHasMicrospotColumns } from '$lib/server/spotsTableColumns';
 import { recordEvent } from '$lib/server/activity';
 
@@ -92,6 +93,18 @@ export const POST: RequestHandler = async (event) => {
 		body: result.city,
 		url: `/spots/${result.id}`
 	});
+
+	void sendToUsersWithPref(
+		'spots',
+		{
+			title: 'Neuer Spot 📍',
+			body: `${locals.user.username} hat „${result.name}" in ${result.city} angelegt.`,
+			url: `/spots/${result.id}`,
+			tag: `spot-new-${result.id}`
+		},
+		undefined,
+		{ excludeUserIds: [locals.user.id] }
+	).catch(() => undefined);
 
 	return json({ success: true, spot: result });
 };

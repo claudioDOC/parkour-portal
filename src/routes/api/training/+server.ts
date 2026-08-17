@@ -11,6 +11,7 @@ import {
 } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
+import { sendToUsersWithPref } from '$lib/server/push';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 
 export const POST: RequestHandler = async (event) => {
@@ -265,6 +266,33 @@ export const POST: RequestHandler = async (event) => {
 			actorUsername: locals.user.username,
 			detail: { sessionId, spotId, spotName: spot.name, date: session.date }
 		});
+
+		// Erste Stimme der Session = Voting eröffnet → alle informieren.
+		if (!existing) {
+			const voteCount = db
+				.select()
+				.from(trainingSpotVotes)
+				.where(eq(trainingSpotVotes.sessionId, sessionId))
+				.all().length;
+			if (voteCount === 1) {
+				const dateLabel = new Date(`${session.date}T12:00:00`).toLocaleDateString('de-CH', {
+					weekday: 'long',
+					day: 'numeric',
+					month: 'long'
+				});
+				void sendToUsersWithPref(
+					'spotVoting',
+					{
+						title: 'Spot-Voting eröffnet 🗳️',
+						body: `${locals.user.username} schlägt ${spot.name} fürs Training am ${dateLabel} vor — stimm mit ab!`,
+						url: '/training',
+						tag: `spot-voting-${sessionId}`
+					},
+					undefined,
+					{ excludeUserIds: [locals.user.id] }
+				).catch(() => undefined);
+			}
+		}
 		return json({ success: true });
 	}
 
