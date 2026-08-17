@@ -34,9 +34,23 @@ jobs:
         # Der Firebase-Teil ist Android-only; für iOS ohne Dienstkonto bauen.
         run: npx expo prebuild --platform ios --no-install
 
-      - name: CocoaPods installieren
+      # Die vorinstallierte Ruby-/CocoaPods-Version auf den Runnern ist oft
+      # zu alt für aktuelle React-Native-Projekte — darum eigene setzen.
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: CocoaPods bereitstellen
+        run: |
+          gem install cocoapods --no-document
+          echo "Ruby: $(ruby -v)"
+          echo "CocoaPods: $(pod --version)"
+
+      - name: Pods installieren
         working-directory: native/ios
-        run: pod install --repo-update
+        run: |
+          # Erst ohne Repo-Update (schnell); klappt das nicht, mit.
+          pod install || pod install --repo-update
 
       - name: Bauen ohne Signatur
         working-directory: native/ios
