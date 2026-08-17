@@ -88,6 +88,9 @@ export default function Dashboard() {
 	const [absenceFor, setAbsenceFor] = useState<TrainingSession | null>(null);
 	const [absenceReason, setAbsenceReason] = useState('');
 	const [spotFor, setSpotFor] = useState<TrainingSession | null>(null);
+	// Spot-Voting: eigenen Vorschlag mit Suchfeld einreichen (wie im Web).
+	const [voteFor, setVoteFor] = useState<TrainingSession | null>(null);
+	const [voteQuery, setVoteQuery] = useState('');
 	// Admin-Aktionen liegen hinter „…", damit die Karte ruhig bleibt.
 	const [adminFor, setAdminFor] = useState<TrainingSession | null>(null);
 	const isAdmin = me?.role === 'admin';
@@ -292,6 +295,30 @@ export default function Dashboard() {
 													</Pressable>
 												);
 											})}
+										<Pressable
+												onPress={() => {
+													setVoteFor(s);
+													setVoteQuery('');
+												}}
+												style={({ pressed }) => [styles.proposeSpotRow, pressed && { opacity: 0.7 }]}
+											>
+												<Ionicons name="add-circle-outline" size={16} color={colors.accentBlue} />
+												<Text style={styles.proposeSpotText}>Anderen Spot vorschlagen</Text>
+											</Pressable>
+										</View>
+									) : !s.votingClosed ? (
+										<View style={{ gap: 8, marginTop: 4 }}>
+											<Text style={styles.metaLine}>Noch kein Spot vorgeschlagen</Text>
+											<Pressable
+												onPress={() => {
+													setVoteFor(s);
+													setVoteQuery('');
+												}}
+												style={({ pressed }) => [styles.proposeSpotRow, pressed && { opacity: 0.7 }]}
+											>
+												<Ionicons name="add-circle-outline" size={16} color={colors.accentBlue} />
+												<Text style={styles.proposeSpotText}>Spot vorschlagen</Text>
+											</Pressable>
 										</View>
 									) : (
 										<Text style={styles.metaLine}>Noch kein Spot vorgeschlagen</Text>
@@ -528,6 +555,46 @@ export default function Dashboard() {
 					))}
 				</ScrollView>
 			</Sheet>
+
+			{/* Spot-Voting: Vorschlag mit Suchfeld — wie auf der Website */}
+			<Sheet
+				visible={voteFor !== null}
+				onClose={() => setVoteFor(null)}
+				title="Spot vorschlagen"
+			>
+				<Input
+					placeholder="Spot oder Ort suchen …"
+					value={voteQuery}
+					onChangeText={setVoteQuery}
+					autoFocus
+				/>
+				<ScrollView style={{ maxHeight: 340 }} keyboardShouldPersistTaps="handled">
+					{(data?.allSpots ?? [])
+						.filter((sp) => {
+							const q = voteQuery.trim().toLowerCase();
+							if (!q) return true;
+							return (
+								sp.name.toLowerCase().includes(q) || sp.city.toLowerCase().includes(q)
+							);
+						})
+						.slice(0, 30)
+						.map((sp) => (
+							<Pressable
+								key={sp.id}
+								style={({ pressed }) => [styles.spotOption, pressed && { opacity: 0.7 }]}
+								onPress={() => {
+									const session = voteFor!;
+									setVoteFor(null);
+									act(() => trainingAction('vote_spot', session.id, { spotId: sp.id }));
+								}}
+							>
+								<Ionicons name="location-outline" size={17} color={colors.textSecondary} />
+								<Text style={styles.spotOptionText}>{sp.name}</Text>
+								<Text style={styles.spotOptionCity}>{sp.city}</Text>
+							</Pressable>
+						))}
+				</ScrollView>
+			</Sheet>
 		</Screen>
 	);
 }
@@ -670,7 +737,14 @@ const makeStyles = (colors: ThemeColors) =>
 			paddingHorizontal: 12,
 			paddingVertical: 12
 		},
-		voteDot: {
+		proposeSpotRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2 },
+	proposeSpotText: {
+		color: colors.accentBlue,
+		fontSize: 13,
+		lineHeight: 18,
+		fontFamily: fonts.sansSemi
+	},
+	voteDot: {
 			width: 15,
 			height: 15,
 			borderRadius: 12,
