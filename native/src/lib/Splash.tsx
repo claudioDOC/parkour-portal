@@ -138,11 +138,14 @@ const styles = StyleSheet.create({
 		textAlign: 'center',
 		paddingLeft: 2
 	},
-	subRow: { flexDirection: 'row', gap: 6, marginTop: 2 },
+	subRow: { flexDirection: 'row', gap: 5, marginTop: 2 },
 	sub: {
-		fontFamily: fonts.sansSemi,
+		// Bewusst Systemschrift: Plus Jakarta meldet Android zu schmale
+		// Buchstabenbreiten — erst fehlte das L, dann war das O angeschnitten.
+		fontWeight: '700',
 		fontSize: 12,
-		lineHeight: 16
+		lineHeight: 16,
+		paddingHorizontal: 1
 	},
 	line: { width: 110, height: 3, borderRadius: 1.5, marginTop: 8 }
 });
