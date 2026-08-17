@@ -4,45 +4,49 @@ import { Image } from 'expo-image';
 import { fonts, type ThemeColors } from './theme';
 
 /**
- * Startanimation: Logo fährt hoch und wird scharf, Wortmarke blendet ein,
- * ein Akzentstrich zieht durch. Läuft rund 1,2 Sekunden und ersetzt den
- * statischen Startbildschirm.
+ * Startanimation in EINEM Guss: Sie beginnt exakt im Zustand des nativen
+ * Splashs (Logo 120px, mittig, gleicher Hintergrund) — dadurch ist der
+ * Übergang unsichtbar und es wirkt wie ein einziger Splash. Danach:
+ * Wortmarke gleitet unter dem Logo herein, Akzentstrich zieht durch,
+ * alles blendet aus. Gesamt ≈ 0,9 Sekunden.
+ *
+ * Wichtig: Die Wortmarke ist absolut positioniert, damit das Logo beim
+ * Einblenden des Texts keinen Millimeter springt.
  */
 export function Splash({ colors, onDone }: { colors: ThemeColors; onDone: () => void }) {
-	const logo = useRef(new Animated.Value(0)).current;
 	const word = useRef(new Animated.Value(0)).current;
 	const line = useRef(new Animated.Value(0)).current;
+	const breathe = useRef(new Animated.Value(1)).current;
 	const fade = useRef(new Animated.Value(1)).current;
 
 	useEffect(() => {
-		// Sicherung: falls die Animation nicht sauber endet (z. B. wenn das
-		// System sie unterbricht), geht es trotzdem weiter — nie hängen bleiben.
-		const failsafe = setTimeout(onDone, 2200);
-		Animated.sequence([
-			Animated.timing(logo, {
-				toValue: 1,
-				duration: 460,
-				easing: Easing.out(Easing.back(1.4)),
+		// Sicherung: nie hängen bleiben, falls das System die Animation stoppt.
+		const failsafe = setTimeout(onDone, 1500);
+		Animated.parallel([
+			Animated.timing(breathe, {
+				toValue: 1.05,
+				duration: 500,
+				easing: Easing.out(Easing.cubic),
 				useNativeDriver: true
 			}),
-			Animated.parallel([
-				Animated.timing(word, {
-					toValue: 1,
-					duration: 320,
-					easing: Easing.out(Easing.cubic),
-					useNativeDriver: true
-				}),
-				Animated.timing(line, {
-					toValue: 1,
-					duration: 420,
-					easing: Easing.out(Easing.cubic),
-					useNativeDriver: true
-				})
-			]),
-			Animated.delay(220),
+			Animated.timing(word, {
+				toValue: 1,
+				duration: 300,
+				delay: 60,
+				easing: Easing.out(Easing.cubic),
+				useNativeDriver: true
+			}),
+			Animated.timing(line, {
+				toValue: 1,
+				duration: 360,
+				delay: 140,
+				easing: Easing.out(Easing.cubic),
+				useNativeDriver: true
+			}),
 			Animated.timing(fade, {
 				toValue: 0,
-				duration: 280,
+				duration: 240,
+				delay: 640,
 				easing: Easing.in(Easing.cubic),
 				useNativeDriver: true
 			})
@@ -51,41 +55,43 @@ export function Splash({ colors, onDone }: { colors: ThemeColors; onDone: () => 
 			if (finished) onDone();
 		});
 		return () => clearTimeout(failsafe);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	return (
-		<Animated.View style={[styles.root, { backgroundColor: '#0d0d0f', opacity: fade }]}>
-			<Animated.View
-				style={{
-					opacity: logo,
-					transform: [
-						{ translateY: logo.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) },
-						{ scale: logo.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] }) }
-					]
-				}}
-			>
-				<Image
-					source={require('../../assets/images/icon.png')}
-					style={styles.logo}
-					contentFit="contain"
-				/>
-			</Animated.View>
-
-			<Animated.View style={{ opacity: word, alignItems: 'center' }}>
-				<Text style={[styles.word, { color: '#f5f5f7' }]}>PARKOUR</Text>
-				<Text style={[styles.sub, { color: colors.accent }]}>PORTAL</Text>
-			</Animated.View>
+		<Animated.View style={[styles.root, { opacity: fade }]}>
+			{/* Logo exakt wie der native Splash: 120px, mittig, keine Verschiebung. */}
+			<View style={styles.center}>
+				<Animated.View style={{ transform: [{ scale: breathe }] }}>
+					<Image
+						source={require('../../assets/images/icon.png')}
+						style={{ width: 120, height: 120 }}
+						contentFit="contain"
+					/>
+				</Animated.View>
+			</View>
 
 			<Animated.View
 				style={[
-					styles.line,
+					styles.wordWrap,
 					{
-						backgroundColor: colors.accent,
-						opacity: line,
-						transform: [{ scaleX: line }]
+						opacity: word,
+						transform: [
+							{ translateY: word.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }
+						]
 					}
 				]}
-			/>
+			>
+				<Text style={styles.word}>PARKOUR</Text>
+				{/* paddingLeft gleicht den Buchstabenabstand aus — sonst fehlt das „L". */}
+				<Text style={[styles.sub, { color: colors.accent }]}>PORTAL</Text>
+				<Animated.View
+					style={[
+						styles.line,
+						{ backgroundColor: colors.accent, opacity: line, transform: [{ scaleX: line }] }
+					]}
+				/>
+			</Animated.View>
 		</Animated.View>
 	);
 }
@@ -97,12 +103,42 @@ const styles = StyleSheet.create({
 		left: 0,
 		right: 0,
 		bottom: 0,
-		alignItems: 'center',
-		justifyContent: 'center',
-		gap: 20
+		backgroundColor: '#0d0d0f'
 	},
-	logo: { width: 96, height: 96, borderRadius: 24 },
-	word: { fontFamily: fonts.display, fontSize: 38, letterSpacing: 2, lineHeight: 40 },
-	sub: { fontFamily: fonts.sansSemi, fontSize: 12, letterSpacing: 6, lineHeight: 16, marginTop: 2 },
-	line: { width: 120, height: 3, borderRadius: 2, marginTop: 4 }
+	center: {
+		position: 'absolute',
+		top: 0,
+		left: 0,
+		right: 0,
+		bottom: 0,
+		alignItems: 'center',
+		justifyContent: 'center'
+	},
+	wordWrap: {
+		position: 'absolute',
+		top: '50%',
+		left: 0,
+		right: 0,
+		marginTop: 76,
+		alignItems: 'center'
+	},
+	word: {
+		color: '#f5f5f7',
+		fontFamily: fonts.display,
+		fontSize: 34,
+		letterSpacing: 2,
+		lineHeight: 38,
+		textAlign: 'center',
+		paddingLeft: 2
+	},
+	sub: {
+		fontFamily: fonts.sansSemi,
+		fontSize: 12,
+		letterSpacing: 6,
+		lineHeight: 16,
+		marginTop: 2,
+		textAlign: 'center',
+		paddingLeft: 6
+	},
+	line: { width: 110, height: 3, borderRadius: 1.5, marginTop: 8 }
 });
