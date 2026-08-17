@@ -51,47 +51,63 @@ export function AppHeader() {
 				borderBottomColor: colors.border
 			}}
 		>
-			<View
-				style={{
-					width: 40,
-					height: 40,
-					borderRadius: 12,
-					backgroundColor: colors.bg,
-					borderWidth: 1,
-					borderColor: colors.border,
-					alignItems: 'center',
-					justifyContent: 'center'
+			{/* Logo antippen = zurück zur Startseite, egal wie tief man steckt. */}
+			<Pressable
+				onPress={() => {
+					try {
+						if (router.canDismiss()) router.dismissAll();
+					} catch {
+						/* kein Stack offen */
+					}
+					router.navigate('/');
 				}}
+				style={({ pressed }) => [
+					{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+					pressed && { opacity: 0.7 }
+				]}
 			>
-				<Image
-					source={require('../../assets/images/icon.png')}
-					style={{ width: 26, height: 26, borderRadius: 12 }}
-					contentFit="contain"
-				/>
-			</View>
-			<View style={{ flex: 1 }}>
-				<Text
+				<View
 					style={{
-						color: colors.text,
-						fontFamily: fonts.display,
-						fontSize: 28, lineHeight: 30,
-						letterSpacing: 1.5,
+						width: 40,
+						height: 40,
+						borderRadius: 12,
+						backgroundColor: colors.bg,
+						borderWidth: 1,
+						borderColor: colors.border,
+						alignItems: 'center',
+						justifyContent: 'center'
 					}}
 				>
-					PARKOUR
-				</Text>
-				<Text
-					style={{
-						color: colors.accent,
-						fontFamily: fonts.displayMedium,
-						fontSize: 11,
-						lineHeight: 13,
-						letterSpacing: 3.5
-					}}
-				>
-					PORTAL
-				</Text>
-			</View>
+					<Image
+						source={require('../../assets/images/icon.png')}
+						style={{ width: 26, height: 26, borderRadius: 12 }}
+						contentFit="contain"
+					/>
+				</View>
+				<View style={{ flex: 1 }}>
+					<Text
+						style={{
+							color: colors.text,
+							fontFamily: fonts.display,
+							fontSize: 28, lineHeight: 30,
+							letterSpacing: 1.5,
+						}}
+					>
+						PARKOUR
+					</Text>
+					<Text
+						style={{
+							color: colors.accent,
+							fontFamily: fonts.displayMedium,
+							fontSize: 11,
+							lineHeight: 13,
+							letterSpacing: 3.5
+						}}
+					>
+						PORTAL
+					</Text>
+				</View>
+			</Pressable>
 			<Pressable onPress={() => router.push('/activity')} hitSlop={10} style={{ padding: 4 }}>
 				<Ionicons name="notifications-outline" size={23} color={colors.textSecondary} />
 				{unread > 0 ? (
