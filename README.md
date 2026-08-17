@@ -23,6 +23,7 @@ Die native App spricht mit dem Server über die JSON-API (`/api/v1/…`, Bearer-
 - Übersicht **Zieht** vs. **Zieht nicht** (Abmeldung nur mit Begründung, mind. 10 Zeichen)
 - Optionaler Modus **nur mit Zusage** (Opt-in) und **Auto-Abmeldung** an festen Wochentagen (Admin pro User; erfordert DB-Migrationen 0002/0003)
 - Spot-Voting pro Termin, Gäste eintragen, Admins können User pro Session aus der „Zieht“-Liste ausblenden
+- **„Bin da"** am Trainingstag, sobald der Spot feststeht: Standort teilen und die anderen als Profilbild-Pins auf der Karte finden — sichtbar nur gegenseitig, Position verfällt nach 45 min (App und Web)
 
 ### Spots
 - Spot-Datenbank mit Name, Stadt, Koordinaten, Beschreibung
@@ -78,6 +79,7 @@ Die native App spricht mit dem Server über die JSON-API (`/api/v1/…`, Bearer-
 - **Web-Push** (VAPID) für Browser und PWA
 - **Firebase/FCM** für die native App ab 1.4 — weckt sie auch geschlossen; Dienstkonto liegt ausserhalb des Repos (`backups/firebase/`)
 - **ntfy** als Google-freie Option (geheimes Thema pro Person, Server per `NTFY_BASE` wechselbar)
+- Auslöser u. a.: Training-Erinnerung, Zusage-Erinnerung, Spot fix (16:15), Spot-Voting eröffnet, neuer Spot, Challenge angelegt/geschafft, Trips, Trainings-Absage, Admin-Broadcast — pro Person einzeln abschaltbar
 
 ## Tech Stack
 
