@@ -8,4 +8,5 @@ CREATE TABLE IF NOT EXISTS fcm_tokens (
 	failure_count INTEGER NOT NULL DEFAULT 0,
 	created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_fcm_tokens_user ON fcm_tokens(user_id);
