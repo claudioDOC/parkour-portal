@@ -93,6 +93,9 @@ export default function Trips() {
 	const [joinNote, setJoinNote] = useState('');
 	// Trip-Ziel setzen (Ersteller/Admin) — gleiche Ortssuche wie Zwischenstopps.
 	const [destFor, setDestFor] = useState<Trip | null>(null);
+	// Trip-Eckdaten bearbeiten (Ersteller/Admin)
+	const [editFor, setEditFor] = useState<Trip | null>(null);
+	const [editTrip, setEditTrip] = useState({ title: '', start: '', end: '', notes: '' });
 	// Angetippter Teilnehmer-Chip: zeigt dessen Notiz darunter an.
 	const [openNoteKey, setOpenNoteKey] = useState<string | null>(null);
 
@@ -424,6 +427,21 @@ export default function Trips() {
 							<View style={styles.manageRow}>
 								<Pressable
 									onPress={() => {
+										setEditFor(trip);
+										setEditTrip({
+											title: trip.title,
+											start: trip.startDate,
+											end: trip.endDate ?? trip.startDate,
+											notes: trip.notes ?? ''
+										});
+									}}
+									style={({ pressed }) => [styles.proposeRow, pressed && { opacity: 0.7 }]}
+								>
+									<Ionicons name="create-outline" size={16} color={colors.fg + textAlpha.secondary} />
+									<Text style={styles.proposeText}>Trip bearbeiten</Text>
+								</Pressable>
+								<Pressable
+									onPress={() => {
 										setDestFor(trip);
 										setStopQuery('');
 										setStopHits([]);
@@ -528,7 +546,7 @@ export default function Trips() {
 			})}
 
 			{data && data.trips.length === 0 ? (
-				<EmptyState icon="airplane-outline" text="Kein Trip geplant — erstell den ersten mit dem + oben." />
+				<EmptyState icon="car-outline" text="Kein Trip geplant — erstell den ersten mit dem + oben." />
 			) : null}
 
 			{/* Transportmittel-Auswahl beim Beitritt — Antippen sendet inkl. Notiz */}
@@ -620,6 +638,64 @@ export default function Trips() {
 					</Pressable>
 				))}
 				<Button label="Abbrechen" kind="ghost" onPress={() => setStopFor(null)} />
+			</Sheet>
+
+			{/* Trip-Eckdaten bearbeiten (Ersteller/Admin) */}
+			<Sheet
+				visible={editFor !== null}
+				onClose={() => setEditFor(null)}
+				title={`Trip bearbeiten — ${editFor?.title ?? ''}`}
+			>
+				<Input
+					placeholder="Titel"
+					value={editTrip.title}
+					onChangeText={(v) => setEditTrip({ ...editTrip, title: v })}
+				/>
+				<View style={{ flexDirection: 'row', gap: 8 }}>
+					<Input
+						placeholder="Start 2026-10-02"
+						value={editTrip.start}
+						onChangeText={(v) => setEditTrip({ ...editTrip, start: v })}
+						style={{ flex: 1 }}
+						autoCapitalize="none"
+					/>
+					<Input
+						placeholder="Ende 2026-10-04"
+						value={editTrip.end}
+						onChangeText={(v) => setEditTrip({ ...editTrip, end: v })}
+						style={{ flex: 1 }}
+						autoCapitalize="none"
+					/>
+				</View>
+				<Input
+					placeholder="Notizen (optional)"
+					multiline
+					value={editTrip.notes}
+					onChangeText={(v) => setEditTrip({ ...editTrip, notes: v })}
+				/>
+				<View style={styles.sheetActions}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setEditFor(null)} />
+					<Button
+						label="Speichern"
+						onPress={() => {
+							const trip = editFor;
+							if (!trip) return;
+							if (!editTrip.title.trim() || !YMD.test(editTrip.start) || !YMD.test(editTrip.end)) {
+								Alert.alert('Unvollständig', 'Titel plus Start/Ende im Format JJJJ-MM-TT.');
+								return;
+							}
+							setEditFor(null);
+							act(() =>
+								tripAction('edit_trip', trip.id, {
+									title: editTrip.title.trim(),
+									startDate: editTrip.start,
+									endDate: editTrip.end,
+									notes: editTrip.notes.trim()
+								})
+							);
+						}}
+					/>
+				</View>
 			</Sheet>
 
 			{/* Trip-Ziel setzen (Ersteller/Admin) */}

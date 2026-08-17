@@ -39,7 +39,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 	{ key: 'users', label: 'Benutzer', icon: 'people-outline' },
 	{ key: 'trainings', label: 'Trainings', icon: 'calendar-outline' },
 	{ key: 'spots', label: 'Spots', icon: 'location-outline' },
-	{ key: 'trips', label: 'Trips', icon: 'airplane-outline' },
+	{ key: 'trips', label: 'Trips', icon: 'car-outline' },
 	{ key: 'trash', label: 'Papierkorb', icon: 'trash-outline' },
 	{ key: 'invites', label: 'Einladungen', icon: 'mail-outline' },
 	{ key: 'system', label: 'Server', icon: 'hardware-chip-outline' },
@@ -52,6 +52,22 @@ function bytes(n: number): string {
 	if (n > 1e9) return `${(n / 1e9).toFixed(1)} GB`;
 	if (n > 1e6) return `${(n / 1e6).toFixed(0)} MB`;
 	return `${(n / 1e3).toFixed(0)} KB`;
+}
+
+/**
+ * Gewünschte Reihenfolge: das NÄCHSTE Training zuoberst, danach die
+ * vergangenen (letztes zuerst), danach die weiteren kommenden.
+ */
+function orderSessions<T extends { date: string; timeStart: string }>(list: T[]): T[] {
+	const now = new Date();
+	const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+	const upcoming = list
+		.filter((s) => s.date >= today)
+		.sort((a, b) => a.date.localeCompare(b.date) || a.timeStart.localeCompare(b.timeStart));
+	const past = list
+		.filter((s) => s.date < today)
+		.sort((a, b) => b.date.localeCompare(a.date) || b.timeStart.localeCompare(a.timeStart));
+	return upcoming.length ? [upcoming[0], ...past, ...upcoming.slice(1)] : past;
 }
 
 /** Admin-Bereich: Benutzer, Einladungen, Server-Zustand, Protokoll, Broadcast. */
@@ -79,6 +95,7 @@ export default function Admin() {
 	const [absentUserId, setAbsentUserId] = useState<number | null>(null);
 	const [absentReason, setAbsentReason] = useState('');
 	const [logFilter, setLogFilter] = useState('');
+	const [logActor, setLogActor] = useState('');
 
 	const [userFor, setUserFor] = useState<AdminUser | null>(null);
 	const [pwOpen, setPwOpen] = useState(false);
@@ -297,10 +314,7 @@ export default function Admin() {
 				: null}
 
 			{tab === 'trainings'
-				? [...(sessions.data?.sessions ?? [])]
-						.sort((a, b) => a.date.localeCompare(b.date) || a.timeStart.localeCompare(b.timeStart))
-						.slice(0, 12)
-						.map((sess) => (
+				? orderSessions(sessions.data?.sessions ?? []).map((sess) => (
 						<Card key={sess.id} style={{ gap: 12 }}>
 							<View style={styles.userHead}>
 								<View style={{ flex: 1 }}>
@@ -667,21 +681,72 @@ export default function Admin() {
 
 			{tab === 'log' ? (
 				<Card style={{ gap: 10 }}>
-					<Input
-						placeholder="Filtern — Aktion oder Person …"
-						value={logFilter}
-						onChangeText={setLogFilter}
-						autoCapitalize="none"
-					/>
+					<Text style={styles.muted}>Bereich:</Text>
+					<View style={styles.chipRow}>
+						{['alle', ...new Set((audit.data?.logs ?? []).map((l) => l.action.split('.')[0]))].map(
+							(g) => (
+								<Pressable
+									key={g}
+									onPress={() => setLogFilter(g === 'alle' ? '' : g)}
+									style={({ pressed }) => [
+										styles.chip,
+										(logFilter === g || (g === 'alle' && !logFilter)) && {
+											backgroundColor: colors.accent,
+											borderColor: colors.accent
+										},
+										pressed && { opacity: 0.8 }
+									]}
+								>
+									<Text
+										style={[
+											styles.chipText,
+											(logFilter === g || (g === 'alle' && !logFilter)) && {
+												color: colors.onAccent
+											}
+										]}
+									>
+										{g}
+									</Text>
+								</Pressable>
+							)
+						)}
+					</View>
+					<Text style={styles.muted}>Person:</Text>
+					<View style={styles.chipRow}>
+						{['alle', ...new Set((audit.data?.logs ?? []).map((l) => l.actorUsername ?? 'System'))].map(
+							(a) => (
+								<Pressable
+									key={a}
+									onPress={() => setLogActor(a === 'alle' ? '' : a)}
+									style={({ pressed }) => [
+										styles.chip,
+										(logActor === a || (a === 'alle' && !logActor)) && {
+											backgroundColor: colors.accent,
+											borderColor: colors.accent
+										},
+										pressed && { opacity: 0.8 }
+									]}
+								>
+									<Text
+										style={[
+											styles.chipText,
+											(logActor === a || (a === 'alle' && !logActor)) && {
+												color: colors.onAccent
+											}
+										]}
+									>
+										{a}
+									</Text>
+								</Pressable>
+							)
+						)}
+					</View>
 					{(audit.data?.logs ?? [])
-						.filter((l) => {
-							const q = logFilter.trim().toLowerCase();
-							if (!q) return true;
-							return (
-								l.action.toLowerCase().includes(q) ||
-								(l.actorUsername ?? 'system').toLowerCase().includes(q)
-							);
-						})
+						.filter(
+							(l) =>
+								(!logFilter || l.action.startsWith(logFilter)) &&
+								(!logActor || (l.actorUsername ?? 'System') === logActor)
+						)
 						.map((l) => (
 						<View key={l.id} style={styles.logRow}>
 							<Text style={styles.logAction}>{l.action}</Text>

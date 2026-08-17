@@ -182,6 +182,39 @@ export const POST: RequestHandler = async (event) => {
 	const trip = db.select().from(tripPlans).where(eq(tripPlans.id, tripId)).get();
 	if (!trip) return json({ error: 'Trip nicht gefunden' }, { status: 404 });
 
+	// Trip-Eckdaten ändern (Titel, Zeitraum, Notizen) — Ersteller oder Admin.
+	if (action === 'edit_trip') {
+		const canEdit = trip.createdBy === locals.user.id || locals.user.role === 'admin';
+		if (!canEdit) {
+			return json({ error: 'Nur Trip-Ersteller oder Admin kann den Trip bearbeiten' }, { status: 403 });
+		}
+		const title = String(body?.title || '').trim();
+		const startDate = String(body?.startDate || '').trim();
+		const endDate = String(body?.endDate || '').trim();
+		const notes = String(body?.notes ?? '').trim();
+		if (!title || !startDate || !endDate) {
+			return json({ error: 'Titel, Start- und Enddatum sind erforderlich' }, { status: 400 });
+		}
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+			return json({ error: 'Datum im Format JJJJ-MM-TT angeben' }, { status: 400 });
+		}
+		if (endDate < startDate) {
+			return json({ error: 'Enddatum darf nicht vor Startdatum liegen' }, { status: 400 });
+		}
+		db.update(tripPlans)
+			.set({ title, startDate, endDate, notes: notes || null })
+			.where(eq(tripPlans.id, tripId))
+			.run();
+		logAudit({
+			event,
+			action: 'trip.edit',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: { tripId, title, startDate, endDate }
+		});
+		return json({ success: true });
+	}
+
 	if (action === 'set_trip_destination') {
 		const canEdit = trip.createdBy === locals.user.id || locals.user.role === 'admin';
 		if (!canEdit) {
