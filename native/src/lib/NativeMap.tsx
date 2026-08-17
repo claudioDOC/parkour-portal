@@ -62,6 +62,7 @@ export function NativeMap({
 	fill = false,
 	zoom = 15,
 	defaultSatellite = false,
+	center,
 	onMarkerPress
 }: {
 	markers: MapMarker[];
@@ -71,6 +72,8 @@ export function NativeMap({
 	zoom?: number;
 	/** Startet mit Satellitenbild (wie die Spot-Karte im Web). */
 	defaultSatellite?: boolean;
+	/** Kartenmitte erzwingen (z. B. eigener Standort) statt erster Pin. */
+	center?: { lat: number; lon: number };
 	onMarkerPress?: (marker: MapMarker) => void;
 }) {
 	const { colors } = useTheme();
@@ -94,7 +97,9 @@ export function NativeMap({
 							? colors.accent
 							: m.kind === 'parking'
 								? '#47c5ff'
-								: '#9ca3af')
+								: m.kind === 'me'
+									? '#2563eb'
+									: '#9ca3af')
 				})),
 		[markers, colors]
 	);
@@ -133,7 +138,7 @@ export function NativeMap({
 				onTouchCancel={() => lockScroll(true)}
 			>
 				<LibreMap style={{ flex: 1 }} mapStyle={satellite ? SATELLITE_STYLE : MAP_STYLE}>
-					<Camera initialViewState={{ center: [main.lon, main.lat], zoom }} />
+					<Camera initialViewState={{ center: [center?.lon ?? main.lon, center?.lat ?? main.lat], zoom }} />
 					{pins.map((p) => (
 						<Marker
 							key={`${p.kind}-${p.id}`}
@@ -144,8 +149,10 @@ export function NativeMap({
 								<Text style={[styles.pinText, p.fg ? { color: p.fg } : null]}>
 									{p.kind === 'training'
 										? '🚂'
-										: (p.label ??
-											(p.kind === 'parking' ? 'P' : p.kind === 'main' ? '★' : '•'))}
+										: p.kind === 'me'
+											? '●'
+											: (p.label ??
+												(p.kind === 'parking' ? 'P' : p.kind === 'main' ? '★' : '•'))}
 								</Text>
 								{p.badge ? (
 									<View style={styles.badge}>

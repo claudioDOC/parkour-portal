@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Linking, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -11,6 +11,7 @@ import { TopBar } from '../lib/ui';
 import { NativeMap, type MapMarker } from '../lib/NativeMap';
 import { useData } from '../lib/store';
 import { getSpots, mediaUrl, type SpotListItem } from '../lib/api';
+import { getLocation } from '../lib/nativeModules';
 
 /**
  * Karte aller Spots — nativ gezeichnet, keine eingebettete Webseite.
@@ -35,8 +36,43 @@ export default function MapScreen() {
 	const router = useRouter();
 	const { data } = useData('spots', getSpots);
 	const [selectedId, setSelectedId] = useState<number | null>(null);
+	// Filter wie auf der Web-Karte, plus „Mit Challenges" als App-Extra.
+	const [filter, setFilter] = useState<'alle' | 'haupt' | 'top' | 'challenges'>('alle');
+	// Eigener Standort: blauer Punkt + Karte zentriert darauf.
+	const [myPos, setMyPos] = useState<{ lat: number; lon: number } | null>(null);
+	const [mapKey, setMapKey] = useState(0);
+	const [locating, setLocating] = useState(false);
 
-	const spots = data?.spots ?? [];
+	const locateMe = async () => {
+		const Location = getLocation();
+		if (!Location) {
+			Alert.alert('Neue App-Version nötig', 'Der Standort geht ab App-Version 1.1.');
+			return;
+		}
+		setLocating(true);
+		try {
+			const perm = await Location.requestForegroundPermissionsAsync();
+			if (!perm.granted) {
+				Alert.alert('Kein Zugriff', 'Für den Standort braucht die App die Ortungsberechtigung.');
+				return;
+			}
+			const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+			setMyPos({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+			// Karte neu aufsetzen, damit sie auf den Standort zentriert.
+			setMapKey((k) => k + 1);
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Standort nicht verfügbar');
+		} finally {
+			setLocating(false);
+		}
+	};
+
+	const spots = (data?.spots ?? []).filter((s) => {
+		if (filter === 'haupt') return !s.isMicro;
+		if (filter === 'top') return s.avgScore >= 4 && s.voteCount > 0;
+		if (filter === 'challenges') return (s.challengeCount ?? 0) > 0;
+		return true;
+	});
 	const trainingSpotId = data?.nextTrainingSpotId ?? null;
 
 	// Nur Spots mit Koordinaten können auf der Karte stehen.
@@ -58,19 +94,64 @@ export default function MapScreen() {
 			};
 		});
 
+	if (myPos) {
+		markers.push({
+			id: -999999,
+			name: 'Mein Standort',
+			lat: myPos.lat,
+			lon: myPos.lon,
+			kind: 'me'
+		});
+	}
+
 	const selected: SpotListItem | null = spots.find((s) => s.id === selectedId) ?? null;
 
 	return (
 		<View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + 12 }}>
 			<View style={{ paddingHorizontal: 20 }}>
-				<TopBar back kicker={`${markers.length} Spots`} title="Karte" />
+				<TopBar back kicker={`${markers.length} Pins`} title="Karte" />
 			</View>
+			<ScrollView
+				horizontal
+				showsHorizontalScrollIndicator={false}
+				style={{ flexGrow: 0, marginTop: 8 }}
+				contentContainerStyle={{ paddingHorizontal: 20, gap: 8, flexDirection: 'row' }}
+			>
+				{(
+					[
+						{ key: 'alle', label: 'Alle Spots' },
+						{ key: 'haupt', label: 'Nur Hauptspots' },
+						{ key: 'top', label: '⭐ Top bewertet' },
+						{ key: 'challenges', label: '🏆 Mit Challenges' }
+					] as const
+				).map((f) => (
+					<Pressable
+						key={f.key}
+						onPress={() => setFilter(f.key)}
+						style={[styles.filterChip, filter === f.key && { backgroundColor: colors.accent, borderColor: colors.accent }]}
+					>
+						<Text style={[styles.filterText, filter === f.key && { color: colors.onAccent }]}>
+							{f.label}
+						</Text>
+					</Pressable>
+				))}
+				<Pressable
+					onPress={locateMe}
+					style={[styles.filterChip, myPos != null && { borderColor: '#2563eb' }]}
+				>
+					<Text style={[styles.filterText, myPos != null && { color: '#2563eb' }]}>
+						{locating ? 'Ortet …' : '📍 Mein Standort'}
+					</Text>
+				</Pressable>
+			</ScrollView>
 			<View style={{ flex: 1, marginTop: 12, marginHorizontal: 12, marginBottom: insets.bottom + 12 }}>
 				{markers.length > 0 ? (
 					<NativeMap
+						key={`${mapKey}`}
 						markers={markers}
 						fill
-						zoom={11}
+						zoom={myPos ? 13 : 11}
+						center={myPos ?? undefined}
 						onMarkerPress={(m) => setSelectedId(m.id)}
 					/>
 				) : (
@@ -155,6 +236,20 @@ export default function MapScreen() {
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
+		filterChip: {
+			borderRadius: 999,
+			borderWidth: 1,
+			borderColor: colors.border,
+			backgroundColor: colors.card,
+			paddingHorizontal: 13,
+			paddingVertical: 7
+		},
+		filterText: {
+			color: colors.fg + textAlpha.primary,
+			fontSize: 12,
+			lineHeight: 16,
+			fontFamily: fonts.sansMedium
+		},
 		sheet: {
 			position: 'absolute',
 			left: 8,
