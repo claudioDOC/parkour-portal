@@ -52,14 +52,19 @@ export function buildChallengesArenaPayload(viewerUsername: string | null) {
 
 	const challengeIds = rows.map((r) => r.id);
 
-	const completersByChallenge = new Map<number, { username: string; completedAt: string }[]>();
+	const completersByChallenge = new Map<
+		number,
+		{ userId: number; username: string; avatar: string | null; completedAt: string }[]
+	>();
 	let totalClears = 0;
 
 	if (challengeIds.length > 0) {
 		const completions = db
 			.select({
 				challengeId: spotChallengeCompletions.challengeId,
+				userId: spotChallengeCompletions.userId,
 				username: users.username,
+				avatar: users.avatar,
 				completedAt: spotChallengeCompletions.createdAt
 			})
 			.from(spotChallengeCompletions)
@@ -75,7 +80,14 @@ export function buildChallengesArenaPayload(viewerUsername: string | null) {
 		totalClears = completions.length;
 		for (const c of completions) {
 			const list = completersByChallenge.get(c.challengeId) ?? [];
-			list.push({ username: c.username, completedAt: c.completedAt });
+			list.push({
+				// userId fehlte bisher — dadurch waren „Nur meine offenen",
+				// der Fortschrittsbalken und das Häkchen in der App wirkungslos.
+				userId: asNum(c.userId),
+				username: c.username,
+				avatar: c.avatar ? `/uploads/${c.avatar}` : null,
+				completedAt: c.completedAt
+			});
 			completersByChallenge.set(c.challengeId, list);
 		}
 	}
@@ -139,6 +151,7 @@ export function buildChallengesArenaPayload(viewerUsername: string | null) {
 		.select({
 			userId: spotChallengeCompletions.userId,
 			username: users.username,
+			avatar: users.avatar,
 			c: sql<number>`count(*)`.as('c')
 		})
 		.from(spotChallengeCompletions)
@@ -153,6 +166,7 @@ export function buildChallengesArenaPayload(viewerUsername: string | null) {
 		.map((row) => ({
 			userId: asNum(row.userId),
 			username: row.username,
+			avatar: row.avatar ? `/uploads/${row.avatar}` : null,
 			clears: asNum(row.c)
 		}))
 		.sort((a, b) => b.clears - a.clears || a.username.localeCompare(b.username, 'de'))
@@ -161,6 +175,7 @@ export function buildChallengesArenaPayload(viewerUsername: string | null) {
 	const recentClears = db
 		.select({
 			username: users.username,
+			avatar: users.avatar,
 			challengeTitle: spotChallenges.title,
 			spotName: spots.name,
 			spotId: spots.id,
@@ -173,7 +188,8 @@ export function buildChallengesArenaPayload(viewerUsername: string | null) {
 		.where(and(eq(spotChallenges.deleted, false), eq(spots.deleted, false)))
 		.orderBy(desc(spotChallengeCompletions.createdAt))
 		.limit(18)
-		.all();
+		.all()
+		.map((r) => ({ ...r, avatar: r.avatar ? `/uploads/${r.avatar}` : null }));
 
 	return {
 		schemaReady: true as const,

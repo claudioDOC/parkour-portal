@@ -7,7 +7,7 @@ import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { Card, TopBar, Screen, Button, Input, EmptyState } from '../../lib/ui';
 import { useData } from '../../lib/store';
-import { runFinder, getSpots, type FinderResult } from '../../lib/api';
+import { runFinder, getSpots, voteSpotForTraining, type FinderResult } from '../../lib/api';
 
 /**
  * Spot-Finder als Assistent wie auf der Website: Wetter → Stadt → Wunsch →
@@ -24,6 +24,24 @@ const STEPS: { key: Step; label: string }[] = [
 
 const WISH_IDEAS = ['Flips', 'Bars', 'Mauern', 'Präzisionen', 'Rails', 'Treppen', 'Wall'];
 
+/** Gleiche Liste wie im Web-Portal (src/lib/cityRegions.ts) — Pendel-Regionen. */
+const CITY_REGIONS: { id: string; label: string; cities: string[] }[] = [
+	{ id: 'thun', label: 'Thun & Umgebung', cities: ['Thun', 'Hünibach', 'Steffisburg', 'Heimberg'] },
+	{
+		id: 'bern',
+		label: 'Bern & Umgebung',
+		cities: ['Bern', 'Niederwangen', 'Worb', 'Ittigen', 'Bümpliz', 'Kehrsatz', 'Belp']
+	},
+	{ id: 'muensingen', label: 'Münsingen & Umgebung', cities: ['Münsingen', 'Rubigen'] }
+];
+
+/** Kanonische Techniken des Portals — für den Technik-Filter. */
+const TECHNIQUES = [
+	'Präzisionssprung', 'Schwingen', 'Flow', 'Armsprung',
+	'Klettern', 'Tic-Tac', 'Vault', 'Balance',
+	'Drops', 'Katz', 'Roofgap'
+];
+
 export default function Finder() {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
@@ -35,9 +53,12 @@ export default function Finder() {
 	const [weatherCondition, setWeatherCondition] = useState<'trocken' | 'nass' | 'egal'>('egal');
 	const [isDark, setIsDark] = useState(false);
 	const [cities, setCities] = useState<string[]>([]);
+	const [techniques, setTechniques] = useState<string[]>([]);
 	const [wish, setWish] = useState('');
 	const [results, setResults] = useState<FinderResult[] | null>(null);
 	const [hint, setHint] = useState<string | null>(null);
+	const [voteSessionId, setVoteSessionId] = useState<number | null>(null);
+	const [votedSpotId, setVotedSpotId] = useState<number | null>(null);
 	const [busy, setBusy] = useState(false);
 
 	/** Alle Orte aus der Spot-Liste, ohne Dubletten. */
@@ -54,11 +75,12 @@ export default function Finder() {
 				weatherCondition,
 				isDark,
 				cities,
-				techniques: [],
+				techniques,
 				wish: wish.trim()
 			});
 			setResults(res.results);
 			setHint(res.forecastHint);
+			setVoteSessionId(res.nextOpenSessionId ?? null);
 		} catch (e) {
 			Alert.alert('Fehler', e instanceof Error ? e.message : 'Finder nicht erreichbar');
 		} finally {
@@ -66,8 +88,44 @@ export default function Finder() {
 		}
 	};
 
+	/** „Von vorne": alle Eingaben leeren, nicht nur zum ersten Schritt springen. */
+	const resetAll = () => {
+		setUseAutoWeather(true);
+		setWeatherCondition('egal');
+		setIsDark(false);
+		setCities([]);
+		setTechniques([]);
+		setWish('');
+		setResults(null);
+		setHint(null);
+		setVotedSpotId(null);
+		setStep('weather');
+	};
+
+	const voteResult = async (r: FinderResult) => {
+		if (!voteSessionId) return;
+		try {
+			await voteSpotForTraining(voteSessionId, r.id);
+			setVotedSpotId(r.id);
+			Alert.alert('Gevotet', `„${r.name}" ist fürs nächste Training vorgeschlagen.`);
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Voten fehlgeschlagen');
+		}
+	};
+
 	const toggleCity = (city: string) =>
 		setCities((prev) => (prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city]));
+
+	/** Region an/aus: alle Orte der Region gemeinsam wählen — wie im Web. */
+	const toggleRegion = (regionCities: string[]) =>
+		setCities((prev) => {
+			const allIn = regionCities.every((c) => prev.includes(c));
+			if (allIn) return prev.filter((c) => !regionCities.includes(c));
+			return [...new Set([...prev, ...regionCities])];
+		});
+
+	const toggleTechnique = (t: string) =>
+		setTechniques((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
 	const stepIndex = STEPS.findIndex((s) => s.key === step);
 
@@ -134,6 +192,18 @@ export default function Finder() {
 					<Text style={styles.subQuestion}>
 						{cities.length === 0 ? 'Alle Orte' : `${cities.length} ausgewählt`}
 					</Text>
+					<Text style={styles.subQuestion}>Regionen (Pendeln):</Text>
+					<View style={styles.chipRow}>
+						{CITY_REGIONS.map((rg) => (
+							<Chip
+								key={rg.id}
+								label={rg.label}
+								active={rg.cities.every((c) => cities.includes(c))}
+								onPress={() => toggleRegion(rg.cities)}
+							/>
+						))}
+					</View>
+					<Text style={styles.subQuestion}>Einzelne Orte:</Text>
 					<View style={styles.chipRow}>
 						<Chip label="Alle" active={cities.length === 0} onPress={() => setCities([])} />
 						{allCities.map((c) => (
@@ -171,6 +241,17 @@ export default function Finder() {
 						))}
 					</View>
 					<Input placeholder="z. B. hohe Mauer, weicher Boden …" value={wish} onChangeText={setWish} />
+					<Text style={styles.subQuestion}>Bestimmte Techniken?</Text>
+					<View style={styles.chipRow}>
+						{TECHNIQUES.map((t) => (
+							<Chip
+								key={t}
+								label={t}
+								active={techniques.includes(t)}
+								onPress={() => toggleTechnique(t)}
+							/>
+						))}
+					</View>
 					<View style={styles.navRow}>
 						<Button label="Zurück" kind="ghost" onPress={() => setStep('city')} />
 						<Button label="Spots finden" onPress={search} />
@@ -188,40 +269,73 @@ export default function Finder() {
 
 					{hint ? <Text style={styles.hint}>{hint}</Text> : null}
 
-					{results?.map((r, i) => (
-						<Pressable key={r.id} onPress={() => router.push(`/spot/${r.id}`)}>
-							{({ pressed }) => (
-								<Card style={[{ gap: 8 }, pressed && { opacity: 0.85 }]}>
-									<View style={styles.head}>
-										<View style={styles.rank}>
-											<Text style={styles.rankText}>{i + 1}</Text>
+					{results?.map((r, i) => {
+						const tags = [
+							...(r.lighting ? [`Licht: ${r.lighting}`] : []),
+							...(r.goodWeather ?? '').split(',').map((t) => t.trim()).filter(Boolean),
+							...(r.techniques ?? '')
+								.split(',')
+								.map((t) => t.trim())
+								.filter(Boolean)
+								.slice(0, 4)
+						];
+						return (
+							<Pressable key={r.id} onPress={() => router.push(`/spot/${r.id}`)}>
+								{({ pressed }) => (
+									<Card style={[{ gap: 8 }, pressed && { opacity: 0.85 }]}>
+										<View style={styles.head}>
+											<View style={styles.rank}>
+												<Text style={styles.rankText}>{i + 1}</Text>
+											</View>
+											<View style={{ flex: 1 }}>
+												<Text style={styles.name}>{r.name}</Text>
+												<Text style={styles.city}>
+													{r.city}
+													{r.voteCount > 0
+														? ` · ${r.voteCount} Stimme${r.voteCount === 1 ? '' : 'n'}`
+														: ''}
+												</Text>
+											</View>
+											<Text style={styles.score}>
+												{r.voteCount > 0 ? r.avgScore.toFixed(1) : '—'}
+											</Text>
+											<Ionicons
+												name="chevron-forward"
+												size={18}
+												color={colors.fg + textAlpha.muted}
+											/>
 										</View>
-										<View style={{ flex: 1 }}>
-											<Text style={styles.name}>{r.name}</Text>
-											<Text style={styles.city}>{r.city}</Text>
-										</View>
-										<Text style={styles.score}>
-											{r.voteCount > 0 ? r.avgScore.toFixed(1) : '—'}
-										</Text>
-										<Ionicons
-											name="chevron-forward"
-											size={18}
-											color={colors.fg + textAlpha.muted}
-										/>
-									</View>
-									{r.reasons.length > 0 ? (
-										<View style={styles.chipRow}>
-											{r.reasons.map((reason, k) => (
-												<View key={k} style={styles.reason}>
-													<Text style={styles.reasonText}>{reason}</Text>
-												</View>
-											))}
-										</View>
-									) : null}
-								</Card>
-							)}
-						</Pressable>
-					))}
+										{r.reasons.length > 0 ? (
+											<View style={styles.chipRow}>
+												{r.reasons.map((reason, k) => (
+													<View key={k} style={styles.reason}>
+														<Text style={styles.reasonText}>{reason}</Text>
+													</View>
+												))}
+											</View>
+										) : null}
+										{tags.length > 0 ? (
+											<Text style={styles.city} numberOfLines={2}>
+												{tags.join(' · ')}
+											</Text>
+										) : null}
+										{voteSessionId ? (
+											<Button
+												label={
+													votedSpotId === r.id
+														? '✓ Fürs Training gevotet'
+														: 'Fürs Training voten'
+												}
+												kind={votedSpotId === r.id ? 'ghost' : 'accent'}
+												small
+												onPress={() => voteResult(r)}
+											/>
+										) : null}
+									</Card>
+								)}
+							</Pressable>
+						);
+					})}
 
 					{results && results.length === 0 && !busy ? (
 						<EmptyState icon="telescope-outline" text="Nichts gefunden — andere Filter probieren." />
@@ -229,8 +343,9 @@ export default function Finder() {
 
 					{!busy ? (
 						<View style={styles.navRow}>
-							<Button label="Neu starten" kind="ghost" onPress={() => setStep('weather')} />
-							<Button label="Nochmal würfeln 🎲" onPress={search} />
+							<Button label="Von vorne" kind="ghost" onPress={resetAll} />
+							<Button label="Filter ändern" kind="ghost" onPress={() => setStep('weather')} />
+							<Button label="Neu würfeln 🎲" onPress={search} />
 						</View>
 					) : null}
 				</>

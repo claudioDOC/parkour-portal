@@ -6,6 +6,7 @@ import { eq, and, sql, desc, inArray, or, gte, asc } from 'drizzle-orm';
 import { getTrainingWindowForecast } from '$lib/server/trainingForecast';
 import { asNum } from '$lib/server/asSqlNumber';
 import { CITY_REGIONS } from '$lib/cityRegions';
+import { getNextOpenSessionId } from '$lib/server/training';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 
 const THUN_WEIGHT_BONUS = 1.45;
@@ -226,5 +227,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		pool.splice(idx, 1);
 	}
 
-	return json({ results: picked, forecastHint: fc?.summaryLine ?? null });
+	return json({
+		results: picked,
+		forecastHint: fc?.summaryLine ?? null,
+		// Für die App: direkt aus dem Ergebnis fürs nächste Training voten.
+		nextOpenSessionId: getNextOpenSessionId()
+	});
 };

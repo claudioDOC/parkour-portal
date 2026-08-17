@@ -15,7 +15,8 @@ import {
 	ProgressBar,
 	Stat,
 	StatGrid,
-	InitialsRow
+	InitialsRow,
+	Avatar
 } from '../../lib/ui';
 import { Image } from 'expo-image';
 import { mediaUrl } from '../../lib/api';
@@ -97,9 +98,14 @@ export default function Challenges() {
 				<>
 					<SectionTitle>Leaderboard</SectionTitle>
 					<Card style={{ gap: 8 }}>
-						{data.leaderboard.slice(0, 5).map((row, i) => (
-							<View key={row.userId} style={styles.lbRow}>
+						{data.leaderboard.slice(0, 15).map((row, i) => (
+							<Pressable
+								key={row.userId}
+								onPress={() => router.push(`/profile/${row.userId}`)}
+								style={({ pressed }) => [styles.lbRow, pressed && { opacity: 0.7 }]}
+							>
 								<Text style={[styles.lbRank, i === 0 && { color: colors.accent }]}>{i + 1}</Text>
+								<Avatar username={row.username} avatar={row.avatar} size={26} index={i} />
 								<Text
 									style={[
 										styles.lbName,
@@ -109,7 +115,7 @@ export default function Challenges() {
 									{row.username}
 								</Text>
 								<Text style={styles.lbClears}>{row.clears === 1 ? '1 Clear' : `${row.clears} Clears`}</Text>
-							</View>
+							</Pressable>
 						))}
 					</Card>
 				</>
@@ -169,7 +175,7 @@ export default function Challenges() {
 											</Text>
 											{ch.completers.length > 0 ? (
 												<View style={styles.chDone}>
-													<InitialsRow names={ch.completers.map((c) => c.username)} />
+													<InitialsRow people={ch.completers} />
 													<Text style={styles.chDoneText}>
 														{ch.completers.length} geschafft
 													</Text>
@@ -206,9 +212,9 @@ export default function Challenges() {
 				<>
 					<SectionTitle>Zuletzt geschafft</SectionTitle>
 					<Card style={{ gap: 8 }}>
-						{data.recentClears.slice(0, 6).map((rc, i) => (
+						{data.recentClears.slice(0, 10).map((rc, i) => (
 							<View key={i} style={styles.clearRow}>
-								<Ionicons name="checkmark-circle" size={15} color={colors.success} />
+								<Avatar username={rc.username} avatar={rc.avatar} size={22} index={i} />
 								<Text style={styles.clearText} numberOfLines={1}>
 									<Text style={{ fontFamily: fonts.sansBold, color: colors.text }}>{rc.username}</Text>
 									{'  '}

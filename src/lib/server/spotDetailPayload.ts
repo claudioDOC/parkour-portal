@@ -128,7 +128,8 @@ export function buildSpotDetailPayload(spotId: number, viewerUserId: number | nu
 		? db
 				.select({
 					id: users.id,
-					username: users.username
+					username: users.username,
+					avatar: users.avatar
 				})
 				.from(users)
 				.where(and(eq(users.active, true), usersNotDeletedCondition()))
@@ -143,7 +144,8 @@ export function buildSpotDetailPayload(spotId: number, viewerUserId: number | nu
 					.select({
 						challengeId: spotChallengeCompletions.challengeId,
 						userId: spotChallengeCompletions.userId,
-						username: users.username
+						username: users.username,
+						avatar: users.avatar
 					})
 					.from(spotChallengeCompletions)
 					.innerJoin(users, eq(spotChallengeCompletions.userId, users.id))
@@ -376,9 +378,15 @@ export function buildSpotDetailPayload(spotId: number, viewerUserId: number | nu
 		challenges: challenges.map((challenge) => {
 			const doneBy = completions
 				.filter((c) => c.challengeId === challenge.id)
-				.map((c) => ({ userId: c.userId, username: c.username }));
+				.map((c) => ({
+					userId: c.userId,
+					username: c.username,
+					avatar: c.avatar ? `/uploads/${c.avatar}` : null
+				}));
 			const doneIds = new Set(doneBy.map((d) => d.userId));
-			const openBy = participants.filter((p) => !doneIds.has(p.id));
+			const openBy = participants
+				.filter((p) => !doneIds.has(p.id))
+				.map((p) => ({ ...p, avatar: p.avatar ? `/uploads/${p.avatar}` : null }));
 			const chImages = challengeImagesRows
 				.filter((r) => r.challengeId === challenge.id)
 				.map((r) => ({

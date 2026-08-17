@@ -262,6 +262,7 @@ export const removeAvatar = () =>
 export type AdminUser = {
 	id: number;
 	username: string;
+	avatar?: string | null;
 	role: 'admin' | 'spotmanager' | 'member';
 	active: boolean;
 	trainingAttendance: 'implicit' | 'opt_in';
@@ -384,8 +385,8 @@ export type SpotChallenge = {
 	images: { id: number; url: string }[];
 	doneCount: number;
 	openCount: number;
-	doneBy: { userId: number; username: string }[];
-	openBy: { id: number; username: string }[];
+	doneBy: { userId: number; username: string; avatar?: string | null }[];
+	openBy: { id: number; username: string; avatar?: string | null }[];
 };
 
 /** Basisdaten liegen unter `spot`, Bewertung/Bilder/Challenges daneben. */
@@ -401,6 +402,8 @@ export type SpotDetailPayload = {
 		goodWeather: string | null;
 		description: string | null;
 		addedByName: string;
+		isMicro?: boolean;
+		parentSpotId?: number | null;
 	};
 	avgScore: number;
 	voteCount: number;
@@ -412,6 +415,8 @@ export type SpotDetailPayload = {
 	parkingLocations: { id: number; name: string | null; latitude: number; longitude: number }[];
 	childMicroSpots?: { id: number; name: string; city: string }[];
 	parentSpot?: { id: number; name: string; city: string } | null;
+	/** Mögliche Hauptspots für einen Microspot — fürs Bearbeiten. */
+	parentCandidates?: { id: number; name: string; city: string }[];
 	nextOpenSessionId?: number | null;
 };
 
@@ -579,7 +584,7 @@ export type ArenaChallenge = {
 	title: string;
 	description: string | null;
 	spotId: number;
-	completers: { userId: number; username: string }[];
+	completers: { userId: number; username: string; avatar?: string | null; completedAt?: string }[];
 	images: { id: number; url: string }[];
 };
 
@@ -595,8 +600,8 @@ export type ArenaPayload = {
 	totalChallenges: number;
 	totalClears: number;
 	openQuests: number;
-	leaderboard: { userId: number; username: string; clears: number }[];
-	recentClears: { username: string; challengeTitle?: string; title?: string; spotName: string; spotId: number; at: string }[];
+	leaderboard: { userId: number; username: string; avatar?: string | null; clears: number }[];
+	recentClears: { username: string; avatar?: string | null; challengeTitle?: string; title?: string; spotName: string; spotId: number; at: string }[];
 	viewerUsername: string | null;
 };
 
@@ -627,6 +632,7 @@ export type Trip = {
 	memberStates: {
 		userId: number;
 		username: string;
+		avatar?: string | null;
 		status: 'joined' | 'declined' | 'pending';
 		transportMode: string | null;
 		note: string | null;
@@ -712,6 +718,7 @@ export const proposeDateOption = (tripId: number, startDate: string, endDate: st
 export type StatsRow = {
 	userId: number;
 	username: string;
+	avatar?: string | null;
 	eligiblePastSessions: number;
 	absences: number;
 	implicitPresent: number;
@@ -739,8 +746,8 @@ export type StatsPayload = {
 		monthDetail: (MonthRow & { leaderboard: StatsRow[] })[];
 	};
 	solo: {
-		leaderboard: { userId: number; username: string; total: number; last90: number }[];
-		recent: { username: string; date: string; note: string | null }[];
+		leaderboard: { userId: number; username: string; avatar?: string | null; total: number; last90: number }[];
+		recent: { username: string; avatar?: string | null; date: string; note: string | null }[];
 	};
 };
 
@@ -771,6 +778,7 @@ export type FinderResult = {
 	city: string;
 	lighting: string | null;
 	techniques: string | null;
+	goodWeather: string | null;
 	description: string | null;
 	avgScore: number;
 	voteCount: number;
@@ -787,7 +795,11 @@ export type FinderQuery = {
 };
 
 export const runFinder = (query: FinderQuery) =>
-	post<{ results: FinderResult[]; forecastHint: string | null }>('/api/finder', query);
+	post<{
+		results: FinderResult[];
+		forecastHint: string | null;
+		nextOpenSessionId: number | null;
+	}>('/api/finder', query);
 
 // --- Einstellungen ---
 

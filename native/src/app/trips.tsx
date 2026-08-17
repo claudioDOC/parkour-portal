@@ -14,7 +14,8 @@ import {
 	EmptyState,
 	Button,
 	Sheet,
-	Input
+	Input,
+	Avatar
 } from '../lib/ui';
 import { useData } from '../lib/store';
 import { NativeMap, type MapMarker } from '../lib/NativeMap';
@@ -256,6 +257,7 @@ export default function Trips() {
 										}
 										style={[styles.memberChip, { borderColor: tint + '40' }]}
 									>
+										<Avatar username={m.username} avatar={m.avatar} size={20} />
 										<Text style={[styles.memberChipText, { color: tint }]}>
 											{m.username} · {memberLabel(m)}
 											{m.note ? ' *' : ''}
@@ -784,11 +786,15 @@ const makeStyles = (colors: ThemeColors) =>
 	},
 	chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
 	memberChip: {
-		borderRadius: 999,
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 6,
+		borderRadius: 14,
 		borderWidth: 1,
 		backgroundColor: colors.bgSecondary,
-		paddingHorizontal: 10,
-		paddingVertical: 5
+		paddingLeft: 4,
+		paddingRight: 10,
+		paddingVertical: 4
 	},
 	memberChipText: { fontSize: 11, lineHeight: 15, fontFamily: fonts.sansMedium },
 	memberNote: {

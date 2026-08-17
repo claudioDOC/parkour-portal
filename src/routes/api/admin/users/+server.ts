@@ -38,6 +38,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			.select({
 				id: users.id,
 				username: users.username,
+				avatar: users.avatar,
 				role: users.role,
 				active: users.active,
 				trainingAttendance: users.trainingAttendance,
@@ -52,6 +53,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const allUsers = rows.map((r) => ({
 			id: r.id,
 			username: r.username,
+			avatar: r.avatar ? `/uploads/${r.avatar}` : null,
 			role: r.role,
 			active: r.active,
 			trainingAttendance: r.trainingAttendance,
@@ -67,6 +69,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		.select({
 			id: users.id,
 			username: users.username,
+			avatar: users.avatar,
 			role: users.role,
 			active: users.active,
 			createdAt: users.createdAt,
@@ -79,6 +82,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const allUsers = rows.map((r) => ({
 		id: r.id,
 		username: r.username,
+		avatar: r.avatar ? `/uploads/${r.avatar}` : null,
 		role: r.role,
 		active: r.active,
 		trainingAttendance: 'implicit' as const,

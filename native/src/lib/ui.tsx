@@ -8,6 +8,7 @@ import {
 	RefreshControl,
 	Modal,
 	TextInput,
+	Dimensions,
 	type TextInputProps
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -340,7 +341,9 @@ export function NameChip({
 						justifyContent: 'center'
 					}}
 				>
-					<View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dot }} />
+					<Text style={{ color: dot, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold }}>
+						{name.slice(0, 1).toUpperCase()}
+					</Text>
 				</View>
 			)}
 			<Text style={{ ...T.body, color: colors.fg + textAlpha.primary }}>{name}</Text>
@@ -400,16 +403,27 @@ export function Avatar({
 	);
 }
 
-/** Überlappende Avatar-Reihe („wer ist dabei"), max. 7 + Rest. */
-export function InitialsRow({ names }: { names: string[] }) {
+/**
+ * Überlappende Avatar-Reihe („wer ist dabei"), max. 7 + Rest.
+ * Nimmt Personen MIT Profilbild — nie wieder nur Initialen, wenn ein
+ * Bild existiert. `names` bleibt als Rückfall für reine Namenslisten.
+ */
+export function InitialsRow({
+	names,
+	people
+}: {
+	names?: string[];
+	people?: { username: string; avatar?: string | null }[];
+}) {
 	const { colors } = useTheme();
-	const shown = names.slice(0, 7);
-	const rest = names.length - shown.length;
+	const list = people ?? (names ?? []).map((n) => ({ username: n, avatar: undefined }));
+	const shown = list.slice(0, 7);
+	const rest = list.length - shown.length;
 	return (
 		<View style={{ flexDirection: 'row', alignItems: 'center' }}>
-			{shown.map((n, i) => (
+			{shown.map((p, i) => (
 				<View
-					key={`${n}-${i}`}
+					key={`${p.username}-${i}`}
 					style={{
 						borderRadius: 999,
 						borderWidth: 2,
@@ -417,7 +431,7 @@ export function InitialsRow({ names }: { names: string[] }) {
 						marginLeft: i === 0 ? 0 : -8
 					}}
 				>
-					<Avatar username={n} size={30} index={i} />
+					<Avatar username={p.username} avatar={p.avatar} size={30} index={i} />
 				</View>
 			))}
 			{rest > 0 ? (
@@ -694,12 +708,15 @@ export function Sheet({
 	visible,
 	onClose,
 	title,
-	children
+	children,
+	scroll = false
 }: {
 	visible: boolean;
 	onClose: () => void;
 	title: string;
 	children: ReactNode;
+	/** Für lange Formulare: Inhalt scrollt, Sheet bleibt unter 3/4 der Höhe. */
+	scroll?: boolean;
 }) {
 	const { colors } = useTheme();
 	const insets = useSafeAreaInsets();
@@ -742,7 +759,18 @@ export function Sheet({
 					>
 						{title.toUpperCase()}
 					</Text>
-					{children}
+					{scroll ? (
+						<ScrollView
+							style={{ maxHeight: Dimensions.get('window').height * 0.68 }}
+							contentContainerStyle={{ gap: 12 }}
+							keyboardShouldPersistTaps="handled"
+							showsVerticalScrollIndicator={false}
+						>
+							{children}
+						</ScrollView>
+					) : (
+						children
+					)}
 				</Pressable>
 			</Pressable>
 		</Modal>

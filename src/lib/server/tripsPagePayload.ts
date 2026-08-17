@@ -19,11 +19,12 @@ export type TripsViewer = { id: number; role?: string | null };
 /** Kompletter Payload der Trips-Seite, gemeinsam für Web und /api/v1/trips. */
 export function buildTripsPagePayload(user: TripsViewer) {
 	const activeUsers = db
-		.select({ id: users.id, username: users.username })
+		.select({ id: users.id, username: users.username, avatar: users.avatar })
 		.from(users)
 		.where(usersNotDeletedCondition())
 		.orderBy(asc(users.username))
-		.all();
+		.all()
+		.map((u) => ({ ...u, avatar: u.avatar ? `/uploads/${u.avatar}` : null }));
 
 	const today = new Date().toISOString().slice(0, 10);
 	const hasTripTrash = tripPlansHasSoftDeleteColumns();
@@ -176,6 +177,7 @@ export function buildTripsPagePayload(user: TripsViewer) {
 				return {
 					userId: u.id,
 					username: u.username,
+					avatar: u.avatar,
 					status: 'pending' as const,
 					transportMode: null,
 					note: null as string | null
@@ -185,6 +187,7 @@ export function buildTripsPagePayload(user: TripsViewer) {
 				return {
 					userId: u.id,
 					username: u.username,
+					avatar: u.avatar,
 					status: 'declined' as const,
 					transportMode: row.transportMode,
 					note
@@ -193,6 +196,7 @@ export function buildTripsPagePayload(user: TripsViewer) {
 			return {
 				userId: u.id,
 				username: u.username,
+				avatar: u.avatar,
 				status: 'joined' as const,
 				transportMode: row.transportMode,
 				note

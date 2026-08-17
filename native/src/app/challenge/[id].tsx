@@ -221,7 +221,7 @@ export default function ChallengeDetail() {
 									onPress={() => router.push(`/profile/${d.userId}`)}
 									style={({ pressed }) => [styles.personRow, pressed && { opacity: 0.7 }]}
 								>
-									<Avatar username={d.username} size={32} index={i} />
+									<Avatar username={d.username} avatar={d.avatar} size={32} index={i} />
 									<Text style={styles.personName}>{d.username}</Text>
 									{canManage && d.userId !== me?.id ? (
 										<Pressable
@@ -260,7 +260,7 @@ export default function ChallengeDetail() {
 										onPress={() => router.push(`/profile/${o.id}`)}
 										style={({ pressed }) => [styles.personRow, pressed && { opacity: 0.7 }]}
 									>
-										<Avatar username={o.username} size={32} index={i} />
+										<Avatar username={o.username} avatar={o.avatar} size={32} index={i} />
 										<Text style={styles.personNameMuted}>{o.username}</Text>
 									</Pressable>
 								))}

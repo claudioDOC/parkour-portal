@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../lib/theme';
 import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
-import { Card, TopBar, Screen, SectionTitle, ErrorCard, ProgressBar, Stat, StatGrid } from '../lib/ui';
+import { Card, TopBar, Screen, SectionTitle, ErrorCard, ProgressBar, Stat, StatGrid, Avatar } from '../lib/ui';
 import { useData } from '../lib/store';
 import { getStats } from '../lib/api';
 import { useAuth } from './_layout';
@@ -93,6 +93,7 @@ export default function Stats() {
 					<View key={row.userId} style={{ gap: 4 }}>
 						<View style={styles.lbRow}>
 							<Text style={[styles.lbRank, i < 3 && { color: colors.accent }]}>{i + 1}</Text>
+							<Avatar username={row.username} avatar={row.avatar} size={26} index={i} />
 							<Text style={[styles.lbName, me?.id === row.userId && { color: colors.accent }]}>
 								{row.username}
 							</Text>
@@ -144,6 +145,7 @@ export default function Stats() {
 						{data.solo.leaderboard.map((row, i) => (
 							<View key={row.userId} style={styles.lbRow}>
 								<Text style={[styles.lbRank, i === 0 && { color: colors.accent }]}>{i + 1}</Text>
+								<Avatar username={row.username} avatar={row.avatar} size={26} index={i} />
 								<Text style={[styles.lbName, me?.id === row.userId && { color: colors.accent }]}>
 									{row.username}
 								</Text>

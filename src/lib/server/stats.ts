@@ -25,6 +25,7 @@ const STATS_START_DATE = '2026-04-01';
 export type UserTrainingStats = {
 	userId: number;
 	username: string;
+	avatar: string | null;
 	eligiblePastSessions: number;
 	absences: number;
 	implicitPresent: number;
@@ -110,6 +111,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		.select({
 			id: users.id,
 			username: users.username,
+			avatar: users.avatar,
 			createdAt: users.createdAt,
 			active: users.active,
 			trainingAttendance: users.trainingAttendance,
@@ -244,6 +246,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		leaderboard.push({
 			userId: uid,
 			username: u.username,
+			avatar: u.avatar ? `/uploads/${u.avatar}` : null,
 			eligiblePastSessions: eligible.length,
 			absences: abs,
 			implicitPresent,
@@ -303,6 +306,7 @@ export function computeTrainingStats(): TrainingStatsPayload {
 			lb.push({
 				userId: uidM,
 				username: u.username,
+				avatar: u.avatar ? `/uploads/${u.avatar}` : null,
 				eligiblePastSessions: eligible.length,
 				absences: abs,
 				implicitPresent,
@@ -387,6 +391,7 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 		.select({
 			id: users.id,
 			username: users.username,
+			avatar: users.avatar,
 			createdAt: users.createdAt,
 			active: users.active
 		})
@@ -488,6 +493,7 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 		leaderboard.push({
 			userId: uidL,
 			username: u.username,
+			avatar: u.avatar ? `/uploads/${u.avatar}` : null,
 			eligiblePastSessions: eligible.length,
 			absences: abs,
 			implicitPresent,
@@ -536,6 +542,7 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 			lb.push({
 				userId: uidLb,
 				username: u.username,
+				avatar: u.avatar ? `/uploads/${u.avatar}` : null,
 				eligiblePastSessions: eligible.length,
 				absences: abs,
 				implicitPresent,

@@ -50,6 +50,53 @@ import { useAuth } from '../_layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
+/** Gleiche Liste wie das Web-Portal — sonst passen Filter und Finder nicht. */
+const EDIT_TECHNIQUES = [
+	'Präzisionssprung', 'Schwingen', 'Flow', 'Armsprung',
+	'Klettern', 'Tic-Tac', 'Vault', 'Balance',
+	'Drops', 'Katz', 'Roofgap'
+];
+
+/** Antippbarer Auswahl-Chip fürs Bearbeiten-Formular. */
+function EditChip({
+	label,
+	active,
+	onPress
+}: {
+	label: string;
+	active: boolean;
+	onPress: () => void;
+}) {
+	const { colors } = useTheme();
+	return (
+		<Pressable
+			onPress={onPress}
+			style={({ pressed }) => [
+				{
+					borderRadius: 16,
+					borderWidth: 1,
+					borderColor: active ? colors.accent : colors.border,
+					backgroundColor: active ? colors.accent : colors.hover,
+					paddingHorizontal: 13,
+					paddingVertical: 7
+				},
+				pressed && { opacity: 0.8 }
+			]}
+		>
+			<Text
+				style={{
+					color: active ? colors.onAccent : colors.fg + textAlpha.primary,
+					fontSize: 13,
+					lineHeight: 18,
+					fontFamily: fonts.sansMedium
+				}}
+			>
+				{label}
+			</Text>
+		</Pressable>
+	);
+}
+
 /** Farbpunkt mit Beschriftung für die Kartenlegende. */
 function Legend({ color, label }: { color: string; label: string }) {
 	const { colors } = useTheme();
@@ -77,9 +124,20 @@ export default function SpotDetailScreen() {
 	// Neue Challenge an diesem Spot
 	const [challengeOpen, setChallengeOpen] = useState(false);
 	const [chForm, setChForm] = useState({ title: '', description: '' });
-	// Spot bearbeiten (admin/spotmanager)
+	// Spot bearbeiten (admin/spotmanager) — ALLE Felder wie im Web.
 	const [editOpen, setEditOpen] = useState(false);
-	const [editForm, setEditForm] = useState({ name: '', city: '', description: '' });
+	const [editForm, setEditForm] = useState({
+		name: '',
+		city: '',
+		description: '',
+		coords: '',
+		lighting: 'teilweise',
+		techniques: [] as string[],
+		weather: [] as string[],
+		isMicro: false,
+		parentSpotId: null as number | null,
+		parking: [] as { name: string; coords: string }[]
+	});
 	const canEdit = me?.role === 'admin' || me?.role === 'spotmanager';
 
 	const base = data?.spot ?? null;
@@ -146,31 +204,84 @@ export default function SpotDetailScreen() {
 		}
 	};
 
+	/** „46.75123, 7.62345" → Koordinaten; leere Eingabe = keine. */
+	const parseCoords = (text: string): { lat: number; lon: number } | null | 'invalid' => {
+		const t = text.trim();
+		if (!t) return null;
+		const m = t.split(/[,;\s]+/).filter(Boolean);
+		const lat = Number(m[0]);
+		const lon = Number(m[1]);
+		if (m.length !== 2 || !Number.isFinite(lat) || !Number.isFinite(lon)) return 'invalid';
+		if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return 'invalid';
+		return { lat, lon };
+	};
+
+	const startEdit = () => {
+		if (!base) return;
+		setEditForm({
+			name: base.name,
+			city: base.city,
+			description: base.description ?? '',
+			coords:
+				base.latitude != null && base.longitude != null
+					? `${base.latitude}, ${base.longitude}`
+					: '',
+			lighting: base.lighting ?? 'teilweise',
+			techniques: (base.techniques ?? '').split(',').map((t) => t.trim()).filter(Boolean),
+			weather: (base.goodWeather ?? 'trocken').split(',').map((t) => t.trim()).filter(Boolean),
+			isMicro: Boolean(base.isMicro),
+			parentSpotId: base.parentSpotId ?? null,
+			parking: (data?.parkingLocations ?? []).map((p) => ({
+				name: p.name ?? '',
+				coords: `${p.latitude}, ${p.longitude}`
+			}))
+		});
+		setEditOpen(true);
+	};
+
 	const submitEdit = async () => {
 		if (!base) return;
 		if (!editForm.name.trim() || !editForm.city.trim()) {
 			Alert.alert('Unvollständig', 'Name und Ort sind Pflicht.');
 			return;
 		}
-		setEditOpen(false);
+		if (editForm.weather.length === 0) {
+			Alert.alert('Wetter fehlt', 'Mindestens eine Wetter-Eignung wählen (trocken/nass).');
+			return;
+		}
+		const coords = parseCoords(editForm.coords);
+		if (coords === 'invalid') {
+			Alert.alert('Koordinaten ungültig', 'Format: 46.75123, 7.62345 — oder Feld leer lassen.');
+			return;
+		}
+		const parking: { name: string | null; latitude: number; longitude: number }[] = [];
+		for (const p of editForm.parking) {
+			const pc = parseCoords(p.coords);
+			if (pc === 'invalid' || pc === null) {
+				Alert.alert(
+					'Parkplatz unvollständig',
+					`„${p.name || 'Parkplatz'}" braucht Koordinaten (Format: 46.75, 7.62) — oder Zeile mit × entfernen.`
+				);
+				return;
+			}
+			parking.push({ name: p.name.trim() || null, latitude: pc.lat, longitude: pc.lon });
+		}
 		try {
 			await editSpot(spotId, {
 				name: editForm.name.trim(),
 				city: editForm.city.trim(),
-				latitude: base.latitude,
-				longitude: base.longitude,
-				lighting: base.lighting ?? 'teilweise',
-				techniques: (base.techniques ?? '').split(',').map((t) => t.trim()).filter(Boolean),
-				goodWeather: (base.goodWeather ?? 'trocken').split(',').map((t) => t.trim()).filter(Boolean),
+				latitude: coords?.lat ?? null,
+				longitude: coords?.lon ?? null,
+				lighting: editForm.lighting,
+				techniques: editForm.techniques,
+				goodWeather: editForm.weather,
 				description: editForm.description.trim(),
-				isMicro: false,
-				parentSpotId: null,
-				parkingLocations: (data?.parkingLocations ?? []).map((p) => ({
-					name: p.name,
-					latitude: p.latitude,
-					longitude: p.longitude
-				}))
+				isMicro: editForm.isMicro,
+				parentSpotId: editForm.isMicro ? editForm.parentSpotId : null,
+				parkingLocations: parking
 			});
+			// Erst nach Erfolg schliessen — bei Fehlern bleiben die Eingaben erhalten.
+			setEditOpen(false);
 			await refresh();
 		} catch (e) {
 			Alert.alert('Fehler', e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
@@ -246,26 +357,24 @@ export default function SpotDetailScreen() {
 					) : null}
 
 					<Card>
-						<View style={styles.rowBetween}>
-							<View>
-								<Text style={styles.rateLabel}>Bewertung</Text>
-								<View style={styles.scoreRow}>
-									<Stars value={data.avgScore} size={18} />
-									<Text style={styles.scoreText}>
-										{data.voteCount > 0
-											? `${data.avgScore.toFixed(1)} · ${data.voteCount} Stimmen`
-											: 'Noch keine'}
-									</Text>
-								</View>
+						{/* Eine Zeile für alles: Sterne zeigen den Schnitt, Antippen wertet. */}
+						<View style={styles.rateRow}>
+							<Stars value={data.avgScore} size={22} onRate={rate} />
+							<View style={{ flex: 1 }}>
+								<Text style={styles.scoreText}>
+									{data.voteCount > 0
+										? `Ø ${data.avgScore.toFixed(1)} · ${data.voteCount} Stimme${data.voteCount === 1 ? '' : 'n'}`
+										: 'Noch keine Bewertung'}
+								</Text>
+								<Text style={styles.myVoteText}>
+									{data.userVote
+										? `Deine Wertung: ${data.userVote}`
+										: 'Sterne antippen zum Bewerten'}
+								</Text>
 							</View>
-
-						</View>
-						<View style={styles.myRate}>
-							<Text style={styles.myRateLabel}>Deine Wertung:</Text>
-							<Stars value={data.userVote ?? 0} size={20} onRate={rate} />
 							{data.userVote ? (
-								<Pressable onPress={clearVote} hitSlop={8}>
-									<Text style={styles.clearVote}>entfernen</Text>
+								<Pressable onPress={clearVote} hitSlop={10}>
+									<Ionicons name="close-circle-outline" size={20} color={colors.textMuted} />
 								</Pressable>
 							) : null}
 						</View>
@@ -279,14 +388,7 @@ export default function SpotDetailScreen() {
 									label="Bearbeiten"
 									kind="ghost"
 									small
-									onPress={() => {
-										setEditForm({
-											name: base.name,
-											city: base.city,
-											description: base.description ?? ''
-										});
-										setEditOpen(true);
-									}}
+									onPress={startEdit}
 								/>
 							) : null}
 							{me?.role === 'admin' ? (
@@ -380,6 +482,12 @@ export default function SpotDetailScreen() {
 									</Text>
 								</View>
 							) : null}
+							{base.addedByName ? (
+								<View style={styles.infoRow}>
+									<Ionicons name="person-add-outline" size={15} color={colors.textSecondary} />
+									<Text style={styles.infoText}>Hinzugefügt von {base.addedByName}</Text>
+								</View>
+							) : null}
 						</Card>
 					) : null}
 
@@ -425,7 +533,7 @@ export default function SpotDetailScreen() {
 										) : null}
 										{ch.doneBy.length > 0 ? (
 											<View style={styles.doneRow}>
-												<InitialsRow names={ch.doneBy.map((d) => d.username)} />
+												<InitialsRow people={ch.doneBy} />
 												<Text style={styles.doneText}>{ch.doneBy.length} geschafft</Text>
 											</View>
 										) : null}
@@ -465,7 +573,12 @@ export default function SpotDetailScreen() {
 						</>
 					) : null}
 
-					<Sheet visible={editOpen} onClose={() => setEditOpen(false)} title="Spot bearbeiten">
+					<Sheet
+						visible={editOpen}
+						onClose={() => setEditOpen(false)}
+						title="Spot bearbeiten"
+						scroll
+					>
 						<Input
 							placeholder="Name"
 							value={editForm.name}
@@ -481,6 +594,141 @@ export default function SpotDetailScreen() {
 							multiline
 							value={editForm.description}
 							onChangeText={(v) => setEditForm({ ...editForm, description: v })}
+						/>
+						<Text style={styles.editLabel}>Koordinaten (Breite, Länge)</Text>
+						<Input
+							placeholder="46.75123, 7.62345"
+							autoCapitalize="none"
+							value={editForm.coords}
+							onChangeText={(v) => setEditForm({ ...editForm, coords: v })}
+						/>
+						<Text style={styles.editLabel}>Beleuchtung</Text>
+						<View style={styles.editChipRow}>
+							{[
+								{ key: 'ja', label: 'Beleuchtet' },
+								{ key: 'teilweise', label: 'Teilweise' },
+								{ key: 'nein', label: 'Dunkel' }
+							].map((l) => (
+								<EditChip
+									key={l.key}
+									label={l.label}
+									active={editForm.lighting === l.key}
+									onPress={() => setEditForm({ ...editForm, lighting: l.key })}
+								/>
+							))}
+						</View>
+						<Text style={styles.editLabel}>Geeignet bei</Text>
+						<View style={styles.editChipRow}>
+							{['trocken', 'nass'].map((w) => (
+								<EditChip
+									key={w}
+									label={w === 'trocken' ? 'Trocken' : 'Auch bei Nässe'}
+									active={editForm.weather.includes(w)}
+									onPress={() =>
+										setEditForm({
+											...editForm,
+											weather: editForm.weather.includes(w)
+												? editForm.weather.filter((x) => x !== w)
+												: [...editForm.weather, w]
+										})
+									}
+								/>
+							))}
+						</View>
+						<Text style={styles.editLabel}>Techniken</Text>
+						<View style={styles.editChipRow}>
+							{EDIT_TECHNIQUES.map((t) => (
+								<EditChip
+									key={t}
+									label={t}
+									active={editForm.techniques.includes(t)}
+									onPress={() =>
+										setEditForm({
+											...editForm,
+											techniques: editForm.techniques.includes(t)
+												? editForm.techniques.filter((x) => x !== t)
+												: [...editForm.techniques, t]
+										})
+									}
+								/>
+							))}
+						</View>
+						<Text style={styles.editLabel}>Microspot</Text>
+						<View style={styles.editChipRow}>
+							<EditChip
+								label={editForm.isMicro ? 'Ist ein Microspot ✓' : 'Kein Microspot'}
+								active={editForm.isMicro}
+								onPress={() => setEditForm({ ...editForm, isMicro: !editForm.isMicro })}
+							/>
+						</View>
+						{editForm.isMicro ? (
+							<View style={styles.editChipRow}>
+								{(data.parentCandidates ?? [])
+									.filter((c) => c.id !== spotId)
+									.map((c) => (
+										<EditChip
+											key={c.id}
+											label={c.name}
+											active={editForm.parentSpotId === c.id}
+											onPress={() =>
+												setEditForm({
+													...editForm,
+													parentSpotId: editForm.parentSpotId === c.id ? null : c.id
+												})
+											}
+										/>
+									))}
+							</View>
+						) : null}
+						<Text style={styles.editLabel}>{`Parkplätze · ${editForm.parking.length}`}</Text>
+						{editForm.parking.map((p, i) => (
+							<View key={i} style={styles.parkingRow}>
+								<View style={{ flex: 1, gap: 6 }}>
+									<Input
+										placeholder={`Parkplatz ${i + 1} — Name (optional)`}
+										value={p.name}
+										onChangeText={(v) =>
+											setEditForm({
+												...editForm,
+												parking: editForm.parking.map((x, k) => (k === i ? { ...x, name: v } : x))
+											})
+										}
+									/>
+									<Input
+										placeholder="46.75, 7.62"
+										autoCapitalize="none"
+										value={p.coords}
+										onChangeText={(v) =>
+											setEditForm({
+												...editForm,
+												parking: editForm.parking.map((x, k) => (k === i ? { ...x, coords: v } : x))
+											})
+										}
+									/>
+								</View>
+								<Pressable
+									onPress={() =>
+										setEditForm({
+											...editForm,
+											parking: editForm.parking.filter((_, k) => k !== i)
+										})
+									}
+									hitSlop={10}
+								>
+									<Ionicons name="close-circle" size={22} color={colors.danger} />
+								</Pressable>
+							</View>
+						))}
+						<Button
+							label="+ Parkplatz"
+							kind="ghost"
+							small
+							onPress={() =>
+								setEditForm({
+									...editForm,
+									parking: [...editForm.parking, { name: '', coords: '' }]
+								})
+							}
 						/>
 						<View style={styles.sheetActions}>
 							<Button label="Abbrechen" kind="ghost" onPress={() => setEditOpen(false)} />
@@ -536,9 +784,14 @@ const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
 	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 	galleryImage: { width: SCREEN_W * 0.72, height: SCREEN_W * 0.48, borderRadius: 12, backgroundColor: colors.hover },
-	rateLabel: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold, letterSpacing: 1.5 },
-	scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-	scoreText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16 },
+	rateRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+	scoreText: {
+		color: colors.fg + textAlpha.primary,
+		fontSize: 13,
+		lineHeight: 18,
+		fontFamily: fonts.sansSemi
+	},
+	myVoteText: { color: colors.fg + textAlpha.muted, fontSize: 11, lineHeight: 15 },
 	mapBtn: {
 		flexDirection: 'row',
 		alignItems: 'center',
@@ -549,8 +802,6 @@ const makeStyles = (colors: ThemeColors) =>
 		paddingVertical: 8
 	},
 	mapBtnText: { color: colors.onAccent, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold },
-	myRate: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
-	myRateLabel: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16 },
 	description: { color: colors.fg + textAlpha.secondary, fontSize: 14, lineHeight: 20 },
 	infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 	infoText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, flex: 1 },
@@ -589,12 +840,16 @@ const makeStyles = (colors: ThemeColors) =>
 		marginTop: 8
 	},
 	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
-	clearVote: {
+	editLabel: {
 		color: colors.fg + textAlpha.muted,
 		fontSize: 12,
 		lineHeight: 16,
-		textDecorationLine: 'underline'
+		fontFamily: fonts.sansBold,
+		letterSpacing: 1,
+		marginTop: 4
 	},
+	editChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+	parkingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 	actionBar: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
 	challengeImage: { width: '100%', height: 150, borderRadius: 12, backgroundColor: colors.hover },
 	legendRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },

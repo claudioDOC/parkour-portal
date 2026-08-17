@@ -150,7 +150,7 @@ export default function Admin() {
 				? (users.data?.users ?? []).map((u, i) => (
 						<Card key={u.id} style={{ gap: 12 }}>
 							<View style={styles.userHead}>
-								<Avatar username={u.username} size={38} index={i} />
+								<Avatar username={u.username} avatar={u.avatar} size={38} index={i} />
 								<View style={{ flex: 1 }}>
 									<Text style={styles.userName}>{u.username}</Text>
 									<Text style={styles.muted}>

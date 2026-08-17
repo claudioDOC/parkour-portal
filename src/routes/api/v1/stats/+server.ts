@@ -12,8 +12,14 @@ export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
 	let solo: {
-		leaderboard: { userId: number; username: string; total: number; last90: number }[];
-		recent: { username: string; date: string; note: string | null }[];
+		leaderboard: {
+			userId: number;
+			username: string;
+			avatar: string | null;
+			total: number;
+			last90: number;
+		}[];
+		recent: { username: string; avatar: string | null; date: string; note: string | null }[];
 	} = { leaderboard: [], recent: [] };
 	try {
 		const today = todayYmdInAppTZ();
@@ -22,6 +28,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 			.select({
 				userId: soloTrainings.userId,
 				username: users.username,
+				avatar: users.avatar,
 				date: soloTrainings.date,
 				note: soloTrainings.note
 			})
@@ -30,9 +37,20 @@ export const GET: RequestHandler = async ({ locals }) => {
 			.where(usersNotDeletedCondition())
 			.orderBy(desc(soloTrainings.date))
 			.all();
-		const byUser = new Map<number, { userId: number; username: string; total: number; last90: number }>();
+		const byUser = new Map<
+			number,
+			{ userId: number; username: string; avatar: string | null; total: number; last90: number }
+		>();
 		for (const r of rows) {
-			const e = byUser.get(r.userId) ?? { userId: r.userId, username: r.username, total: 0, last90: 0 };
+			const e =
+				byUser.get(r.userId) ??
+				{
+					userId: r.userId,
+					username: r.username,
+					avatar: r.avatar ? `/uploads/${r.avatar}` : null,
+					total: 0,
+					last90: 0
+				};
 			e.total++;
 			if (r.date >= cutoff90) e.last90++;
 			byUser.set(r.userId, e);
@@ -41,7 +59,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 			leaderboard: [...byUser.values()].sort(
 				(a, b) => b.last90 - a.last90 || b.total - a.total || a.username.localeCompare(b.username, 'de')
 			),
-			recent: rows.slice(0, 8).map((r) => ({ username: r.username, date: r.date, note: r.note }))
+			recent: rows.slice(0, 8).map((r) => ({
+				username: r.username,
+				avatar: r.avatar ? `/uploads/${r.avatar}` : null,
+				date: r.date,
+				note: r.note
+			}))
 		};
 	} catch {
 		/* Tabelle fehlt (Migration ausstehend) — Sektion bleibt leer. */
