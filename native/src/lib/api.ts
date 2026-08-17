@@ -801,6 +801,11 @@ export const runFinder = (query: FinderQuery) =>
 		nextOpenSessionId: number | null;
 	}>('/api/finder', query);
 
+// --- Benachrichtigungen (Google-frei über ntfy) ---
+
+export const getNtfyInfo = () =>
+	get<{ base: string; topic: string; url: string }>('/api/v1/ntfy');
+
 // --- Einstellungen ---
 
 export const saveUiTheme = (theme: string) =>

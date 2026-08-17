@@ -14,8 +14,10 @@ import {
 	removeAvatar,
 	changePassword,
 	saveUiTheme,
+	getNtfyInfo,
 	BASE_URL
 } from '../lib/api';
+import { Linking } from 'react-native';
 import { useAuth } from './_layout';
 
 /** Entspricht der Einstellungen-Seite des Portals. */
@@ -214,6 +216,60 @@ export default function Settings() {
 				</View>
 			</Card>
 
+			<SectionTitle>Benachrichtigungen</SectionTitle>
+			<Card style={{ gap: 10 }}>
+				<Text style={styles.prefLabel}>Push ohne Google — über die ntfy-App</Text>
+				<Text style={styles.ntfyHint}>
+					Einmal einrichten, dann kommen Training-Erinnerungen, Absagen und
+					Neuigkeiten auch bei geschlossener App an: 1. ntfy installieren,
+					2. deinen Kanal abonnieren.
+				</Text>
+				<View style={styles.prefRow}>
+					<Button
+						label="1 · ntfy-App holen"
+						kind="ghost"
+						small
+						onPress={() =>
+							Linking.openURL(
+								'https://play.google.com/store/apps/details?id=io.heckel.ntfy'
+							).catch(() => {})
+						}
+					/>
+					<Button
+						label="2 · Meinen Kanal abonnieren"
+						small
+						onPress={async () => {
+							try {
+								const info = await getNtfyInfo();
+								// ntfy-Deeplink; falls die App fehlt, öffnet der Browser die Kanalseite.
+								await Linking.openURL(`ntfy://${info.base.replace(/^https?:\/\//, '')}/${info.topic}`).catch(
+									() => Linking.openURL(info.url)
+								);
+							} catch (e) {
+								Alert.alert('Fehler', e instanceof Error ? e.message : 'Kanal nicht abrufbar');
+							}
+						}}
+					/>
+					<Button
+						label="Kanal teilen/kopieren"
+						kind="ghost"
+						small
+						onPress={async () => {
+							try {
+								const info = await getNtfyInfo();
+								Share.share({ message: info.url }).catch(() => {});
+							} catch (e) {
+								Alert.alert('Fehler', e instanceof Error ? e.message : 'Kanal nicht abrufbar');
+							}
+						}}
+					/>
+				</View>
+				<Text style={styles.ntfyHint}>
+					Der Kanalname ist dein privates Geheimnis — nicht weitergeben, ausser
+					an dein Zweitgerät.
+				</Text>
+			</Card>
+
 			<SectionTitle>Kalender</SectionTitle>
 			<Card style={{ padding: 6 }}>
 				<Row
@@ -315,6 +371,12 @@ const makeStyles = (colors: ThemeColors) =>
 			letterSpacing: 1
 		},
 		prefRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+		ntfyHint: {
+			color: colors.fg + textAlpha.secondary,
+			fontSize: 12,
+			lineHeight: 17,
+			fontFamily: fonts.sans
+		},
 		prefChip: {
 			borderRadius: 16,
 			borderWidth: 1,

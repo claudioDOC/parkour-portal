@@ -6,6 +6,7 @@
  * Fehlen sie, ist Push schlicht deaktiviert — die App läuft normal weiter.
  */
 import webpush from 'web-push';
+import { createHmac } from 'node:crypto';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { db } from './db';
 import { pushSubscriptions, users } from './db/schema';
@@ -103,22 +104,70 @@ async function deliver(sub: SubscriptionRow, payload: PushPayload): Promise<bool
 	}
 }
 
+/**
+ * Google-freier Push-Kanal über ntfy (Open Source): Jeder User hat ein
+ * geheimes, aus der User-ID abgeleitetes Thema. Wer in der ntfy-App das
+ * eigene Thema abonniert hat, bekommt jede Portal-Benachrichtigung auch
+ * bei geschlossener App — ganz ohne Google/Firebase.
+ * Server per NTFY_BASE umstellbar (Standard: ntfy.sh; später self-hosted).
+ */
+const NTFY_BASE = (process.env.NTFY_BASE || 'https://ntfy.sh').replace(/\/$/, '');
+const PORTAL_ORIGIN = process.env.ORIGIN || 'https://matetraining.duckdns.org';
+
+export function ntfyTopicForUser(userId: number): string {
+	const secret = process.env.JWT_SECRET || 'parkour';
+	const mac = createHmac('sha256', secret).update(`ntfy:${userId}`).digest('hex');
+	return `mate-${mac.slice(0, 20)}`;
+}
+
+export function ntfyInfoForUser(userId: number): { base: string; topic: string; url: string } {
+	const topic = ntfyTopicForUser(userId);
+	return { base: NTFY_BASE, topic, url: `${NTFY_BASE}/${topic}` };
+}
+
+async function deliverNtfy(userId: number, payload: PushPayload): Promise<boolean> {
+	try {
+		const res = await fetch(`${NTFY_BASE}/${ntfyTopicForUser(userId)}`, {
+			method: 'POST',
+			headers: {
+				'X-Title': payload.title,
+				'X-Click': `${PORTAL_ORIGIN}${payload.url ?? '/'}`,
+				...(payload.tag ? { 'X-Tags': payload.tag } : {})
+			},
+			body: payload.body
+		});
+		return res.ok;
+	} catch {
+		return false; // ntfy nicht erreichbar — Web-Push läuft unabhängig weiter.
+	}
+}
+
 /** Schickt an alle Geräte der genannten User. Gibt die Zahl erfolgreicher Zustellungen zurück. */
 export async function sendToUsers(userIds: number[], payload: PushPayload): Promise<number> {
-	if (!isPushConfigured() || userIds.length === 0) return 0;
-	const subs = db
-		.select({
-			id: pushSubscriptions.id,
-			endpoint: pushSubscriptions.endpoint,
-			p256dh: pushSubscriptions.p256dh,
-			auth: pushSubscriptions.auth
-		})
-		.from(pushSubscriptions)
-		.where(inArray(pushSubscriptions.userId, userIds))
-		.all();
-	if (subs.length === 0) return 0;
-	const results = await Promise.all(subs.map((s) => deliver(s, payload)));
-	return results.filter(Boolean).length;
+	if (userIds.length === 0) return 0;
+
+	// Kanal 2: ntfy — unabhängig von der VAPID-Konfiguration.
+	const ntfyResults = Promise.all(userIds.map((id) => deliverNtfy(id, payload)));
+
+	let webCount = 0;
+	if (isPushConfigured()) {
+		const subs = db
+			.select({
+				id: pushSubscriptions.id,
+				endpoint: pushSubscriptions.endpoint,
+				p256dh: pushSubscriptions.p256dh,
+				auth: pushSubscriptions.auth
+			})
+			.from(pushSubscriptions)
+			.where(inArray(pushSubscriptions.userId, userIds))
+			.all();
+		if (subs.length > 0) {
+			const results = await Promise.all(subs.map((s) => deliver(s, payload)));
+			webCount = results.filter(Boolean).length;
+		}
+	}
+	const ntfyCount = (await ntfyResults).filter(Boolean).length;
+	return webCount + ntfyCount;
 }
 
 /**
@@ -132,7 +181,7 @@ export async function sendToUsersWithPref(
 	candidateUserIds?: number[],
 	opts?: { excludeUserIds?: number[] }
 ): Promise<number> {
-	if (!isPushConfigured()) return 0;
+	// Kein isPushConfigured-Gate mehr: ntfy funktioniert auch ohne VAPID.
 	const rows = db
 		.select({ id: users.id, pushPrefs: users.pushPrefs })
 		.from(users)
