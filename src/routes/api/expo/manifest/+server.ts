@@ -18,7 +18,8 @@ const UPDATES_DIR = join(process.cwd(), 'data', 'expo-updates');
 
 export const GET: RequestHandler = async ({ request }) => {
 	const platform = request.headers.get('expo-platform') ?? 'android';
-	if (platform !== 'android') throw error(404, 'Nur Android');
+	// Android-APK und sideloadete iOS-App teilen sich denselben Kanal.
+	if (platform !== 'android' && platform !== 'ios') throw error(404, 'Plattform unbekannt');
 
 	let manifestRaw: string;
 	try {

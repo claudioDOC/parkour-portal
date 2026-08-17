@@ -6,5 +6,5 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-npx expo export --platform android
+npx expo export --platform all
 node scripts/deploy-update.mjs
