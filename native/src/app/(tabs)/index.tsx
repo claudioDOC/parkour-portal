@@ -414,9 +414,7 @@ export default function Dashboard() {
 													avatar={a.avatar ?? null}
 												/>
 												{a.reason ? (
-													<Text style={styles.absenceReason} numberOfLines={2}>
-														{a.reason}
-													</Text>
+													<Text style={styles.absenceReason}>{a.reason}</Text>
 												) : null}
 											</View>
 										))}
@@ -752,14 +750,16 @@ const makeStyles = (colors: ThemeColors) =>
 			marginTop: 2
 		},
 		weatherRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
-		absenceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+		absenceRow: { gap: 3, alignItems: 'flex-start' },
 		absenceReason: {
 			color: colors.fg + textAlpha.muted,
 			fontSize: 12,
-			lineHeight: 16,
+			lineHeight: 17,
 			fontFamily: fonts.sans,
 			fontStyle: 'italic',
-			flexShrink: 1
+			// Unter dem Namen, auf Höhe des Texts im Chip — und ohne Kürzung.
+			marginLeft: 38,
+			paddingRight: 4
 		},
 		weatherRowText: {
 			color: colors.fg + textAlpha.muted,

@@ -111,15 +111,10 @@ export default function MapScreen() {
 			<View style={{ paddingHorizontal: 20 }}>
 				<TopBar back kicker={`${markers.length} Pins`} title="Karte" />
 			</View>
-			<ScrollView
-				horizontal
-				showsHorizontalScrollIndicator={false}
-				style={{ flexGrow: 0, marginTop: 8 }}
-				contentContainerStyle={{ paddingHorizontal: 20, gap: 8, flexDirection: 'row' }}
-			>
+			<View style={styles.filterWrap}>
 				{(
 					[
-						{ key: 'alle', label: 'Alle Spots' },
+						{ key: 'alle', label: 'Alle' },
 						{ key: 'haupt', label: 'Nur Hauptspots' },
 						{ key: 'top', label: '⭐ Top bewertet' },
 						{ key: 'challenges', label: '🏆 Mit Challenges' }
@@ -128,22 +123,17 @@ export default function MapScreen() {
 					<Pressable
 						key={f.key}
 						onPress={() => setFilter(f.key)}
-						style={[styles.filterChip, filter === f.key && { backgroundColor: colors.accent, borderColor: colors.accent }]}
+						style={[
+							styles.filterChip,
+							filter === f.key && { backgroundColor: colors.accent, borderColor: colors.accent }
+						]}
 					>
 						<Text style={[styles.filterText, filter === f.key && { color: colors.onAccent }]}>
 							{f.label}
 						</Text>
 					</Pressable>
 				))}
-				<Pressable
-					onPress={locateMe}
-					style={[styles.filterChip, myPos != null && { borderColor: '#2563eb' }]}
-				>
-					<Text style={[styles.filterText, myPos != null && { color: '#2563eb' }]}>
-						{locating ? 'Ortet …' : '📍 Mein Standort'}
-					</Text>
-				</Pressable>
-			</ScrollView>
+			</View>
 			<View style={{ flex: 1, marginTop: 12, marginHorizontal: 12, marginBottom: insets.bottom + 12 }}>
 				{markers.length > 0 ? (
 					<NativeMap
@@ -159,6 +149,25 @@ export default function MapScreen() {
 						Für keinen Spot sind Koordinaten hinterlegt.
 					</Text>
 				)}
+
+				{/* Standort: schwebender Knopf auf der Karte statt in der Filterzeile */}
+				{markers.length > 0 ? (
+					<Pressable
+						onPress={locateMe}
+						style={({ pressed }) => [
+							styles.locateBtn,
+							myPos != null && { backgroundColor: '#2563eb' },
+							pressed && { opacity: 0.85 }
+						]}
+						hitSlop={8}
+					>
+						<Ionicons
+							name={locating ? 'ellipsis-horizontal' : 'locate'}
+							size={20}
+							color={myPos != null ? '#fff' : '#111'}
+						/>
+					</Pressable>
+				) : null}
 
 				{selected ? (
 					<View style={styles.sheet}>
@@ -236,6 +245,29 @@ export default function MapScreen() {
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
+		filterWrap: {
+			flexDirection: 'row',
+			flexWrap: 'wrap',
+			gap: 8,
+			paddingHorizontal: 20,
+			marginTop: 8
+		},
+		locateBtn: {
+			position: 'absolute',
+			right: 14,
+			bottom: 14,
+			width: 44,
+			height: 44,
+			borderRadius: 22,
+			backgroundColor: 'rgba(255,255,255,0.94)',
+			alignItems: 'center',
+			justifyContent: 'center',
+			elevation: 4,
+			shadowColor: '#000',
+			shadowOpacity: 0.22,
+			shadowRadius: 6,
+			shadowOffset: { width: 0, height: 2 }
+		},
 		filterChip: {
 			borderRadius: 999,
 			borderWidth: 1,
