@@ -31,5 +31,5 @@ export const UI_THEME_OPTIONS: {
 	{ id: 'urban', label: 'Urban', hint: 'Warmes Dunkel, Petrol-Akzent', swatch: ['#1a1a18', '#5eb5a6', '#7ec9cf'] },
 	{ id: 'nord', label: 'Nord', hint: 'Polar Night, Frost-Blau', swatch: ['#2e3440', '#88c0d0', '#81a1c1'] },
 	{ id: 'noir', label: 'Noir', hint: 'Tiefschwarz, Violett-Akzent', swatch: ['#0a0a0c', '#9b8fd9', '#c4b8f0'] },
-	{ id: 'ocean', label: 'Ocean', hint: 'Tiefblau, türkiser Akzent', swatch: ['#0c1520', '#2dd4bf', '#67e8f9'] }
+	{ id: 'ocean', label: 'Sand', hint: 'Warmes Abendlicht, Terracotta — das Dazwischen', swatch: ['#ded4c2', '#c05f21', '#e08a3c'] }
 ];

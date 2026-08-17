@@ -293,7 +293,7 @@ let mobileMoreOpen = $state(false);
 			class="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center border-b border-border bg-bg-secondary/95 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-md"
 		>
 			<a href="/" class="flex items-center gap-2.5" aria-label="Zum Dashboard">
-				<BrandLogo size={36} class="shrink-0 rounded-lg shadow-md shadow-accent/25 ring-1 ring-white/15" />
+				<BrandLogo size={44} class="shrink-0 rounded-xl shadow-md shadow-accent/25 ring-1 ring-white/15" />
 				<div class="leading-none">
 					<h1 class="font-display text-xl font-semibold uppercase tracking-[0.14em] text-text-primary">Parkour</h1>
 					<p class="font-display text-[11px] uppercase tracking-[0.28em] text-accent-hot/90">Portal</p>
@@ -368,7 +368,7 @@ let mobileMoreOpen = $state(false);
 		>
 			<div class="border-b border-border bg-gradient-to-b from-white/[0.03] to-transparent px-5 pb-5 pt-7">
 				<a href="/" class="flex items-center gap-3" aria-label="Zum Dashboard">
-					<BrandLogo size={44} class="shrink-0 rounded-xl shadow-lg shadow-accent/25 ring-1 ring-white/15" />
+					<BrandLogo size={56} class="shrink-0 rounded-2xl shadow-lg shadow-accent/25 ring-1 ring-white/15" />
 					<div>
 						<h1 class="font-display text-3xl font-semibold uppercase tracking-[0.12em] text-text-primary">Parkour</h1>
 						<p class="font-display text-xs uppercase tracking-[0.32em] text-accent-hot">Portal</p>

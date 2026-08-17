@@ -181,34 +181,36 @@ html[data-theme='light'] .card-surface {
 }
 
 /* —— Ocean (tiefblau) —— */
+/* Sand — das Dazwischen: warmes Abendlicht statt grellem Weiss oder
+   düsterem Dunkel. Papierton, tiefes Braun als Text, Terracotta-Akzent. */
 html[data-theme='ocean'] {
-	--color-bg-primary: #0c1520;
-	--color-bg-secondary: #132535;
-	--color-bg-card: #1a3045;
-	--color-bg-hover: #224056;
-	--color-accent: #2dd4bf;
-	--color-accent-hover: #5eead4;
-	--color-accent-hot: #67e8f9;
-	--color-accent-dim: #0f766e;
-	--color-accent-blue: #38bdf8;
-	--color-text-primary: #f0fdfa;
-	--color-text-secondary: #a8d4ce;
-	--color-text-muted: #6b9a94;
-	--color-border: rgb(165 243 252 / 0.12);
-	--color-danger: #fb7185;
-	--color-warning: #fbbf24;
-	--color-success: #4ade80;
-	--color-accent-rgb: 45 212 191;
-	--shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.05), 0 8px 28px -8px rgb(0 0 0 / 0.55);
-	--shadow-card-hover: 0 1px 0 0 rgb(255 255 255 / 0.08), 0 12px 36px -10px rgb(0 0 0 / 0.58),
-		0 0 0 1px rgb(var(--color-accent-rgb) / 0.25);
-	--shadow-nav: 0 0 0 1px rgb(165 243 252 / 0.08);
+	--color-bg-primary: #ded4c2;
+	--color-bg-secondary: #e7ddcb;
+	--color-bg-card: #f0e8d8;
+	--color-bg-hover: #d3c7b1;
+	--color-accent: #c05f21;
+	--color-accent-hover: #d3702f;
+	--color-accent-hot: #e08a3c;
+	--color-accent-dim: #8f4517;
+	--color-accent-blue: #4a7fa5;
+	--color-text-primary: #322818;
+	--color-text-secondary: #64543d;
+	--color-text-muted: #8d7c62;
+	--color-border: rgb(80 60 35 / 0.18);
+	--color-danger: #b3402f;
+	--color-warning: #a8721c;
+	--color-success: #4a7d47;
+	--color-accent-rgb: 192 95 33;
+	--shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.5), 0 6px 20px -8px rgb(90 65 35 / 0.35);
+	--shadow-card-hover: 0 1px 0 0 rgb(255 255 255 / 0.6), 0 10px 28px -10px rgb(90 65 35 / 0.4),
+		0 0 0 1px rgb(var(--color-accent-rgb) / 0.2);
+	--shadow-nav: 0 0 0 1px rgb(80 60 35 / 0.1);
 }
 
 html[data-theme='ocean'] {
 	background-image:
-		radial-gradient(ellipse 100% 70% at 50% -20%, rgb(var(--color-accent-rgb) / 0.12), transparent 50%),
-		linear-gradient(165deg, #0f1e2d 0%, var(--color-bg-primary) 50%, #081018 100%);
+		radial-gradient(ellipse 100% 70% at 50% -20%, rgb(var(--color-accent-rgb) / 0.08), transparent 50%),
+		linear-gradient(165deg, #e6dcc8 0%, var(--color-bg-primary) 55%, #d0c3aa 100%);
 	background-size: auto;
 }
 

@@ -9,8 +9,8 @@
 	<div class="w-full max-w-md">
 		<div class="mb-8 text-center">
 			<BrandLogo
-				size={64}
-				class="mx-auto mb-4 rounded-2xl shadow-lg shadow-accent/30 ring-1 ring-white/15"
+				size={96}
+				class="mx-auto mb-5 block rounded-3xl shadow-lg shadow-accent/30 ring-1 ring-white/15"
 			/>
 			<h1 class="font-display text-4xl font-semibold uppercase tracking-[0.08em] text-text-primary">Parkour</h1>
 			<p class="font-display mt-1 text-sm uppercase tracking-[0.35em] text-accent-hot">Portal</p>

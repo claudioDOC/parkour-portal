@@ -47,7 +47,8 @@ const DIM = VARIANT === 'solid' ? 1 : 0.42;
 function markSvg({ scale = 1, color = INK } = {}) {
 	const size = 84;
 	const gap = 14;
-	const start = 96;
+	// Exakt zentriert: 4 Zellen + 3 Lücken = 378 → (512 - 378) / 2.
+	const start = (512 - (4 * size + 3 * gap)) / 2;
 	const cells = [];
 	for (let row = 0; row < 4; row++) {
 		for (let col = 0; col < 4; col++) {

@@ -1,14 +1,16 @@
 <script lang="ts">
 	/**
-	 * Das Portal-Logo: drei gestaffelte Chevrons — Bewegung, Tempo,
-	 * vorwärts-aufwärts. Monochrom Weiss auf Nachtschwarz, unabhängig vom
-	 * UI-Theme. App-Icons: scripts/generate-brand.mjs (gleiches Motiv).
+	 * Das Portal-Logo: ein Blockraster, durch das eine Diagonale frei
+	 * bleibt — der Weg durchs Hindernis. Blöcke vor der Route stehen
+	 * zurück, die dahinter voll. Monochrom Weiss auf Nachtschwarz,
+	 * unabhängig vom UI-Theme. Gleiche Geometrie wie die App-Icons
+	 * (scripts/generate-brand.mjs) — dort werden die PNGs erzeugt.
 	 *
-	 * `tile` zeichnet die dunkle Kachel dahinter (Header/Login), ohne `tile`
-	 * nur das Mark.
+	 * `tile` zeichnet die dunkle Kachel dahinter (Header/Login), ohne
+	 * `tile` nur das Mark.
 	 */
 	let {
-		size = 40,
+		size = 44,
 		tile = true,
 		class: className = ''
 	}: { size?: number; tile?: boolean; class?: string } = $props();
@@ -16,12 +18,23 @@
 	// Eindeutige IDs, falls das Logo mehrfach auf einer Seite steht.
 	const uid = `bl${Math.random().toString(36).slice(2, 8)}`;
 
-	/** Chevrons wie im Generator: [x, Deckkraft]. */
-	const chevrons: [number, number][] = [
-		[96, 0.25],
-		[196, 0.55],
-		[296, 1]
-	];
+	const CELL = 84;
+	const GAP = 14;
+	// Exakt zentriert: 4 Zellen + 3 Lücken = 378 → (512 - 378) / 2.
+	const START = (512 - (4 * CELL + 3 * GAP)) / 2;
+
+	/** Alle Blöcke ausser der freien Gegendiagonale. */
+	const cells = Array.from({ length: 4 }, (_, row) =>
+		Array.from({ length: 4 }, (_, col) => ({ row, col }))
+	)
+		.flat()
+		.filter(({ row, col }) => row + col !== 3)
+		.map(({ row, col }) => ({
+			key: `${row}-${col}`,
+			x: START + col * (CELL + GAP),
+			y: START + row * (CELL + GAP),
+			opacity: row + col < 3 ? 0.42 : 1
+		}));
 </script>
 
 <svg
@@ -43,17 +56,16 @@
 		{#if tile}
 			<rect width="512" height="512" fill="#111214" />
 		{/if}
-		<g transform="rotate(-14 256 256)">
-			{#each chevrons as [x, opacity] (x)}
-				<path
-					d="M{x} 168 L{x + 106} 268 L{x} 368"
-					fill="none"
-					stroke="#fafafa"
-					stroke-width="46"
-					stroke-linejoin="miter"
-					{opacity}
-				/>
-			{/each}
-		</g>
+		{#each cells as cell (cell.key)}
+			<rect
+				x={cell.x}
+				y={cell.y}
+				width={CELL}
+				height={CELL}
+				rx="10"
+				fill="#fafafa"
+				opacity={cell.opacity}
+			/>
+		{/each}
 	</g>
 </svg>

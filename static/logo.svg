@@ -4,18 +4,18 @@
 		<rect width="512" height="512" fill="#111214"/>
 		
 	<g transform="translate(256 256) scale(1) rotate(0) translate(-256 -256)">
-		<rect x="96" y="96" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
-		<rect x="194" y="96" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
-		<rect x="292" y="96" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
-		<rect x="96" y="194" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
-		<rect x="194" y="194" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
-		<rect x="390" y="194" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
-		<rect x="96" y="292" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
-		<rect x="292" y="292" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
-		<rect x="390" y="292" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
-		<rect x="194" y="390" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
-		<rect x="292" y="390" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
-		<rect x="390" y="390" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
+		<rect x="67" y="67" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
+		<rect x="165" y="67" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
+		<rect x="263" y="67" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
+		<rect x="67" y="165" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
+		<rect x="165" y="165" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
+		<rect x="361" y="165" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
+		<rect x="67" y="263" width="84" height="84" rx="10" fill="#fafafa" opacity="0.42"/>
+		<rect x="263" y="263" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
+		<rect x="361" y="263" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
+		<rect x="165" y="361" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
+		<rect x="263" y="361" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
+		<rect x="361" y="361" width="84" height="84" rx="10" fill="#fafafa" opacity="1"/>
 	</g>
 	</g>
 </svg>
