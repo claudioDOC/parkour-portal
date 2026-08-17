@@ -21,7 +21,7 @@ export function Splash({ colors, onDone }: { colors: ThemeColors; onDone: () => 
 
 	useEffect(() => {
 		// Sicherung: nie hängen bleiben, falls das System die Animation stoppt.
-		const failsafe = setTimeout(onDone, 1500);
+		const failsafe = setTimeout(onDone, 2600);
 		Animated.parallel([
 			Animated.timing(breathe, {
 				toValue: 1.05,
@@ -46,7 +46,7 @@ export function Splash({ colors, onDone }: { colors: ThemeColors; onDone: () => 
 			Animated.timing(fade, {
 				toValue: 0,
 				duration: 240,
-				delay: 640,
+				delay: 1640,
 				easing: Easing.in(Easing.cubic),
 				useNativeDriver: true
 			})
@@ -83,8 +83,15 @@ export function Splash({ colors, onDone }: { colors: ThemeColors; onDone: () => 
 				]}
 			>
 				<Text style={styles.word}>PARKOUR</Text>
-				{/* paddingLeft gleicht den Buchstabenabstand aus — sonst fehlt das „L". */}
-				<Text style={[styles.sub, { color: colors.accent }]}>PORTAL</Text>
+				{/* Einzelbuchstaben mit echtem Abstand — letterSpacing schnitt auf
+				    manchen Geräten den letzten Buchstaben ab. */}
+				<View style={styles.subRow}>
+					{'PORTAL'.split('').map((c, i) => (
+						<Text key={i} style={[styles.sub, { color: colors.accent }]}>
+							{c}
+						</Text>
+					))}
+				</View>
 				<Animated.View
 					style={[
 						styles.line,
@@ -131,14 +138,11 @@ const styles = StyleSheet.create({
 		textAlign: 'center',
 		paddingLeft: 2
 	},
+	subRow: { flexDirection: 'row', gap: 6, marginTop: 2 },
 	sub: {
 		fontFamily: fonts.sansSemi,
 		fontSize: 12,
-		letterSpacing: 6,
-		lineHeight: 16,
-		marginTop: 2,
-		textAlign: 'center',
-		paddingLeft: 6
+		lineHeight: 16
 	},
 	line: { width: 110, height: 3, borderRadius: 1.5, marginTop: 8 }
 });
