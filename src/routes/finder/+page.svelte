@@ -292,6 +292,28 @@
 				{/each}
 			</div>
 
+			<p class="text-text-secondary text-sm font-medium mb-3 mt-8">Bestimmte Techniken? (optional)</p>
+			<div class="flex flex-wrap gap-2">
+				{#each data.techniques as tech}
+					{@const on = answers.techniqueMode === 'pick' && answers.techniquePick.includes(tech)}
+					<button
+						type="button"
+						onclick={() => {
+							if (on) {
+								answers.techniquePick = answers.techniquePick.filter((t) => t !== tech);
+								if (answers.techniquePick.length === 0) answers.techniqueMode = 'all';
+							} else {
+								answers.techniqueMode = 'pick';
+								answers.techniquePick = [...answers.techniquePick, tech];
+							}
+						}}
+						class="px-3 py-1.5 rounded-full border text-xs font-medium transition-colors {on ? 'border-accent bg-accent text-[#0c0c0e]' : 'border-border bg-bg-secondary text-text-secondary hover:border-text-muted'}"
+					>
+						{tech}
+					</button>
+				{/each}
+			</div>
+
 		{:else if currentStep === 'weather'}
 			<h3 class="text-xl font-semibold text-text-primary mb-2">Wie ist das Wetter?</h3>
 			<p class="text-text-secondary text-sm mb-6">Was trifft gerade zu?</p>

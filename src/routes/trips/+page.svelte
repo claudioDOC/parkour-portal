@@ -47,6 +47,42 @@
 
 	/** Teilbarer Link für den Chat — Web-Share, sonst Zwischenablage. */
 	let sharedTripId = $state<number | null>(null);
+	// Trip-Eckdaten bearbeiten (Ersteller/Admin) — nutzt die edit_trip-Aktion.
+	let editTripId = $state<number | null>(null);
+	let editTrip = $state({ title: '', startDate: '', endDate: '', notes: '' });
+
+	function startTripEdit(trip: {
+		id: number;
+		title: string;
+		startDate: string;
+		endDate: string;
+		notes: string | null;
+	}) {
+		editTripId = editTripId === trip.id ? null : trip.id;
+		editTrip = {
+			title: trip.title,
+			startDate: trip.startDate,
+			endDate: trip.endDate,
+			notes: trip.notes ?? ''
+		};
+	}
+
+	async function saveTripEdit(tripId: number) {
+		if (!editTrip.title.trim() || !editTrip.startDate || !editTrip.endDate) return;
+		busyTripId = tripId;
+		try {
+			await post('edit_trip', {
+				tripId,
+				title: editTrip.title.trim(),
+				startDate: editTrip.startDate,
+				endDate: editTrip.endDate,
+				notes: editTrip.notes.trim()
+			});
+			editTripId = null;
+		} finally {
+			busyTripId = null;
+		}
+	}
 	async function shareTrip(trip: { id: number; title: string; startDate: string; endDate: string }) {
 		const url = `${location.origin}/trips?trip=${trip.id}`;
 		const text = `${trip.title} (${formatDateRange(trip.startDate, trip.endDate)}) — bist du dabei?`;
@@ -346,6 +382,15 @@
 						{/if}
 					</div>
 					<div class="flex flex-wrap items-center gap-2">
+						{#if data.isAdmin || trip.createdBy === data.user.id}
+							<button
+								type="button"
+								onclick={() => startTripEdit(trip)}
+								class="cursor-pointer rounded-lg border border-border bg-bg-secondary px-3 py-2 text-xs font-semibold text-text-secondary transition-colors hover:bg-bg-hover"
+							>
+								{editTripId === trip.id ? 'Bearbeiten schliessen' : 'Bearbeiten'}
+							</button>
+						{/if}
 						<button
 							type="button"
 							onclick={() => shareTrip(trip)}
@@ -370,6 +415,44 @@
 						{/if}
 					</div>
 				</div>
+
+				{#if editTripId === trip.id}
+					<div class="rounded-lg border border-border bg-bg-secondary/50 p-3 space-y-2">
+						<p class="text-xs uppercase tracking-wide text-text-secondary">Trip bearbeiten</p>
+						<input
+							type="text"
+							bind:value={editTrip.title}
+							placeholder="Titel"
+							class="w-full bg-bg-card border border-border rounded-lg px-2 py-1.5 text-sm text-text-primary"
+						/>
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+							<input
+								type="date"
+								bind:value={editTrip.startDate}
+								class="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-sm text-text-primary"
+							/>
+							<input
+								type="date"
+								bind:value={editTrip.endDate}
+								class="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-sm text-text-primary"
+							/>
+						</div>
+						<input
+							type="text"
+							bind:value={editTrip.notes}
+							placeholder="Notizen (optional)"
+							class="w-full bg-bg-card border border-border rounded-lg px-2 py-1.5 text-sm text-text-primary"
+						/>
+						<button
+							type="button"
+							onclick={() => saveTripEdit(trip.id)}
+							disabled={busyTripId === trip.id || !editTrip.title.trim()}
+							class="bg-accent/15 hover:bg-accent/25 text-accent px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+						>
+							Speichern
+						</button>
+					</div>
+				{/if}
 
 				<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
 					<div class="rounded-xl border border-success/35 bg-success/10 px-3 py-3 text-center shadow-sm">

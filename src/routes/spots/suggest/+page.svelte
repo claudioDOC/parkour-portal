@@ -94,6 +94,33 @@
 		}
 	}
 
+	// GPS vom Gerät — wie in der App. Braucht HTTPS und die Standort-Erlaubnis.
+	let locating = $state(false);
+	let locateError = $state('');
+
+	function useMyLocation() {
+		if (!navigator.geolocation) {
+			locateError = 'Dein Browser unterstützt keine Standortabfrage.';
+			return;
+		}
+		locating = true;
+		locateError = '';
+		navigator.geolocation.getCurrentPosition(
+			(pos) => {
+				latitude = String(pos.coords.latitude);
+				longitude = String(pos.coords.longitude);
+				selectedAddress = `Aktueller Standort (${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)})`;
+				showAddressResults = false;
+				locating = false;
+			},
+			() => {
+				locateError = 'Standort nicht verfügbar — Erlaubnis erteilt?';
+				locating = false;
+			},
+			{ enableHighAccuracy: true, timeout: 10000 }
+		);
+	}
+
 	function clearAddress() {
 		latitude = '';
 		longitude = '';
@@ -349,6 +376,18 @@
 						</div>
 					{:else}
 						<p class="text-text-muted text-xs mt-1.5">Tippe eine Adresse, Firma oder einen Ort ein (mind. 3 Zeichen)</p>
+					{/if}
+
+					<button
+						type="button"
+						onclick={useMyLocation}
+						disabled={locating}
+						class="mt-2 rounded-lg border border-border bg-bg-secondary px-3 py-2 text-xs font-medium text-text-secondary transition-colors hover:bg-bg-hover disabled:opacity-50"
+					>
+						{locating ? 'Ortet …' : '📍 Aktuellen Standort übernehmen'}
+					</button>
+					{#if locateError}
+						<p class="text-danger text-xs mt-1">{locateError}</p>
 					{/if}
 
 				{:else if locationMode === 'manual'}

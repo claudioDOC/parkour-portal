@@ -186,6 +186,9 @@
 	let auditLogs = $state<AuditEntry[]>([]);
 	let auditTotal = $state(0);
 	let auditOffset = $state(0);
+	// Protokoll-Filter (wie in der App): Bereich = Aktions-Präfix, plus Person.
+	let auditFilterGroup = $state('');
+	let auditFilterActor = $state('');
 	let loadingAudit = $state(false);
 	const AUDIT_PAGE = 80;
 
@@ -2063,6 +2066,32 @@
 				<span class="text-text-muted text-sm self-center">{auditTotal} Einträge gesamt</span>
 			</div>
 
+			<!-- Filter wie in der App: Bereich (Aktions-Präfix) und Person -->
+			<div class="flex gap-2 flex-wrap items-center">
+				<span class="text-text-muted text-xs">Bereich:</span>
+				{#each ['alle', ...new Set(auditLogs.map((l) => l.action.split('.')[0]))] as g}
+					<button
+						type="button"
+						onclick={() => (auditFilterGroup = g === 'alle' ? '' : g)}
+						class="px-2.5 py-1 rounded-full border text-xs transition-colors {auditFilterGroup === g || (g === 'alle' && !auditFilterGroup) ? 'border-accent bg-accent text-[#0c0c0e] font-semibold' : 'border-border bg-bg-secondary text-text-secondary hover:text-text-primary'}"
+					>
+						{g}
+					</button>
+				{/each}
+			</div>
+			<div class="flex gap-2 flex-wrap items-center">
+				<span class="text-text-muted text-xs">Person:</span>
+				{#each ['alle', ...new Set(auditLogs.map((l) => l.actorUsername ?? 'System'))] as a}
+					<button
+						type="button"
+						onclick={() => (auditFilterActor = a === 'alle' ? '' : a)}
+						class="px-2.5 py-1 rounded-full border text-xs transition-colors {auditFilterActor === a || (a === 'alle' && !auditFilterActor) ? 'border-accent bg-accent text-[#0c0c0e] font-semibold' : 'border-border bg-bg-secondary text-text-secondary hover:text-text-primary'}"
+					>
+						{a}
+					</button>
+				{/each}
+			</div>
+
 			{#if loadingAudit && auditLogs.length === 0}
 				<p class="text-text-muted text-center py-8">Laden…</p>
 			{:else if auditLogs.length === 0}
@@ -2081,7 +2110,7 @@
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-border">
-								{#each auditLogs as row}
+								{#each auditLogs.filter((l) => (!auditFilterGroup || l.action.startsWith(auditFilterGroup)) && (!auditFilterActor || (l.actorUsername ?? 'System') === auditFilterActor)) as row}
 									<tr class="bg-bg-card hover:bg-bg-secondary/50">
 										<td class="px-3 py-2 text-text-secondary whitespace-nowrap align-top">{formatLogTime(row.createdAt)}</td>
 										<td class="px-3 py-2 text-text-primary align-top">

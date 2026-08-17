@@ -8,6 +8,22 @@
 	let mapContainer = $state<HTMLDivElement | null>(null);
 	let mapError = $state('');
 	let leafletMap: import('leaflet').Map | null = null;
+	// Karte/Satellit-Umschalter — wie auf der Spot-Detailseite und in der App.
+	let mapMode = $state<'street' | 'satellite'>('street');
+	let tileStreet: import('leaflet').TileLayer | null = null;
+	let tileSatellite: import('leaflet').TileLayer | null = null;
+
+	function setMapMode(mode: 'street' | 'satellite') {
+		mapMode = mode;
+		if (!leafletMap || !tileStreet || !tileSatellite) return;
+		if (mode === 'satellite') {
+			leafletMap.removeLayer(tileStreet);
+			tileSatellite.addTo(leafletMap);
+		} else {
+			leafletMap.removeLayer(tileSatellite);
+			tileStreet.addTo(leafletMap);
+		}
+	}
 
 	/** Filter: alles / nur Hauptspots / nur gut bewertete (Ø ≥ 4). */
 	let mapFilter = $state<'alle' | 'haupt' | 'top'>('alle');
@@ -98,9 +114,14 @@
 				scrollWheelZoom: false
 			});
 
-			L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			tileStreet = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 				attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-			}).addTo(leafletMap);
+			});
+			tileSatellite = L.tileLayer(
+				'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+				{ attribution: 'Tiles &copy; Esri' }
+			);
+			(mapMode === 'satellite' ? tileSatellite : tileStreet).addTo(leafletMap);
 
 			const bounds = L.latLngBounds([]);
 			const pinW = 28;
@@ -186,9 +207,27 @@
 </svelte:head>
 
 <div class="space-y-4">
-	<div>
-		<a href="/spots" class="btn-link btn-link-ghost text-sm">← Zu den Spots</a>
-		<h1 class="mt-2 text-2xl font-bold text-text-primary">Spot-Karte</h1>
+	<div class="flex items-end justify-between gap-3 flex-wrap">
+		<div>
+			<a href="/spots" class="btn-link btn-link-ghost text-sm">← Zu den Spots</a>
+			<h1 class="mt-2 text-2xl font-bold text-text-primary">Spot-Karte</h1>
+		</div>
+		<div class="flex gap-1 rounded-lg border border-border bg-bg-secondary p-1">
+			<button
+				type="button"
+				onclick={() => setMapMode('street')}
+				class="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors {mapMode === 'street' ? 'bg-accent text-[#0c0c0e]' : 'text-text-secondary hover:text-text-primary'}"
+			>
+				Karte
+			</button>
+			<button
+				type="button"
+				onclick={() => setMapMode('satellite')}
+				class="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors {mapMode === 'satellite' ? 'bg-accent text-[#0c0c0e]' : 'text-text-secondary hover:text-text-primary'}"
+			>
+				Satellit
+			</button>
+		</div>
 	</div>
 
 	{#if mapError}
