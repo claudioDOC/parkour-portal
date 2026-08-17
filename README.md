@@ -1,3 +1,13 @@
+<p align="center">
+  <img src="docs/banner.png" alt="Parkour Portal" width="100%">
+</p>
+
+<p align="center">
+  <a href="#features"><img alt="Web · PWA · Android" src="https://img.shields.io/badge/Web%20%C2%B7%20PWA%20%C2%B7%20Android-111214?style=flat-square"></a>
+  <a href="#tech-stack"><img alt="SvelteKit + Expo" src="https://img.shields.io/badge/SvelteKit%20%2B%20Expo-c05f21?style=flat-square"></a>
+  <a href="#lizenz"><img alt="MIT" src="https://img.shields.io/badge/Lizenz-MIT-111214?style=flat-square"></a>
+</p>
+
 # Parkour Training Portal
 
 Ein selbst gehostetes Portal für Parkour-Gruppen. Verwaltet Trainings, Spot-Datenbank, Spot-Voting, Challenges, Trips, Statistik und vieles mehr.

@@ -33,7 +33,7 @@ import { useActivity } from './activity';
  * PORTAL", rechts die Glocke mit rotem Punkt.
  */
 export function AppHeader() {
-	const { colors } = useTheme();
+	const { colors, markColor } = useTheme();
 	const insets = useSafeAreaInsets();
 	const router = useRouter();
 	const { unread } = useActivity();
@@ -83,7 +83,7 @@ export function AppHeader() {
 						source={require('../../assets/images/mark-mono.png')}
 						style={{ width: 24, height: 24 }}
 						contentFit="contain"
-						tintColor={colors.text}
+						tintColor={markColor ?? colors.text}
 					/>
 				</View>
 				<View style={{ flex: 1 }}>

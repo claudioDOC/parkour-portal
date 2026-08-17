@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, THEMES, THEME_OPTIONS, type ThemeColors } from '../lib/theme';
 import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
-import { getStartTab, setStartTab, setFontScale, type StartTab } from '../lib/prefs';
+import { getStartTab, setStartTab, setFontScale, setMarkColor, type StartTab } from '../lib/prefs';
 import { Card, TopBar, Screen, Button, Input, SectionTitle, Avatar, Sheet } from '../lib/ui';
 import { useData } from '../lib/store';
 import {
@@ -20,6 +20,19 @@ import {
 import { Linking } from 'react-native';
 import { useAuth } from './_layout';
 
+/** Auswahl für die Logo-Farbe — bewusst wenige, klare Töne. */
+const MARK_COLORS: { label: string; value: string | null }[] = [
+	{ label: 'Theme', value: null },
+	{ label: 'Terracotta', value: '#c05f21' },
+	{ label: 'Neon', value: '#e8ff47' },
+	{ label: 'Türkis', value: '#2dd4bf' },
+	{ label: 'Violett', value: '#a78bfa' },
+	{ label: 'Rot', value: '#ef4444' },
+	{ label: 'Blau', value: '#38bdf8' },
+	{ label: 'Weiss', value: '#fafafa' },
+	{ label: 'Schwarz', value: '#111214' }
+];
+
 /** Entspricht der Einstellungen-Seite des Portals. */
 export default function Settings() {
 	const { colors, themeId, setThemeId } = useTheme();
@@ -29,7 +42,7 @@ export default function Settings() {
 
 	const [themeOpen, setThemeOpen] = useState(false);
 	const [startTab, setStartTabState] = useState<StartTab>(getStartTab());
-	const { fontScale, setFontScaleState } = useTheme();
+	const { fontScale, setFontScaleState, markColor, setMarkColorState } = useTheme();
 	const [pwOpen, setPwOpen] = useState(false);
 	const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
 	const [busy, setBusy] = useState(false);
@@ -214,6 +227,36 @@ export default function Settings() {
 						</Pressable>
 					))}
 				</View>
+
+				<Text style={styles.prefLabel}>Logo-Farbe</Text>
+				<Text style={styles.ntfyHint}>
+					Gilt nur fürs Logo im Kopf — unabhängig vom Farbschema.
+				</Text>
+				<View style={styles.prefRow}>
+					{MARK_COLORS.map((mc) => {
+						const active = markColor === mc.value || (mc.value === null && markColor === null);
+						return (
+							<Pressable
+								key={mc.label}
+								onPress={async () => {
+									await setMarkColor(mc.value);
+									setMarkColorState(mc.value);
+								}}
+								style={[
+									styles.colorChip,
+									active && { borderColor: colors.accent, borderWidth: 2 }
+								]}
+							>
+								{mc.value === null ? (
+									<Ionicons name="color-palette-outline" size={18} color={colors.text} />
+								) : (
+									<View style={[styles.colorDot, { backgroundColor: mc.value }]} />
+								)}
+								<Text style={styles.prefChipText}>{mc.label}</Text>
+							</Pressable>
+						);
+					})}
+				</View>
 			</Card>
 
 			<SectionTitle>Benachrichtigungen</SectionTitle>
@@ -371,6 +414,18 @@ const makeStyles = (colors: ThemeColors) =>
 			letterSpacing: 1
 		},
 		prefRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+		colorChip: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			gap: 7,
+			borderRadius: 16,
+			borderWidth: 1,
+			borderColor: colors.border,
+			backgroundColor: colors.hover,
+			paddingHorizontal: 12,
+			paddingVertical: 7
+		},
+		colorDot: { width: 16, height: 16, borderRadius: 8 },
 		ntfyHint: {
 			color: colors.fg + textAlpha.secondary,
 			fontSize: 12,

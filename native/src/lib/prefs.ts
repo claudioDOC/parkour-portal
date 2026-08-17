@@ -8,6 +8,8 @@ export type StartTab = 'index' | 'finder' | 'spots' | 'challenges' | 'more';
 
 let startTab: StartTab = 'index';
 let fontScale = 1;
+/** Eigene Logo-Farbe; null = folgt dem Theme. */
+let markColor: string | null = null;
 
 const VALID_TABS: StartTab[] = ['index', 'finder', 'spots', 'challenges', 'more'];
 
@@ -18,6 +20,8 @@ export async function loadPrefs(): Promise<void> {
 		if (t && (VALID_TABS as string[]).includes(t)) startTab = t as StartTab;
 		const f = Number(await readToken('pref-font-scale'));
 		if (f === 1 || f === 1.1 || f === 1.2) fontScale = f;
+		const c = await readToken('pref-mark-color');
+		if (c && /^#[0-9a-f]{6}$/i.test(c)) markColor = c;
 	} catch {
 		/* Standardwerte behalten */
 	}
@@ -27,6 +31,12 @@ export const getStartTab = () => startTab;
 export async function setStartTab(tab: StartTab): Promise<void> {
 	startTab = tab;
 	await writeToken('pref-start-tab', tab);
+}
+
+export const getMarkColor = () => markColor;
+export async function setMarkColor(color: string | null): Promise<void> {
+	markColor = color;
+	await writeToken('pref-mark-color', color);
 }
 
 export const getFontScale = () => fontScale;

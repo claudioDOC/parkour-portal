@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 import { THEMES, DEFAULT_THEME, type ThemeColors, type UiThemeId } from './theme';
-import { getFontScale } from './prefs';
+import { getFontScale, getMarkColor } from './prefs';
 
 /**
  * Aktives Theme der App — folgt dem uiTheme aus dem Profil des Users,
@@ -14,6 +14,9 @@ type ThemeContextValue = {
 	/** Schriftgrössen-Faktor (1 / 1.1 / 1.2) aus den Einstellungen. */
 	fontScale: number;
 	setFontScaleState: (scale: number) => void;
+	/** Eigene Logo-Farbe; null = folgt dem Theme. */
+	markColor: string | null;
+	setMarkColorState: (color: string | null) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -21,7 +24,9 @@ const ThemeContext = createContext<ThemeContextValue>({
 	colors: THEMES[DEFAULT_THEME],
 	setThemeId: () => {},
 	fontScale: 1,
-	setFontScaleState: () => {}
+	setFontScaleState: () => {},
+	markColor: null,
+	setMarkColorState: () => {}
 });
 
 export const useTheme = () => useContext(ThemeContext);
@@ -61,9 +66,18 @@ export function ThemeProvider({
 	children: ReactNode;
 }) {
 	const [fontScale, setFontScaleState] = useState(getFontScale());
+	const [markColor, setMarkColorState] = useState<string | null>(getMarkColor());
 	const value = useMemo(
-		() => ({ themeId, colors: THEMES[themeId], setThemeId, fontScale, setFontScaleState }),
-		[themeId, setThemeId, fontScale]
+		() => ({
+			themeId,
+			colors: THEMES[themeId],
+			setThemeId,
+			fontScale,
+			setFontScaleState,
+			markColor,
+			setMarkColorState
+		}),
+		[themeId, setThemeId, fontScale, markColor]
 	);
 	return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
