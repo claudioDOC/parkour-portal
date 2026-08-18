@@ -251,11 +251,11 @@ export default function Dashboard() {
 				const iAmIn = me ? s.attending.some((a) => a.id === me.id) : false;
 				const absent = s.userDbAbsent || s.userVirtualAbsent;
 				const spot = s.overrideSpot
-					? { label: `${s.overrideSpot.name} · ${s.overrideSpot.city}`, fixed: true }
+					? { label: `${s.overrideSpot.name} · ${s.overrideSpot.city}`, fixed: true, id: s.overrideSpot.spotId }
 					: s.votingClosed && s.winnerSpot
-						? { label: `${s.winnerSpot.name} · ${s.winnerSpot.city}`, fixed: false }
+						? { label: `${s.winnerSpot.name} · ${s.winnerSpot.city}`, fixed: false, id: s.winnerSpot.spotId }
 						: s.votingClosed && s.autoSpot
-							? { label: `${s.autoSpot.name} · ${s.autoSpot.city} (Auto)`, fixed: false }
+							? { label: `${s.autoSpot.name} · ${s.autoSpot.city} (Auto)`, fixed: false, id: s.autoSpot.spotId }
 							: null;
 				return (
 					<Card key={s.id} style={styles.sessionCard}>
@@ -297,11 +297,15 @@ export default function Dashboard() {
 								<>
 									{spot ? (
 									<View style={{ gap: 6 }}>
-											<View style={styles.spotRow}>
+											{/* Auch der entschiedene Spot führt zu seiner Seite. */}
+											<Pressable
+												style={({ pressed }) => [styles.spotRow, pressed && { opacity: 0.6 }]}
+												onPress={() => router.push(`/spot/${spot.id}`)}
+											>
 												<Ionicons name="location" size={15} color={colors.accent} />
 												<Text style={styles.spotText}>{spot.label}</Text>
 												{spot.fixed ? <Pill label="Fix" color={colors.accent} filled /> : null}
-											</View>
+											</Pressable>
 											{data && s.date === data.calendarToday ? (
 												<Pressable
 													onPress={() => {
@@ -324,20 +328,9 @@ export default function Dashboard() {
 											{s.spotVotes.map((v) => {
 												const mine = s.userVotedSpotId === v.spotId;
 												return (
-													<Pressable
+													<View
 														key={v.spotId}
-														style={({ pressed }) => [
-															styles.voteRow,
-															mine && { borderColor: colors.accent + '66' },
-															pressed && { opacity: 0.75 }
-														]}
-														onPress={() =>
-															act(() =>
-																mine
-																	? trainingAction('remove_vote', s.id)
-																	: trainingAction('vote_spot', s.id, { spotId: v.spotId })
-															)
-														}
+														style={[styles.voteRow, mine && { borderColor: colors.accent + '66' }]}
 													>
 														<View style={styles.voteRowTop}>
 															{mine ? (
@@ -345,18 +338,43 @@ export default function Dashboard() {
 															) : (
 																<View style={styles.voteDot} />
 															)}
-															<Text style={[styles.voteName, mine && { color: colors.accent }]}>
-																{v.spotName}
-															</Text>
+															{/* Wie auf der Website: der Spot selbst führt zur Spot-Seite. */}
+															<Pressable
+																style={({ pressed }) => [styles.voteMain, pressed && { opacity: 0.6 }]}
+																onPress={() => router.push(`/spot/${v.spotId}`)}
+															>
+																<Text
+																	style={[styles.voteName, mine && { color: colors.accent }]}
+																	numberOfLines={1}
+																>
+																	{v.spotName}
+																</Text>
+																{/* Ort und wer dafür gestimmt hat — leise. */}
+																<Text style={styles.voteMeta} numberOfLines={2}>
+																	{[v.spotCity, v.voterList.filter(Boolean).join(', ')]
+																		.filter(Boolean)
+																		.join(' · ')}
+																</Text>
+															</Pressable>
 															<Text style={styles.voteCount}>{v.voteCount}</Text>
+															{!s.votingClosed ? (
+																<Pressable
+																	style={({ pressed }) => [styles.voteBtn, pressed && { opacity: 0.6 }]}
+																	onPress={() =>
+																		act(() =>
+																			mine
+																				? trainingAction('remove_vote', s.id)
+																				: trainingAction('vote_spot', s.id, { spotId: v.spotId })
+																		)
+																	}
+																>
+																	<Text style={mine ? styles.voteBtnUndo : styles.voteBtnFor}>
+																		{mine ? 'Zurückziehen' : 'Dafür'}
+																	</Text>
+																</Pressable>
+															) : null}
 														</View>
-														{/* Wie auf der Website: Ort und wer dafür gestimmt hat — leise. */}
-														<Text style={styles.voteMeta} numberOfLines={2}>
-															{[v.spotCity, v.voterList.filter(Boolean).join(', ')]
-																.filter(Boolean)
-																.join(' · ')}
-														</Text>
-													</Pressable>
+													</View>
 												);
 											})}
 										<Pressable
@@ -876,15 +894,13 @@ const makeStyles = (colors: ThemeColors) =>
 			borderColor: colors.textMuted
 		},
 		voteRowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-		voteName: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi, flex: 1 },
-		// Eingerückt auf Höhe des Spot-Namens (Punkt 15 + Abstand 8).
-		voteMeta: {
-			color: colors.fg + textAlpha.muted,
-			fontSize: 12,
-			lineHeight: 17,
-			fontFamily: fonts.sans,
-			marginLeft: 23
-		},
+		voteMain: { flex: 1, gap: 2 },
+		voteName: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi },
+		voteMeta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 17, fontFamily: fonts.sans },
+		// Eigener Knopf fürs Voting, damit der Zeilenklick zur Spot-Seite gehört.
+		voteBtn: { paddingVertical: 6, paddingHorizontal: 4 },
+		voteBtnFor: { color: colors.accent, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansSemi },
+		voteBtnUndo: { color: colors.fg + textAlpha.muted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans },
 		voteCount: { color: colors.fg + textAlpha.secondary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
 		actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8 },
 		soloCard: { paddingVertical: 12 },
