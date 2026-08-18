@@ -70,12 +70,39 @@ export function getLocation() {
 }
 
 /**
- * Video-Wiedergabe — ab App-Paket 1.8. Das Laden holt sich sofort das
- * native Modul; fehlt es (ältere Installation), kommt null zurück und
- * die Seite öffnet das Video stattdessen im Systemplayer.
+ * Video-Wiedergabe — ab App-Paket 1.8.
+ *
+ * Teuer gelernt: `require('expo-video')` fasst beim Laden sofort die
+ * native Seite an. Fehlt sie (ältere Installation), ist das KEIN
+ * abfangbarer JavaScript-Fehler — die App stürzt ab. Darum wird vorher
+ * die installierte App-Version geprüft und nur ab 1.8 überhaupt geladen.
  */
 export function getVideoModule() {
+	if (!atLeastVersion(nativeVersionName(), '1.8.0')) return null;
 	return tryRequire(() => require('expo-video') as typeof import('expo-video'));
+}
+
+/**
+ * Nur die echte Version der installierten APK („1.8.0"), niemals die aus
+ * dem Update-Paket — die ist nach jedem Update neu und sagt nichts über
+ * die nativen Bausteine aus. Ohne Punkte-Format gilt sie als unbekannt.
+ */
+function nativeVersionName(): string | null {
+	const c = tryRequire(() => require('expo-constants').default as Record<string, unknown>);
+	const v = c?.nativeAppVersion;
+	return typeof v === 'string' && /^\d+\.\d+/.test(v) ? v : null;
+}
+
+/** Vergleicht „1.8.0" mit „1.7.0" — fehlende Angabe gilt als zu alt. */
+function atLeastVersion(have: string | null, want: string): boolean {
+	if (!have) return false;
+	const a = have.split('.').map((n) => parseInt(n, 10) || 0);
+	const b = want.split('.').map((n) => parseInt(n, 10) || 0);
+	for (let i = 0; i < Math.max(a.length, b.length); i++) {
+		const d = (a[i] ?? 0) - (b[i] ?? 0);
+		if (d !== 0) return d > 0;
+	}
+	return true;
 }
 
 /**
