@@ -194,6 +194,46 @@ async function uploadError(res: Response, was: string): Promise<ApiError> {
 	return new ApiError(res.status, message);
 }
 
+
+/**
+ * Datei-Uploads laufen bewusst über XMLHttpRequest statt über fetch.
+ *
+ * Grund: Expos fetch (Winter-Runtime) versteht die React-Native-Form
+ * `{ uri, name, type }` nicht und wirft „Unsupported FormDataPart
+ * implementation". XHR ist React Natives eigener Weg — er kennt die
+ * Form, liest die Datei direkt vom Gerät (auch content://-Adressen)
+ * und lädt sie nicht komplett in den Speicher.
+ */
+function xhrUpload(
+	path: string,
+	form: FormData,
+	token: string | null
+): Promise<{ status: number; body: string }> {
+	const url = `${BASE_URL || 'https://matetraining.duckdns.org'}${path}`;
+	return new Promise((resolve, reject) => {
+		const xhr = new XMLHttpRequest();
+		xhr.open('POST', url);
+		if (token) xhr.setRequestHeader('authorization', `Bearer ${token}`);
+		xhr.timeout = 180000;
+		xhr.onload = () => resolve({ status: xhr.status, body: xhr.responseText ?? '' });
+		xhr.onerror = () => reject(new Error('Keine Verbindung — Upload fehlgeschlagen'));
+		xhr.ontimeout = () => reject(new Error('Zeitüberschreitung beim Hochladen'));
+		xhr.send(form as unknown as Document);
+	});
+}
+
+/** Fehlertext des Servers auslesen — sonst sieht man nur die Nummer. */
+function uploadFailure(status: number, body: string, was: string): ApiError {
+	let message = `${was} fehlgeschlagen (${status})`;
+	try {
+		const parsed = JSON.parse(body);
+		if (parsed?.error) message = parsed.error;
+	} catch {
+		if (status === 413) message = 'Bild ist zu gross für den Server (max. 10 MB).';
+	}
+	return new ApiError(status, message);
+}
+
 // --- Spots ---
 
 export type SpotListItem = {
@@ -243,12 +283,8 @@ export async function uploadSpotImage(
 	const form = new FormData();
 	form.append('spotId', String(spotId));
 	form.append('image', { uri, name, type } as unknown as Blob);
-	const res = await fetch(`${BASE_URL || 'https://matetraining.duckdns.org'}/api/spots/images`, {
-		method: 'POST',
-		headers: token ? { authorization: `Bearer ${token}` } : undefined,
-		body: form
-	});
-	if (!res.ok) throw await uploadError(res, 'Upload');
+	const res = await xhrUpload('/api/spots/images', form, token);
+	if (res.status < 200 || res.status >= 300) throw uploadFailure(res.status, res.body, 'Upload');
 }
 
 /** Avatar hochladen (Profilbild). */
@@ -256,12 +292,9 @@ export async function uploadAvatar(uri: string, name: string, type: string): Pro
 	const token = await getToken();
 	const form = new FormData();
 	form.append('image', { uri, name, type } as unknown as Blob);
-	const res = await fetch(`${BASE_URL || 'https://matetraining.duckdns.org'}/api/profile/avatar`, {
-		method: 'POST',
-		headers: token ? { authorization: `Bearer ${token}` } : undefined,
-		body: form
-	});
-	if (!res.ok) throw await uploadError(res, 'Avatar-Upload');
+	const res = await xhrUpload('/api/profile/avatar', form, token);
+	if (res.status < 200 || res.status >= 300)
+		throw uploadFailure(res.status, res.body, 'Avatar-Upload');
 }
 
 export const changePassword = (currentPassword: string, newPassword: string) =>
@@ -445,21 +478,9 @@ export async function uploadChallengeMedia(
 	form.append('challengeId', String(challengeId));
 	// React Native erwartet dieses Objekt-Format für Datei-Uploads.
 	form.append('image', { uri, name, type } as unknown as Blob);
-	const res = await fetch(`${BASE_URL || 'https://matetraining.duckdns.org'}/api/spots/challenges/images`, {
-		method: 'POST',
-		headers: token ? { authorization: `Bearer ${token}` } : undefined,
-		body: form
-	});
-	if (!res.ok) {
-		let message = `Fehler ${res.status}`;
-		try {
-			const body = await res.json();
-			if (body?.error) message = body.error;
-		} catch {
-			/* ohne Body */
-		}
-		throw new ApiError(res.status, message);
-	}
+	const res = await xhrUpload('/api/spots/challenges/images', form, token);
+	if (res.status < 200 || res.status >= 300)
+		throw uploadFailure(res.status, res.body, 'Upload');
 }
 
 export const getSpot = (id: number) => get<SpotDetailPayload>(`/api/v1/spots/${id}`);
