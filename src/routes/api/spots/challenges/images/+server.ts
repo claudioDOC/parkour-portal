@@ -10,7 +10,7 @@ import { getUploadWriteDir } from '$lib/server/uploads';
 import { validateChallengeMediaBuffer } from '$lib/server/validateChallengeMedia';
 import { isSpotChallengesSchemaReady, isSpotChallengeImagesReady } from '$lib/server/spotChallengesSchemaReady';
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 30 * 1024 * 1024;
 /** Videos dürfen grösser sein — Handy-Clips von ein paar Sekunden. */
 const MAX_VIDEO_SIZE = 60 * 1024 * 1024;
 const MAX_IMAGES_PER_CHALLENGE = 8;
@@ -57,7 +57,7 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 		if (!magic.isVideo && file.size > MAX_IMAGE_SIZE) {
-			return json({ error: 'Bild darf maximal 5 MB gross sein' }, { status: 400 });
+			return json({ error: 'Bild darf maximal 30 MB gross sein' }, { status: 400 });
 		}
 
 		const challenge = db

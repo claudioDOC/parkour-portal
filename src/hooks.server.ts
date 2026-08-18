@@ -61,7 +61,46 @@ const LIVE_IGNORED_PATHS = [
 	'/api/activity'
 ];
 
+/**
+ * Herkunfts-Prüfung für Formular-Anfragen (CSRF).
+ *
+ * SvelteKits eingebaute Prüfung war zu grob: Sie verlangt einen passenden
+ * Origin-Header und blockte damit die native App, die als Nicht-Browser
+ * gar keinen schickt — jeder Bild-Upload aus der App endete in
+ * „403 Cross-site POST form submissions are forbidden".
+ *
+ * Diese Fassung schützt Browser weiterhin (fremder Origin = abgelehnt),
+ * lässt aber Anfragen mit gültigem Bearer-Token durch: Ein Angreifer kann
+ * über ein fremdes Formular kein Token setzen — Browser schicken dort nur
+ * Cookies mit. Genau darum ist die Ausnahme sicher.
+ */
+function isForbiddenCrossSiteForm(event: Parameters<Handle>[0]['event']): boolean {
+	const method = event.request.method;
+	if (method !== 'POST' && method !== 'PUT' && method !== 'PATCH' && method !== 'DELETE') {
+		return false;
+	}
+	const type = (event.request.headers.get('content-type') ?? '').split(';')[0].trim();
+	const formLike = [
+		'application/x-www-form-urlencoded',
+		'multipart/form-data',
+		'text/plain'
+	].includes(type);
+	if (!formLike) return false;
+
+	// Native App: authentifiziert sich per Token, nicht per Cookie.
+	const auth = event.request.headers.get('authorization') ?? '';
+	if (auth.toLowerCase().startsWith('bearer ')) return false;
+
+	const origin = event.request.headers.get('origin');
+	if (!origin) return true; // Browser senden bei Formular-POSTs immer einen Origin.
+	return origin !== event.url.origin;
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
+	if (isForbiddenCrossSiteForm(event)) {
+		return new Response('Cross-site POST form submissions are forbidden', { status: 403 });
+	}
+
 	redirectHttpToHttpsIfNeeded(event);
 
 	const sessionJwt = getSessionFromCookiesOrBearer(event.cookies, event.request);

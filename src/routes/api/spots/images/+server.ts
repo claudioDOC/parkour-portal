@@ -7,9 +7,11 @@ import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { logAudit } from '$lib/server/audit';
 import { getUploadWriteDir } from '$lib/server/uploads';
+import sharp from 'sharp';
 import { validateSpotImageBuffer } from '$lib/server/validateSpotImageBuffer';
 
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+// Handyfotos sind heute 10–25 MB; wird beim Speichern verkleinert.
+const MAX_SIZE = 30 * 1024 * 1024;
 
 export const POST: RequestHandler = async (event) => {
 	const { request, locals } = event;
@@ -25,14 +27,14 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		if (file.size > MAX_SIZE) {
-			return json({ error: 'Bild darf maximal 5MB groß sein' }, { status: 400 });
+			return json({ error: 'Bild darf maximal 30 MB gross sein' }, { status: 400 });
 		}
 
 		const buffer = Buffer.from(await file.arrayBuffer());
 		const magic = await validateSpotImageBuffer(buffer);
 		if (!magic) {
 			return json(
-				{ error: 'Datei ist kein gültiges JPEG-, PNG- oder WebP-Bild (Inhalt geprüft).' },
+				{ error: 'Datei ist kein gültiges Bild (JPEG, PNG, WebP oder HEIC — Inhalt geprüft).' },
 				{ status: 400 }
 			);
 		}
@@ -59,8 +61,20 @@ export const POST: RequestHandler = async (event) => {
 		const filename = `${spotId}-${Date.now()}.${ext}`;
 		const filepath = join(uploadDir, filename);
 
+		// HEIC/HEIF zeigt kein Browser an → in WebP umwandeln. Alles andere
+		// bleibt wie hochgeladen (Original-Qualität für die Lightbox).
+		let toWrite = buffer;
+		if (magic.mime === 'image/heic' || magic.mime === 'image/heif') {
+			try {
+				toWrite = await sharp(buffer).rotate().webp({ quality: 86 }).toBuffer();
+			} catch (e) {
+				console.error('HEIC-Umwandlung fehlgeschlagen', e);
+				return json({ error: 'Bild konnte nicht verarbeitet werden.' }, { status: 400 });
+			}
+		}
+
 		try {
-			writeFileSync(filepath, buffer, { mode: 0o664 });
+			writeFileSync(filepath, toWrite, { mode: 0o664 });
 		} catch (e) {
 			console.error('spot image write failed', e);
 			return json({ error: 'Speichern fehlgeschlagen (Rechte/Pfad prüfen)' }, { status: 500 });

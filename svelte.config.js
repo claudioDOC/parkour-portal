@@ -18,9 +18,13 @@ const config = {
 		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		// adapter-node: Standard-Body-Limit für Produktion ist klein (ohne Env). Bild-Upload bis 5MB → BODY_SIZE_LIMIT setzen (siehe README).
-		adapter: adapter()
-		// CSRF: Standard von SvelteKit aktiv (checkOrigin). In Produktion hinter Reverse-Proxy unbedingt
-		// ORIGIN=https://deine-domain auf den Node-Prozess setzen (siehe README), sonst schlagen POST/Upload fehl.
+		adapter: adapter(),
+		// CSRF: SvelteKits pauschale Prüfung ist AUS — sie blockte auch die
+		// native App, die als Nicht-Browser keinen Origin-Header schickt
+		// (Bild-Uploads schlugen mit 403 fehl). Der Schutz läuft jetzt in
+		// src/hooks.server.ts: gleiche Regel für Browser, Ausnahme nur für
+		// Anfragen mit gültigem Bearer-Token.
+		csrf: { checkOrigin: false }
 	}
 };
 

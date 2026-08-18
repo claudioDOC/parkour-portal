@@ -181,6 +181,19 @@ export const adminTraining = (
 
 export const logSolo = (note?: string) => post<{ success?: boolean }>('/api/solo', { note });
 
+
+/** Fehlertext des Servers auslesen — sonst sieht man nur die Nummer. */
+async function uploadError(res: Response, was: string): Promise<ApiError> {
+	let message = `${was} fehlgeschlagen (${res.status})`;
+	try {
+		const body = await res.json();
+		if (body?.error) message = body.error;
+	} catch {
+		/* kein JSON-Körper */
+	}
+	return new ApiError(res.status, message);
+}
+
 // --- Spots ---
 
 export type SpotListItem = {
@@ -235,7 +248,7 @@ export async function uploadSpotImage(
 		headers: token ? { authorization: `Bearer ${token}` } : undefined,
 		body: form
 	});
-	if (!res.ok) throw new ApiError(res.status, `Upload fehlgeschlagen (${res.status})`);
+	if (!res.ok) throw await uploadError(res, 'Upload');
 }
 
 /** Avatar hochladen (Profilbild). */
@@ -248,7 +261,7 @@ export async function uploadAvatar(uri: string, name: string, type: string): Pro
 		headers: token ? { authorization: `Bearer ${token}` } : undefined,
 		body: form
 	});
-	if (!res.ok) throw new ApiError(res.status, `Avatar-Upload fehlgeschlagen (${res.status})`);
+	if (!res.ok) throw await uploadError(res, 'Avatar-Upload');
 }
 
 export const changePassword = (currentPassword: string, newPassword: string) =>

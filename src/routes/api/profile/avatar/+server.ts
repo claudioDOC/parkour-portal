@@ -11,7 +11,8 @@ import { validateSpotImageBuffer } from '$lib/server/validateSpotImageBuffer';
 import { logAudit } from '$lib/server/audit';
 import { avatarFullFilename } from '$lib/server/avatar';
 
-const MAX_SIZE = 5 * 1024 * 1024;
+// Handyfotos sind heute 10–25 MB; der Server rechnet sie ohnehin klein.
+const MAX_SIZE = 30 * 1024 * 1024;
 
 function currentAvatar(userId: number): string | null {
 	return (
