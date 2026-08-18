@@ -603,7 +603,12 @@ export const geocode = (q: string) =>
 	);
 
 export const createChallenge = (spotId: number, title: string, description: string) =>
-	post<{ success?: boolean }>('/api/spots/challenges', { spotId, title, description });
+	// Die neue ID kommt zurück — sie wird fürs Bild direkt danach gebraucht.
+	post<{ success?: boolean; challenge?: { id: number } }>('/api/spots/challenges', {
+		spotId,
+		title,
+		description
+	});
 
 export const setChallengeDone = (challengeId: number, done: boolean) =>
 	request<{ success?: boolean }>('/api/spots/challenges', {

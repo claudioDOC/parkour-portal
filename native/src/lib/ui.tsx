@@ -685,13 +685,16 @@ export function Button({
 	onPress,
 	kind = 'accent',
 	small = false,
-	wide = false
+	wide = false,
+	disabled = false
 }: {
 	label: string;
 	onPress: () => void;
 	kind?: 'accent' | 'ghost' | 'danger';
 	small?: boolean;
 	wide?: boolean;
+	/** Während einer laufenden Aktion — verhindert Doppel-Absenden. */
+	disabled?: boolean;
 }) {
 	const { colors } = useTheme();
 	const textColor =
@@ -712,9 +715,11 @@ export function Button({
 					alignItems: 'center',
 					backgroundColor: kind === 'accent' ? colors.accent : colors.hover
 				},
-				pressed && { opacity: 0.8 }
+				pressed && { opacity: 0.8 },
+				disabled && { opacity: 0.5 }
 			]}
 			onPress={onPress}
+			disabled={disabled}
 		>
 			<Text style={{ ...T.bodyStrong, color: textColor }}>{label}</Text>
 		</Pressable>

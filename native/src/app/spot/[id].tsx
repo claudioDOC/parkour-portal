@@ -38,6 +38,7 @@ import {
 	removeSpotVote,
 	setChallengeDone,
 	createChallenge,
+	uploadChallengeMedia,
 	uploadSpotImage,
 	deleteSpotImage,
 	voteSpotForTraining,
@@ -124,6 +125,10 @@ export default function SpotDetailScreen() {
 	// Neue Challenge an diesem Spot
 	const [challengeOpen, setChallengeOpen] = useState(false);
 	const [chForm, setChForm] = useState({ title: '', description: '' });
+	// Wie auf der Website: Bild vorher wählen, hochladen nach dem Anlegen —
+	// die Challenge-ID gibt es erst dann.
+	const [chMedia, setChMedia] = useState<{ uri: string; name: string; type: string } | null>(null);
+	const [chBusy, setChBusy] = useState(false);
 	// Spot bearbeiten (admin/spotmanager) — ALLE Felder wie im Web.
 	const [editOpen, setEditOpen] = useState(false);
 	const [editForm, setEditForm] = useState({
@@ -316,18 +321,59 @@ export default function SpotDetailScreen() {
 		}
 	};
 
+	const pickChallengeMedia = async () => {
+		const ImagePicker = getImagePicker();
+		if (!ImagePicker) {
+			Alert.alert('Neue App-Version nötig', 'Bilder hochladen geht ab App-Version 1.1.0.');
+			return;
+		}
+		const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+		if (!perm.granted) {
+			Alert.alert('Kein Zugriff', 'Bitte den Galerie-Zugriff erlauben.');
+			return;
+		}
+		const picked = await ImagePicker.launchImageLibraryAsync({
+			mediaTypes: ['images', 'videos'],
+			quality: 0.85
+		});
+		if (picked.canceled || !picked.assets?.[0]) return;
+		const a = picked.assets[0];
+		setChMedia({
+			uri: a.uri,
+			name: a.fileName ?? (a.type === 'video' ? 'challenge.mp4' : 'challenge.jpg'),
+			type: a.mimeType ?? (a.type === 'video' ? 'video/mp4' : 'image/jpeg')
+		});
+	};
+
 	const submitChallenge = async () => {
 		if (!chForm.title.trim()) {
 			Alert.alert('Titel fehlt', 'Gib der Challenge einen Namen.');
 			return;
 		}
-		setChallengeOpen(false);
+		setChBusy(true);
 		try {
-			await createChallenge(spotId, chForm.title.trim(), chForm.description.trim());
+			const res = await createChallenge(spotId, chForm.title.trim(), chForm.description.trim());
+			const newId = res.challenge?.id;
+			if (chMedia && newId) {
+				try {
+					await uploadChallengeMedia(newId, chMedia.uri, chMedia.name, chMedia.type);
+				} catch (e) {
+					// Challenge steht bereits — nur der Upload ging schief.
+					Alert.alert(
+						'Challenge angelegt, Bild nicht',
+						e instanceof Error ? e.message : 'Upload fehlgeschlagen'
+					);
+				}
+			}
+			// Erst nach Erfolg schliessen — sonst wären die Eingaben weg.
+			setChallengeOpen(false);
 			setChForm({ title: '', description: '' });
+			setChMedia(null);
 			await refresh();
 		} catch (e) {
 			Alert.alert('Fehler', e instanceof Error ? e.message : 'Erstellen fehlgeschlagen');
+		} finally {
+			setChBusy(false);
 		}
 	};
 
@@ -779,6 +825,7 @@ export default function SpotDetailScreen() {
 						visible={challengeOpen}
 						onClose={() => setChallengeOpen(false)}
 						title={`Neue Challenge — ${base.name}`}
+						scroll
 					>
 						<Input
 							placeholder="Titel (z. B. Kong über die Mauer)"
@@ -791,9 +838,39 @@ export default function SpotDetailScreen() {
 							value={chForm.description}
 							onChangeText={(v) => setChForm({ ...chForm, description: v })}
 						/>
+						{chMedia ? (
+							<View style={styles.chMediaRow}>
+								<Image
+									source={{ uri: chMedia.uri }}
+									style={styles.chMediaThumb}
+									contentFit="cover"
+								/>
+								<Text style={styles.chMediaName} numberOfLines={2}>
+									{chMedia.name}
+								</Text>
+								<Button label="Entfernen" kind="ghost" small onPress={() => setChMedia(null)} />
+							</View>
+						) : null}
+						<Button
+							label={chMedia ? 'Anderes Bild wählen' : '📷 Bild oder Video wählen'}
+							kind="ghost"
+							small
+							onPress={pickChallengeMedia}
+						/>
 						<View style={styles.sheetActions}>
-							<Button label="Abbrechen" kind="ghost" onPress={() => setChallengeOpen(false)} />
-							<Button label="Erstellen" onPress={submitChallenge} />
+							<Button
+								label="Abbrechen"
+								kind="ghost"
+								onPress={() => {
+									setChallengeOpen(false);
+									setChMedia(null);
+								}}
+							/>
+							<Button
+								label={chBusy ? 'Wird angelegt …' : 'Erstellen'}
+								onPress={submitChallenge}
+								disabled={chBusy}
+							/>
 						</View>
 					</Sheet>
 
@@ -878,6 +955,9 @@ const makeStyles = (colors: ThemeColors) =>
 		marginTop: 8
 	},
 	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+	chMediaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+	chMediaThumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: colors.bgSecondary },
+	chMediaName: { flex: 1, color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 17, fontFamily: fonts.sans },
 	editLabel: {
 		color: colors.fg + textAlpha.muted,
 		fontSize: 12,
