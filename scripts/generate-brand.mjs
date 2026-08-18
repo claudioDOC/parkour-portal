@@ -141,14 +141,14 @@ await sharp(Buffer.from(tileRounded)).resize(1024, 1024).png().toFile(join(NATIV
 await sharp(Buffer.from(tileRounded)).resize(512, 512).png().toFile(join(NATIVE, 'splash-icon.png'));
 await sharp(Buffer.from(tileRounded)).resize(64, 64).png().toFile(join(NATIVE, 'favicon.png'));
 // Adaptive Icon: Vordergrund transparent + eigener Hintergrund.
-await sharp(Buffer.from(markOnlySvg({ markScale: 0.7 })))
+await sharp(Buffer.from(markOnlySvg({ markScale: 0.55 })))
 	.resize(1024, 1024)
 	.png()
 	.toFile(join(NATIVE, 'android-icon-foreground.png'));
 await sharp({ create: { width: 1024, height: 1024, channels: 4, background: '#0d0d0f' } })
 	.png()
 	.toFile(join(NATIVE, 'android-icon-background.png'));
-await sharp(Buffer.from(markOnlySvg({ markScale: 0.7 })))
+await sharp(Buffer.from(markOnlySvg({ markScale: 0.55 })))
 	.resize(1024, 1024)
 	.png()
 	.toFile(join(NATIVE, 'android-icon-monochrome.png'));
@@ -172,14 +172,22 @@ const ICON_COLORS = {
 const ICON_DIR = join(NATIVE, 'icons');
 mkdirSync(ICON_DIR, { recursive: true });
 for (const [name, color] of Object.entries(ICON_COLORS)) {
-	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+	// Vordergrund für Adaptive Icons: transparent, Motiv in der Safe-Zone
+	// (Android beschneidet je nach Launcher-Form bis zu einem Drittel).
+	await sharp(Buffer.from(markOnlySvg({ markScale: 0.55, color })))
+		.resize(1024, 1024)
+		.png()
+		.toFile(join(ICON_DIR, `icon-${name}-foreground.png`));
+
+	// Rückfall für alte Android-Versionen: fertige Kachel mit Rand.
+	const tile = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 	<clipPath id="c"><rect width="512" height="512" rx="110"/></clipPath>
 	<g clip-path="url(#c)">
 		<rect width="512" height="512" fill="${BG_DARK}"/>
-		${markSvg({ color })}
+		${markSvg({ scale: 0.68, color })}
 	</g>
 </svg>`;
-	await sharp(Buffer.from(svg)).resize(1024, 1024).png().toFile(join(ICON_DIR, `icon-${name}.png`));
+	await sharp(Buffer.from(tile)).resize(1024, 1024).png().toFile(join(ICON_DIR, `icon-${name}.png`));
 }
 
 console.log(`Marken-Assets erzeugt (Route-Muster, Variante: ${VARIANT}) + ${Object.keys(ICON_COLORS).length} Icon-Farben.`);

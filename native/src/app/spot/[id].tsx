@@ -45,7 +45,7 @@ import {
 	trashSpot,
 	mediaUrl
 } from '../../lib/api';
-import { getImagePicker } from '../../lib/nativeModules';
+import { getImagePicker, getLocation } from '../../lib/nativeModules';
 import { useAuth } from '../_layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -139,6 +139,7 @@ export default function SpotDetailScreen() {
 		parking: [] as { name: string; coords: string }[]
 	});
 	const canEdit = me?.role === 'admin' || me?.role === 'spotmanager';
+	const [parkingBusy, setParkingBusy] = useState<number | null>(null);
 
 	const base = data?.spot ?? null;
 
@@ -214,6 +215,33 @@ export default function SpotDetailScreen() {
 		if (m.length !== 2 || !Number.isFinite(lat) || !Number.isFinite(lon)) return 'invalid';
 		if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return 'invalid';
 		return { lat, lon };
+	};
+
+	// Koordinaten von Hand tippen will niemand — Standort direkt übernehmen.
+	const useHereForParking = async (index: number) => {
+		const Location = getLocation();
+		if (!Location) {
+			Alert.alert('Neue App-Version nötig', 'Der Standort geht ab App-Version 1.1.');
+			return;
+		}
+		setParkingBusy(index);
+		try {
+			const perm = await Location.requestForegroundPermissionsAsync();
+			if (!perm.granted) {
+				Alert.alert('Kein Zugriff', 'Für den Standort braucht die App die Ortungsberechtigung.');
+				return;
+			}
+			const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+			const coords = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+			setEditForm((prev) => ({
+				...prev,
+				parking: prev.parking.map((x, k) => (k === index ? { ...x, coords } : x))
+			}));
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Standort nicht verfügbar');
+		} finally {
+			setParkingBusy(null);
+		}
 	};
 
 	const startEdit = () => {
@@ -681,6 +709,10 @@ export default function SpotDetailScreen() {
 							</View>
 						) : null}
 						<Text style={styles.editLabel}>{`Parkplätze · ${editForm.parking.length}`}</Text>
+						<Text style={styles.parkingHint}>
+							Am einfachsten: vor Ort „Ich stehe hier" tippen — sonst Koordinaten
+							als „46.75, 7.62" eintragen.
+						</Text>
 						{editForm.parking.map((p, i) => (
 							<View key={i} style={styles.parkingRow}>
 								<View style={{ flex: 1, gap: 6 }}>
@@ -704,6 +736,12 @@ export default function SpotDetailScreen() {
 												parking: editForm.parking.map((x, k) => (k === i ? { ...x, coords: v } : x))
 											})
 										}
+									/>
+									<Button
+										label={parkingBusy === i ? 'Ortet …' : '📍 Ich stehe hier'}
+										kind="ghost"
+										small
+										onPress={() => useHereForParking(i)}
 									/>
 								</View>
 								<Pressable
@@ -850,6 +888,7 @@ const makeStyles = (colors: ThemeColors) =>
 	},
 	editChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 	parkingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+	parkingHint: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 17 },
 	actionBar: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
 	challengeImage: { width: '100%', height: 150, borderRadius: 12, backgroundColor: colors.hover },
 	legendRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },

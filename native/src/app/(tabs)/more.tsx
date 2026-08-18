@@ -10,7 +10,8 @@ import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { Card, TopBar, Screen, Avatar, Sheet, Input, Button } from '../../lib/ui';
 import { THEMES, THEME_OPTIONS } from '../../lib/theme';
 import { useData } from '../../lib/store';
-import { getProfile, saveUiTheme, adminBroadcast } from '../../lib/api';
+import { getProfile, saveUiTheme, adminBroadcast, BASE_URL } from '../../lib/api';
+import { checkApkUpdate, downloadAndInstallApk } from '../../lib/apkUpdate';
 import { useAuth } from '../_layout';
 
 const MENU = [
@@ -57,18 +58,55 @@ export default function More() {
 	const router = useRouter();
 	const profile = useData('profile-me', () => getProfile());
 
+	const [installing, setInstalling] = useState<number | null>(null);
+
+	/**
+	 * Prüft beides: Inhalts-Update (kommt sofort) und neue App-Version
+	 * (Symbole, native Teile — dafür braucht Android eine Installation,
+	 * die die App aber selbst herunterlädt und anbietet).
+	 */
 	const checkUpdate = async () => {
+		let contentUpdated = false;
 		try {
 			const result = await Updates.checkForUpdateAsync();
 			if (result.isAvailable) {
 				await Updates.fetchUpdateAsync();
-				await Updates.reloadAsync();
-			} else {
-				Alert.alert('Aktuell', 'Du hast bereits die neueste Version.');
+				contentUpdated = true;
 			}
 		} catch {
-			Alert.alert('Offline', 'Update-Server gerade nicht erreichbar.');
+			/* Update-Server gerade nicht erreichbar — App-Version trotzdem prüfen */
 		}
+
+		const apk = await checkApkUpdate(BASE_URL || 'https://matetraining.duckdns.org');
+		if (apk) {
+			Alert.alert(
+				`Neue App-Version ${apk.version}`,
+				`Enthält Änderungen, die eine Installation brauchen (${Math.round(apk.sizeBytes / 1048576)} MB). Jetzt laden und installieren?`,
+				[
+					{ text: 'Später', style: 'cancel' },
+					{
+						text: 'Installieren',
+						onPress: async () => {
+							try {
+								setInstalling(0);
+								await downloadAndInstallApk(apk, (p) => setInstalling(p));
+							} catch (e) {
+								Alert.alert('Fehler', e instanceof Error ? e.message : 'Download fehlgeschlagen');
+							} finally {
+								setInstalling(null);
+							}
+						}
+					}
+				]
+			);
+			return;
+		}
+
+		if (contentUpdated) {
+			await Updates.reloadAsync();
+			return;
+		}
+		Alert.alert('Aktuell', 'Du hast bereits die neueste Version.');
 	};
 
 	return (

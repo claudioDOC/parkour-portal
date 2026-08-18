@@ -1,7 +1,7 @@
 import { useEffect, useState, createContext, useContext } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, AppState } from 'react-native';
+import { View, ActivityIndicator, AppState, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Updates from 'expo-updates';
 import { useFonts } from 'expo-font';
@@ -16,6 +16,9 @@ import { THEMES, DEFAULT_THEME, isThemeId, type UiThemeId } from '../lib/theme';
 import { ThemeProvider } from '../lib/themeContext';
 import { getMe, getToken, logout, type Me } from '../lib/api';
 import { loadPrefs } from '../lib/prefs';
+import { checkApkUpdate, downloadAndInstallApk } from '../lib/apkUpdate';
+import { readToken, writeToken } from '../lib/tokenStore';
+import { BASE_URL } from '../lib/api';
 import { setupPush } from '../lib/pushSetup';
 import { clearDataCache } from '../lib/store';
 import { ActivityProvider } from '../lib/activity';
@@ -121,6 +124,39 @@ export default function RootLayout() {
 			}
 		})();
 	}, []);
+
+	// Neue App-Version (native Änderungen) höflich anbieten: höchstens
+	// einmal am Tag, und nur wenn jemand eingeloggt ist.
+	useEffect(() => {
+		if (!me) return;
+		(async () => {
+			try {
+				const today = new Date().toISOString().slice(0, 10);
+				if ((await readToken('apk-hint-day')) === today) return;
+				const apk = await checkApkUpdate(BASE_URL || 'https://matetraining.duckdns.org');
+				if (!apk) return;
+				await writeToken('apk-hint-day', today);
+				Alert.alert(
+					`Neue App-Version ${apk.version}`,
+					`Es gibt eine neue Version mit Änderungen, die eine Installation brauchen (${Math.round(apk.sizeBytes / 1048576)} MB). Jetzt laden und installieren?`,
+					[
+						{ text: 'Später', style: 'cancel' },
+						{
+							text: 'Installieren',
+							onPress: () => {
+								downloadAndInstallApk(apk).catch((e) =>
+									Alert.alert('Fehler', e instanceof Error ? e.message : 'Download fehlgeschlagen')
+								);
+							}
+						}
+					]
+				);
+			} catch {
+				/* Offline — morgen wieder */
+			}
+		})();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [me?.id]);
 
 	// Push (FCM) einrichten, sobald jemand eingeloggt ist — nativer
 	// Erlaubnis-Dialog beim ersten Mal, danach still. Ab APK 1.4 wirksam.

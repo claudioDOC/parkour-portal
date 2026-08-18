@@ -9,7 +9,7 @@
  * Umgeschaltet wird im Modul `launcher-icon` mit „einen ein, Rest aus".
  */
 const { withAndroidManifest, withDangerousMod, AndroidConfig } = require('expo/config-plugins');
-const { copyFileSync, mkdirSync, existsSync } = require('fs');
+const { copyFileSync, mkdirSync, existsSync, writeFileSync } = require('fs');
 const path = require('path');
 
 /** Muss zu LAUNCHER_ICONS in src/app/settings.tsx passen. */
@@ -44,10 +44,31 @@ function withIconFiles(config) {
 				'mipmap-xxxhdpi'
 			);
 			mkdirSync(dest, { recursive: true });
+			const anydpi = path.join(
+				cfg.modRequest.platformProjectRoot,
+				'app', 'src', 'main', 'res', 'mipmap-anydpi-v26'
+			);
+			mkdirSync(anydpi, { recursive: true });
+
 			for (const v of VARIANTS) {
-				if (v.suffix === 'Standard') continue; // nutzt ic_launcher
-				const file = path.join(src, `icon-${v.suffix}.png`);
-				if (existsSync(file)) copyFileSync(file, path.join(dest, `${v.suffix}.png`));
+				if (v.suffix === 'Standard') continue; // nutzt Expos ic_launcher
+				// Rückfall-Kachel (Android < 8) und Vordergrund fürs Adaptive Icon.
+				const tile = path.join(src, `icon-${v.suffix}.png`);
+				const fg = path.join(src, `icon-${v.suffix}-foreground.png`);
+				if (existsSync(tile)) copyFileSync(tile, path.join(dest, `${v.suffix}.png`));
+				if (existsSync(fg)) copyFileSync(fg, path.join(dest, `${v.suffix}_foreground.png`));
+
+				// Adaptive Icon: Launcher schneidet nur den Rand weg, nie das Motiv.
+				writeFileSync(
+					path.join(anydpi, `${v.suffix}.xml`),
+					`<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/iconBackground"/>
+    <foreground android:drawable="@mipmap/${v.suffix}_foreground"/>
+    <monochrome android:drawable="@mipmap/${v.suffix}_foreground"/>
+</adaptive-icon>
+`
+				);
 			}
 			return cfg;
 		}
