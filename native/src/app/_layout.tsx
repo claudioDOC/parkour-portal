@@ -20,6 +20,7 @@ import { checkApkUpdate, downloadAndInstallApk } from '../lib/apkUpdate';
 import { readToken, writeToken } from '../lib/tokenStore';
 import { BASE_URL } from '../lib/api';
 import { setupPush } from '../lib/pushSetup';
+import { appPathFromPortalUrl } from '../lib/appLink';
 import { clearDataCache } from '../lib/store';
 import { ActivityProvider } from '../lib/activity';
 import { Splash } from '../lib/Splash';
@@ -186,7 +187,8 @@ export default function RootLayout() {
 	// Erlaubnis-Dialog beim ersten Mal, danach still. Ab APK 1.4 wirksam.
 	useEffect(() => {
 		if (!me) return;
-		setupPush((url) => router.push(url as never)).catch(() => {});
+		// Portal-Adresse → App-Pfad, sonst öffnet der Tipp ins Leere.
+		setupPush((url) => router.push(appPathFromPortalUrl(url) as never)).catch(() => {});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [me?.id]);
 

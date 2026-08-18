@@ -54,6 +54,16 @@ export async function setupPush(onOpenUrl: (url: string) => void): Promise<void>
 			if (fresh) registerFcmDevice(fresh).catch(() => {});
 		});
 
+		// War die App zu, ist der Tipp schon passiert, bevor der Listener
+		// steht — diese Antwort muss man ausdrücklich nachholen.
+		try {
+			const last = await Notifications.getLastNotificationResponseAsync();
+			const coldUrl = last?.notification.request.content.data?.url;
+			if (typeof coldUrl === 'string' && coldUrl.startsWith('/')) onOpenUrl(coldUrl);
+		} catch {
+			/* keine gespeicherte Antwort */
+		}
+
 		// Tippen auf eine Benachrichtigung → Ziel-Seite öffnen.
 		Notifications.addNotificationResponseReceivedListener((response) => {
 			const url = response.notification.request.content.data?.url;

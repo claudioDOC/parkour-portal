@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../lib/theme';
 import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
 import { Card, TopBar, Screen, EmptyState } from '../lib/ui';
 import { useActivity } from '../lib/activity';
+import { appPathFromPortalUrl } from '../lib/appLink';
+import { useRouter } from 'expo-router';
 
 const KIND_ICONS: Record<string, string> = {
 	'challenge.new': 'trophy-outline',
@@ -31,6 +33,7 @@ export default function Activity() {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
 	const { entries, refresh, markSeen } = useActivity();
+	const router = useRouter();
 
 	// Beim Öffnen: aktualisieren und als gelesen markieren (Punkt verschwindet).
 	useEffect(() => {
@@ -46,7 +49,13 @@ export default function Activity() {
 			) : (
 				<Card style={{ gap: 4, paddingVertical: 8 }}>
 					{entries.map((e) => (
-						<View key={e.id} style={styles.row}>
+						// Jeder Eintrag trägt ein Ziel — dieselbe Übersetzung wie
+						// bei den Benachrichtigungen, sonst führt er ins Leere.
+						<Pressable
+							key={e.id}
+							onPress={() => router.push(appPathFromPortalUrl(e.url) as never)}
+							style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
+						>
 							<View style={styles.iconWrap}>
 								<Ionicons
 									name={(KIND_ICONS[e.kind] ?? 'sparkles-outline') as 'sparkles-outline'}
@@ -66,7 +75,8 @@ export default function Activity() {
 									{timeAgo(e.createdAt)}
 								</Text>
 							</View>
-						</View>
+							<Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+						</Pressable>
 					))}
 				</Card>
 			)}
