@@ -157,6 +157,13 @@ await sharp(Buffer.from(markOnlySvg({ markScale: 0.94 })))
 	.resize(256, 256)
 	.png()
 	.toFile(join(NATIVE, 'mark-mono.png'));
+// Symbol für die Statusleiste: Android wertet NUR den Alphakanal aus und
+// färbt den Rest selbst ein. Ein deckendes Bild ergibt darum ein Viereck.
+// 96 px = 24 dp auf xxxhdpi, mit Rand, damit es nicht anschlägt.
+await sharp(Buffer.from(markOnlySvg({ markScale: 0.78 })))
+	.resize(96, 96)
+	.png()
+	.toFile(join(NATIVE, 'notification-icon.png'));
 
 // --- Farbvarianten fürs Startbildschirm-Icon --------------------------
 // Gleiches Muster, nur die Blöcke eingefärbt — umschaltbar in den
