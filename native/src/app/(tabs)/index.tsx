@@ -339,15 +339,23 @@ export default function Dashboard() {
 															)
 														}
 													>
-														{mine ? (
-															<Ionicons name="checkmark-circle" size={16} color={colors.accent} />
-														) : (
-															<View style={styles.voteDot} />
-														)}
-														<Text style={[styles.voteName, mine && { color: colors.accent }]}>
-															{v.spotName}
+														<View style={styles.voteRowTop}>
+															{mine ? (
+																<Ionicons name="checkmark-circle" size={16} color={colors.accent} />
+															) : (
+																<View style={styles.voteDot} />
+															)}
+															<Text style={[styles.voteName, mine && { color: colors.accent }]}>
+																{v.spotName}
+															</Text>
+															<Text style={styles.voteCount}>{v.voteCount}</Text>
+														</View>
+														{/* Wie auf der Website: Ort und wer dafür gestimmt hat — leise. */}
+														<Text style={styles.voteMeta} numberOfLines={2}>
+															{[v.spotCity, v.voterList.filter(Boolean).join(', ')]
+																.filter(Boolean)
+																.join(' · ')}
 														</Text>
-														<Text style={styles.voteCount}>{v.voteCount}</Text>
 													</Pressable>
 												);
 											})}
@@ -839,9 +847,7 @@ const makeStyles = (colors: ThemeColors) =>
 		chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 		emptyDash: { color: colors.fg + textAlpha.muted, fontSize: 14, lineHeight: 20 },
 		voteRow: {
-			flexDirection: 'row',
-			alignItems: 'center',
-			gap: 8,
+			gap: 3,
 			backgroundColor: colors.bgSecondary,
 			borderRadius: 12,
 			borderWidth: 1,
@@ -869,7 +875,16 @@ const makeStyles = (colors: ThemeColors) =>
 			borderWidth: 1.5,
 			borderColor: colors.textMuted
 		},
+		voteRowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 		voteName: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi, flex: 1 },
+		// Eingerückt auf Höhe des Spot-Namens (Punkt 15 + Abstand 8).
+		voteMeta: {
+			color: colors.fg + textAlpha.muted,
+			fontSize: 12,
+			lineHeight: 17,
+			fontFamily: fonts.sans,
+			marginLeft: 23
+		},
 		voteCount: { color: colors.fg + textAlpha.secondary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
 		actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8 },
 		soloCard: { paddingVertical: 12 },

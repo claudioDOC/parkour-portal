@@ -753,7 +753,10 @@ export function Sheet({
 						borderTopColor: colors.dark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)',
 						padding: 20,
 						paddingBottom: 20 + Math.max(insets.bottom, 14),
-						gap: 12
+						gap: 12,
+						// Ohne Deckel wächst die Karte über den Bildschirm hinaus —
+						// dann sind die untersten Felder schlicht nicht erreichbar.
+						maxHeight: Dimensions.get('window').height * 0.9
 					}}
 					onPress={() => {}}
 				>
@@ -779,10 +782,14 @@ export function Sheet({
 					</Text>
 					{scroll ? (
 						<ScrollView
-							style={{ maxHeight: Dimensions.get('window').height * 0.68 }}
-							contentContainerStyle={{ gap: 12 }}
+							// flexShrink statt fester Höhe: nimmt genau den Platz, der
+							// in der gedeckelten Karte übrig bleibt.
+							style={{ flexShrink: 1 }}
+							contentContainerStyle={{ gap: 12, paddingBottom: 4 }}
 							keyboardShouldPersistTaps="handled"
-							showsVerticalScrollIndicator={false}
+							keyboardDismissMode="on-drag"
+							// Balken sichtbar lassen — sonst sieht niemand, dass da mehr ist.
+							showsVerticalScrollIndicator
 						>
 							{children}
 						</ScrollView>
