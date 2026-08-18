@@ -13,7 +13,7 @@ import {
 	PlusJakartaSans_700Bold
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { THEMES, DEFAULT_THEME, isThemeId, type UiThemeId } from '../lib/theme';
-import { ThemeProvider } from '../lib/themeContext';
+import { ThemeProvider, useTheme } from '../lib/themeContext';
 import { getMe, getToken, logout, type Me } from '../lib/api';
 import { loadPrefs } from '../lib/prefs';
 import { checkApkUpdate, downloadAndInstallApk } from '../lib/apkUpdate';
@@ -73,6 +73,30 @@ function useSelfHostedUpdates() {
 		});
 		return () => sub.remove();
 	}, []);
+}
+
+/**
+ * Steckt IN den Providern, damit die Animations-Einstellung sofort
+ * wirkt: ohne Animationen werden Seitenwechsel hart geschnitten.
+ */
+function AppStack({ bg }: { bg: string }) {
+	const { motion } = useTheme();
+	return (
+		<Stack
+			screenOptions={{
+				headerShown: false,
+				contentStyle: { backgroundColor: bg },
+				animation: motion ? 'slide_from_right' : 'none'
+			}}
+		>
+			<Stack.Screen name="(tabs)" />
+			<Stack.Screen name="login" options={{ animation: motion ? 'fade' : 'none' }} />
+			<Stack.Screen
+				name="activity"
+				options={{ animation: motion ? 'slide_from_bottom' : 'none' }}
+			/>
+		</Stack>
+	);
 }
 
 export default function RootLayout() {
@@ -196,17 +220,7 @@ export default function RootLayout() {
 			<ThemeProvider themeId={themeId} setThemeId={setThemeId}>
 			<ActivityProvider enabled={me !== null}>
 				<StatusBar style={colors.dark ? 'light' : 'dark'} />
-				<Stack
-					screenOptions={{
-						headerShown: false,
-						contentStyle: { backgroundColor: colors.bg },
-						animation: 'slide_from_right'
-					}}
-				>
-					<Stack.Screen name="(tabs)" />
-					<Stack.Screen name="login" options={{ animation: 'fade' }} />
-					<Stack.Screen name="activity" options={{ animation: 'slide_from_bottom' }} />
-				</Stack>
+				<AppStack bg={colors.bg} />
 			</ActivityProvider>
 			</ThemeProvider>
 		</AuthContext.Provider>

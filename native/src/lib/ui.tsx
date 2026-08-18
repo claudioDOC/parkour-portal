@@ -732,13 +732,17 @@ export function Sheet({
 	onClose,
 	title,
 	children,
-	scroll = false
+	scroll = true
 }: {
 	visible: boolean;
 	onClose: () => void;
 	title: string;
 	children: ReactNode;
-	/** Für lange Formulare: Inhalt scrollt, Sheet bleibt unter 3/4 der Höhe. */
+	/**
+	 * Scrollen ist der Normalfall — jede Liste kann länger werden als der
+	 * Bildschirm. Nur ausschalten, wenn der Inhalt selbst schon scrollt
+	 * (verschachtelte Scrollflächen streiten sich um die Geste).
+	 */
 	scroll?: boolean;
 }) {
 	const { colors } = useTheme();

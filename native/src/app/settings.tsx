@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, THEMES, THEME_OPTIONS, type ThemeColors } from '../lib/theme';
 import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
-import { getStartTab, setStartTab, setFontScale, setMarkColor, type StartTab } from '../lib/prefs';
+import { getStartTab, setStartTab, setFontScale, setMarkColor, setMotion, type StartTab } from '../lib/prefs';
 import { Card, TopBar, Screen, Button, Input, SectionTitle, Avatar, Sheet } from '../lib/ui';
 import { useData } from '../lib/store';
 import {
@@ -68,7 +68,8 @@ export default function Settings() {
 
 	const [themeOpen, setThemeOpen] = useState(false);
 	const [startTab, setStartTabState] = useState<StartTab>(getStartTab());
-	const { fontScale, setFontScaleState, markColor, setMarkColorState } = useTheme();
+	const { fontScale, setFontScaleState, markColor, setMarkColorState, motion, setMotionState } =
+		useTheme();
 	const iconSwitcher = getIconSwitcher();
 	const [launcherIcon, setLauncherIcon] = useState<string>(() => {
 		try {
@@ -257,6 +258,34 @@ export default function Settings() {
 								style={[styles.prefChipText, fontScale === f.value && { color: colors.onAccent }]}
 							>
 								{f.label}
+							</Text>
+						</Pressable>
+					))}
+				</View>
+
+				<Text style={styles.prefLabel}>Animationen</Text>
+				<Text style={styles.ntfyHint}>
+					Weiche Seitenwechsel. Ausschalten spart Akku und wirkt ruhiger.
+				</Text>
+				<View style={styles.prefRow}>
+					{[
+						{ on: true, label: 'An' },
+						{ on: false, label: 'Aus' }
+					].map((o) => (
+						<Pressable
+							key={o.label}
+							onPress={async () => {
+								await setMotion(o.on);
+								setMotionState(o.on);
+							}}
+							style={({ pressed }) => [
+								styles.prefChip,
+								motion === o.on && { backgroundColor: colors.accent, borderColor: colors.accent },
+								pressed && { opacity: 0.8 }
+							]}
+						>
+							<Text style={[styles.prefChipText, motion === o.on && { color: colors.onAccent }]}>
+								{o.label}
 							</Text>
 						</Pressable>
 					))}

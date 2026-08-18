@@ -28,6 +28,9 @@ import {
 	trashSpot,
 	getTrips,
 	adminTrashTrip,
+	getAdminSolo,
+	addAdminSolo,
+	deleteAdminSolo,
 	BASE_URL,
 	type AdminUser
 } from '../lib/api';
@@ -85,6 +88,13 @@ export default function Admin() {
 	const trashSpots = useData('trash-spots', getTrashedSpots);
 	const trashChallenges = useData('trash-challenges', getTrashedChallenges);
 	const trashTrips = useData('trash-trips', getTrashedTrips);
+	const trashUsers = useData('trash-users', () => getAdminUsers(true));
+	const soloEntries = useData('admin-solo', getAdminSolo);
+	// Solo-Trainings nachtragen — auf der Website Teil des Admin-Bereichs.
+	const [soloOpen, setSoloOpen] = useState(false);
+	const [soloUserId, setSoloUserId] = useState<number | null>(null);
+	const [soloDate, setSoloDate] = useState('');
+	const [soloNote, setSoloNote] = useState('');
 	const allSpots = useData('spots', getSpots);
 	const allTrips = useData('trips', getTrips);
 	const router = useRouter();
@@ -457,6 +467,49 @@ export default function Admin() {
 					))
 				: null}
 
+			{tab === 'trainings' ? (
+				<>
+					<SectionTitle>{`Solo-Trainings · ${soloEntries.data?.entries.length ?? 0}`}</SectionTitle>
+					<Button label="Solo nachtragen" kind="ghost" small onPress={() => setSoloOpen(true)} />
+					{(soloEntries.data?.entries ?? []).slice(0, 20).map((e) => (
+						<Card key={e.id} style={styles.trashRow}>
+							<View style={{ flex: 1 }}>
+								<Text style={styles.userName}>{e.username}</Text>
+								<Text style={styles.muted}>
+									{e.date}
+									{e.note ? ` · ${e.note}` : ''}
+								</Text>
+							</View>
+							<Button
+								label="Löschen"
+								kind="danger"
+								small
+								onPress={() =>
+									Alert.alert('Eintrag löschen?', '', [
+										{ text: 'Abbrechen', style: 'cancel' },
+										{
+											text: 'Löschen',
+											style: 'destructive',
+											onPress: async () => {
+												try {
+													await deleteAdminSolo(e.id);
+													await soloEntries.refresh();
+												} catch (err) {
+													Alert.alert(
+														'Fehler',
+														err instanceof Error ? err.message : 'Fehlgeschlagen'
+													);
+												}
+											}
+										}
+									])
+								}
+							/>
+						</Card>
+					))}
+				</>
+			) : null}
+
 			{tab === 'spots' ? (
 				<>
 					<Text style={styles.muted}>
@@ -576,6 +629,54 @@ export default function Admin() {
 									await restoreChallenge(ch.id);
 									await trashChallenges.refresh();
 								}}
+							/>
+						</Card>
+					))}
+
+					<SectionTitle>{`Benutzer · ${trashUsers.data?.users.length ?? 0}`}</SectionTitle>
+					{(trashUsers.data?.users ?? []).map((u) => (
+						<Card key={u.id} style={styles.trashRow}>
+							<View style={{ flex: 1 }}>
+								<Text style={styles.userName}>{u.username}</Text>
+								<Text style={styles.muted}>{u.role}</Text>
+							</View>
+							<Button
+								label="Zurück"
+								kind="ghost"
+								small
+								onPress={async () => {
+									await adminUserAction(u.id, 'restore_user');
+									await Promise.all([trashUsers.refresh(), users.refresh()]);
+								}}
+							/>
+							<Button
+								label="Endgültig"
+								kind="danger"
+								small
+								onPress={() =>
+									Alert.alert(
+										`${u.username} endgültig löschen?`,
+										'Das lässt sich nicht rückgängig machen.',
+										[
+											{ text: 'Abbrechen', style: 'cancel' },
+											{
+												text: 'Löschen',
+												style: 'destructive',
+												onPress: async () => {
+													try {
+														await adminUserAction(u.id, 'purge_user');
+														await trashUsers.refresh();
+													} catch (e) {
+														Alert.alert(
+															'Fehler',
+															e instanceof Error ? e.message : 'Fehlgeschlagen'
+														);
+													}
+												}
+											}
+										]
+									)
+								}
 							/>
 						</Card>
 					))}
@@ -768,7 +869,6 @@ export default function Admin() {
 				visible={absentFor !== null}
 				onClose={() => setAbsentFor(null)}
 				title="Jemanden abmelden"
-				scroll
 			>
 				<Text style={styles.muted}>Wen abmelden?</Text>
 				<View style={styles.chipRow}>
@@ -860,6 +960,59 @@ export default function Admin() {
 							try {
 								await adminSessionAction('add_guest', { sessionId: sid, name });
 								await sessions.refresh();
+							} catch (e) {
+								Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
+							}
+						}}
+					/>
+				</View>
+			</Sheet>
+
+			<Sheet visible={soloOpen} onClose={() => setSoloOpen(false)} title="Solo nachtragen">
+				<Text style={styles.muted}>Wer hat solo trainiert?</Text>
+				<View style={styles.chipRow}>
+					{(users.data?.users ?? []).map((u) => (
+						<Pressable
+							key={u.id}
+							onPress={() => setSoloUserId(u.id)}
+							style={({ pressed }) => [
+								styles.chip,
+								soloUserId === u.id && {
+									backgroundColor: colors.accent,
+									borderColor: colors.accent
+								},
+								pressed && { opacity: 0.8 }
+							]}
+						>
+							<Text
+								style={[styles.chipText, soloUserId === u.id && { color: colors.onAccent }]}
+							>
+								{u.username}
+							</Text>
+						</Pressable>
+					))}
+				</View>
+				<Input placeholder="Datum (JJJJ-MM-TT, leer = heute)" value={soloDate} onChangeText={setSoloDate} />
+				<Input placeholder="Notiz (optional)" value={soloNote} onChangeText={setSoloNote} />
+				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setSoloOpen(false)} />
+					<Button
+						label="Eintragen"
+						onPress={async () => {
+							if (!soloUserId) {
+								Alert.alert('Wer?', 'Bitte eine Person auswählen.');
+								return;
+							}
+							if (soloDate.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(soloDate.trim())) {
+								Alert.alert('Datum', 'Bitte im Format JJJJ-MM-TT angeben.');
+								return;
+							}
+							try {
+								await addAdminSolo(soloUserId, soloDate.trim() || undefined, soloNote.trim() || undefined);
+								setSoloOpen(false);
+								setSoloDate('');
+								setSoloNote('');
+								await soloEntries.refresh();
 							} catch (e) {
 								Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
 							}

@@ -637,6 +637,41 @@ export default function SpotDetailScreen() {
 						</>
 					) : null}
 
+					{/* Wie auf der Website: Weg zum Hauptspot und zu den Microspots. */}
+					{data.parentSpot ? (
+						<>
+							<SectionTitle>Zugehöriger Hauptspot</SectionTitle>
+							<Pressable onPress={() => router.push(`/spot/${data.parentSpot!.id}`)}>
+								{({ pressed }) => (
+									<View style={[styles.nearbyRow, pressed && { opacity: 0.8 }]}>
+										<Ionicons name="git-merge-outline" size={16} color={colors.accent} />
+										<Text style={styles.nearbyName}>{data.parentSpot!.name}</Text>
+										<Text style={styles.nearbyCity}>{data.parentSpot!.city}</Text>
+										<Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+									</View>
+								)}
+							</Pressable>
+						</>
+					) : null}
+
+					{data.childMicroSpots?.length ? (
+						<>
+							<SectionTitle>{`Zugehörige Microspots · ${data.childMicroSpots.length}`}</SectionTitle>
+							{data.childMicroSpots.map((m) => (
+								<Pressable key={m.id} onPress={() => router.push(`/spot/${m.id}`)}>
+									{({ pressed }) => (
+										<View style={[styles.nearbyRow, pressed && { opacity: 0.8 }]}>
+											<Ionicons name="albums-outline" size={16} color={colors.accentBlue} />
+											<Text style={styles.nearbyName}>{m.name}</Text>
+											<Text style={styles.nearbyCity}>{m.city}</Text>
+											<Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+										</View>
+									)}
+								</Pressable>
+							))}
+						</>
+					) : null}
+
 					{data.nearbySpots?.length ? (
 						<>
 							<SectionTitle>In der Nähe</SectionTitle>
@@ -659,7 +694,6 @@ export default function SpotDetailScreen() {
 						visible={editOpen}
 						onClose={() => setEditOpen(false)}
 						title="Spot bearbeiten"
-						scroll
 					>
 						<Input
 							placeholder="Name"
@@ -833,7 +867,6 @@ export default function SpotDetailScreen() {
 						visible={challengeOpen}
 						onClose={() => setChallengeOpen(false)}
 						title={`Neue Challenge — ${base.name}`}
-						scroll
 					>
 						<Input
 							placeholder="Titel (z. B. Kong über die Mauer)"

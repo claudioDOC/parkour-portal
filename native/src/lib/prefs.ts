@@ -10,6 +10,8 @@ let startTab: StartTab = 'index';
 let fontScale = 1;
 /** Eigene Logo-Farbe; null = folgt dem Theme. */
 let markColor: string | null = null;
+/** Weiche Seitenwechsel — wie „Animationen" in den Web-Einstellungen. */
+let motion = true;
 
 const VALID_TABS: StartTab[] = ['index', 'finder', 'spots', 'challenges', 'more'];
 
@@ -22,6 +24,7 @@ export async function loadPrefs(): Promise<void> {
 		if (f === 1 || f === 1.1 || f === 1.2) fontScale = f;
 		const c = await readToken('pref-mark-color');
 		if (c && /^#[0-9a-f]{6}$/i.test(c)) markColor = c;
+		motion = (await readToken('pref-motion')) !== 'aus';
 	} catch {
 		/* Standardwerte behalten */
 	}
@@ -37,6 +40,12 @@ export const getMarkColor = () => markColor;
 export async function setMarkColor(color: string | null): Promise<void> {
 	markColor = color;
 	await writeToken('pref-mark-color', color);
+}
+
+export const getMotion = () => motion;
+export async function setMotion(on: boolean): Promise<void> {
+	motion = on;
+	await writeToken('pref-motion', on ? 'an' : 'aus');
 }
 
 export const getFontScale = () => fontScale;

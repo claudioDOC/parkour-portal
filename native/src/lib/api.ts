@@ -727,7 +727,9 @@ export function myTripStatus(trip: Trip): 'pending' | 'declined' | 'abstained' |
 	const mode = trip.myParticipation?.transportMode;
 	if (mode === undefined || trip.myParticipation === null) return 'pending';
 	if (mode === 'abgemeldet') return 'declined';
-	if (mode === 'enthalten' || mode === 'unentschlossen') return 'abstained';
+	// „unentschlossen" ist ein Anreise-Modus einer ANGEMELDETEN Person —
+	// der Server zählt sie mit. Nur „enthalten" heisst wirklich enthalten.
+	if (mode === 'enthalten') return 'abstained';
 	return 'joined';
 }
 
@@ -787,6 +789,15 @@ export type StatsPayload = {
 		leaderboard: StatsRow[];
 		monthly: MonthRow[];
 		monthDetail: (MonthRow & { leaderboard: StatsRow[] })[];
+		/** Je vergangenes Training der gewählte Spot — für die Spot-Auswertung. */
+		spotUsageEvents: {
+			sessionId: number;
+			date: string;
+			spotId: number;
+			spotName: string;
+			spotCity: string;
+			voteCount: number;
+		}[];
 	};
 	solo: {
 		leaderboard: { userId: number; username: string; avatar?: string | null; total: number; last90: number }[];

@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 import { THEMES, DEFAULT_THEME, type ThemeColors, type UiThemeId } from './theme';
-import { getFontScale, getMarkColor } from './prefs';
+import { getFontScale, getMarkColor, getMotion } from './prefs';
 
 /**
  * Aktives Theme der App — folgt dem uiTheme aus dem Profil des Users,
@@ -17,6 +17,9 @@ type ThemeContextValue = {
 	/** Eigene Logo-Farbe; null = folgt dem Theme. */
 	markColor: string | null;
 	setMarkColorState: (color: string | null) => void;
+	/** Weiche Übergänge an/aus — wirkt sofort, ohne Neustart. */
+	motion: boolean;
+	setMotionState: (on: boolean) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -26,7 +29,9 @@ const ThemeContext = createContext<ThemeContextValue>({
 	fontScale: 1,
 	setFontScaleState: () => {},
 	markColor: null,
-	setMarkColorState: () => {}
+	setMarkColorState: () => {},
+	motion: true,
+	setMotionState: () => {}
 });
 
 export const useTheme = () => useContext(ThemeContext);
@@ -67,6 +72,7 @@ export function ThemeProvider({
 }) {
 	const [fontScale, setFontScaleState] = useState(getFontScale());
 	const [markColor, setMarkColorState] = useState<string | null>(getMarkColor());
+	const [motion, setMotionState] = useState(getMotion());
 	const value = useMemo(
 		() => ({
 			themeId,
@@ -75,9 +81,11 @@ export function ThemeProvider({
 			fontScale,
 			setFontScaleState,
 			markColor,
-			setMarkColorState
+			setMarkColorState,
+			motion,
+			setMotionState
 		}),
-		[themeId, setThemeId, fontScale, markColor]
+		[themeId, setThemeId, fontScale, markColor, motion]
 	);
 	return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

@@ -601,6 +601,7 @@ export default function Dashboard() {
 				visible={spotFor !== null}
 				onClose={() => setSpotFor(null)}
 				title={`Spot festlegen — ${spotFor ? metaDate(spotFor.date) : ''}`}
+				scroll={false}
 			>
 				<ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ gap: 8 }}>
 					{spotFor?.overrideSpot ? (
@@ -637,7 +638,14 @@ export default function Dashboard() {
 			</Sheet>
 
 			{/* „Bin da": Standort teilen, andere am Spot finden */}
-			<Sheet visible={meetOpen} onClose={() => setMeetOpen(false)} title="Wer ist am Spot?">
+			{/* Karte drin: kein Sheet-Scrollen, sonst kämpfen Karte und Fläche
+			    um jede vertikale Bewegung. */}
+			<Sheet
+				visible={meetOpen}
+				onClose={() => setMeetOpen(false)}
+				title="Wer ist am Spot?"
+				scroll={false}
+			>
 				{live === null ? (
 					<Text style={styles.meetHint}>Lade …</Text>
 				) : !live.sharing ? (
@@ -697,6 +705,7 @@ export default function Dashboard() {
 				visible={voteFor !== null}
 				onClose={() => setVoteFor(null)}
 				title="Spot vorschlagen"
+				scroll={false}
 			>
 				<Input
 					placeholder="Spot oder Ort suchen …"

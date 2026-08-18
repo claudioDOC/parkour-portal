@@ -9,6 +9,12 @@ import { useData } from '../lib/store';
 import { getStats } from '../lib/api';
 import { useAuth } from './_layout';
 
+/** „2026-08" → „Aug. 2026" — kurz genug für die Filterleiste. */
+function monthLabel(key: string): string {
+	const [y, m] = key.split('-');
+	return `${new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('de-CH', { month: 'short' })} ${y}`;
+}
+
 export default function Stats() {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
@@ -21,6 +27,40 @@ export default function Stats() {
 	const months = [...(data?.stats.monthDetail ?? [])].reverse();
 	const [monthKey, setMonthKey] = useState<string | null>(null);
 	const selectedMonth = monthKey ? months.find((m) => m.key === monthKey) : null;
+
+	// Spot-Auswertung wie auf der Website: wie oft ein Spot gewählt wurde,
+	// wahlweise über alles, ein Jahr oder einen einzelnen Monat.
+	const events = data?.stats.spotUsageEvents ?? [];
+	const spotPeriods = [
+		{ key: 'all', label: 'Gesamt' },
+		...[...new Set(events.map((e) => e.date.slice(0, 4)))]
+			.sort()
+			.reverse()
+			.map((y) => ({ key: y, label: y })),
+		...[...new Set(events.map((e) => e.date.slice(0, 7)))]
+			.sort()
+			.reverse()
+			.slice(0, 12)
+			.map((mk) => ({ key: mk, label: monthLabel(mk) }))
+	];
+	const [spotPeriod, setSpotPeriod] = useState('all');
+	const spotRows = (() => {
+		const inPeriod =
+			spotPeriod === 'all' ? events : events.filter((e) => e.date.startsWith(spotPeriod));
+		const bySpot = new Map<number, { name: string; city: string; count: number; last: string }>();
+		for (const e of inPeriod) {
+			const row = bySpot.get(e.spotId);
+			if (row) {
+				row.count += 1;
+				if (e.date > row.last) row.last = e.date;
+			} else {
+				bySpot.set(e.spotId, { name: e.spotName, city: e.spotCity, count: 1, last: e.date });
+			}
+		}
+		return [...bySpot.entries()]
+			.map(([spotId, r]) => ({ spotId, ...r }))
+			.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+	})();
 
 	return (
 		<Screen refreshing={refreshing} onRefresh={onRefresh}>
@@ -158,6 +198,67 @@ export default function Stats() {
 				</>
 			) : null}
 
+			{spotRows.length > 0 ? (
+				<>
+					<SectionTitle>Spot-Auswertung</SectionTitle>
+					<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+						<View style={{ flexDirection: 'row', gap: 8 }}>
+							{spotPeriods.map((p) => (
+								<Pressable
+									key={p.key}
+									onPress={() => setSpotPeriod(p.key)}
+									style={({ pressed }) => [
+										styles.monthChip,
+										spotPeriod === p.key && {
+											backgroundColor: colors.accent,
+											borderColor: colors.accent
+										},
+										pressed && { opacity: 0.8 }
+									]}
+								>
+									<Text
+										style={[
+											styles.monthChipText,
+											spotPeriod === p.key && { color: colors.onAccent }
+										]}
+									>
+										{p.label}
+									</Text>
+								</Pressable>
+							))}
+						</View>
+					</ScrollView>
+					<Card style={{ gap: 10 }}>
+						<Text style={styles.sectionHint}>Wie oft ein Spot fürs Training gewählt wurde.</Text>
+						{spotRows.map((row, i) => (
+							<View key={row.spotId} style={{ gap: 4 }}>
+								<View style={styles.monthRow}>
+									<Text style={styles.lbRank}>{i + 1}</Text>
+									<Text style={styles.spotUsageName} numberOfLines={1}>
+										{row.name}
+									</Text>
+									<Text style={styles.monthMeta}>
+										{row.count}×
+									</Text>
+								</View>
+								<ProgressBar
+									percent={(row.count / spotRows[0].count) * 100}
+									color={colors.accent}
+								/>
+								<Text style={styles.spotUsageMeta}>
+									{row.city} · zuletzt{' '}
+									{new Date(`${row.last}T12:00:00`).toLocaleDateString('de-CH', {
+										day: 'numeric',
+										month: 'short',
+										year: 'numeric'
+									})}
+								</Text>
+							</View>
+						))}
+					</Card>
+				</>
+			) : null}
+
 			{data?.solo.recent.length ? (
 				<>
 					<SectionTitle>Zuletzt solo</SectionTitle>
@@ -225,6 +326,15 @@ const makeStyles = (colors: ThemeColors) =>
 		fontFamily: fonts.sansSemi
 	},
 	monthMeta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans },
+	sectionHint: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 17, fontFamily: fonts.sans },
+	spotUsageName: {
+		color: colors.fg + textAlpha.primary,
+		fontSize: 14,
+		lineHeight: 20,
+		fontFamily: fonts.sansSemi,
+		flex: 1
+	},
+	spotUsageMeta: { color: colors.fg + textAlpha.muted, fontSize: 11, lineHeight: 15, fontFamily: fonts.sans },
 	lbRank: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold, width: 18 },
 	lbName: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi, flex: 1 },
 	lbPercent: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold },

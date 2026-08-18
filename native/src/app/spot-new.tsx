@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useData } from '../lib/store';
 import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getLocation, getImagePicker } from '../lib/nativeModules';
@@ -8,7 +9,7 @@ import { fonts, type ThemeColors } from '../lib/theme';
 import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
 import { Card, TopBar, Screen, Button, Input, SectionTitle } from '../lib/ui';
-import { createSpot, uploadSpotImage, geocode } from '../lib/api';
+import { createSpot, uploadSpotImage, geocode, getSpots } from '../lib/api';
 
 const LIGHTING = [
 	{ key: 'ja', label: 'Beleuchtet' },
@@ -49,6 +50,11 @@ export default function NewSpot() {
 	const [searching, setSearching] = useState(false);
 	const [photos, setPhotos] = useState<{ uri: string; fileName?: string | null; mimeType?: string | null }[]>([]);
 	const [busy, setBusy] = useState(false);
+	// Microspot samt Hauptspot — wie „Spot vorschlagen" auf der Website.
+	const [isMicro, setIsMicro] = useState(false);
+	const [parentSpotId, setParentSpotId] = useState<number | null>(null);
+	const { data: spotList } = useData('spots-for-parent', getSpots);
+	const parentOptions = (spotList?.spots ?? []).filter((sp) => !sp.isMicro);
 
 	const useMyLocation = async () => {
 		const Location = getLocation();
@@ -117,7 +123,9 @@ export default function NewSpot() {
 				lighting,
 				techniques,
 				goodWeather: weather.length ? weather : ['trocken'],
-				description: description.trim()
+				description: description.trim(),
+				isMicro,
+				parentSpotId: isMicro ? parentSpotId : null
 			});
 			const newId = res.id;
 			if (newId) {
@@ -229,6 +237,35 @@ export default function NewSpot() {
 				))}
 			</View>
 
+			<SectionTitle>Microspot</SectionTitle>
+			<Card style={{ gap: 10 }}>
+				<Text style={styles.microHint}>
+					Für kurze Sessions oder kleine Gruppen — ein Microspot hängt an einem
+					Hauptspot.
+				</Text>
+				<View style={styles.chipRow}>
+					<Chip label="Normaler Spot" active={!isMicro} onPress={() => setIsMicro(false)} />
+					<Chip label="Microspot" active={isMicro} onPress={() => setIsMicro(true)} />
+				</View>
+				{isMicro ? (
+					<View style={styles.chipRow}>
+						<Chip
+							label="Kein Hauptspot"
+							active={parentSpotId === null}
+							onPress={() => setParentSpotId(null)}
+						/>
+						{parentOptions.map((sp) => (
+							<Chip
+								key={sp.id}
+								label={`${sp.name} · ${sp.city}`}
+								active={parentSpotId === sp.id}
+								onPress={() => setParentSpotId(parentSpotId === sp.id ? null : sp.id)}
+							/>
+						))}
+					</View>
+				) : null}
+			</Card>
+
 			<SectionTitle>{`Fotos · ${photos.length}`}</SectionTitle>
 			{photos.length > 0 ? (
 				<View style={styles.photoRow}>
@@ -278,6 +315,12 @@ const makeStyles = (colors: ThemeColors) =>
 			fontFamily: fonts.sansSemi
 		},
 		chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+		microHint: {
+			color: colors.fg + textAlpha.secondary,
+			fontSize: 13,
+			lineHeight: 18,
+			fontFamily: fonts.sans
+		},
 		searchRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
 		resultRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
 		resultText: {
