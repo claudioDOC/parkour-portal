@@ -46,6 +46,14 @@ export async function setupPush(onOpenUrl: (url: string) => void): Promise<void>
 		const token = typeof device.data === 'string' ? device.data : '';
 		if (token) await registerFcmDevice(token);
 
+		// Google tauscht Geräte-Kennzeichen gelegentlich aus (Neuinstallation,
+		// Datenwiederherstellung, Ablauf). Ohne das hier meldet sich die App
+		// nie neu an — und die Benachrichtigungen bleiben stillschweigend weg.
+		Notifications.addPushTokenListener((next) => {
+			const fresh = typeof next.data === 'string' ? next.data : '';
+			if (fresh) registerFcmDevice(fresh).catch(() => {});
+		});
+
 		// Tippen auf eine Benachrichtigung → Ziel-Seite öffnen.
 		Notifications.addNotificationResponseReceivedListener((response) => {
 			const url = response.notification.request.content.data?.url;

@@ -15,8 +15,12 @@ import {
 	changePassword,
 	saveUiTheme,
 	getNtfyInfo,
+	getPushConfig,
+	savePushPrefs,
+	sendPushTest,
 	BASE_URL
 } from '../lib/api';
+import { setupPush } from '../lib/pushSetup';
 import { Linking } from 'react-native';
 import { useAuth } from './_layout';
 
@@ -60,6 +64,21 @@ const MARK_COLORS: { label: string; value: string | null }[] = [
 ];
 
 /** Entspricht der Einstellungen-Seite des Portals. */
+/** Gleiche Reihenfolge und Worte wie die Website (src/lib/pushPrefs.ts). */
+const PUSH_PREFS: { key: string; title: string; hint: string }[] = [
+	{ key: 'trainingReminder', title: 'Training-Erinnerung', hint: 'Am Vorabend um 18:00.' },
+	{ key: 'spotFix', title: 'Spot fix', hint: 'Am Trainingstag um 16:15, wenn der Spot feststeht.' },
+	{
+		key: 'trainingRsvpReminder',
+		title: 'Erinnerung an Zu-/Absage',
+		hint: 'Am Trainingstag morgens, falls du dich noch nicht eingetragen hast.'
+	},
+	{ key: 'challenges', title: 'Neue Challenges', hint: 'Wenn jemand eine Challenge erstellt.' },
+	{ key: 'trips', title: 'Trips', hint: 'Neue Trips und offene Terminabstimmungen.' },
+	{ key: 'spotVoting', title: 'Spot-Voting eröffnet', hint: 'Erster Spot-Vorschlag fürs Training.' },
+	{ key: 'spots', title: 'Neue Spots', hint: 'Wenn jemand einen neuen Spot anlegt.' }
+];
+
 export default function Settings() {
 	const { colors, themeId, setThemeId } = useTheme();
 	const styles = useThemedStyles(makeStyles);
@@ -78,6 +97,9 @@ export default function Settings() {
 			return 'Standard';
 		}
 	});
+	// Benachrichtigungen: Einstellungen + Geräte, wie auf der Website.
+	const push = useData('push-config', getPushConfig);
+	const [pushBusy, setPushBusy] = useState(false);
 	const [pwOpen, setPwOpen] = useState(false);
 	const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
 	const [busy, setBusy] = useState(false);
@@ -367,6 +389,95 @@ export default function Settings() {
 			) : null}
 
 			<SectionTitle>Benachrichtigungen</SectionTitle>
+			<Card style={{ gap: 12 }}>
+				{PUSH_PREFS.map((p) => {
+					const on = push.data?.prefs?.[p.key] !== false;
+					return (
+						<Pressable
+							key={p.key}
+							disabled={pushBusy}
+							onPress={async () => {
+								setPushBusy(true);
+								try {
+									await savePushPrefs({ [p.key]: !on });
+									await push.refresh();
+								} catch (e) {
+									Alert.alert('Fehler', e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+								} finally {
+									setPushBusy(false);
+								}
+							}}
+							style={({ pressed }) => [styles.pushRow, pressed && { opacity: 0.7 }]}
+						>
+							<View style={{ flex: 1 }}>
+								<Text style={styles.rowLabel}>{p.title}</Text>
+								<Text style={styles.ntfyHint}>{p.hint}</Text>
+							</View>
+							<Ionicons
+								name={on ? 'checkmark-circle' : 'ellipse-outline'}
+								size={22}
+								color={on ? colors.accent : colors.textMuted}
+							/>
+						</Pressable>
+					);
+				})}
+			</Card>
+
+			<Card style={{ gap: 10 }}>
+				<Text style={styles.prefLabel}>Kommt hier etwas an?</Text>
+				<Text style={styles.ntfyHint}>
+					{push.data
+						? push.data.appDevices.length > 0
+							? `Dieses Konto ist mit ${push.data.appDevices.length} App-Gerät${
+									push.data.appDevices.length === 1 ? '' : 'en'
+								} angemeldet.`
+						: 'Kein App-Gerät angemeldet — die App holt sich beim nächsten Start ein neues Geräte-Kennzeichen.'
+						: 'Lade …'}
+				</Text>
+				<View style={styles.prefRow}>
+					<Button
+						label={pushBusy ? 'Sendet …' : 'Testmeldung an mich'}
+						small
+						disabled={pushBusy}
+						onPress={async () => {
+							setPushBusy(true);
+							try {
+								const res = await sendPushTest();
+								const c = res.channels;
+								Alert.alert(
+									res.sent > 0 ? 'Verschickt' : 'Kein Gerät erreicht',
+									`App: ${c.fcm} · Browser: ${c.web} · ntfy: ${c.ntfy}\n\n` +
+										(c.fcm > 0
+											? 'Kommt trotzdem nichts an, blockiert Android die App im Hintergrund (Akku-Optimierung).'
+											: 'Die App hat kein gültiges Geräte-Kennzeichen — unten „Gerät neu anmelden".')
+								);
+							} catch (e) {
+								Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
+							} finally {
+								setPushBusy(false);
+							}
+						}}
+					/>
+					<Button
+						label="Gerät neu anmelden"
+						kind="ghost"
+						small
+						onPress={async () => {
+							setPushBusy(true);
+							try {
+								await setupPush(() => {});
+								await push.refresh();
+								Alert.alert('Fertig', 'Gerät wurde neu angemeldet.');
+							} catch (e) {
+								Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
+							} finally {
+								setPushBusy(false);
+							}
+						}}
+					/>
+				</View>
+			</Card>
+
 			<Card style={{ gap: 10 }}>
 				<Text style={styles.prefLabel}>Push ohne Google — über die ntfy-App</Text>
 				<Text style={styles.ntfyHint}>
@@ -520,6 +631,7 @@ const makeStyles = (colors: ThemeColors) =>
 			fontFamily: fonts.sansBold,
 			letterSpacing: 1
 		},
+		pushRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
 		prefRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 		colorChip: {
 			flexDirection: 'row',

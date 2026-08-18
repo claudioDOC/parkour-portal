@@ -878,6 +878,28 @@ export const stopLivePosition = () =>
 // --- Benachrichtigungen ---
 
 /** FCM-Geräte-Token der App beim Portal an-/abmelden (ab APK 1.4). */
+/** Push-Einstellungen und angemeldete Geräte — wie die Website. */
+export type PushConfig = {
+	enabled: boolean;
+	prefs: Record<string, boolean>;
+	devices: { id: number; label: string; since: string }[];
+	appDevices: { id: number; tokenTail: string; since: string }[];
+};
+
+export const getPushConfig = () => get<PushConfig>('/api/push/config');
+
+export const savePushPrefs = (prefs: Record<string, boolean>) =>
+	request<{ ok?: boolean; prefs: Record<string, boolean> }>('/api/push/config', {
+		method: 'PATCH',
+		body: JSON.stringify({ prefs })
+	});
+
+export const sendPushTest = () =>
+	post<{ ok?: boolean; sent: number; channels: { web: number; ntfy: number; fcm: number } }>(
+		'/api/push/test',
+		{}
+	);
+
 export const registerFcmDevice = (token: string) =>
 	post<{ success?: boolean }>('/api/v1/fcm', { token });
 

@@ -210,10 +210,15 @@ async function getFcmAccessToken(): Promise<string | null> {
 async function deliverFcm(userIds: number[], payload: PushPayload): Promise<number> {
 	const acc = loadFcmAccount();
 	if (!acc) return 0;
-	let rows: { id: number; token: string; failureCount: number }[] = [];
+	let rows: { id: number; token: string; failureCount: number; userId: number }[] = [];
 	try {
 		rows = db
-			.select({ id: fcmTokens.id, token: fcmTokens.token, failureCount: fcmTokens.failureCount })
+			.select({
+				id: fcmTokens.id,
+				token: fcmTokens.token,
+				failureCount: fcmTokens.failureCount,
+				userId: fcmTokens.userId
+			})
 			.from(fcmTokens)
 			.where(inArray(fcmTokens.userId, userIds))
 			.all();
@@ -247,8 +252,12 @@ async function deliverFcm(userIds: number[], payload: PushPayload): Promise<numb
 				if (res.ok) {
 					if (row.failureCount > 0)
 						db.update(fcmTokens).set({ failureCount: 0 }).where(eq(fcmTokens.id, row.id)).run();
+					console.log(`[fcm] angenommen — ${payload.title} (User ${row.userId})`);
 					return true;
 				}
+				// Ohne Protokoll war nie feststellbar, ob eine Meldung ankam.
+				const detail = (await res.text().catch(() => '')).slice(0, 200);
+				console.warn(`[fcm] abgelehnt ${res.status} — User ${row.userId}: ${detail}`);
 				// 404/410 = Token tot (App deinstalliert) → sofort aufräumen.
 				if (res.status === 404 || res.status === 410) {
 					db.delete(fcmTokens).where(eq(fcmTokens.id, row.id)).run();
@@ -258,7 +267,8 @@ async function deliverFcm(userIds: number[], payload: PushPayload): Promise<numb
 					else db.update(fcmTokens).set({ failureCount: next }).where(eq(fcmTokens.id, row.id)).run();
 				}
 				return false;
-			} catch {
+			} catch (e) {
+				console.warn('[fcm] Netzwerkfehler', e instanceof Error ? e.message : e);
 				return false;
 			}
 		})
@@ -293,7 +303,18 @@ export async function sendToUsers(userIds: number[], payload: PushPayload): Prom
 		}
 	}
 	const ntfyCount = (await ntfyResults).filter(Boolean).length;
-	return webCount + ntfyCount + (await fcmResults);
+	const fcmCount = await fcmResults;
+	lastChannelCounts = { web: webCount, ntfy: ntfyCount, fcm: fcmCount };
+	return webCount + ntfyCount + fcmCount;
+}
+
+/**
+ * Ergebnis der letzten Zustellung je Kanal — nur für die Testmeldung in den
+ * Einstellungen, damit sichtbar wird, WELCHER Weg funktioniert hat.
+ */
+let lastChannelCounts = { web: 0, ntfy: 0, fcm: 0 };
+export function lastPushChannels() {
+	return { ...lastChannelCounts };
 }
 
 /** Geräte-Token der App registrieren (Upsert — Token wandern bei Re-Login mit). */

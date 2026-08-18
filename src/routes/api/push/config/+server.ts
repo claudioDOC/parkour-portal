@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { pushSubscriptions, users } from '$lib/server/db/schema';
+import { pushSubscriptions, users, fcmTokens } from '$lib/server/db/schema';
 import { getVapidPublicKey, isPushConfigured } from '$lib/server/push';
 import { parsePushPrefs, sanitizePushPrefs, DEFAULT_PUSH_PREFS } from '$lib/pushPrefs';
 
@@ -66,11 +66,26 @@ export const GET: RequestHandler = async ({ locals }) => {
 		// Tabelle fehlt (Migration ausstehend) — Liste bleibt leer.
 	}
 
+	// Geräte der nativen App getrennt ausweisen — sonst sieht man in der
+	// App nie, ob dieses Handy überhaupt für Push angemeldet ist.
+	let appDevices: { id: number; tokenTail: string; since: string }[] = [];
+	try {
+		appDevices = db
+			.select({ id: fcmTokens.id, token: fcmTokens.token, createdAt: fcmTokens.createdAt })
+			.from(fcmTokens)
+			.where(eq(fcmTokens.userId, locals.user.id))
+			.all()
+			.map((d) => ({ id: d.id, tokenTail: d.token.slice(-8), since: d.createdAt }));
+	} catch {
+		// Tabelle fehlt — Liste bleibt leer.
+	}
+
 	return json({
 		enabled: isPushConfigured(),
 		publicKey: getVapidPublicKey(),
 		prefs: readPrefs(locals.user.id),
-		devices
+		devices,
+		appDevices
 	});
 };
 
