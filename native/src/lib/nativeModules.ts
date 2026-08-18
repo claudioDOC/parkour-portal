@@ -70,6 +70,15 @@ export function getLocation() {
 }
 
 /**
+ * Video-Wiedergabe — ab App-Paket 1.8. Das Laden holt sich sofort das
+ * native Modul; fehlt es (ältere Installation), kommt null zurück und
+ * die Seite öffnet das Video stattdessen im Systemplayer.
+ */
+export function getVideoModule() {
+	return tryRequire(() => require('expo-video') as typeof import('expo-video'));
+}
+
+/**
  * Version der installierten App-Datei (nicht des Update-Pakets).
  * Kommt aus der nativen Seite; ohne sie bleibt es bei „unbekannt".
  */
@@ -89,7 +98,8 @@ export function nativeReport(): string {
 	const parts = [
 		`Karte ${hasNativeMap() ? 'nativ' : hasWebViewNative() ? 'eingebettet' : '✗'}`,
 		`Fotos ${getImagePicker() ? '✓' : '✗'}`,
-		`Standort ${getLocation() ? '✓' : '✗'}`
+		`Standort ${getLocation() ? '✓' : '✗'}`,
+		`Video ${getVideoModule() ? '✓' : '✗'}`
 	];
 	return parts.join(' · ');
 }

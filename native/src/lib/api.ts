@@ -20,6 +20,10 @@ export function mediaUrl(path: string | null | undefined): string | null {
 	return `${BASE_URL || 'https://matetraining.duckdns.org'}${path}`;
 }
 
+/** Videos brauchen einen Player, Bilder nicht — überall gleich erkannt. */
+export const isVideoUrl = (url: string | null | undefined) =>
+	!!url && /\.(mp4|mov|webm)(\?|$)/i.test(url);
+
 const TOKEN_KEY = 'parkour-token';
 
 let cachedToken: string | null = null;

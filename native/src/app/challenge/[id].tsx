@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, Modal, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, Modal, Dimensions, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getImagePicker } from '../../lib/nativeModules';
+import { getImagePicker, getVideoModule } from '../../lib/nativeModules';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
 import { textAlpha } from '../../lib/tokens';
@@ -17,14 +17,39 @@ import {
 	deleteChallenge,
 	removeChallengeCompletion,
 	deleteChallengeImage,
-	mediaUrl
+	mediaUrl,
+	isVideoUrl as isVideo
 } from '../../lib/api';
 import { useAuth } from '../_layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-/** Videos werden abgespielt, Bilder gross angezeigt. */
-const isVideo = (url: string) => /\.(mp4|mov|webm)(\?|$)/i.test(url);
+/**
+ * Video im Vollbild — wie das <video>-Element der Website, mit den
+ * gewohnten Bedienelementen. Braucht das native Modul (App-Paket 1.8);
+ * ältere Installationen bekommen stattdessen den Systemplayer.
+ */
+function VideoScreen({
+	uri,
+	mod
+}: {
+	uri: string;
+	mod: NonNullable<ReturnType<typeof getVideoModule>>;
+}) {
+	const player = mod.useVideoPlayer(uri, (p) => {
+		p.loop = false;
+		p.play();
+	});
+	return (
+		<mod.VideoView
+			player={player}
+			style={{ width: '100%', height: '80%' }}
+			contentFit="contain"
+			nativeControls
+			fullscreenOptions={{ enable: true }}
+		/>
+	);
+}
 
 /**
  * Challenge-Detailseite: Beschreibung, Galerie, wer sie geschafft hat und
@@ -42,6 +67,8 @@ export default function ChallengeDetail() {
 		getSpot(spotId)
 	);
 	const [viewer, setViewer] = useState<number | null>(null);
+	// Einmal pro Aufbau prüfen, ob die Installation Videos abspielen kann.
+	const videoMod = getVideoModule();
 	const [busy, setBusy] = useState(false);
 	const [editOpen, setEditOpen] = useState(false);
 	const [form, setForm] = useState({ title: '', description: '' });
@@ -136,7 +163,15 @@ export default function ChallengeDetail() {
 							{challenge.images.map((img, i) => (
 								<Pressable
 									key={img.id}
-									onPress={() => setViewer(i)}
+									onPress={() => {
+										if (isVideo(img.url) && !videoMod) {
+											// Ältere Installation: wenigstens extern abspielen.
+											const u = mediaUrl(img.url);
+											if (u) Linking.openURL(u);
+											return;
+										}
+										setViewer(i);
+									}}
 									onLongPress={() =>
 										Alert.alert('Medium löschen?', '', [
 											{ text: 'Abbrechen', style: 'cancel' },
@@ -289,11 +324,22 @@ export default function ChallengeDetail() {
 					<Modal visible={viewer !== null} transparent animationType="fade">
 						<Pressable style={styles.viewerBackdrop} onPress={() => setViewer(null)}>
 							{viewer !== null && challenge.images[viewer] ? (
-								<Image
-									source={{ uri: mediaUrl(challenge.images[viewer].url) ?? undefined }}
-									style={styles.viewerImage}
-									contentFit="contain"
-								/>
+								isVideo(challenge.images[viewer].url) && videoMod ? (
+									// Der Player fängt Tipper selbst ab — sonst schlösse
+									// jeder Griff an die Bedienelemente das Fenster.
+									<Pressable style={{ width: '100%', height: '80%' }} onPress={() => {}}>
+										<VideoScreen
+											uri={mediaUrl(challenge.images[viewer].url) ?? ''}
+											mod={videoMod}
+										/>
+									</Pressable>
+								) : (
+									<Image
+										source={{ uri: mediaUrl(challenge.images[viewer].url) ?? undefined }}
+										style={styles.viewerImage}
+										contentFit="contain"
+									/>
+								)
 							) : null}
 						</Pressable>
 					</Modal>

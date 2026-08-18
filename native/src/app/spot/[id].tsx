@@ -44,7 +44,8 @@ import {
 	voteSpotForTraining,
 	editSpot,
 	trashSpot,
-	mediaUrl
+	mediaUrl,
+	isVideoUrl
 } from '../../lib/api';
 import { getImagePicker, getLocation } from '../../lib/nativeModules';
 import { useAuth } from '../_layout';
@@ -591,12 +592,19 @@ export default function SpotDetailScreen() {
 									<Pressable key={ch.id} onPress={() => router.push(`/challenge/${ch.id}?spot=${spotId}`)}>
 									<Card style={{ gap: 8 }}>
 										{ch.images?.[0] ? (
-											<Image
-												source={{ uri: mediaUrl(ch.images[0].url) ?? undefined }}
-												style={styles.challengeImage}
-												contentFit="cover"
-												transition={150}
-											/>
+											isVideoUrl(ch.images[0].url) ? (
+												// Videos haben kein Standbild — Play-Fläche statt Leere.
+												<View style={[styles.challengeImage, styles.challengeVideo]}>
+													<Ionicons name="play-circle" size={42} color={colors.onAccent} />
+												</View>
+											) : (
+												<Image
+													source={{ uri: mediaUrl(ch.images[0].url) ?? undefined }}
+													style={styles.challengeImage}
+													contentFit="cover"
+													transition={150}
+												/>
+											)
 										) : null}
 										<View style={styles.rowBetween}>
 											<Text style={styles.challengeTitle}>{ch.title}</Text>
@@ -955,6 +963,7 @@ const makeStyles = (colors: ThemeColors) =>
 		marginTop: 8
 	},
 	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+	challengeVideo: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hover },
 	chMediaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 	chMediaThumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: colors.bgSecondary },
 	chMediaName: { flex: 1, color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 17, fontFamily: fonts.sans },

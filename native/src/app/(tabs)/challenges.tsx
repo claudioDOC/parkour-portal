@@ -19,7 +19,7 @@ import {
 	Avatar
 } from '../../lib/ui';
 import { Image } from 'expo-image';
-import { mediaUrl } from '../../lib/api';
+import { mediaUrl, isVideoUrl } from '../../lib/api';
 import { useData } from '../../lib/store';
 import { getArena } from '../../lib/api';
 import { useAuth } from '../_layout';
@@ -153,13 +153,17 @@ export default function Challenges() {
 										onPress={() => router.push(`/challenge/${ch.id}?spot=${g.spotId}`)}
 										style={({ pressed }) => [styles.chRow, pressed && { opacity: 0.7 }]}
 									>
-										{ch.images?.[0] ? (
+										{ch.images?.[0] && !isVideoUrl(ch.images[0].url) ? (
 											<Image
 												source={{ uri: mediaUrl(ch.images[0].url) ?? undefined }}
 												style={styles.chImage}
 												contentFit="cover"
 												transition={150}
 											/>
+										) : ch.images?.[0] ? (
+											<View style={[styles.chImage, styles.chImageEmpty]}>
+												<Ionicons name="play-circle" size={22} color={colors.accent} />
+											</View>
 										) : (
 											<View style={[styles.chImage, styles.chImageEmpty]}>
 												<Ionicons

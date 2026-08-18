@@ -37,6 +37,11 @@ Update. Wer die runtimeVersion erhöht, schneidet alle bestehenden
 Installationen vom Update-Kanal ab. Nur erhöhen, wenn ein JS-Bundle mit alten
 APKs wirklich crashen würde — und dann die Server-Liste mitpflegen.
 
+Native Bausteine und ab welchem APK-Paket sie da sind: Web-Ansicht 1.1,
+Fotos/Standort 1.1, native Karte 1.3, **Video-Wiedergabe 1.8** (`expo-video`).
+Ältere Installationen fallen jeweils auf einen Ersatzweg zurück — Videos zum
+Beispiel auf den Systemplayer statt auf den eingebauten.
+
 Fehlende native Module dürfen die App nie crashen: Zugriffe laufen über
 `src/lib/nativeModules.ts` (Erkennung via TurboModuleRegistry — unter der neuen
 RN-Architektur sind NativeModules nicht mehr zuverlässig aufzählbar) und über
