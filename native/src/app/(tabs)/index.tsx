@@ -43,6 +43,9 @@ import { hasNativeExtras } from '../../lib/nativeModules';
 import { Linking } from 'react-native';
 
 /** Sprüche der Website-Startseite — gleiche Rotation nach Kalendertag. */
+/** So viele Trainings stehen ausführlich da; der Rest kommt in die Kurzliste. */
+const DETAILED_SESSIONS = 3;
+
 const GREETINGS = [
 	'Bereit für den nächsten Sprung?',
 	'Der Beton wartet auf dich.',
@@ -103,6 +106,9 @@ export default function Dashboard() {
 	const [extraOpen, setExtraOpen] = useState(false);
 	const [extraForm, setExtraForm] = useState({ date: '', start: '18:15', end: '20:15', note: '' });
 	const [extraBusy, setExtraBusy] = useState(false);
+	// Nur die nächsten drei ausführlich — der Rest steckt in einer
+	// Kurzliste, sonst scrollt man ewig bis zum Solo-Eintrag.
+	const [moreOpen, setMoreOpen] = useState(false);
 	// „Bin da": Standort teilen und die anderen am Spot finden.
 	const [meetOpen, setMeetOpen] = useState(false);
 	const [live, setLive] = useState<{ sharing: boolean; positions: LivePosition[] } | null>(null);
@@ -287,6 +293,22 @@ export default function Dashboard() {
 				</Pressable>
 			) : null}
 
+			<Card style={styles.soloCard}>
+				<View style={styles.soloRow}>
+					<Ionicons name="flash-outline" size={18} color={colors.accent} />
+					<View style={{ flex: 1 }}>
+						<Text style={styles.soloTitle}>Solo-Training</Text>
+						<Text style={styles.soloText}>
+							{data?.mySolo.countMonth ?? 0} diesen Monat
+							{data?.mySolo.todayLogged ? '  ·  heute eingetragen ✓' : ''}
+						</Text>
+					</View>
+					{data && !data.mySolo.todayLogged ? (
+						<Button label="Heute eintragen" onPress={logSoloToday} kind="ghost" small />
+					) : null}
+				</View>
+			</Card>
+
 			<View style={styles.rowBetween}>
 				<SectionTitle>Nächste Trainings</SectionTitle>
 				<Pressable
@@ -302,7 +324,7 @@ export default function Dashboard() {
 				</Pressable>
 			</View>
 
-			{(data?.sessions ?? []).map((s, sessionIndex) => {
+			{(data?.sessions ?? []).slice(0, DETAILED_SESSIONS).map((s, sessionIndex) => {
 				const iAmIn = me ? s.attending.some((a) => a.id === me.id) : false;
 				const absent = s.userDbAbsent || s.userVirtualAbsent;
 				const spot = s.overrideSpot
@@ -584,21 +606,71 @@ export default function Dashboard() {
 				);
 			})}
 
-			<Card style={styles.soloCard}>
-				<View style={styles.soloRow}>
-					<Ionicons name="flash-outline" size={18} color={colors.accent} />
-					<View style={{ flex: 1 }}>
-						<Text style={styles.soloTitle}>Solo-Training</Text>
-						<Text style={styles.soloText}>
-							{data?.mySolo.countMonth ?? 0} diesen Monat
-							{data?.mySolo.todayLogged ? '  ·  heute eingetragen ✓' : ''}
+			{/* Kurzliste: alles nach den ersten drei Terminen. Abmelden geht
+			    hier direkt — dafür muss niemand die ganze Seite durchscrollen. */}
+			{(data?.sessions ?? []).length > DETAILED_SESSIONS ? (
+				<Card style={{ gap: 10 }}>
+					<Pressable
+						onPress={() => setMoreOpen(!moreOpen)}
+						style={({ pressed }) => [styles.moreHead, pressed && { opacity: 0.7 }]}
+					>
+						<Ionicons
+							name={moreOpen ? 'chevron-down' : 'chevron-forward'}
+							size={17}
+							color={colors.accentBlue}
+						/>
+						<Text style={styles.moreHeadText}>
+							{`Weitere Trainings · ${(data?.sessions ?? []).length - DETAILED_SESSIONS}`}
 						</Text>
-					</View>
-					{data && !data.mySolo.todayLogged ? (
-						<Button label="Heute eintragen" onPress={logSoloToday} kind="ghost" small />
-					) : null}
-				</View>
-			</Card>
+					</Pressable>
+					{moreOpen
+						? (data?.sessions ?? []).slice(DETAILED_SESSIONS).map((s) => {
+								const absent = s.userDbAbsent || s.userVirtualAbsent;
+								return (
+									<View key={s.id} style={styles.laterRow}>
+										<View style={{ flex: 1 }}>
+											<Text style={styles.laterDate}>
+												{metaDate(s.date)}
+												{s.isExtra ? ' · Zusatz' : ''}
+											</Text>
+											<Text style={styles.laterMeta}>
+												{s.cancelled
+													? 'Abgesagt'
+													: absent
+														? 'Du bist abgemeldet'
+														: `${s.attending.length} ziehen mit`}
+											</Text>
+										</View>
+										{!s.cancelled ? (
+											absent ? (
+												<Button
+													label="Wieder dabei"
+													kind="ghost"
+													small
+													onPress={() =>
+														act(() =>
+															trainingAction(
+																s.userDbAbsent ? 'cancel_absence' : 'weekday_override_yes',
+																s.id
+															)
+														)
+													}
+												/>
+											) : (
+												<Button
+													label="Abmelden"
+													kind="ghost"
+													small
+													onPress={() => setAbsenceFor(s)}
+												/>
+											)
+										) : null}
+									</View>
+								);
+							})
+						: null}
+				</Card>
+			) : null}
 
 			<Sheet
 				visible={absenceFor !== null}
@@ -1039,6 +1111,28 @@ const makeStyles = (colors: ThemeColors) =>
 		voteCount: { color: colors.fg + textAlpha.secondary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
 		actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8 },
 		soloCard: { paddingVertical: 12 },
+		moreHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+		moreHeadText: {
+			color: colors.accentBlue,
+			fontSize: 14,
+			lineHeight: 20,
+			fontFamily: fonts.sansSemi
+		},
+		laterRow: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			gap: 10,
+			borderTopWidth: StyleSheet.hairlineWidth,
+			borderTopColor: colors.border,
+			paddingTop: 10
+		},
+		laterDate: {
+			color: colors.fg + textAlpha.primary,
+			fontSize: 14,
+			lineHeight: 20,
+			fontFamily: fonts.sansSemi
+		},
+		laterMeta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 17 },
 		soloRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 		soloTitle: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
 		soloText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans, marginTop: 0 },

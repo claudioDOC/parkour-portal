@@ -20,6 +20,10 @@
 	let extraEnd = $state('20:15');
 	let extraNote = $state('');
 	let extraBusy = $state(false);
+	// Nur die nächsten drei ausführlich; der Rest steckt in einer Kurzliste,
+	// sonst scrollt man an zwölf Karten vorbei.
+	const DETAILED_SESSIONS = 3;
+	let moreOpen = $state(false);
 	let spotSearch = $state('');
 	let liveNotices = $state<{ id: number; text: string; kind: 'info' | 'error' }[]>([]);
 
@@ -374,7 +378,7 @@
 	</div>
 
 	<div class="space-y-4">
-		{#each data.sessions as session}
+		{#each data.sessions.slice(0, DETAILED_SESSIONS) as session}
 			{@const past = isSessionEnded(session)}
 			{@const upcomingRank = upcomingRankBySessionId[session.id]}
 			{@const isNextUpcoming = upcomingRank === 0}
@@ -717,6 +721,87 @@
 				</div>
 			</div>
 		{/each}
+
+		<!-- Kurzliste für alles Weitere: im Voraus abmelden geht hier direkt,
+		     ohne sich durch zwölf ausführliche Karten zu scrollen. -->
+		{#if data.sessions.length > DETAILED_SESSIONS}
+			<div class="rounded-xl border border-border bg-bg-card">
+				<button
+					type="button"
+					onclick={() => (moreOpen = !moreOpen)}
+					class="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-accent-blue hover:text-accent transition-colors"
+				>
+					<span class="text-xs">{moreOpen ? '▾' : '▸'}</span>
+					Weitere Trainings · {data.sessions.length - DETAILED_SESSIONS}
+				</button>
+				{#if moreOpen}
+					<div class="divide-y divide-border border-t border-border">
+						{#each data.sessions.slice(DETAILED_SESSIONS) as session}
+							{@const absent = session.userDbAbsent || session.userVirtualAbsent}
+							<div class="flex items-center justify-between gap-3 px-4 py-3">
+								<div class="min-w-0">
+									<p class="text-text-primary text-sm font-medium">
+										{formatDate(session.date)}{session.isExtra ? ' · Zusatz' : ''}
+									</p>
+									<p class="text-text-muted text-xs">
+										{session.cancelled
+											? 'Abgesagt'
+											: absent
+												? 'Du bist abgemeldet'
+												: `${session.attending.length} ziehen mit`}
+									</p>
+								</div>
+								{#if !session.cancelled}
+									{#if absent}
+										<button
+											type="button"
+											onclick={() =>
+												postAction(
+													session.userDbAbsent ? 'cancel_absence' : 'weekday_override_yes',
+													session.id
+												)}
+											disabled={loadingSession === session.id}
+											class="shrink-0 rounded-lg bg-success/15 px-3 py-1.5 text-xs font-medium text-success hover:bg-success/25 disabled:opacity-50"
+										>
+											Wieder dabei
+										</button>
+									{:else}
+										<button
+											type="button"
+											onclick={() => (showReason = showReason === session.id ? null : session.id)}
+											class="shrink-0 rounded-lg bg-bg-hover px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-bg-secondary"
+										>
+											Abmelden
+										</button>
+									{/if}
+								{/if}
+							</div>
+							{#if showReason === session.id}
+								<div class="flex gap-2 px-4 pb-3">
+									<input
+										type="text"
+										bind:value={reasonInput[session.id]}
+										placeholder="Grund angeben (mind. 10 Zeichen)"
+										class="flex-1 rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+									/>
+									<button
+										type="button"
+										onclick={() =>
+											postAction('absence', session.id, {
+												reason: reasonInput[session.id] || ''
+											})}
+										disabled={loadingSession === session.id}
+										class="rounded-lg bg-danger/15 px-3 py-2 text-xs font-medium text-danger hover:bg-danger/25 disabled:opacity-50"
+									>
+										Abmelden
+									</button>
+								</div>
+							{/if}
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
 
 		{#if data.sessions.length === 0}
 			<p class="text-text-muted text-center py-12">Keine kommenden Trainings</p>
