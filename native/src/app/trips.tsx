@@ -96,6 +96,17 @@ export default function Trips() {
 	// Angetippter Teilnehmer-Chip: zeigt dessen Notiz darunter an.
 	const [openNoteKey, setOpenNoteKey] = useState<string | null>(null);
 
+	/**
+	 * Auf eine bereits gewählte Option zu tippen zog die Stimme sofort
+	 * zurück — ein Fehltipp genügte. Darum eine Rückfrage; das Wechseln
+	 * auf eine andere Option bleibt ein Tipp.
+	 */
+	const confirmWithdraw = (what: string, run: () => Promise<unknown>) =>
+		Alert.alert('Stimme zurückziehen?', what, [
+			{ text: 'Abbrechen', style: 'cancel' },
+			{ text: 'Zurückziehen', style: 'destructive', onPress: () => act(run) }
+		]);
+
 	const act = async (fn: () => Promise<unknown>) => {
 		try {
 			await fn();
@@ -310,11 +321,19 @@ export default function Trips() {
 											<Pressable
 												key={opt.id}
 												onPress={() =>
-													act(() =>
-														mine
-															? tripAction('remove_date_vote', trip.id, { dateOptionId: opt.id })
-															: tripAction('vote_date_option', trip.id, { dateOptionId: opt.id })
-													)
+													mine
+														? confirmWithdraw(
+																`Deine Stimme für ${range} wird entfernt.`,
+																() =>
+																	tripAction('remove_date_vote', trip.id, {
+																		dateOptionId: opt.id
+																	})
+															)
+														: act(() =>
+																tripAction('vote_date_option', trip.id, {
+																	dateOptionId: opt.id
+																})
+															)
 												}
 												style={({ pressed }) => [styles.dateRow, pressed && { opacity: 0.8 }]}
 											>
@@ -361,9 +380,12 @@ export default function Trips() {
 											<Pressable
 												key={d.id}
 												onPress={() =>
-													act(() =>
-														mine ? removePlanVote(trip.id) : votePlanOption(trip.id, d.id)
-													)
+													mine
+														? confirmWithdraw(
+																'Dein Haken beim Ablauf-Vorschlag wird entfernt.',
+																() => removePlanVote(trip.id)
+															)
+														: act(() => votePlanOption(trip.id, d.id))
 												}
 												style={({ pressed }) => [styles.dateRow, pressed && { opacity: 0.8 }]}
 											>
