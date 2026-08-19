@@ -290,6 +290,10 @@ export const tripDestinations = sqliteTable('trip_destinations', {
 	name: text('name').notNull(),
 	city: text('city').notNull(),
 	note: text('note'),
+	/** 'plan' = Ablauf-Vorschlag, 'ziel' = Zielort-Vorschlag. */
+	kind: text('kind').notNull().default('plan'),
+	latitude: real('latitude'),
+	longitude: real('longitude'),
 	proposedBy: integer('proposed_by').notNull().references(() => users.id),
 	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
@@ -307,9 +311,11 @@ export const tripDestinationVotes = sqliteTable(
 		userId: integer('user_id')
 			.notNull()
 			.references(() => users.id),
+		/** Je Art eine Stimme: Ablauf und Zielort getrennt. */
+		kind: text('kind').notNull().default('plan'),
 		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 	},
-	(t) => [uniqueIndex('trip_destination_votes_trip_user').on(t.tripId, t.userId)]
+	(t) => [uniqueIndex('trip_destination_votes_trip_user_kind').on(t.tripId, t.userId, t.kind)]
 );
 
 /** Alternative Zeiträume für einen Trip (Abstimmung, z. B. einen Tag später abfahren). */

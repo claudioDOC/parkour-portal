@@ -75,6 +75,9 @@ export function buildTripsPagePayload(user: TripsViewer) {
 				name: tripDestinations.name,
 				city: tripDestinations.city,
 				note: tripDestinations.note,
+				kind: tripDestinations.kind,
+				latitude: tripDestinations.latitude,
+				longitude: tripDestinations.longitude,
 				proposedBy: tripDestinations.proposedBy,
 				proposedByName: users.username
 			})
@@ -100,12 +103,16 @@ export function buildTripsPagePayload(user: TripsViewer) {
 		for (const v of votesRaw) {
 			voteCountByDestination.set(v.destinationId, (voteCountByDestination.get(v.destinationId) || 0) + 1);
 		}
-		const destinationsWithVotes = destinations
+		const withVotes = destinations
 			.map((d) => ({
 				...d,
 				voteCount: voteCountByDestination.get(d.id) || 0
 			}))
 			.sort((a, b) => b.voteCount - a.voteCount || a.name.localeCompare(b.name, 'de'));
+		// Ablauf und Zielort teilen sich die Tabelle, sind aber zwei
+		// getrennte Abstimmungen.
+		const destinationsWithVotes = withVotes.filter((d) => (d.kind ?? 'plan') !== 'ziel');
+		const placeOptions = withVotes.filter((d) => d.kind === 'ziel');
 
 		const stopovers = db
 			.select({
@@ -168,7 +175,10 @@ export function buildTripsPagePayload(user: TripsViewer) {
 			.sort((a, b) => b.voteCount - a.voteCount || a.startDate.localeCompare(b.startDate));
 
 		const myParticipation = participants.find((p) => p.userId === user!.id) || null;
-		const myVote = votesRaw.find((v) => v.userId === user!.id) || null;
+		const myVotes = votesRaw.filter((v) => v.userId === user!.id);
+		const planIds = new Set(destinations.filter((d) => (d.kind ?? 'plan') !== 'ziel').map((d) => d.id));
+		const myPlanVote = myVotes.find((v) => planIds.has(v.destinationId)) || null;
+		const myPlaceVote = myVotes.find((v) => !planIds.has(v.destinationId)) || null;
 		const myDateVote = dateVotesRaw.find((v) => v.userId === user!.id) || null;
 		const participantByUser = new Map(participants.map((p) => [p.userId, p]));
 		const memberStates = activeUsers.map((u) => {
@@ -217,12 +227,14 @@ export function buildTripsPagePayload(user: TripsViewer) {
 			participants,
 			memberStates,
 			destinations: destinationsWithVotes,
+			placeOptions,
 			dateOptions: dateOptionsWithVotes,
 			eligibleVoters,
 			votesNeeded,
 			stopovers,
 			myParticipation,
-			myVoteDestinationId: myVote?.destinationId ?? null,
+			myVoteDestinationId: myPlanVote?.destinationId ?? null,
+			myVotePlaceId: myPlaceVote?.destinationId ?? null,
 			myVoteDateOptionId: myDateVote?.dateOptionId ?? null,
 			joinedCount,
 			conditionalCount,

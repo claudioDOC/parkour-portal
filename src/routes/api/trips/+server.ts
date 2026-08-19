@@ -238,6 +238,34 @@ export const POST: RequestHandler = async (event) => {
 			});
 			return json({ success: true });
 		}
+		// Ein Ziel-Vorschlag lässt sich direkt übernehmen — dann braucht es
+		// keine erneute Ortssuche.
+		const optionId = Number(body?.optionId);
+		if (Number.isFinite(optionId) && optionId > 0) {
+			const option = db
+				.select()
+				.from(tripDestinations)
+				.where(and(eq(tripDestinations.id, optionId), eq(tripDestinations.tripId, tripId)))
+				.get();
+			if (!option) return json({ error: 'Vorschlag nicht gefunden' }, { status: 404 });
+			db.update(tripPlans)
+				.set({
+					destinationLatitude: option.latitude ?? null,
+					destinationLongitude: option.longitude ?? null,
+					destinationLabel: [option.name, option.city].filter(Boolean).join(', ')
+				})
+				.where(eq(tripPlans.id, tripId))
+				.run();
+			logAudit({
+				event,
+				action: 'trip.destination.set',
+				actorUserId: locals.user.id,
+				actorUsername: locals.user.username,
+				detail: { tripId, optionId, label: option.name }
+			});
+			return json({ success: true });
+		}
+
 		const lat = parseCoord(body?.latitude);
 		const lon = parseCoord(body?.longitude);
 		const label = String(body?.label || '').trim() || null;
@@ -466,18 +494,37 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	if (action === 'propose_plan_option' || action === 'propose_destination') {
+		// Beide Arten liegen in derselben Tabelle: Ablauf-Vorschlag ('plan')
+		// und Zielort-Vorschlag ('ziel'). Jede Person hat je Art eine Stimme.
+		const kind = action === 'propose_destination' ? 'ziel' : 'plan';
 		const text = String(body?.text ?? body?.name ?? '').trim();
-		if (!text) return json({ error: 'Text für den Ablauf-Vorschlag ist erforderlich' }, { status: 400 });
+		if (!text) {
+			return json(
+				{ error: kind === 'ziel' ? 'Name des Ziels fehlt' : 'Text für den Ablauf-Vorschlag ist erforderlich' },
+				{ status: 400 }
+			);
+		}
+		const lat = kind === 'ziel' ? parseCoord(body?.latitude) : null;
+		const lon = kind === 'ziel' ? parseCoord(body?.longitude) : null;
 		const inserted = db
 			.insert(tripDestinations)
-			.values({ tripId, name: text, city: '', note: null, proposedBy: locals.user.id })
+			.values({
+				tripId,
+				name: text,
+				city: String(body?.city ?? '').trim(),
+				note: String(body?.note ?? '').trim() || null,
+				kind,
+				latitude: lat,
+				longitude: lon,
+				proposedBy: locals.user.id
+			})
 			.returning({ id: tripDestinations.id })
 			.get();
 		// Wie beim Spot-Voting: eigener Vorschlag zählt direkt als eigener Vote.
 		db.insert(tripDestinationVotes)
-			.values({ tripId, destinationId: inserted.id, userId: locals.user.id })
+			.values({ tripId, destinationId: inserted.id, userId: locals.user.id, kind })
 			.onConflictDoUpdate({
-				target: [tripDestinationVotes.tripId, tripDestinationVotes.userId],
+				target: [tripDestinationVotes.tripId, tripDestinationVotes.userId, tripDestinationVotes.kind],
 				set: { destinationId: inserted.id }
 			})
 			.run();
@@ -501,10 +548,19 @@ export const POST: RequestHandler = async (event) => {
 			.get();
 		if (!destination) return json({ error: 'Ziel nicht gefunden' }, { status: 404 });
 
+		// Die Art kommt aus dem Vorschlag selbst — so kann eine Stimme fürs
+		// Ziel die Stimme für den Ablauf nicht überschreiben.
+		const kind = destination.kind ?? 'plan';
 		const existing = db
 			.select({ id: tripDestinationVotes.id })
 			.from(tripDestinationVotes)
-			.where(and(eq(tripDestinationVotes.tripId, tripId), eq(tripDestinationVotes.userId, locals.user.id)))
+			.where(
+				and(
+					eq(tripDestinationVotes.tripId, tripId),
+					eq(tripDestinationVotes.userId, locals.user.id),
+					eq(tripDestinationVotes.kind, kind)
+				)
+			)
 			.get();
 		if (existing) {
 			db.update(tripDestinationVotes)
@@ -513,7 +569,7 @@ export const POST: RequestHandler = async (event) => {
 				.run();
 		} else {
 			db.insert(tripDestinationVotes)
-				.values({ tripId, destinationId, userId: locals.user.id })
+				.values({ tripId, destinationId, userId: locals.user.id, kind })
 				.run();
 		}
 		logAudit({
@@ -675,19 +731,23 @@ export const POST: RequestHandler = async (event) => {
 		return json({ success: true });
 	}
 
-	if (action === 'remove_plan_vote') {
+	if (action === 'remove_plan_vote' || action === 'remove_destination_vote') {
+		const kind = action === 'remove_destination_vote' ? 'ziel' : 'plan';
+		const where = and(
+			eq(tripDestinationVotes.tripId, tripId),
+			eq(tripDestinationVotes.userId, locals.user.id),
+			eq(tripDestinationVotes.kind, kind)
+		);
 		const existingVote = db
 			.select({
 				id: tripDestinationVotes.id,
 				destinationId: tripDestinationVotes.destinationId
 			})
 			.from(tripDestinationVotes)
-			.where(and(eq(tripDestinationVotes.tripId, tripId), eq(tripDestinationVotes.userId, locals.user.id)))
+			.where(where)
 			.get();
 
-		db.delete(tripDestinationVotes)
-			.where(and(eq(tripDestinationVotes.tripId, tripId), eq(tripDestinationVotes.userId, locals.user.id)))
-			.run();
+		db.delete(tripDestinationVotes).where(where).run();
 
 		// Wenn danach niemand mehr diesen Ablauf gevotet hat, Vorschlag entfernen.
 		if (existingVote) {

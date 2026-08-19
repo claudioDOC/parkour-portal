@@ -618,6 +618,33 @@ export const votePlanOption = (tripId: number, destinationId: number) =>
 export const removePlanVote = (tripId: number) =>
 	post<{ success?: boolean }>('/api/trips', { action: 'remove_plan_vote', tripId });
 
+/** Zielort vorschlagen — mit optionalen Koordinaten aus der Ortssuche. */
+export const proposePlace = (
+	tripId: number,
+	name: string,
+	city: string,
+	latitude: number | null,
+	longitude: number | null
+) =>
+	post<{ success?: boolean }>('/api/trips', {
+		action: 'propose_destination',
+		tripId,
+		name,
+		city,
+		latitude,
+		longitude
+	});
+
+export const votePlace = (tripId: number, destinationId: number) =>
+	post<{ success?: boolean }>('/api/trips', { action: 'vote_destination', tripId, destinationId });
+
+export const removePlaceVote = (tripId: number) =>
+	post<{ success?: boolean }>('/api/trips', { action: 'remove_destination_vote', tripId });
+
+/** Admin: einen Ziel-Vorschlag als offizielles Ziel übernehmen. */
+export const adoptPlace = (tripId: number, optionId: number) =>
+	post<{ success?: boolean }>('/api/trips', { action: 'set_trip_destination', tripId, optionId });
+
 export const proposeStopover = (
 	tripId: number,
 	label: string,
@@ -745,6 +772,19 @@ export type Trip = {
 	destinationLongitude: number | null;
 	createdBy: number;
 	myVoteDestinationId: number | null;
+	/** Eigene Stimme bei den Ziel-Vorschlägen. */
+	myVotePlaceId?: number | null;
+	/** Zielort-Vorschläge zur Abstimmung (getrennt vom Ablauf). */
+	placeOptions?: {
+		id: number;
+		name: string;
+		city: string;
+		note: string | null;
+		latitude?: number | null;
+		longitude?: number | null;
+		proposedByName: string;
+		voteCount: number;
+	}[];
 	eligibleVoters: number;
 	votesNeeded: number;
 	myParticipation: { userId: number; transportMode: string | null; note?: string | null } | null;

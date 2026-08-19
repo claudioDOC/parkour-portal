@@ -20,6 +20,7 @@
 
 	let joinNote = $state<Record<number, string>>({});
 	let ablaufText = $state<Record<number, string>>({});
+	let placeText = $state<Record<number, string>>({});
 	let dateAltStart = $state<Record<number, string>>({});
 	let dateAltEnd = $state<Record<number, string>>({});
 	let dateAltNote = $state<Record<number, string>>({});
@@ -235,6 +236,46 @@
 		busyTripId = tripId;
 		try {
 			await post('vote_plan_option', { tripId, destinationId });
+		} finally {
+			busyTripId = null;
+		}
+	}
+
+	async function proposePlace(tripId: number) {
+		const name = (placeText[tripId] || '').trim();
+		if (!name) return;
+		busyTripId = tripId;
+		try {
+			await post('propose_destination', { tripId, name });
+			placeText[tripId] = '';
+		} finally {
+			busyTripId = null;
+		}
+	}
+
+	async function votePlace(tripId: number, destinationId: number) {
+		busyTripId = tripId;
+		try {
+			await post('vote_destination', { tripId, destinationId });
+		} finally {
+			busyTripId = null;
+		}
+	}
+
+	async function removePlaceVote(tripId: number) {
+		busyTripId = tripId;
+		try {
+			await post('remove_destination_vote', { tripId });
+		} finally {
+			busyTripId = null;
+		}
+	}
+
+	/** Admin/Ersteller: Vorschlag wird das offizielle Trip-Ziel. */
+	async function adoptPlace(tripId: number, optionId: number) {
+		busyTripId = tripId;
+		try {
+			await post('set_trip_destination', { tripId, optionId });
 		} finally {
 			busyTripId = null;
 		}
@@ -647,6 +688,73 @@
 							class="bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 w-full sm:w-auto"
 						>
 							Zeitraum als Vorschlag einreichen
+						</button>
+					</div>
+
+					<!-- Zielort zur Abstimmung — getrennt vom Ablauf, mit eigener Stimme. -->
+					<div class="rounded-lg border border-accent-blue/30 bg-accent-blue/5 p-3 space-y-2">
+						<p class="text-xs uppercase tracking-wide text-accent-blue">Ziel (Abstimmung)</p>
+						<p class="text-[11px] text-text-muted">
+							Wohin soll es gehen? Wer darf, kann einen Vorschlag als offizielles
+							Trip-Ziel festlegen.
+						</p>
+						<div class="space-y-1.5">
+							{#each trip.placeOptions ?? [] as o}
+								<div class="flex items-start justify-between gap-3 rounded-lg border border-border bg-bg-card px-3 py-2 text-xs">
+									<div class="min-w-0 flex-1">
+										<p class="text-text-primary font-medium break-words">{o.name}</p>
+										<p class="text-text-muted mt-1">
+											{o.voteCount} Stimmen · Vorschlag: {o.proposedByName}{o.city ? ` · ${o.city}` : ''}
+										</p>
+										{#if data.isAdmin || trip.createdBy === data.user?.id}
+											<button
+												type="button"
+												onclick={() => adoptPlace(trip.id, o.id)}
+												disabled={busyTripId === trip.id}
+												class="mt-1 text-accent hover:underline"
+											>
+												Als Ziel festlegen
+											</button>
+										{/if}
+									</div>
+									{#if trip.myVotePlaceId === o.id}
+										<button
+											type="button"
+											onclick={() => removePlaceVote(trip.id)}
+											disabled={busyTripId === trip.id}
+											class="shrink-0 px-2.5 py-1 rounded-md bg-accent-blue text-[#0c0c0e]"
+										>
+											Zurückziehen
+										</button>
+									{:else}
+										<button
+											type="button"
+											onclick={() => votePlace(trip.id, o.id)}
+											disabled={busyTripId === trip.id}
+											class="shrink-0 px-2.5 py-1 rounded-md bg-bg-hover text-text-secondary hover:text-text-primary"
+										>
+											Voten
+										</button>
+									{/if}
+								</div>
+							{/each}
+							{#if (trip.placeOptions ?? []).length === 0}
+								<p class="text-text-muted text-xs">Noch kein Ziel-Vorschlag.</p>
+							{/if}
+						</div>
+						<input
+							type="text"
+							bind:value={placeText[trip.id]}
+							placeholder="Anderes Ziel vorschlagen — z. B. Lyon"
+							class="w-full bg-bg-card border border-border rounded-lg px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:border-accent"
+						/>
+						<button
+							type="button"
+							onclick={() => proposePlace(trip.id)}
+							disabled={busyTripId === trip.id || !(placeText[trip.id] || '').trim()}
+							class="bg-accent-blue/15 hover:bg-accent-blue/25 text-accent-blue px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+						>
+							Ziel vorschlagen
 						</button>
 					</div>
 

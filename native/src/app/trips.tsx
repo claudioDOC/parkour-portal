@@ -28,6 +28,10 @@ import {
 	proposePlanOption,
 	votePlanOption,
 	removePlanVote,
+	proposePlace,
+	votePlace,
+	removePlaceVote,
+	adoptPlace,
 	proposeStopover,
 	deleteStopover,
 	setTripDestination,
@@ -84,6 +88,12 @@ export default function Trips() {
 	// Ablauf-Vorschlag (im Portal „Ablauf") und Zwischenstopps
 	const [planFor, setPlanFor] = useState<Trip | null>(null);
 	const [planText, setPlanText] = useState('');
+	// Ziel vorschlagen: Name plus optionale Ortssuche für die Koordinaten.
+	const [placeFor, setPlaceFor] = useState<Trip | null>(null);
+	const [placeQuery, setPlaceQuery] = useState('');
+	const [placeHits, setPlaceHits] = useState<{ lat: number; lon: number; displayName: string }[]>([]);
+	const [placePick, setPlacePick] = useState<{ lat: number; lon: number; label: string } | null>(null);
+	const [placeBusy, setPlaceBusy] = useState(false);
 	const [stopFor, setStopFor] = useState<Trip | null>(null);
 	const [stopQuery, setStopQuery] = useState('');
 	const [stopHits, setStopHits] = useState<{ lat: number; lon: number; displayName: string }[]>([]);
@@ -369,6 +379,76 @@ export default function Trips() {
 							</Pressable>
 						</View>
 
+						{/* Ziel-Vorschläge: wohin soll es gehen? Getrennte Abstimmung. */}
+						<View style={{ gap: 8 }}>
+							{trip.placeOptions?.length ? (
+								<>
+									<Text style={styles.datesTitle}>ZIEL-VORSCHLÄGE</Text>
+									{trip.placeOptions.map((o) => {
+										const mine = trip.myVotePlaceId === o.id;
+										return (
+											<Pressable
+												key={o.id}
+												onPress={() =>
+													mine
+														? confirmWithdraw(`Deine Stimme für ${o.name} wird entfernt.`, () =>
+																removePlaceVote(trip.id)
+															)
+														: act(() => votePlace(trip.id, o.id))
+												}
+												style={({ pressed }) => [styles.dateRow, pressed && { opacity: 0.8 }]}
+											>
+												<View style={{ flex: 1, gap: 4 }}>
+													<View style={styles.dateHead}>
+														{mine ? (
+															<Ionicons name="checkmark-circle" size={15} color={colors.accent} />
+														) : null}
+														<Text style={[styles.dateLabel, mine && { color: colors.accent }]}>
+															{o.name}
+														</Text>
+														<Text style={styles.dateVotes}>{o.voteCount}</Text>
+													</View>
+													<Text style={styles.proposeText}>
+														{[o.city, `von ${o.proposedByName}`].filter(Boolean).join(' · ')}
+													</Text>
+													{canManage ? (
+														<Pressable
+															onPress={() =>
+																Alert.alert('Als Ziel festlegen?', `„${o.name}" wird das Trip-Ziel.`, [
+																	{ text: 'Abbrechen', style: 'cancel' },
+																	{
+																		text: 'Festlegen',
+																		onPress: () => act(() => adoptPlace(trip.id, o.id))
+																	}
+																])
+															}
+															hitSlop={6}
+														>
+															<Text style={styles.adoptText}>Als Ziel festlegen</Text>
+														</Pressable>
+													) : null}
+												</View>
+											</Pressable>
+										);
+									})}
+								</>
+							) : null}
+							<Pressable
+								onPress={() => {
+									setPlaceFor(trip);
+									setPlaceQuery('');
+									setPlaceHits([]);
+									setPlacePick(null);
+								}}
+								style={({ pressed }) => [styles.proposeRow, pressed && { opacity: 0.7 }]}
+							>
+								<Ionicons name="add-circle-outline" size={16} color={colors.accentBlue} />
+								<Text style={[styles.proposeText, { color: colors.accentBlue }]}>
+									Anderes Ziel vorschlagen
+								</Text>
+							</Pressable>
+						</View>
+
 						{/* Ablauf-Vorschläge — im Portal „Ablauf" */}
 						<View style={{ gap: 8 }}>
 							{trip.destinations?.length ? (
@@ -615,6 +695,91 @@ export default function Trips() {
 					</Pressable>
 				))}
 				<Button label="Abbrechen" kind="ghost" onPress={() => setJoinFor(null)} />
+			</Sheet>
+
+			{/* Ziel vorschlagen: Name eintippen, optional Ort suchen */}
+			<Sheet
+				visible={placeFor !== null}
+				onClose={() => setPlaceFor(null)}
+				title={`Ziel vorschlagen — ${placeFor?.title ?? ''}`}
+			>
+				<Input
+					placeholder="Ort suchen — z. B. Lyon, Skatepark Bern …"
+					value={placeQuery}
+					onChangeText={setPlaceQuery}
+					autoCapitalize="none"
+				/>
+				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+					<Button
+						label={placeBusy ? 'Sucht …' : 'Suchen'}
+						kind="ghost"
+						small
+						disabled={placeBusy}
+						onPress={async () => {
+							const q = placeQuery.trim();
+							if (q.length < 2) return;
+							setPlaceBusy(true);
+							try {
+								const res = await geocode(q);
+								setPlaceHits(res.results.slice(0, 6));
+								if (!res.results.length) Alert.alert('Nichts gefunden', `Keine Treffer für „${q}".`);
+							} catch (e) {
+								Alert.alert('Fehler', e instanceof Error ? e.message : 'Suche fehlgeschlagen');
+							} finally {
+								setPlaceBusy(false);
+							}
+						}}
+					/>
+				</View>
+				{placePick ? (
+					<Text style={styles.proposeText}>Gewählt: {placePick.label}</Text>
+				) : null}
+				{placeHits.map((h, i) => (
+					<Pressable
+						key={i}
+						onPress={() => {
+							setPlacePick({ lat: h.lat, lon: h.lon, label: h.displayName });
+							setPlaceQuery(h.displayName.split(',')[0]);
+							setPlaceHits([]);
+						}}
+						style={({ pressed }) => [styles.stopRow, pressed && { opacity: 0.7 }]}
+					>
+						<Ionicons name="location-outline" size={15} color={colors.accent} />
+						<Text style={styles.stopLabel} numberOfLines={2}>
+							{h.displayName}
+						</Text>
+					</Pressable>
+				))}
+				<Text style={styles.proposeText}>
+					Ohne Ortssuche geht es auch — dann zählt nur der Name.
+				</Text>
+				<View style={styles.sheetActions}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setPlaceFor(null)} />
+					<Button
+						label="Vorschlagen"
+						onPress={() => {
+							const trip = placeFor;
+							const name = placeQuery.trim();
+							if (!trip || !name) {
+								Alert.alert('Name fehlt', 'Gib dem Ziel einen Namen.');
+								return;
+							}
+							setPlaceFor(null);
+							const pick = placePick;
+							setPlacePick(null);
+							setPlaceQuery('');
+							act(() =>
+								proposePlace(
+									trip.id,
+									name,
+									pick ? (pick.label.split(',').slice(-1)[0] ?? '').trim() : '',
+									pick?.lat ?? null,
+									pick?.lon ?? null
+								)
+							);
+						}}
+					/>
+				</View>
 			</Sheet>
 
 			{/* Ablauf vorschlagen (freier Text, wie das Web-Textfeld) */}
@@ -969,6 +1134,7 @@ const makeStyles = (colors: ThemeColors) =>
 		paddingHorizontal: 12,
 		paddingVertical: 10
 	},
+	adoptText: { color: colors.accent, fontSize: 12, lineHeight: 17, fontFamily: fonts.sansSemi },
 	fieldLabel: {
 		color: colors.fg + textAlpha.muted,
 		fontSize: 12,
