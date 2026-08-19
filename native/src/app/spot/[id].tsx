@@ -32,6 +32,7 @@ import {
 } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { NativeMap } from '../../lib/NativeMap';
+import { ParentPicker } from '../../lib/ParentPicker';
 import {
 	getSpot,
 	voteSpot,
@@ -496,11 +497,18 @@ export default function SpotDetailScreen() {
 								markers={data.mapMarkers}
 								height={240}
 								defaultSatellite
-								onMarkerPress={(m) =>
+								onMarkerPress={(m) => {
+									// Ein anderer Spot auf der Karte gehört geöffnet, nicht
+									// navigiert — die Navigation steht auf der Spot-Seite.
+									// Parkplätze und der Spot selbst führen weiterhin zur Route.
+									if ((m.kind === 'micro' || m.kind === 'parent' || m.kind === 'nearby') && m.id > 0) {
+										router.push(`/spot/${m.id}`);
+										return;
+									}
 									Linking.openURL(
 										`geo:${m.lat},${m.lon}?q=${m.lat},${m.lon}(${encodeURIComponent(m.name)})`
-									)
-								}
+									);
+								}}
 							/>
 							<View style={styles.legendRow}>
 								<Legend color={colors.accent} label="Spot" />
@@ -778,23 +786,13 @@ export default function SpotDetailScreen() {
 							/>
 						</View>
 						{editForm.isMicro ? (
-							<View style={styles.editChipRow}>
-								{(data.parentCandidates ?? [])
-									.filter((c) => c.id !== spotId)
-									.map((c) => (
-										<EditChip
-											key={c.id}
-											label={c.name}
-											active={editForm.parentSpotId === c.id}
-											onPress={() =>
-												setEditForm({
-													...editForm,
-													parentSpotId: editForm.parentSpotId === c.id ? null : c.id
-												})
-											}
-										/>
-									))}
-							</View>
+							// Suchfeld statt Knopf-Wand: bei über fünfzig Spots war das
+							// Zuordnen sonst reine Sucherei.
+							<ParentPicker
+								options={(data.parentCandidates ?? []).filter((c) => c.id !== spotId)}
+								value={editForm.parentSpotId}
+								onChange={(id) => setEditForm({ ...editForm, parentSpotId: id })}
+							/>
 						) : null}
 						<Text style={styles.editLabel}>{`Parkplätze · ${editForm.parking.length}`}</Text>
 						<Text style={styles.parkingHint}>

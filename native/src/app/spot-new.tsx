@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useData } from '../lib/store';
+import { ParentPicker } from '../lib/ParentPicker';
 import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getLocation, getImagePicker } from '../lib/nativeModules';
@@ -113,6 +114,23 @@ export default function NewSpot() {
 			Alert.alert('Unvollständig', 'Name und Ort sind Pflicht.');
 			return;
 		}
+		// Ohne Koordinaten fehlt der Spot auf jeder Karte und im Finder —
+		// das darf einem nicht erst hinterher auffallen.
+		if (!coords) {
+			Alert.alert(
+				'Kein Standort gesetzt',
+				'Ohne Koordinaten erscheint der Spot auf keiner Karte und der Finder findet ihn schlechter. Trotzdem speichern?',
+				[
+					{ text: 'Zurück', style: 'cancel' },
+					{ text: 'Trotzdem speichern', style: 'destructive', onPress: () => void save() }
+				]
+			);
+			return;
+		}
+		await save();
+	};
+
+	const save = async () => {
 		setBusy(true);
 		try {
 			const res = await createSpot({
@@ -127,18 +145,29 @@ export default function NewSpot() {
 				isMicro,
 				parentSpotId: isMicro ? parentSpotId : null
 			});
-			const newId = res.id;
-			if (newId) {
-				for (const photo of photos) {
+			const newId = res.spot?.id;
+			if (!newId) throw new Error('Server hat keine Spot-ID zurückgegeben.');
+
+			// Fehlgeschlagene Uploads dürfen nicht stillschweigend verschwinden.
+			const failed: string[] = [];
+			for (const photo of photos) {
+				try {
 					await uploadSpotImage(
 						newId,
 						photo.uri,
 						photo.fileName ?? `spot-${newId}.jpg`,
 						photo.mimeType ?? 'image/jpeg'
 					);
+				} catch (e) {
+					failed.push(e instanceof Error ? e.message : 'Unbekannter Fehler');
 				}
 			}
-			Alert.alert('Gespeichert', `„${name.trim()}" wurde angelegt.`);
+			Alert.alert(
+				failed.length ? 'Spot angelegt — Fotos unvollständig' : 'Gespeichert',
+				failed.length
+					? `„${name.trim()}" steht, aber ${failed.length} von ${photos.length} Fotos konnten nicht hochgeladen werden:\n${failed[0]}\n\nDu kannst sie auf der Spot-Seite nachträglich hinzufügen.`
+					: `„${name.trim()}" wurde angelegt${photos.length ? ` — ${photos.length} Foto(s) hochgeladen` : ''}.`
+			);
 			router.back();
 		} catch (e) {
 			Alert.alert('Fehler', e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
@@ -248,21 +277,11 @@ export default function NewSpot() {
 					<Chip label="Microspot" active={isMicro} onPress={() => setIsMicro(true)} />
 				</View>
 				{isMicro ? (
-					<View style={styles.chipRow}>
-						<Chip
-							label="Kein Hauptspot"
-							active={parentSpotId === null}
-							onPress={() => setParentSpotId(null)}
-						/>
-						{parentOptions.map((sp) => (
-							<Chip
-								key={sp.id}
-								label={`${sp.name} · ${sp.city}`}
-								active={parentSpotId === sp.id}
-								onPress={() => setParentSpotId(parentSpotId === sp.id ? null : sp.id)}
-							/>
-						))}
-					</View>
+					<ParentPicker
+						options={parentOptions}
+						value={parentSpotId}
+						onChange={setParentSpotId}
+					/>
 				) : null}
 			</Card>
 

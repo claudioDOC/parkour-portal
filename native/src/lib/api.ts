@@ -306,7 +306,9 @@ export type NewSpot = {
 };
 
 export const createSpot = (spot: NewSpot) =>
-	post<{ id?: number; success?: boolean }>('/api/spots', spot);
+	// Der Server antwortet mit { success, spot: { id … } } — nicht mit { id }.
+	// Genau daran scheiterte der Foto-Upload nach dem Anlegen, stumm.
+	post<{ success?: boolean; spot?: { id: number } }>('/api/spots', spot);
 
 /** Bild an einen Spot hängen. */
 export async function uploadSpotImage(
