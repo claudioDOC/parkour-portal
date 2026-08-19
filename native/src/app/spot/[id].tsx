@@ -33,6 +33,7 @@ import {
 import { useData } from '../../lib/store';
 import { NativeMap } from '../../lib/NativeMap';
 import { ParentPicker } from '../../lib/ParentPicker';
+import { ZoomableImage } from '../../lib/ZoomableImage';
 import {
 	getSpot,
 	voteSpot,
@@ -935,18 +936,25 @@ export default function SpotDetailScreen() {
 
 					{/* Vollbild-Viewer für Spot-Bilder */}
 					<Modal visible={viewer !== null} transparent animationType="fade">
-						<Pressable style={styles.viewerBackdrop} onPress={() => setViewer(null)}>
+						<View style={styles.viewerBackdrop}>
+							{/* Hintergrund schliesst; das Bild selbst nimmt die Gesten. */}
+							<Pressable
+								style={StyleSheet.absoluteFill}
+								onPress={() => setViewer(null)}
+							/>
 							{viewer !== null && data.images[viewer] ? (
-								<Image
-									source={{ uri: mediaUrl(data.images[viewer].url) ?? undefined }}
-									style={styles.viewerImage}
-									contentFit="contain"
+								<ZoomableImage
+									uri={mediaUrl(data.images[viewer].url) ?? ''}
+									onSingleTap={() => setViewer(null)}
 								/>
 							) : null}
-							<View style={styles.viewerClose}>
+							<Text style={styles.viewerHint}>
+								Zwei Finger zum Zoomen · Doppeltippen · Tippen schliesst
+							</Text>
+							<Pressable style={styles.viewerClose} onPress={() => setViewer(null)}>
 								<Ionicons name="close" size={28} color="#fff" />
-							</View>
-						</Pressable>
+							</Pressable>
+						</View>
 					</Modal>
 				</>
 			) : null}
@@ -1064,5 +1072,13 @@ const makeStyles = (colors: ThemeColors) =>
 		justifyContent: 'center'
 	},
 	viewerImage: { width: '100%', height: '80%' },
+	viewerHint: {
+		position: 'absolute',
+		bottom: 34,
+		alignSelf: 'center',
+		color: 'rgba(255,255,255,0.65)',
+		fontSize: 12,
+		lineHeight: 17
+	},
 	viewerClose: { position: 'absolute', top: 54, right: 20 }
 });

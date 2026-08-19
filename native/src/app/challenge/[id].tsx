@@ -20,6 +20,7 @@ import {
 	mediaUrl,
 	isVideoUrl as isVideo
 } from '../../lib/api';
+import { ZoomableImage } from '../../lib/ZoomableImage';
 import { useAuth } from '../_layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -322,7 +323,8 @@ export default function ChallengeDetail() {
 					</Sheet>
 
 					<Modal visible={viewer !== null} transparent animationType="fade">
-						<Pressable style={styles.viewerBackdrop} onPress={() => setViewer(null)}>
+						<View style={styles.viewerBackdrop}>
+							<Pressable style={StyleSheet.absoluteFill} onPress={() => setViewer(null)} />
 							{viewer !== null && challenge.images[viewer] ? (
 								isVideo(challenge.images[viewer].url) && videoMod ? (
 									// Der Player fängt Tipper selbst ab — sonst schlösse
@@ -334,14 +336,18 @@ export default function ChallengeDetail() {
 										/>
 									</Pressable>
 								) : (
-									<Image
-										source={{ uri: mediaUrl(challenge.images[viewer].url) ?? undefined }}
-										style={styles.viewerImage}
-										contentFit="contain"
+									<ZoomableImage
+										uri={mediaUrl(challenge.images[viewer].url) ?? ''}
+										onSingleTap={() => setViewer(null)}
 									/>
 								)
 							) : null}
-						</Pressable>
+							{viewer !== null && !isVideo(challenge.images[viewer]?.url ?? '') ? (
+								<Text style={styles.viewerHint}>
+									Zwei Finger zum Zoomen · Doppeltippen · Tippen schliesst
+								</Text>
+							) : null}
+						</View>
 					</Modal>
 				</>
 			) : null}
@@ -396,5 +402,13 @@ const makeStyles = (colors: ThemeColors) =>
 			alignItems: 'center',
 			justifyContent: 'center'
 		},
-		viewerImage: { width: '100%', height: '80%' }
+		viewerImage: { width: '100%', height: '80%' },
+		viewerHint: {
+			position: 'absolute',
+			bottom: 34,
+			alignSelf: 'center',
+			color: 'rgba(255,255,255,0.65)',
+			fontSize: 12,
+			lineHeight: 17
+		}
 	});
