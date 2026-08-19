@@ -783,11 +783,21 @@ export function Sheet({
 	}, []);
 	return (
 		<Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-			<Pressable
-				style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}
-				onPress={onClose}
-			>
+			{/*
+			 * Die Karte ist bewusst KEIN Druckbereich mehr.
+			 *
+			 * Vorher lag sie in einem Pressable (damit Tippen daneben schliesst).
+			 * Beginnt eine Wischgeste dann auf einem Eingabefeld oder Chip,
+			 * streiten sich Druckbereich und Scrollfläche um die Geste — mal
+			 * scrollt es, mal nicht. Jetzt liegt der schliessende Bereich als
+			 * eigene Fläche HINTER der Karte.
+			 */}
+			<View style={{ flex: 1, justifyContent: 'flex-end' }}>
 				<Pressable
+					style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.75)' }]}
+					onPress={onClose}
+				/>
+				<View
 					style={{
 						backgroundColor: colors.card,
 						borderTopLeftRadius: 28,
@@ -803,7 +813,6 @@ export function Sheet({
 						// dann sind die untersten Felder schlicht nicht erreichbar.
 						maxHeight: sheetMaxHeight
 					}}
-					onPress={() => {}}
 				>
 					<View
 						style={{
@@ -849,8 +858,8 @@ export function Sheet({
 					) : (
 						children
 					)}
-				</Pressable>
-			</Pressable>
+				</View>
+			</View>
 		</Modal>
 	);
 }

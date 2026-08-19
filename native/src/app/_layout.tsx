@@ -1,5 +1,5 @@
 import { useEffect, useState, createContext, useContext } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator, AppState, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -21,7 +21,13 @@ import { readToken, writeToken } from '../lib/tokenStore';
 import { BASE_URL } from '../lib/api';
 import { setupPush } from '../lib/pushSetup';
 import { appPathFromPortalUrl } from '../lib/appLink';
-import { noteBoot, bootLoopSuspected, clearBootLoop } from '../lib/bootGuard';
+import {
+	noteBoot,
+	bootLoopSuspected,
+	clearBootLoop,
+	rememberRoute,
+	takeRememberedRoute
+} from '../lib/bootGuard';
 import { clearDataCache } from '../lib/store';
 import { ActivityProvider } from '../lib/activity';
 import { Splash } from '../lib/Splash';
@@ -50,18 +56,31 @@ export const useAuth = () => useContext(AuthContext);
  * vorliegt. Wenn ja: laden und sofort neu starten — alle haben immer
  * dieselbe Version, ohne Store und ohne Zutun.
  */
+/** Erst nach so langer Pause darf ein Update die App neu starten (20 min). */
+const RELOAD_AFTER_BACKGROUND_MS = 20 * 60 * 1000;
+
 function useSelfHostedUpdates() {
 	useEffect(() => {
 		if (__DEV__) return;
 		let busy = false;
-		const check = async () => {
+		let leftAt = 0;
+
+		/**
+		 * `restartAllowed` ist der springende Punkt: Ein neu geladenes Update
+		 * startet die App neu — und wirft einen dabei auf die Startseite
+		 * zurück. Wer nur kurz in die Karten-App wechselt, um Koordinaten zu
+		 * holen, verliert so seinen Spot. Darum wird beim schnellen
+		 * Zurückwechseln nur GELADEN; angewendet wird es beim nächsten
+		 * regulären Start.
+		 */
+		const check = async (restartAllowed: boolean) => {
 			if (busy) return;
 			busy = true;
 			try {
 				const result = await Updates.checkForUpdateAsync();
 				if (result.isAvailable) {
 					await Updates.fetchUpdateAsync();
-					await Updates.reloadAsync();
+					if (restartAllowed) await Updates.reloadAsync();
 				}
 			} catch {
 				// Offline oder Server nicht erreichbar — beim nächsten Mal wieder.
@@ -69,9 +88,14 @@ function useSelfHostedUpdates() {
 				busy = false;
 			}
 		};
-		check();
+		check(true);
 		const sub = AppState.addEventListener('change', (state) => {
-			if (state === 'active') check();
+			if (state !== 'active') {
+				leftAt = Date.now();
+				return;
+			}
+			const away = leftAt ? Date.now() - leftAt : Number.MAX_SAFE_INTEGER;
+			check(away > RELOAD_AFTER_BACKGROUND_MS);
 		});
 		return () => sub.remove();
 	}, []);
@@ -165,7 +189,15 @@ export default function RootLayout() {
 	const fontsLoaded = fontsReady || fontTimeout;
 
 	const segments = useSegments();
+	const pathname = usePathname();
 	const router = useRouter();
+
+	// Jede besuchte Seite merken — für den Fall, dass Android die App im
+	// Hintergrund beendet.
+	useEffect(() => {
+		if (!ready || !me) return;
+		rememberRoute(pathname, Date.now()).catch(() => {});
+	}, [pathname, ready, me]);
 
 	useSelfHostedUpdates();
 
@@ -175,6 +207,10 @@ export default function RootLayout() {
 				// Erst zählen, dann alles andere: nur so greift die Notbremse
 				// auch dann, wenn der Rest des Starts abstürzt.
 				await noteBoot(Date.now());
+				// Letzte Seite vormerken; sie wird geöffnet, sobald die
+				// Navigation steht (siehe Effekt weiter unten).
+				const last = await takeRememberedRoute(Date.now());
+				if (last && !bootLoopSuspected()) setPendingLink(last);
 				// Einstellungen (Startseite, Schriftgrösse) VOR dem ersten Render.
 				await loadPrefs();
 				const token = await getToken();

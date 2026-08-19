@@ -46,3 +46,40 @@ export async function clearBootLoop(): Promise<void> {
 		/* egal */
 	}
 }
+
+/**
+ * Letzte Seite merken und nach einem Neustart wieder öffnen.
+ *
+ * Android beendet Apps im Hintergrund, wenn der Speicher knapp wird —
+ * wer kurz in die Karten-App wechselt, landet danach wieder auf der
+ * Startseite und muss seinen Spot neu suchen. Darum wird der Pfad
+ * gemerkt und beim nächsten Start wiederhergestellt, solange er frisch
+ * ist (30 Minuten).
+ */
+const KEY_ROUTE = 'last-route';
+const ROUTE_MAX_AGE_MS = 30 * 60 * 1000;
+
+export async function rememberRoute(path: string, now: number): Promise<void> {
+	// Startseite und Login lohnen sich nicht — dort landet man ohnehin.
+	if (!path || path === '/' || path.startsWith('/login')) return;
+	try {
+		await writeToken(KEY_ROUTE, `${now}|${path}`);
+	} catch {
+		/* egal */
+	}
+}
+
+/** Zuletzt besuchte Seite, falls sie noch frisch ist. */
+export async function takeRememberedRoute(now: number): Promise<string | null> {
+	try {
+		const raw = await readToken(KEY_ROUTE);
+		if (!raw) return null;
+		await writeToken(KEY_ROUTE, '');
+		const [stamp, ...rest] = raw.split('|');
+		const path = rest.join('|');
+		if (!path || now - Number(stamp) > ROUTE_MAX_AGE_MS) return null;
+		return path;
+	} catch {
+		return null;
+	}
+}
