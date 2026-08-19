@@ -27,7 +27,11 @@ import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 import { ensureUpcomingTrainingSessions } from '$lib/server/ensureUpcomingTrainingSessions';
 
 /** Viewer für den Training-Payload — Web (user) und API v1 nutzen dasselbe. */
-export type TrainingViewer = { id: number; trainingAttendance?: string | null } | null;
+export type TrainingViewer = {
+	id: number;
+	role?: string | null;
+	trainingAttendance?: string | null;
+} | null;
 
 /**
  * Kompletter Payload der Training-Seite. Von der Web-Seite und von
@@ -298,6 +302,11 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 
 		return {
 			...session,
+			// Wer den Zusatztermin eingetragen hat — für Anzeige und Löschrecht.
+			createdByName:
+				session.createdBy != null
+					? (allUsers.find((u) => u.id === session.createdBy)?.username ?? null)
+					: null,
 			spotThumbnail: effectiveSpotId ? (spotThumbs.get(effectiveSpotId) ?? null) : null,
 			overrideSpot,
 			absences: absencesForList,
@@ -336,6 +345,9 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 	}
 
 	return {
+		// Wer schaut zu — die Seite braucht das fürs Löschrecht bei
+		// Zusatztrainings (Ersteller oder Admin).
+		viewer: user ? { id: user.id, role: user.role ?? 'member' } : null,
 		sessions: sessionsWithDetails,
 		allSpots,
 		trainingForecast,

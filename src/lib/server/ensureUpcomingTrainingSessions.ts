@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { trainingSessions } from '$lib/server/db/schema';
-import { gte, sql } from 'drizzle-orm';
+import { and, eq, gte, sql } from 'drizzle-orm';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 
 const APP_CALENDAR_TZ = 'Europe/Zurich';
@@ -30,10 +30,13 @@ function zurichWeekdayShort(ymd: string): string {
 export function ensureUpcomingTrainingSessions(): void {
 	const today = todayYmdInAppTZ();
 
+	// Nur die festen Termine zählen: Zusatztrainings sind spontan und
+	// dürften sonst dazu führen, dass keine Dienstag/Donnerstag-Termine
+	// mehr nachgelegt werden.
 	const countRow = db
 		.select({ c: sql<number>`count(*)`.as('c') })
 		.from(trainingSessions)
-		.where(gte(trainingSessions.date, today))
+		.where(and(gte(trainingSessions.date, today), eq(trainingSessions.isExtra, false)))
 		.get();
 	let futureCount = Number(countRow?.c ?? 0);
 	if (futureCount >= MIN_UPCOMING_SESSIONS) return;
@@ -42,6 +45,7 @@ export function ensureUpcomingTrainingSessions(): void {
 		db
 			.select({ date: trainingSessions.date })
 			.from(trainingSessions)
+			.where(eq(trainingSessions.isExtra, false))
 			.all()
 			.map((r) => r.date)
 	);

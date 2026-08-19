@@ -33,6 +33,7 @@ Die native App spricht mit dem Server über die JSON-API (`/api/v1/…`, Bearer-
 - Übersicht **Zieht** vs. **Zieht nicht** (Abmeldung nur mit Begründung, mind. 10 Zeichen)
 - Optionaler Modus **nur mit Zusage** (Opt-in) und **Auto-Abmeldung** an festen Wochentagen (Admin pro User; erfordert DB-Migrationen 0002/0003)
 - Spot-Voting pro Termin, Gäste eintragen, Admins können User pro Session aus der „Zieht“-Liste ausblenden
+- **Zusatztraining** eintragen (App und Web): spontaner Termin neben Di/Do, mit Datum, Zeit und Notiz. Jedes Mitglied darf einen anlegen, alle werden benachrichtigt, Anmeldung und Spot-Voting laufen wie bei den festen Terminen. Zusatztrainings zählen bewusst **nicht** in die Statistik — sonst bekäme im Standardmodus jede:r eine Anwesenheit gutgeschrieben, ohne je zugesagt zu haben. Entfernen darf sie der Ersteller oder ein Admin.
 - **„Bin da"** am Trainingstag, sobald der Spot feststeht: Standort teilen und die anderen als Profilbild-Pins auf der Karte finden — sichtbar nur gegenseitig, Position verfällt nach 45 min (App und Web)
 
 ### Spots

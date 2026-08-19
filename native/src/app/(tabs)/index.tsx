@@ -26,6 +26,8 @@ import {
 	getPendingTrip,
 	getStats,
 	logSolo,
+	createExtraTraining,
+	deleteExtraTraining,
 	trainingAction,
 	adminTraining,
 	getLivePositions,
@@ -97,6 +99,10 @@ export default function Dashboard() {
 	// Spot-Voting: eigenen Vorschlag mit Suchfeld einreichen (wie im Web).
 	const [voteFor, setVoteFor] = useState<TrainingSession | null>(null);
 	const [voteQuery, setVoteQuery] = useState('');
+	// Zusatztraining eintragen — wie auf der Website, offen für alle.
+	const [extraOpen, setExtraOpen] = useState(false);
+	const [extraForm, setExtraForm] = useState({ date: '', start: '18:15', end: '20:15', note: '' });
+	const [extraBusy, setExtraBusy] = useState(false);
 	// „Bin da": Standort teilen und die anderen am Spot finden.
 	const [meetOpen, setMeetOpen] = useState(false);
 	const [live, setLive] = useState<{ sharing: boolean; positions: LivePosition[] } | null>(null);
@@ -162,6 +168,42 @@ export default function Dashboard() {
 		await act(() => trainingAction('absence', session.id, { reason: absenceReason.trim() }));
 		setAbsenceReason('');
 	};
+
+	const submitExtra = async () => {
+		const { date, start, end, note } = extraForm;
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+			Alert.alert('Datum fehlt', 'Bitte im Format JJJJ-MM-TT angeben, z. B. 2026-08-22.');
+			return;
+		}
+		setExtraBusy(true);
+		try {
+			await createExtraTraining(date, start.trim(), end.trim(), note.trim());
+			setExtraOpen(false);
+			setExtraForm({ date: '', start: '18:15', end: '20:15', note: '' });
+			await training.refresh();
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Konnte nicht angelegt werden');
+		} finally {
+			setExtraBusy(false);
+		}
+	};
+
+	const removeExtra = (sessionId: number) =>
+		Alert.alert('Zusatztraining entfernen?', 'Anmeldungen und Stimmen gehen verloren.', [
+			{ text: 'Abbrechen', style: 'cancel' },
+			{
+				text: 'Entfernen',
+				style: 'destructive',
+				onPress: async () => {
+					try {
+						await deleteExtraTraining(sessionId);
+						await training.refresh();
+					} catch (e) {
+						Alert.alert('Fehler', e instanceof Error ? e.message : 'Fehlgeschlagen');
+					}
+				}
+			}
+		]);
 
 	const logSoloToday = async () => {
 		try {
@@ -245,7 +287,20 @@ export default function Dashboard() {
 				</Pressable>
 			) : null}
 
-			<SectionTitle>Nächste Trainings</SectionTitle>
+			<View style={styles.rowBetween}>
+				<SectionTitle>Nächste Trainings</SectionTitle>
+				<Pressable
+					onPress={() => {
+						setExtraForm((f) => ({ ...f, date: f.date || (data?.calendarToday ?? '') }));
+						setExtraOpen(true);
+					}}
+					hitSlop={8}
+					style={({ pressed }) => [styles.proposeSpotRow, pressed && { opacity: 0.7 }]}
+				>
+					<Ionicons name="add-circle-outline" size={16} color={colors.accentBlue} />
+					<Text style={styles.proposeSpotText}>Zusatztraining</Text>
+				</Pressable>
+			</View>
 
 			{(data?.sessions ?? []).map((s, sessionIndex) => {
 				const iAmIn = me ? s.attending.some((a) => a.id === me.id) : false;
@@ -288,10 +343,26 @@ export default function Dashboard() {
 									</View>
 								) : null}
 								{s.cancelled ? <Pill label="Abgesagt" color={colors.danger} /> : null}
+								{s.isExtra ? <Pill label="Zusatz" color={colors.accentBlue} /> : null}
 							</View>
 							<Text style={styles.metaLine}>
 								{metaDate(s.date)} · {s.timeStart} – {s.timeEnd}
 							</Text>
+							{s.isExtra ? (
+								<View style={styles.extraRow}>
+									<Text style={styles.extraNote} numberOfLines={2}>
+										{[s.note, s.createdByName ? `von ${s.createdByName}` : null]
+											.filter(Boolean)
+											.join(' · ')}
+									</Text>
+									{data?.viewer &&
+									(s.createdBy === data.viewer.id || data.viewer.role === 'admin') ? (
+										<Pressable onPress={() => removeExtra(s.id)} hitSlop={8}>
+											<Text style={styles.extraRemove}>entfernen</Text>
+										</Pressable>
+									) : null}
+								</View>
+							) : null}
 
 							{!s.cancelled ? (
 								<>
@@ -700,6 +771,52 @@ export default function Dashboard() {
 				)}
 			</Sheet>
 
+			{/* Zusatztraining: spontaner Termin neben Dienstag/Donnerstag */}
+			<Sheet
+				visible={extraOpen}
+				onClose={() => setExtraOpen(false)}
+				title="Zusatztraining eintragen"
+			>
+				<Text style={styles.meetHint}>
+					Für spontane Termine. Alle können sich anmelden und den Spot wählen —
+					die Statistik bleibt unberührt.
+				</Text>
+				<Input
+					placeholder="Datum (JJJJ-MM-TT)"
+					value={extraForm.date}
+					onChangeText={(v) => setExtraForm({ ...extraForm, date: v })}
+				/>
+				<View style={{ flexDirection: 'row', gap: 8 }}>
+					<View style={{ flex: 1 }}>
+						<Input
+							placeholder="Von (18:15)"
+							value={extraForm.start}
+							onChangeText={(v) => setExtraForm({ ...extraForm, start: v })}
+						/>
+					</View>
+					<View style={{ flex: 1 }}>
+						<Input
+							placeholder="Bis (20:15)"
+							value={extraForm.end}
+							onChangeText={(v) => setExtraForm({ ...extraForm, end: v })}
+						/>
+					</View>
+				</View>
+				<Input
+					placeholder="Notiz (optional)"
+					value={extraForm.note}
+					onChangeText={(v) => setExtraForm({ ...extraForm, note: v })}
+				/>
+				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setExtraOpen(false)} />
+					<Button
+						label={extraBusy ? 'Wird eingetragen …' : 'Eintragen'}
+						onPress={submitExtra}
+						disabled={extraBusy}
+					/>
+				</View>
+			</Sheet>
+
 			{/* Spot-Voting: Vorschlag mit Suchfeld — wie auf der Website */}
 			<Sheet
 				visible={voteFor !== null}
@@ -883,6 +1000,15 @@ const makeStyles = (colors: ThemeColors) =>
 			paddingVertical: 12
 		},
 		proposeSpotRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2 },
+		extraRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+		extraNote: {
+			flex: 1,
+			color: colors.fg + textAlpha.muted,
+			fontSize: 12,
+			lineHeight: 17,
+			fontFamily: fonts.sans
+		},
+		extraRemove: { color: colors.danger, fontSize: 12, lineHeight: 17, fontFamily: fonts.sansSemi },
 	meetHint: {
 		color: colors.fg + textAlpha.secondary,
 		fontSize: 13,

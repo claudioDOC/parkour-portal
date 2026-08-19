@@ -61,7 +61,13 @@ export const trainingSessions = sqliteTable('training_sessions', {
 	/** Vom Admin abgesagt — Anmeldungen/Votes bleiben erhalten, zählen aber nicht. */
 	cancelled: integer('cancelled', { mode: 'boolean' }).notNull().default(false),
 	/** Vom Admin festgelegter Spot — übersteuert das Voting-Ergebnis. */
-	overrideSpotId: integer('override_spot_id')
+	overrideSpotId: integer('override_spot_id'),
+	/** Spontaner Zusatztermin (nicht Dienstag/Donnerstag) — zählt nicht in die Statistik. */
+	isExtra: integer('is_extra', { mode: 'boolean' }).notNull().default(false),
+	/** Wer den Zusatztermin eingetragen hat. */
+	createdBy: integer('created_by').references(() => users.id),
+	/** Freitext zum Zusatztermin („Skatepark, bringt Schuhe mit"). */
+	note: text('note')
 });
 
 /** Explizite Zusage für ein Training (nur bei trainingAttendance opt_in relevant). */

@@ -14,6 +14,7 @@ const KIND_ICONS: Record<string, string> = {
 	'challenge.done': 'checkmark-circle-outline',
 	'training.cancelled': 'close-circle-outline',
 	'training.spot_fixed': 'location-outline',
+	'training.extra': 'add-circle-outline',
 	'trip.new': 'car-outline',
 	'trip.date.adopted': 'calendar-outline'
 };

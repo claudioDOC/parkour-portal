@@ -143,11 +143,18 @@ export type TrainingSession = {
 	spotVotes: SpotVote[];
 	userVotedSpotId: number | null;
 	votingClosed: boolean;
+	/** Spontaner Zusatztermin — zählt nicht in die Statistik. */
+	isExtra?: boolean;
+	createdBy?: number | null;
+	createdByName?: string | null;
+	note?: string | null;
 	winnerSpot: { name: string; city: string; spotId: number; votes: number } | null;
 	autoSpot: { name: string; city: string; spotId: number } | null;
 };
 
 export type TrainingPayload = {
+	/** Wer schaut zu — fürs Löschrecht bei Zusatztrainings. */
+	viewer?: { id: number; role: string } | null;
 	sessions: TrainingSession[];
 	allSpots: { id: number; name: string; city: string }[];
 	trainingForecast: { summaryLine?: string; isWet?: boolean; temperatureInWindow?: number | null } | null;
@@ -167,6 +174,24 @@ export type TrainingAction =
 	| 'remove_vote'
 	| 'weekday_override_yes'
 	| 'weekday_override_no';
+
+/** Zusatztraining eintragen — wie auf der Website, offen für alle. */
+export const createExtraTraining = (
+	date: string,
+	timeStart: string,
+	timeEnd: string,
+	note: string
+) =>
+	post<{ success?: boolean; sessionId?: number; error?: string }>('/api/training', {
+		action: 'create_extra',
+		date,
+		timeStart,
+		timeEnd,
+		note
+	});
+
+export const deleteExtraTraining = (sessionId: number) =>
+	post<{ success?: boolean }>('/api/training', { action: 'delete_extra', sessionId });
 
 export const trainingAction = (
 	action: TrainingAction,

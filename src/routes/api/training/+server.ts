@@ -7,18 +7,151 @@ import {
 	trainingSpotVotes,
 	spots,
 	trainingSessionRsvp,
-	trainingSessionWeekdayOverride
+	trainingSessionWeekdayOverride,
+	sessionGuests
 } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
 import { sendToUsersWithPref } from '$lib/server/push';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
+import { todayYmdInAppTZ, germanWeekdayInAppTZ } from '$lib/server/calendarToday';
+import { recordEvent } from '$lib/server/activity';
+import { desc } from 'drizzle-orm';
 
 export const POST: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
-	const { action, sessionId, reason, spotId } = await request.json();
+	const body = await request.json();
+	const { action, sessionId, reason, spotId } = body;
+
+	/**
+	 * Zusatztraining eintragen — jedes Mitglied darf das, wie beim Anlegen
+	 * von Spots oder Challenges. Der Termin landet in derselben Tabelle wie
+	 * die festen Dienstag/Donnerstag-Trainings; damit funktionieren
+	 * An-/Abmeldung, Spot-Voting, Gäste und Kalender ohne Sonderweg.
+	 */
+	if (action === 'create_extra') {
+		const date = String(body?.date ?? '').trim();
+		const timeStart = String(body?.timeStart ?? '18:15').trim();
+		const timeEnd = String(body?.timeEnd ?? '20:15').trim();
+		const note = String(body?.note ?? '').trim().slice(0, 200);
+
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+			return json({ error: 'Datum im Format JJJJ-MM-TT angeben' }, { status: 400 });
+		}
+		const today = todayYmdInAppTZ();
+		if (date < today) {
+			return json({ error: 'Das Datum liegt in der Vergangenheit' }, { status: 400 });
+		}
+		const maxDate = new Date(Date.parse(`${today}T12:00:00Z`) + 120 * 86_400_000)
+			.toISOString()
+			.slice(0, 10);
+		if (date > maxDate) {
+			return json({ error: 'Höchstens 120 Tage im Voraus' }, { status: 400 });
+		}
+		const timeOk = (t: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+		if (!timeOk(timeStart) || !timeOk(timeEnd)) {
+			return json({ error: 'Zeiten im Format HH:MM angeben' }, { status: 400 });
+		}
+		if (timeEnd <= timeStart) {
+			return json({ error: 'Ende muss nach dem Beginn liegen' }, { status: 400 });
+		}
+
+		const clash = db
+			.select({ id: trainingSessions.id })
+			.from(trainingSessions)
+			.where(and(eq(trainingSessions.date, date), eq(trainingSessions.timeStart, timeStart)))
+			.get();
+		if (clash) {
+			return json({ error: 'Zu dieser Zeit gibt es an dem Tag schon ein Training' }, { status: 400 });
+		}
+
+		const ins = db
+			.insert(trainingSessions)
+			.values({
+				date,
+				dayOfWeek: germanWeekdayInAppTZ(date),
+				timeStart,
+				timeEnd,
+				isExtra: true,
+				createdBy: locals.user.id,
+				note: note || null
+			})
+			.run();
+		const newId = Number(ins.lastInsertRowid);
+
+		const pretty = new Date(`${date}T12:00:00`).toLocaleDateString('de-CH', {
+			weekday: 'long',
+			day: 'numeric',
+			month: 'long'
+		});
+
+		logAudit({
+			event,
+			action: 'training.extra.create',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: { sessionId: newId, date, timeStart, timeEnd, note }
+		});
+		recordEvent({
+			kind: 'training.extra',
+			actorUserId: locals.user.id,
+			actorName: locals.user.username,
+			title: 'Zusatztraining',
+			body: `${pretty}, ${timeStart}–${timeEnd}${note ? ` · ${note}` : ''}`,
+			url: '/training'
+		});
+		void sendToUsersWithPref(
+			'trainingReminder',
+			{
+				title: `Zusatztraining — ${pretty}`,
+				body: `${timeStart}–${timeEnd} · von ${locals.user.username}${note ? ` · ${note}` : ''}`,
+				url: '/training',
+				tag: `training-extra-${newId}`
+			},
+			undefined,
+			{ excludeUserIds: [locals.user.id] }
+		).catch(() => undefined);
+
+		return json({ success: true, sessionId: newId });
+	}
+
+	/** Zusatztraining wieder entfernen — nur Ersteller oder Admin. */
+	if (action === 'delete_extra') {
+		const target = db
+			.select()
+			.from(trainingSessions)
+			.where(eq(trainingSessions.id, Number(sessionId)))
+			.get();
+		if (!target) return json({ error: 'Training nicht gefunden' }, { status: 404 });
+		if (!target.isExtra) {
+			return json({ error: 'Nur Zusatztrainings lassen sich entfernen' }, { status: 400 });
+		}
+		if (target.createdBy !== locals.user.id && locals.user.role !== 'admin') {
+			return json({ error: 'Keine Berechtigung' }, { status: 403 });
+		}
+		// Anmeldungen und Stimmen hängen daran — erst die, dann der Termin.
+		db.delete(trainingSpotVotes).where(eq(trainingSpotVotes.sessionId, target.id)).run();
+		db.delete(absences).where(eq(absences.sessionId, target.id)).run();
+		db.delete(sessionGuests).where(eq(sessionGuests.sessionId, target.id)).run();
+		if (isTrainingAttendanceSchemaReady()) {
+			db.delete(trainingSessionRsvp).where(eq(trainingSessionRsvp.sessionId, target.id)).run();
+			db.delete(trainingSessionWeekdayOverride)
+				.where(eq(trainingSessionWeekdayOverride.sessionId, target.id))
+				.run();
+		}
+		db.delete(trainingSessions).where(eq(trainingSessions.id, target.id)).run();
+
+		logAudit({
+			event,
+			action: 'training.extra.delete',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: { sessionId: target.id, date: target.date }
+		});
+		return json({ success: true });
+	}
 
 	if (!sessionId) {
 		return json({ error: 'Session-ID erforderlich' }, { status: 400 });

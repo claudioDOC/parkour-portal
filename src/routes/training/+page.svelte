@@ -13,6 +13,13 @@
 	let showReason = $state<number | null>(null);
 	let openAbsenceReason = $state<string | null>(null);
 	let showSpotPicker = $state<number | null>(null);
+	// Zusatztraining eintragen — offen für alle, wie Spots und Challenges.
+	let extraOpen = $state(false);
+	let extraDate = $state('');
+	let extraStart = $state('18:15');
+	let extraEnd = $state('20:15');
+	let extraNote = $state('');
+	let extraBusy = $state(false);
 	let spotSearch = $state('');
 	let liveNotices = $state<{ id: number; text: string; kind: 'info' | 'error' }[]>([]);
 
@@ -170,6 +177,45 @@
 		}
 	}
 
+	async function createExtraTraining() {
+		if (!extraDate) {
+			pushNotice('Bitte ein Datum wählen.', 'error');
+			return;
+		}
+		extraBusy = true;
+		try {
+			const res = await fetch('/api/training', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					action: 'create_extra',
+					date: extraDate,
+					timeStart: extraStart,
+					timeEnd: extraEnd,
+					note: extraNote.trim()
+				})
+			});
+			const body = (await res.json().catch(() => ({}))) as { error?: string };
+			if (!res.ok) {
+				pushNotice(body.error || 'Konnte nicht angelegt werden.', 'error');
+				return;
+			}
+			pushNotice('Zusatztraining eingetragen — alle wurden benachrichtigt.');
+			extraOpen = false;
+			extraNote = '';
+			await invalidateAll();
+		} catch {
+			pushNotice('Keine Verbindung — nichts gespeichert.', 'error');
+		} finally {
+			extraBusy = false;
+		}
+	}
+
+	async function deleteExtraTraining(sessionId: number) {
+		if (!confirm('Zusatztraining wirklich entfernen?')) return;
+		await postAction('delete_extra', sessionId);
+	}
+
 	async function postAction(action: string, sessionId: number, extra: Record<string, unknown> = {}) {
 		tapFeedback();
 		loadingSession = sessionId;
@@ -259,6 +305,74 @@
 		</div>
 	{/if}
 
+	<!-- Spontaner Zusatztermin: steht in derselben Liste wie die festen
+	     Trainings, mit Anmeldung, Spot-Voting und Kalender. -->
+	<div class="mb-4 rounded-xl border border-border bg-bg-card p-4">
+		{#if !extraOpen}
+			<button
+				type="button"
+				onclick={() => {
+					extraOpen = true;
+					if (!extraDate) extraDate = data.calendarToday;
+				}}
+				class="flex items-center gap-2 text-sm font-medium text-accent hover:text-accent-hover transition-colors"
+			>
+				<span class="text-lg leading-none">+</span> Zusatztraining eintragen
+			</button>
+		{:else}
+			<div class="space-y-3">
+				<p class="text-text-primary text-sm font-semibold">Zusatztraining eintragen</p>
+				<p class="text-text-muted text-xs">
+					Für spontane Termine neben Dienstag und Donnerstag. Alle können sich
+					anmelden und den Spot wählen; die Statistik bleibt unberührt.
+				</p>
+				<div class="flex flex-wrap gap-2">
+					<input
+						type="date"
+						bind:value={extraDate}
+						min={data.calendarToday}
+						class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+					/>
+					<input
+						type="time"
+						bind:value={extraStart}
+						class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+					/>
+					<span class="self-center text-text-muted text-sm">bis</span>
+					<input
+						type="time"
+						bind:value={extraEnd}
+						class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+					/>
+				</div>
+				<input
+					type="text"
+					bind:value={extraNote}
+					maxlength="200"
+					placeholder="Notiz (optional), z. B. „Skatepark, bringt Wasser mit“"
+					class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+				/>
+				<div class="flex gap-2">
+					<button
+						type="button"
+						onclick={createExtraTraining}
+						disabled={extraBusy}
+						class="bg-accent hover:bg-accent-hover text-black px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+					>
+						{extraBusy ? 'Wird eingetragen …' : 'Eintragen'}
+					</button>
+					<button
+						type="button"
+						onclick={() => (extraOpen = false)}
+						class="bg-bg-hover hover:bg-bg-secondary text-text-secondary px-4 py-2 rounded-lg text-sm font-medium"
+					>
+						Abbrechen
+					</button>
+				</div>
+			</div>
+		{/if}
+	</div>
+
 	<div class="space-y-4">
 		{#each data.sessions as session}
 			{@const past = isSessionEnded(session)}
@@ -311,9 +425,24 @@
 								{#if session.cancelled}
 									<span class="text-xs bg-danger/20 text-danger px-2 py-0.5 rounded-full font-semibold">Abgesagt</span>
 								{/if}
+								{#if session.isExtra}
+									<span class="text-xs bg-accent-blue/20 text-accent-blue px-2 py-0.5 rounded-full font-medium">Zusatztraining</span>
+								{/if}
 							</div>
 							<p class="text-text-secondary text-sm mt-1">{formatDate(session.date)}</p>
 							<p class="text-text-muted text-sm">{session.timeStart} - {session.timeEnd}</p>
+							{#if session.isExtra}
+								<p class="text-text-muted text-xs mt-1">
+									{session.note ? `${session.note} · ` : ''}eingetragen von {session.createdByName ?? 'unbekannt'}
+									{#if !past && (session.createdBy === data.viewer?.id || data.viewer?.role === 'admin')}
+										<button
+											type="button"
+											onclick={() => deleteExtraTraining(session.id)}
+											class="ml-2 text-danger hover:underline"
+										>entfernen</button>
+									{/if}
+								</p>
+							{/if}
 							{#if session.cancelled}
 								<p class="mt-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
 									Dieses Training findet nicht statt.
