@@ -12,6 +12,9 @@ import { registerFcmDevice } from './api';
  * dann passiert einfach nichts. Nie die App deswegen stören.
  */
 export async function setupPush(onOpenUrl: (url: string) => void): Promise<void> {
+	// onOpenUrl darf NIEMALS navigieren — es meldet nur das Ziel. Sonst
+	// läuft der Sprung, während der Splash noch läuft und es gar keine
+	// Navigation gibt: Absturz, Neustart, Endlosschleife.
 	if (Platform.OS !== 'android') return;
 	let Notifications: typeof import('expo-notifications');
 	try {
@@ -64,10 +67,16 @@ export async function setupPush(onOpenUrl: (url: string) => void): Promise<void>
 			/* keine gespeicherte Antwort */
 		}
 
-		// Tippen auf eine Benachrichtigung → Ziel-Seite öffnen.
+		// Tippen auf eine Benachrichtigung → Ziel-Seite melden.
+		// Der Rückruf läuft ausserhalb dieses try — ein Fehler darin würde
+		// die App abschiessen. Darum hier noch einmal absichern.
 		Notifications.addNotificationResponseReceivedListener((response) => {
-			const url = response.notification.request.content.data?.url;
-			if (typeof url === 'string' && url.startsWith('/')) onOpenUrl(url);
+			try {
+				const url = response.notification.request.content.data?.url;
+				if (typeof url === 'string' && url.startsWith('/')) onOpenUrl(url);
+			} catch {
+				/* Ziel nicht verwertbar — App läuft normal weiter */
+			}
 		});
 	} catch {
 		// Ältere APK ohne Firebase-Unterbau — still bleiben.

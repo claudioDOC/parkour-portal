@@ -21,6 +21,7 @@ import { readToken, writeToken } from '../lib/tokenStore';
 import { BASE_URL } from '../lib/api';
 import { setupPush } from '../lib/pushSetup';
 import { appPathFromPortalUrl } from '../lib/appLink';
+import { noteBoot, bootLoopSuspected, clearBootLoop } from '../lib/bootGuard';
 import { clearDataCache } from '../lib/store';
 import { ActivityProvider } from '../lib/activity';
 import { Splash } from '../lib/Splash';
@@ -104,6 +105,8 @@ export default function RootLayout() {
 	const [me, setMe] = useState<Me | null>(null);
 	const [ready, setReady] = useState(false);
 	const [splashDone, setSplashDone] = useState(false);
+	/** Ziel einer angetippten Benachrichtigung, bis die Navigation steht. */
+	const [pendingLink, setPendingLink] = useState<string | null>(null);
 	// Theme folgt dem Profil (uiTheme), wie data-theme auf der Website.
 	const [themeId, setThemeId] = useState<UiThemeId>(DEFAULT_THEME);
 	useEffect(() => {
@@ -138,6 +141,9 @@ export default function RootLayout() {
 	useEffect(() => {
 		(async () => {
 			try {
+				// Erst zählen, dann alles andere: nur so greift die Notbremse
+				// auch dann, wenn der Rest des Starts abstürzt.
+				await noteBoot(Date.now());
 				// Einstellungen (Startseite, Schriftgrösse) VOR dem ersten Render.
 				await loadPrefs();
 				const token = await getToken();
@@ -187,10 +193,36 @@ export default function RootLayout() {
 	// Erlaubnis-Dialog beim ersten Mal, danach still. Ab APK 1.4 wirksam.
 	useEffect(() => {
 		if (!me) return;
-		// Portal-Adresse → App-Pfad, sonst öffnet der Tipp ins Leere.
-		setupPush((url) => router.push(appPathFromPortalUrl(url) as never)).catch(() => {});
+		// Das Ziel wird nur GEMERKT. Sofort springen ginge schief: Während
+		// des Splashs gibt es noch keine Navigation, und der Fehler nahm
+		// die ganze App mit — Endlosschleife aus Absturz und Neustart.
+		setupPush((url) => setPendingLink(appPathFromPortalUrl(url))).catch(() => {});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [me?.id]);
+
+	// Erst wenn die Navigation wirklich steht, zum gemerkten Ziel springen.
+	useEffect(() => {
+		if (!ready || !splashDone || !me || !pendingLink) return;
+		const target = pendingLink;
+		setPendingLink(null);
+		// Nach einer Startschleife bleibt die App bewusst auf der Startseite.
+		if (bootLoopSuspected()) return;
+		const t = setTimeout(() => {
+			try {
+				router.push(target as never);
+			} catch {
+				/* Ziel nicht erreichbar — Startseite ist gut genug */
+			}
+		}, 0);
+		return () => clearTimeout(t);
+	}, [ready, splashDone, me, pendingLink, router]);
+
+	// Läuft die App sichtbar weiter, war es keine Schleife.
+	useEffect(() => {
+		if (!ready || !splashDone) return;
+		const t = setTimeout(() => clearBootLoop(), 4000);
+		return () => clearTimeout(t);
+	}, [ready, splashDone]);
 
 	// Routen-Wache: ohne Login nur /login, mit Login nie /login.
 	useEffect(() => {
