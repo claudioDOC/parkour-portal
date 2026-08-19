@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
 	View,
 	Text,
@@ -9,6 +9,8 @@ import {
 	Modal,
 	TextInput,
 	Dimensions,
+	Keyboard,
+	Platform,
 	type TextInputProps
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -747,6 +749,35 @@ export function Sheet({
 }) {
 	const { colors } = useTheme();
 	const insets = useSafeAreaInsets();
+	/**
+	 * Das Sheet klebt am unteren Rand — die Tastatur legt sich also genau
+	 * darüber, und man sieht nicht, was man tippt. Modale Fenster weichen
+	 * unter Android nicht von selbst aus, darum wird hier gemessen und
+	 * angehoben.
+	 */
+	const [keyboard, setKeyboard] = useState(0);
+	useEffect(() => {
+		const fullHeight = Dimensions.get('window').height;
+		const show = Keyboard.addListener(
+			Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+			(e) => {
+				const height = e.endCoordinates?.height ?? 0;
+				// Manche Geräte verkleinern das Fenster bereits selbst. Dann
+				// noch einmal anzuheben, schöbe das Sheet aus dem Bild — also
+				// nur anheben, wenn das Fenster gleich hoch geblieben ist.
+				const shrunk = fullHeight - Dimensions.get('window').height > height * 0.5;
+				setKeyboard(shrunk ? 0 : height);
+			}
+		);
+		const hide = Keyboard.addListener(
+			Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+			() => setKeyboard(0)
+		);
+		return () => {
+			show.remove();
+			hide.remove();
+		};
+	}, []);
 	return (
 		<Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
 			<Pressable
@@ -761,11 +792,13 @@ export function Sheet({
 						borderTopWidth: 1,
 						borderTopColor: colors.dark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)',
 						padding: 20,
-						paddingBottom: 20 + Math.max(insets.bottom, 14),
+						paddingBottom: keyboard > 0 ? 20 : 20 + Math.max(insets.bottom, 14),
 						gap: 12,
+						// Anheben, solange die Tastatur offen ist.
+						marginBottom: keyboard,
 						// Ohne Deckel wächst die Karte über den Bildschirm hinaus —
 						// dann sind die untersten Felder schlicht nicht erreichbar.
-						maxHeight: Dimensions.get('window').height * 0.9
+						maxHeight: Dimensions.get('window').height * 0.9 - keyboard
 					}}
 					onPress={() => {}}
 				>

@@ -18,6 +18,7 @@ import {
 	Avatar
 } from '../lib/ui';
 import { useData } from '../lib/store';
+import { DateField } from '../lib/DateField';
 import { NativeMap, type MapMarker } from '../lib/NativeMap';
 import {
 	getTrips,
@@ -651,22 +652,23 @@ export default function Trips() {
 					value={editTrip.title}
 					onChangeText={(v) => setEditTrip({ ...editTrip, title: v })}
 				/>
-				<View style={{ flexDirection: 'row', gap: 8 }}>
-					<Input
-						placeholder="Start 2026-10-02"
-						value={editTrip.start}
-						onChangeText={(v) => setEditTrip({ ...editTrip, start: v })}
-						style={{ flex: 1 }}
-						autoCapitalize="none"
-					/>
-					<Input
-						placeholder="Ende 2026-10-04"
-						value={editTrip.end}
-						onChangeText={(v) => setEditTrip({ ...editTrip, end: v })}
-						style={{ flex: 1 }}
-						autoCapitalize="none"
-					/>
-				</View>
+				<Text style={styles.fieldLabel}>Von</Text>
+				<DateField
+					value={editTrip.start}
+					onChange={(v) =>
+						setEditTrip({
+							...editTrip,
+							start: v,
+							end: editTrip.end && editTrip.end >= v ? editTrip.end : v
+						})
+					}
+				/>
+				<Text style={styles.fieldLabel}>Bis</Text>
+				<DateField
+					value={editTrip.end}
+					onChange={(v) => setEditTrip({ ...editTrip, end: v })}
+					min={editTrip.start || undefined}
+				/>
 				<Input
 					placeholder="Notizen (optional)"
 					multiline
@@ -748,22 +750,19 @@ export default function Trips() {
 					value={form.title}
 					onChangeText={(v) => setForm({ ...form, title: v })}
 				/>
-				<View style={{ flexDirection: 'row', gap: 8 }}>
-					<Input
-						placeholder="Start 2026-10-02"
-						value={form.start}
-						onChangeText={(v) => setForm({ ...form, start: v })}
-						style={{ flex: 1 }}
-						autoCapitalize="none"
-					/>
-					<Input
-						placeholder="Ende 2026-10-04"
-						value={form.end}
-						onChangeText={(v) => setForm({ ...form, end: v })}
-						style={{ flex: 1 }}
-						autoCapitalize="none"
-					/>
-				</View>
+				<Text style={styles.fieldLabel}>Von</Text>
+				<DateField
+					value={form.start}
+					onChange={(v) =>
+						setForm({ ...form, start: v, end: form.end && form.end >= v ? form.end : v })
+					}
+				/>
+				<Text style={styles.fieldLabel}>Bis</Text>
+				<DateField
+					value={form.end}
+					onChange={(v) => setForm({ ...form, end: v })}
+					min={form.start || undefined}
+				/>
 				<Input
 					placeholder="Notizen (optional)"
 					multiline
@@ -782,22 +781,21 @@ export default function Trips() {
 				onClose={() => setDateFor(null)}
 				title={`Termin vorschlagen — ${dateFor?.title ?? ''}`}
 			>
-				<View style={{ flexDirection: 'row', gap: 8 }}>
-					<Input
-						placeholder="Start 2026-10-09"
-						value={dateForm.start}
-						onChangeText={(v) => setDateForm({ ...dateForm, start: v })}
-						style={{ flex: 1 }}
-						autoCapitalize="none"
-					/>
-					<Input
-						placeholder="Ende 2026-10-11"
-						value={dateForm.end}
-						onChangeText={(v) => setDateForm({ ...dateForm, end: v })}
-						style={{ flex: 1 }}
-						autoCapitalize="none"
-					/>
-				</View>
+				<Text style={styles.fieldLabel}>Von</Text>
+				<DateField
+					value={dateForm.start}
+					onChange={(v) =>
+						setDateForm({ ...dateForm, start: v, end: dateForm.end && dateForm.end >= v ? dateForm.end : v })
+					}
+					placeholder="Startdatum wählen"
+				/>
+				<Text style={styles.fieldLabel}>Bis</Text>
+				<DateField
+					value={dateForm.end}
+					onChange={(v) => setDateForm({ ...dateForm, end: v })}
+					min={dateForm.start || undefined}
+					placeholder="Enddatum wählen"
+				/>
 				<Input
 					placeholder="Notiz (optional)"
 					value={dateForm.note}
@@ -927,6 +925,14 @@ const makeStyles = (colors: ThemeColors) =>
 		borderRadius: 12,
 		paddingHorizontal: 12,
 		paddingVertical: 10
+	},
+	fieldLabel: {
+		color: colors.fg + textAlpha.muted,
+		fontSize: 12,
+		lineHeight: 17,
+		fontFamily: fonts.sansSemi,
+		textTransform: 'uppercase',
+		letterSpacing: 0.6
 	},
 	stopLabel: {
 		color: colors.fg + textAlpha.primary,

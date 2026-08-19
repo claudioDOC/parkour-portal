@@ -21,6 +21,7 @@ import {
 	SectionTitle
 } from '../../lib/ui';
 import { useData } from '../../lib/store';
+import { DateField } from '../../lib/DateField';
 import {
 	getTraining,
 	getPendingTrip,
@@ -866,10 +867,11 @@ export default function Dashboard() {
 					Für spontane Termine. Alle können sich anmelden und den Spot wählen —
 					die Statistik bleibt unberührt.
 				</Text>
-				<Input
-					placeholder="Datum (JJJJ-MM-TT)"
+				<DateField
 					value={extraForm.date}
-					onChangeText={(v) => setExtraForm({ ...extraForm, date: v })}
+					onChange={(v) => setExtraForm({ ...extraForm, date: v })}
+					min={data?.calendarToday}
+					placeholder="Tag wählen"
 				/>
 				<View style={{ flexDirection: 'row', gap: 8 }}>
 					<View style={{ flex: 1 }}>

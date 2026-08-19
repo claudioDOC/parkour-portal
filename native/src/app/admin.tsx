@@ -7,6 +7,7 @@ import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
 import { Card, TopBar, Screen, Button, Input, SectionTitle, Pill, Sheet, Avatar } from '../lib/ui';
 import { useData } from '../lib/store';
+import { DateField } from '../lib/DateField';
 import {
 	getAdminUsers,
 	adminUserAction,
@@ -992,7 +993,8 @@ export default function Admin() {
 						</Pressable>
 					))}
 				</View>
-				<Input placeholder="Datum (JJJJ-MM-TT, leer = heute)" value={soloDate} onChangeText={setSoloDate} />
+				<Text style={styles.muted}>Datum (leer = heute)</Text>
+				<DateField value={soloDate} onChange={setSoloDate} placeholder="Tag wählen" />
 				<Input placeholder="Notiz (optional)" value={soloNote} onChangeText={setSoloNote} />
 				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setSoloOpen(false)} />
