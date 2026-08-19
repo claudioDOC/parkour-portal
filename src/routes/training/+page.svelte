@@ -158,6 +158,29 @@
 		if (!soloDate) soloDate = data.calendarToday;
 	});
 
+	/** Versehentlich eingetragen? Der Eintrag des gewählten Tages fliegt raus. */
+	async function undoSolo() {
+		soloBusy = true;
+		try {
+			const res = await fetch('/api/solo', {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ date: soloDate })
+			});
+			const body = (await res.json().catch(() => ({}))) as { error?: string };
+			if (!res.ok) {
+				pushNotice(body.error || 'Rückgängig fehlgeschlagen', 'error');
+				return;
+			}
+			pushNotice('Solo-Eintrag entfernt.');
+			await invalidateAll();
+		} catch {
+			pushNotice('Keine Verbindung — nichts geändert.', 'error');
+		} finally {
+			soloBusy = false;
+		}
+	}
+
 	async function logSolo() {
 		soloBusy = true;
 		try {
@@ -291,6 +314,16 @@
 				>
 					{soloBusy ? '…' : data.mySolo.todayLogged && soloDate === data.calendarToday ? 'Heute schon drin ✓' : 'Eintragen'}
 				</button>
+				{#if data.mySolo.todayLogged && soloDate === data.calendarToday}
+					<button
+						type="button"
+						onclick={undoSolo}
+						disabled={soloBusy}
+						class="cursor-pointer rounded-lg bg-bg-hover px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-secondary disabled:opacity-50"
+					>
+						Rückgängig
+					</button>
+				{/if}
 			</div>
 		</div>
 	</details>

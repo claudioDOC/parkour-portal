@@ -65,23 +65,37 @@ export const DELETE: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
-	let body: { id?: unknown };
+	let body: { id?: unknown; date?: unknown };
 	try {
 		body = await request.json();
 	} catch {
 		throw error(400, 'Ungültiger Body');
 	}
+
+	// Entweder die ID (Liste im Admin-Bereich) oder schlicht das Datum —
+	// die Oberflächen kennen die ID gar nicht, brauchen aber ein
+	// „Rückgängig" für den eben gemachten Eintrag.
 	const id = Number(body.id);
-	if (!Number.isFinite(id) || id <= 0) throw error(400, 'ID fehlt');
+	const dateArg =
+		typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date)
+			? body.date
+			: !Number.isFinite(id) || id <= 0
+				? todayYmdInAppTZ()
+				: null;
 
 	const row = db
 		.select({ id: soloTrainings.id, date: soloTrainings.date })
 		.from(soloTrainings)
-		.where(and(eq(soloTrainings.id, id), eq(soloTrainings.userId, locals.user.id)))
+		.where(
+			and(
+				eq(soloTrainings.userId, locals.user.id),
+				dateArg ? eq(soloTrainings.date, dateArg) : eq(soloTrainings.id, id)
+			)
+		)
 		.get();
 	if (!row) return json({ error: 'Eintrag nicht gefunden' }, { status: 404 });
 
-	db.delete(soloTrainings).where(eq(soloTrainings.id, id)).run();
+	db.delete(soloTrainings).where(eq(soloTrainings.id, row.id)).run();
 
 	logAudit({
 		event,

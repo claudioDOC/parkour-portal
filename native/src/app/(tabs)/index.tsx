@@ -26,6 +26,7 @@ import {
 	getPendingTrip,
 	getStats,
 	logSolo,
+	removeSolo,
 	createExtraTraining,
 	deleteExtraTraining,
 	trainingAction,
@@ -211,6 +212,15 @@ export default function Dashboard() {
 			}
 		]);
 
+	const undoSoloToday = async () => {
+		try {
+			await removeSolo();
+			await training.refresh();
+		} catch (e) {
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Rückgängig fehlgeschlagen');
+		}
+	};
+
 	const logSoloToday = async () => {
 		try {
 			await logSolo();
@@ -293,21 +303,24 @@ export default function Dashboard() {
 				</Pressable>
 			) : null}
 
-			<Card style={styles.soloCard}>
-				<View style={styles.soloRow}>
-					<Ionicons name="flash-outline" size={18} color={colors.accent} />
-					<View style={{ flex: 1 }}>
-						<Text style={styles.soloTitle}>Solo-Training</Text>
-						<Text style={styles.soloText}>
-							{data?.mySolo.countMonth ?? 0} diesen Monat
-							{data?.mySolo.todayLogged ? '  ·  heute eingetragen ✓' : ''}
-						</Text>
-					</View>
-					{data && !data.mySolo.todayLogged ? (
-						<Button label="Heute eintragen" onPress={logSoloToday} kind="ghost" small />
-					) : null}
-				</View>
-			</Card>
+			{/* Eine Zeile statt Kachel — und ein Weg zurück, falls man
+			    danebentippt. */}
+			<View style={styles.soloRow}>
+				<Ionicons name="flash-outline" size={15} color={colors.accent} />
+				<Text style={styles.soloText}>
+					{`Solo · ${data?.mySolo.countMonth ?? 0} diesen Monat`}
+					{data?.mySolo.todayLogged ? ' · heute ✓' : ''}
+				</Text>
+				{data?.mySolo.todayLogged ? (
+					<Pressable onPress={undoSoloToday} hitSlop={8}>
+						<Text style={styles.soloUndo}>Rückgängig</Text>
+					</Pressable>
+				) : (
+					<Pressable onPress={logSoloToday} hitSlop={8}>
+						<Text style={styles.soloAction}>Heute eintragen</Text>
+					</Pressable>
+				)}
+			</View>
 
 			<View style={styles.rowBetween}>
 				<SectionTitle>Nächste Trainings</SectionTitle>
@@ -1133,9 +1146,17 @@ const makeStyles = (colors: ThemeColors) =>
 			fontFamily: fonts.sansSemi
 		},
 		laterMeta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 17 },
-		soloRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+		soloRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
+		soloAction: { color: colors.accent, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansSemi },
+		soloUndo: {
+			color: colors.fg + textAlpha.secondary,
+			fontSize: 13,
+			lineHeight: 18,
+			fontFamily: fonts.sans
+		},
 		soloTitle: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
-		soloText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans, marginTop: 0 },
+		soloText: {
+			flex: 1, color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans, marginTop: 0 },
 		sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 		spotOption: {
 			flexDirection: 'row',

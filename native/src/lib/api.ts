@@ -210,6 +210,13 @@ export const adminTraining = (
 
 export const logSolo = (note?: string) => post<{ success?: boolean }>('/api/solo', { note });
 
+/** Solo-Eintrag eines Tages wieder entfernen (Standard: heute). */
+export const removeSolo = (date?: string) =>
+	request<{ ok?: boolean }>('/api/solo', {
+		method: 'DELETE',
+		body: JSON.stringify(date ? { date } : {})
+	});
+
 
 /** Fehlertext des Servers auslesen — sonst sieht man nur die Nummer. */
 async function uploadError(res: Response, was: string): Promise<ApiError> {
