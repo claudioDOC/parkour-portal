@@ -492,7 +492,7 @@ export type SpotDetailPayload = {
 	avgScore: number;
 	voteCount: number;
 	userVote: number | null;
-	images: { id: number; url: string; filename: string }[];
+	images: { id: number; url: string; filename: string; uploadedBy?: number | null }[];
 	challenges: SpotChallenge[];
 	nearbySpots: { id: number; name: string; city: string; distanceKm?: number }[];
 	mapMarkers: { id: number; name: string; city?: string; lat: number; lon: number; kind: string }[];

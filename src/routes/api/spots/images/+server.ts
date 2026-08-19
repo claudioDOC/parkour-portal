@@ -127,7 +127,13 @@ export const DELETE: RequestHandler = async (event) => {
 		return json({ error: 'Bild nicht gefunden' }, { status: 404 });
 	}
 
-	if (image.uploadedBy !== locals.user.id && locals.user.role !== 'admin') {
+	// Wer den Spot verwalten darf, darf auch seine Bilder entfernen —
+	// bei Challenge-Bildern galt das längst, hier fehlte der Spotmanager.
+	const mayDelete =
+		image.uploadedBy === locals.user.id ||
+		locals.user.role === 'admin' ||
+		locals.user.role === 'spotmanager';
+	if (!mayDelete) {
 		return json({ error: 'Keine Berechtigung' }, { status: 403 });
 	}
 

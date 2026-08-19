@@ -416,19 +416,39 @@ export default function SpotDetailScreen() {
 							keyExtractor={(img) => String(img.id)}
 							contentContainerStyle={{ gap: 8 }}
 							style={{ marginHorizontal: -20, paddingHorizontal: 20 }}
-							renderItem={({ item, index }) => (
-								<Pressable
-									onPress={() => setViewer(index)}
-									onLongPress={() => removePhoto(item.id)}
-								>
-									<Image
-										source={{ uri: mediaUrl(item.url) ?? undefined }}
-										style={styles.galleryImage}
-										contentFit="cover"
-										transition={150}
-									/>
-								</Pressable>
-							)}
+							renderItem={({ item, index }) => {
+								// Löschen war nur über langes Drücken erreichbar — das
+								// findet niemand. Jetzt ein sichtbares ✕ für alle, die
+								// dürfen: Admin, Spotmanager oder wer es hochgeladen hat.
+								const mayDelete =
+									me?.role === 'admin' ||
+									me?.role === 'spotmanager' ||
+									(item.uploadedBy != null && item.uploadedBy === me?.id);
+								return (
+									<View>
+										<Pressable
+											onPress={() => setViewer(index)}
+											onLongPress={() => (mayDelete ? removePhoto(item.id) : undefined)}
+										>
+											<Image
+												source={{ uri: mediaUrl(item.url) ?? undefined }}
+												style={styles.galleryImage}
+												contentFit="cover"
+												transition={150}
+											/>
+										</Pressable>
+										{mayDelete ? (
+											<Pressable
+												onPress={() => removePhoto(item.id)}
+												hitSlop={8}
+												style={({ pressed }) => [styles.imageDelete, pressed && { opacity: 0.7 }]}
+											>
+												<Ionicons name="close" size={15} color="#fff" />
+											</Pressable>
+										) : null}
+									</View>
+								);
+							}}
 						/>
 					) : null}
 
@@ -995,6 +1015,17 @@ const makeStyles = (colors: ThemeColors) =>
 	},
 	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 	challengeVideo: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hover },
+	imageDelete: {
+		position: 'absolute',
+		top: 6,
+		right: 6,
+		width: 26,
+		height: 26,
+		borderRadius: 13,
+		backgroundColor: 'rgba(0,0,0,0.55)',
+		alignItems: 'center',
+		justifyContent: 'center'
+	},
 	chMediaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 	chMediaThumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: colors.bgSecondary },
 	chMediaName: { flex: 1, color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 17, fontFamily: fonts.sans },

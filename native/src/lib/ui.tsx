@@ -756,6 +756,9 @@ export function Sheet({
 	 * angehoben.
 	 */
 	const [keyboard, setKeyboard] = useState(0);
+	/** Karte höchstens 90 % des Bildschirms; davon gehen Griff, Titel und Ränder ab. */
+	const sheetMaxHeight = Dimensions.get('window').height * 0.9 - keyboard;
+	const scrollMaxHeight = Math.max(180, sheetMaxHeight - 130 - Math.max(insets.bottom, 14));
 	useEffect(() => {
 		const fullHeight = Dimensions.get('window').height;
 		const show = Keyboard.addListener(
@@ -798,7 +801,7 @@ export function Sheet({
 						marginBottom: keyboard,
 						// Ohne Deckel wächst die Karte über den Bildschirm hinaus —
 						// dann sind die untersten Felder schlicht nicht erreichbar.
-						maxHeight: Dimensions.get('window').height * 0.9 - keyboard
+						maxHeight: sheetMaxHeight
 					}}
 					onPress={() => {}}
 				>
@@ -824,9 +827,17 @@ export function Sheet({
 					</Text>
 					{scroll ? (
 						<ScrollView
-							// flexShrink statt fester Höhe: nimmt genau den Platz, der
-							// in der gedeckelten Karte übrig bleibt.
-							style={{ flexShrink: 1 }}
+							/**
+							 * HARTE Höhe, nicht nur flexShrink.
+							 *
+							 * Im Browser reicht Flexbox, um die Fläche auf die Karte zu
+							 * begrenzen — auf dem Gerät nicht: Dort bekommt eine
+							 * Scrollfläche ohne eigene Höhe schlicht die Höhe ihres
+							 * Inhalts, wächst über die Karte hinaus und scrollt gar
+							 * nicht. Darum hier ausgerechnet, was nach Griff, Titel und
+							 * Rändern übrig bleibt.
+							 */
+							style={{ flexShrink: 1, maxHeight: scrollMaxHeight }}
 							contentContainerStyle={{ gap: 12, paddingBottom: 4 }}
 							keyboardShouldPersistTaps="handled"
 							keyboardDismissMode="on-drag"
