@@ -18,7 +18,6 @@
 	let createDestHits = $state<{ lat: number; lon: number; displayName: string }[]>([]);
 	let createPickedDest = $state<{ lat: number; lon: number; displayName: string } | null>(null);
 
-	let joinTransportMode = $state<Record<number, string>>({});
 	let joinNote = $state<Record<number, string>>({});
 	let ablaufText = $state<Record<number, string>>({});
 	let dateAltStart = $state<Record<number, string>>({});
@@ -162,14 +161,20 @@
 		}
 	}
 
-	async function joinTrip(tripId: number) {
+	/** mode: „dabei" oder „bedingt" (dabei unter Vorbehalt, Bedingung in der Notiz). */
+	async function joinTrip(tripId: number, mode: 'dabei' | 'bedingt' = 'dabei') {
 		busyTripId = tripId;
 		try {
-			await post('join_trip', {
-				tripId,
-				transportMode: joinTransportMode[tripId] || 'mitfahrt',
-				note: joinNote[tripId] || ''
-			});
+			await post('join_trip', { tripId, mode, note: joinNote[tripId] || '' });
+		} finally {
+			busyTripId = null;
+		}
+	}
+
+	async function abstainTrip(tripId: number) {
+		busyTripId = tripId;
+		try {
+			await post('abstain_trip', { tripId });
 		} finally {
 			busyTripId = null;
 		}
@@ -454,50 +459,50 @@
 					</div>
 				{/if}
 
-				<div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+				<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
 					<div class="rounded-xl border border-success/35 bg-success/10 px-3 py-3 text-center shadow-sm">
 						<p class="text-2xl sm:text-3xl font-bold tabular-nums text-success leading-none">{trip.joinedCount}</p>
-						<p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-text-secondary mt-1.5">Angemeldet</p>
+						<p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-text-secondary mt-1.5">Dabei</p>
+					</div>
+					<div class="rounded-xl border border-accent/35 bg-accent/10 px-3 py-3 text-center shadow-sm">
+						<p class="text-2xl sm:text-3xl font-bold tabular-nums text-accent leading-none">{trip.conditionalCount}</p>
+						<p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-text-secondary mt-1.5">Bedingt</p>
 					</div>
 					<div class="rounded-xl border border-border bg-bg-secondary/80 px-3 py-3 text-center shadow-sm">
-						<p class="text-2xl sm:text-3xl font-bold tabular-nums text-text-primary leading-none">{trip.pendingCount}</p>
+						<p class="text-2xl sm:text-3xl font-bold tabular-nums text-text-primary leading-none">{trip.pendingCount + trip.abstainedCount}</p>
 						<p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-text-muted mt-1.5">Offen</p>
 					</div>
 					<div class="rounded-xl border border-danger/35 bg-danger/10 px-3 py-3 text-center shadow-sm">
 						<p class="text-2xl sm:text-3xl font-bold tabular-nums text-danger leading-none">{trip.declinedCount}</p>
-						<p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-text-secondary mt-1.5">Abgemeldet</p>
+						<p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-text-secondary mt-1.5">Nicht dabei</p>
 					</div>
 				</div>
 
 				<div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
 					<div class="rounded-lg border border-border bg-bg-secondary/50 p-3 space-y-2">
-						<p class="text-xs uppercase tracking-wide text-success">Anmeldung & Anreise</p>
+						<p class="text-xs uppercase tracking-wide text-success">Wer ist dabei?</p>
 						<div class="flex flex-wrap gap-1.5 items-start">
 							{#each trip.memberStates as p}
 								{@const memberKey = `${trip.id}:${p.userId}`}
-								{@const label =
+				{@const label =
 									p.status === 'pending'
 										? 'Offen'
 										: p.status === 'declined'
-											? 'Abgemeldet'
-											: p.transportMode === 'auto_owner'
-												? 'Eigenes Auto'
-												: p.transportMode === 'motorrad'
-													? 'Motorrad'
-													: p.transportMode === 'zug'
-														? 'Zug'
-														: p.transportMode === 'unentschlossen'
-															? 'Unentschlossen'
-															: 'Mitfahrt'}
+											? 'Nicht dabei'
+											: p.status === 'abstained'
+												? 'Weiss noch nicht'
+												: p.status === 'conditional'
+													? 'Dabei, wenn …'
+													: 'Dabei'}
 								{@const chipClass =
 									p.status === 'declined'
 										? 'bg-danger/10 text-danger'
 										: p.status === 'pending'
 											? 'bg-bg-hover text-text-muted'
-											: p.transportMode === 'auto_owner'
-												? 'bg-accent/15 text-accent'
-												: p.transportMode === 'motorrad'
-													? 'bg-amber-500/15 text-amber-400'
+											: p.status === 'abstained'
+												? 'bg-amber-500/15 text-amber-400'
+												: p.status === 'conditional'
+													? 'bg-accent/15 text-accent'
 													: 'bg-success/10 text-success'}
 								<div class="flex flex-col items-start max-w-[min(100%,18rem)]">
 									{#if p.note}
@@ -528,27 +533,26 @@
 								</div>
 							{/each}
 						</div>
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-							<select
-								value={joinTransportMode[trip.id] ?? (trip.myParticipation?.transportMode || 'mitfahrt')}
-								onchange={(e) => (joinTransportMode[trip.id] = (e.currentTarget as HTMLSelectElement).value)}
-								class="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-xs text-text-primary"
-							>
-								<option value="mitfahrt">Mitfahrt</option>
-								<option value="auto_owner">Eigenes Auto</option>
-								<option value="motorrad">Motorrad</option>
-								<option value="zug">Zug</option>
-								<option value="unentschlossen">Unentschlossen</option>
-							</select>
-							<input type="text" value={joinNote[trip.id] ?? (trip.myParticipation?.note || '')} oninput={(e) => (joinNote[trip.id] = (e.currentTarget as HTMLInputElement).value)} placeholder="Notiz für alle sichtbar (optional)" class="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-xs text-text-primary" />
-						</div>
-						<div class="flex gap-2">
-							<button type="button" onclick={() => joinTrip(trip.id)} disabled={busyTripId === trip.id} class="bg-success/15 hover:bg-success/25 text-success px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">Anmelden / Update</button>
-							<button type="button" onclick={() => declineTrip(trip.id)} disabled={busyTripId === trip.id} class="bg-danger/15 hover:bg-danger/25 text-danger px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">Abmelden</button>
+						<input
+							type="text"
+							value={joinNote[trip.id] ?? (trip.myParticipation?.note || '')}
+							oninput={(e) => (joinNote[trip.id] = (e.currentTarget as HTMLInputElement).value)}
+							placeholder="Notiz für alle sichtbar — bei „Dabei, wenn …“ die Bedingung"
+							class="w-full bg-bg-card border border-border rounded-lg px-2 py-1.5 text-xs text-text-primary"
+						/>
+						<div class="flex flex-wrap gap-2">
+							<button type="button" onclick={() => joinTrip(trip.id, 'dabei')} disabled={busyTripId === trip.id} class="bg-success/15 hover:bg-success/25 text-success px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">Dabei</button>
+							<button type="button" onclick={() => joinTrip(trip.id, 'bedingt')} disabled={busyTripId === trip.id} class="bg-accent/15 hover:bg-accent/25 text-accent px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">Dabei, wenn …</button>
+							<button type="button" onclick={() => declineTrip(trip.id)} disabled={busyTripId === trip.id} class="bg-danger/15 hover:bg-danger/25 text-danger px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">Nicht dabei</button>
+							<button type="button" onclick={() => abstainTrip(trip.id)} disabled={busyTripId === trip.id} class="bg-bg-hover hover:bg-bg-secondary text-text-secondary px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">Weiss noch nicht</button>
 							{#if trip.myParticipation}
-								<button type="button" onclick={() => leaveTrip(trip.id)} disabled={busyTripId === trip.id} class="bg-bg-hover hover:bg-bg-secondary text-text-secondary px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">Zurück auf offen</button>
+								<button type="button" onclick={() => leaveTrip(trip.id)} disabled={busyTripId === trip.id} class="bg-bg-hover hover:bg-bg-secondary text-text-muted px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">Zurück auf offen</button>
 							{/if}
 						</div>
+						<p class="text-[11px] text-text-muted">
+							„Dabei, wenn …“ heisst: grundsätzlich dabei, aber nur unter der Bedingung
+							aus deiner Notiz — etwa bei einem anderen Termin aus der Abstimmung.
+						</p>
 					</div>
 
 					<div class="rounded-lg border border-sky-500/30 bg-sky-500/5 p-3 space-y-2">

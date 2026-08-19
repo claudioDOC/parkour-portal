@@ -183,26 +183,32 @@ export function buildTripsPagePayload(user: TripsViewer) {
 					note: null as string | null
 				};
 			const note = row.note?.trim() ? row.note.trim() : null;
-			if (row.transportMode === 'abgemeldet') {
-				return {
-					userId: u.id,
-					username: u.username,
-					avatar: u.avatar,
-					status: 'declined' as const,
-					transportMode: row.transportMode,
-					note
-				};
-			}
+			/**
+			 * Aus dem alten Anreise-Feld ist ein Status geworden:
+			 * dabei · bedingt (dabei, aber unter Vorbehalt) · enthalten ·
+			 * abgemeldet. Alte Einträge („mitfahrt", „zug" …) sind schlicht
+			 * Zusagen und werden als „dabei" gelesen.
+			 */
+			const status =
+				row.transportMode === 'abgemeldet'
+					? ('declined' as const)
+					: row.transportMode === 'enthalten'
+						? ('abstained' as const)
+						: row.transportMode === 'bedingt'
+							? ('conditional' as const)
+							: ('joined' as const);
 			return {
 				userId: u.id,
 				username: u.username,
 				avatar: u.avatar,
-				status: 'joined' as const,
+				status,
 				transportMode: row.transportMode,
 				note
 			};
 		});
 		const joinedCount = memberStates.filter((m) => m.status === 'joined').length;
+		const conditionalCount = memberStates.filter((m) => m.status === 'conditional').length;
+		const abstainedCount = memberStates.filter((m) => m.status === 'abstained').length;
 		const declinedCount = memberStates.filter((m) => m.status === 'declined').length;
 		const pendingCount = memberStates.filter((m) => m.status === 'pending').length;
 
@@ -219,6 +225,8 @@ export function buildTripsPagePayload(user: TripsViewer) {
 			myVoteDestinationId: myVote?.destinationId ?? null,
 			myVoteDateOptionId: myDateVote?.dateOptionId ?? null,
 			joinedCount,
+			conditionalCount,
+			abstainedCount,
 			declinedCount,
 			pendingCount
 		};

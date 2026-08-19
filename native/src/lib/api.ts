@@ -708,7 +708,8 @@ export type Trip = {
 		userId: number;
 		username: string;
 		avatar?: string | null;
-		status: 'joined' | 'declined' | 'pending';
+		/** conditional = dabei, aber unter Vorbehalt (Bedingung in der Notiz). */
+		status: 'joined' | 'conditional' | 'abstained' | 'declined' | 'pending';
 		transportMode: string | null;
 		note: string | null;
 	}[];
@@ -737,6 +738,8 @@ export type Trip = {
 	myParticipation: { userId: number; transportMode: string | null; note?: string | null } | null;
 	myVoteDateOptionId: number | null;
 	joinedCount: number;
+	conditionalCount: number;
+	abstainedCount: number;
 	declinedCount: number;
 	pendingCount: number;
 };
@@ -755,13 +758,15 @@ export const getTrips = () => get<TripsPayload>('/api/v1/trips');
  * keine Zeile = offen, 'abgemeldet' = nicht dabei,
  * 'enthalten'/'unentschlossen' = enthalten, alles andere = dabei.
  */
-export function myTripStatus(trip: Trip): 'pending' | 'declined' | 'abstained' | 'joined' {
+export function myTripStatus(
+	trip: Trip
+): 'pending' | 'declined' | 'abstained' | 'conditional' | 'joined' {
 	const mode = trip.myParticipation?.transportMode;
 	if (mode === undefined || trip.myParticipation === null) return 'pending';
 	if (mode === 'abgemeldet') return 'declined';
-	// „unentschlossen" ist ein Anreise-Modus einer ANGEMELDETEN Person —
-	// der Server zählt sie mit. Nur „enthalten" heisst wirklich enthalten.
 	if (mode === 'enthalten') return 'abstained';
+	if (mode === 'bedingt') return 'conditional';
+	// Alles Übrige — auch die alten Anreise-Werte — ist eine Zusage.
 	return 'joined';
 }
 

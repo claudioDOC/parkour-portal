@@ -46,31 +46,27 @@ function formatRange(start: string, end: string | null): string {
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Exakt die Auswahl der Trips-Seite im Portal. */
-const TRANSPORT_MODES = [
-	{ key: 'mitfahrt', label: 'Ich fahre mit' },
-	{ key: 'auto_owner', label: 'Ich nehme mein Auto' },
-	{ key: 'motorrad', label: 'Motorrad' },
-	{ key: 'zug', label: 'Zug' },
-	{ key: 'unentschlossen', label: 'Noch unentschlossen' }
+/**
+ * Zusage-Arten. Die Anreise steht bewusst nicht mehr hier — sie war eine
+ * Pflichtauswahl ohne Nutzen. Wer mag, schreibt sie in die Notiz.
+ */
+const JOIN_MODES = [
+	{ key: 'dabei', label: 'Dabei', hint: 'Fest zugesagt.' },
+	{
+		key: 'bedingt',
+		label: 'Dabei, wenn …',
+		hint: 'Grundsätzlich dabei — die Bedingung steht in der Notiz, z. B. ein anderer Termin.'
+	}
 ];
 
 /** Chip-Beschriftung pro Person — dieselben Worte wie die Web-Seite. */
 function memberLabel(m: Trip['memberStates'][number]): string {
 	if (m.status === 'pending') return 'Offen';
-	if (m.status === 'declined') return 'Abgemeldet';
-	switch (m.transportMode) {
-		case 'auto_owner':
-			return 'Eigenes Auto';
-		case 'motorrad':
-			return 'Motorrad';
-		case 'zug':
-			return 'Zug';
-		case 'unentschlossen':
-			return 'Unentschlossen';
-		default:
-			return 'Mitfahrt';
-	}
+	if (m.status === 'declined') return 'Nicht dabei';
+	if (m.status === 'abstained') return 'Weiss noch nicht';
+	if (m.status === 'conditional') return 'Dabei, wenn …';
+	// Alte Einträge trugen die Anreiseart — sie sind schlicht Zusagen.
+	return 'Dabei';
 }
 
 export default function Trips() {
@@ -225,19 +221,27 @@ export default function Trips() {
 
 						{trip.notes ? <Text style={styles.notes}>{trip.notes}</Text> : null}
 
-						{/* Zählkacheln wie im Web: Angemeldet / Offen / Abgemeldet */}
+						{/* Zählkacheln wie im Web: Dabei / Bedingt / Offen / Nicht dabei */}
 						<View style={styles.tilesRow}>
 							<View style={[styles.tile, { borderColor: colors.success + '59' }]}>
 								<Text style={[styles.tileNum, { color: colors.success }]}>{trip.joinedCount}</Text>
-								<Text style={styles.tileLabel}>Angemeldet</Text>
+								<Text style={styles.tileLabel}>Dabei</Text>
 							</View>
+							{trip.conditionalCount > 0 ? (
+								<View style={[styles.tile, { borderColor: colors.accent + '59' }]}>
+									<Text style={[styles.tileNum, { color: colors.accent }]}>
+										{trip.conditionalCount}
+									</Text>
+									<Text style={styles.tileLabel}>Bedingt</Text>
+								</View>
+							) : null}
 							<View style={styles.tile}>
-								<Text style={styles.tileNum}>{trip.pendingCount}</Text>
+								<Text style={styles.tileNum}>{trip.pendingCount + trip.abstainedCount}</Text>
 								<Text style={styles.tileLabel}>Offen</Text>
 							</View>
 							<View style={[styles.tile, { borderColor: colors.danger + '59' }]}>
 								<Text style={[styles.tileNum, { color: colors.danger }]}>{trip.declinedCount}</Text>
-								<Text style={styles.tileLabel}>Abgemeldet</Text>
+								<Text style={styles.tileLabel}>Nicht dabei</Text>
 							</View>
 						</View>
 
@@ -250,9 +254,11 @@ export default function Trips() {
 										? colors.danger
 										: m.status === 'pending'
 											? colors.fg + textAlpha.muted
-											: m.transportMode === 'auto_owner'
-												? colors.accent
-												: colors.success;
+											: m.status === 'abstained'
+												? colors.warning
+												: m.status === 'conditional'
+													? colors.accent
+													: colors.success;
 								return (
 									<Pressable
 										key={key}
@@ -490,7 +496,7 @@ export default function Trips() {
 									<Pill label="✓ Du bist dabei" color={colors.success} />
 									<Button label="Ändern" kind="ghost" small onPress={() => openJoin(trip)} />
 									<Button
-										label="Abmelden"
+										label="Nicht dabei"
 										kind="ghost"
 										small
 										onPress={() => act(() => tripAction('decline_trip', trip.id))}
@@ -515,10 +521,21 @@ export default function Trips() {
 								</>
 							) : status === 'abstained' ? (
 								<>
-									<Pill label="Enthalten" color={colors.warning} />
+									<Pill label="Weiss noch nicht" color={colors.warning} />
 									<Button label="Dabei!" small onPress={() => openJoin(trip)} />
 									<Button
-										label="Abmelden"
+										label="Nicht dabei"
+										kind="ghost"
+										small
+										onPress={() => act(() => tripAction('decline_trip', trip.id))}
+									/>
+								</>
+							) : status === 'conditional' ? (
+								<>
+									<Pill label="Dabei, wenn …" color={colors.accent} />
+									<Button label="Ändern" small onPress={() => openJoin(trip)} />
+									<Button
+										label="Nicht dabei"
 										kind="ghost"
 										small
 										onPress={() => act(() => tripAction('decline_trip', trip.id))}
@@ -550,14 +567,14 @@ export default function Trips() {
 				<EmptyState icon="car-outline" text="Kein Trip geplant — erstell den ersten mit dem + oben." />
 			) : null}
 
-			{/* Transportmittel-Auswahl beim Beitritt — Antippen sendet inkl. Notiz */}
-			<Sheet visible={joinFor !== null} onClose={() => setJoinFor(null)} title="Wie kommst du hin?">
+			{/* Zusage: fest oder unter Vorbehalt — die Bedingung steht in der Notiz. */}
+			<Sheet visible={joinFor !== null} onClose={() => setJoinFor(null)} title="Bist du dabei?">
 				<Input
-					placeholder="Notiz für alle sichtbar (optional)"
+					placeholder="Notiz für alle sichtbar — bei „wenn“ die Bedingung"
 					value={joinNote}
 					onChangeText={setJoinNote}
 				/>
-				{TRANSPORT_MODES.map((mode) => (
+				{JOIN_MODES.map((mode) => (
 					<Pressable
 						key={mode.key}
 						style={({ pressed }) => [styles.modeRow, pressed && { opacity: 0.7 }]}
@@ -565,10 +582,13 @@ export default function Trips() {
 							const trip = joinFor!;
 							const note = joinNote.trim();
 							setJoinFor(null);
-							act(() => tripAction('join_trip', trip.id, { transportMode: mode.key, note }));
+							act(() => tripAction('join_trip', trip.id, { mode: mode.key, note }));
 						}}
 					>
-						<Text style={styles.modeText}>{mode.label}</Text>
+						<View style={{ flex: 1 }}>
+							<Text style={styles.modeText}>{mode.label}</Text>
+							<Text style={styles.modeHint}>{mode.hint}</Text>
+						</View>
 						<Ionicons name="chevron-forward" size={17} color={colors.textMuted} />
 					</Pressable>
 				))}
@@ -916,7 +936,8 @@ const makeStyles = (colors: ThemeColors) =>
 		paddingHorizontal: 16,
 		paddingVertical: 12
 	},
-	modeText: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi, flex: 1 },
+	modeText: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi },
+	modeHint: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 17, fontFamily: fonts.sans },
 	stopRow: {
 		flexDirection: 'row',
 		alignItems: 'center',

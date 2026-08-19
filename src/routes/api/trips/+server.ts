@@ -329,7 +329,13 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	if (action === 'join_trip') {
-		const transportMode = String(body?.transportMode || 'mitfahrt').trim() || 'mitfahrt';
+		/**
+		 * „dabei" oder „bedingt" (dabei, aber unter Vorbehalt — die
+		 * Bedingung steht in der Notiz). Die alten Anreise-Werte werden
+		 * weiterhin angenommen, damit ältere App-Versionen nicht brechen.
+		 */
+		const raw = String(body?.mode ?? body?.transportMode ?? 'dabei').trim();
+		const transportMode = raw === 'bedingt' ? 'bedingt' : raw || 'dabei';
 		const note = String(body?.note || '').trim();
 		const existing = db
 			.select({ id: tripParticipants.id })
@@ -342,7 +348,7 @@ export const POST: RequestHandler = async (event) => {
 					transportMode,
 					decidedAt: sql`(datetime('now'))`,
 					vehicleFrom: null,
-					hasCar: transportMode === 'auto_owner',
+					hasCar: false,
 					seatsOffered: 0,
 					note: note || null
 				})
@@ -356,7 +362,7 @@ export const POST: RequestHandler = async (event) => {
 					transportMode,
 					decidedAt: sql`(datetime('now'))`,
 					vehicleFrom: null,
-					hasCar: transportMode === 'auto_owner',
+					hasCar: false,
 					seatsOffered: 0,
 					note: note || null
 				})
