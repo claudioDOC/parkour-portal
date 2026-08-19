@@ -61,9 +61,59 @@ export async function downloadAndInstallApk(
 	const result = await task.downloadAsync();
 	if (!result?.uri) throw new Error('Download fehlgeschlagen');
 
+	// Kam weniger an als angekündigt, ist die Datei kaputt — Androids
+	// Installer meldet das nicht, er tut einfach nichts.
+	try {
+		const stat = await FileSystem.getInfoAsync(result.uri);
+		const got = stat.exists && 'size' in stat ? (stat.size as number) : 0;
+		if (info.sizeBytes > 0 && got > 0 && got < info.sizeBytes * 0.98) {
+			throw new Error(
+				`Download unvollständig (${Math.round(got / 1048576)} von ${Math.round(info.sizeBytes / 1048576)} MB). Bitte mit stabilem WLAN erneut versuchen.`
+			);
+		}
+	} catch (e) {
+		if (e instanceof Error && e.message.startsWith('Download unvollständig')) throw e;
+		// Grössenprüfung nicht möglich — trotzdem weiter versuchen.
+	}
+
 	const contentUri = await FileSystem.getContentUriAsync(result.uri);
-	await IntentLauncher.startActivityAsync('android.intent.action.INSTALL_PACKAGE', {
-		data: contentUri,
-		flags: 1 // FLAG_GRANT_READ_URI_PERMISSION
-	});
+
+	// FLAG_GRANT_READ_URI_PERMISSION (1) + FLAG_ACTIVITY_NEW_TASK (0x10000000).
+	const FLAGS = 1 | 0x10000000;
+
+	// Erst der reguläre Weg: „Datei öffnen" mit dem APK-Typ. Der frühere
+	// Aufruf INSTALL_PACKAGE gilt seit Android 10 als überholt — viele
+	// Geräte tun damit schlicht NICHTS, die App wirkt dann eingefroren.
+	try {
+		await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+			data: contentUri,
+			type: 'application/vnd.android.package-archive',
+			flags: FLAGS
+		});
+		return;
+	} catch {
+		/* nächster Versuch */
+	}
+
+	try {
+		await IntentLauncher.startActivityAsync('android.intent.action.INSTALL_PACKAGE', {
+			data: contentUri,
+			flags: FLAGS
+		});
+	} catch {
+		throw new Error('INSTALL_BLOCKED');
+	}
+}
+
+/**
+ * Öffnet die Android-Einstellung „Unbekannte Apps installieren" für diese
+ * App. Ohne diese Erlaubnis öffnet sich gar kein Installationsdialog.
+ */
+export async function openInstallPermissionSettings(): Promise<void> {
+	const IntentLauncher = require('expo-intent-launcher') as typeof import('expo-intent-launcher');
+	const pkg = Application.applicationId ?? 'org.duckdns.matetraining.app';
+	await IntentLauncher.startActivityAsync(
+		'android.settings.MANAGE_UNKNOWN_APP_SOURCES',
+		{ data: `package:${pkg}` }
+	);
 }

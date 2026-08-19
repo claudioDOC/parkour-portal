@@ -11,7 +11,11 @@ import { Card, TopBar, Screen, Avatar, Sheet, Input, Button } from '../../lib/ui
 import { THEMES, THEME_OPTIONS } from '../../lib/theme';
 import { useData } from '../../lib/store';
 import { getProfile, saveUiTheme, adminBroadcast, BASE_URL } from '../../lib/api';
-import { checkApkUpdate, downloadAndInstallApk } from '../../lib/apkUpdate';
+import {
+	checkApkUpdate,
+	downloadAndInstallApk,
+	openInstallPermissionSettings
+} from '../../lib/apkUpdate';
 import { useAuth } from '../_layout';
 
 const MENU = [
@@ -91,7 +95,26 @@ export default function More() {
 								setInstalling(0);
 								await downloadAndInstallApk(apk, (p) => setInstalling(p));
 							} catch (e) {
-								Alert.alert('Fehler', e instanceof Error ? e.message : 'Download fehlgeschlagen');
+								const blocked = e instanceof Error && e.message === 'INSTALL_BLOCKED';
+								Alert.alert(
+									blocked ? 'Installation blockiert' : 'Fehler',
+									blocked
+										? 'Android erlaubt dieser App nicht, Apps zu installieren. Die Einstellung öffnet sich jetzt — dort „Aus dieser Quelle zulassen" einschalten und den Vorgang wiederholen.'
+										: e instanceof Error
+											? e.message
+											: 'Download fehlgeschlagen',
+									blocked
+										? [
+												{ text: 'Abbrechen', style: 'cancel' },
+												{
+													text: 'Einstellung öffnen',
+													onPress: () => {
+														openInstallPermissionSettings().catch(() => {});
+													}
+												}
+											]
+										: [{ text: 'OK' }]
+								);
 							} finally {
 								setInstalling(null);
 							}

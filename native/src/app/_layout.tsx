@@ -1,7 +1,7 @@
 import { useEffect, useState, createContext, useContext } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, AppState, Alert } from 'react-native';
+import { View, Text, ActivityIndicator, AppState, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Updates from 'expo-updates';
 import { useFonts } from 'expo-font';
@@ -12,11 +12,11 @@ import {
 	PlusJakartaSans_600SemiBold,
 	PlusJakartaSans_700Bold
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { THEMES, DEFAULT_THEME, isThemeId, type UiThemeId } from '../lib/theme';
+import { THEMES, DEFAULT_THEME, isThemeId, type UiThemeId, type ThemeColors } from '../lib/theme';
 import { ThemeProvider, useTheme } from '../lib/themeContext';
 import { getMe, getToken, logout, type Me } from '../lib/api';
 import { loadPrefs } from '../lib/prefs';
-import { checkApkUpdate, downloadAndInstallApk } from '../lib/apkUpdate';
+import { checkApkUpdate, downloadAndInstallApk, openInstallPermissionSettings } from '../lib/apkUpdate';
 import { readToken, writeToken } from '../lib/tokenStore';
 import { BASE_URL } from '../lib/api';
 import { setupPush } from '../lib/pushSetup';
@@ -77,6 +77,35 @@ function useSelfHostedUpdates() {
 	}, []);
 }
 
+/** Vollbild-Hinweis während des APK-Downloads — sonst wirkt die App tot. */
+function InstallOverlay({ percent, colors }: { percent: number; colors: ThemeColors }) {
+	return (
+		<View
+			style={{
+				position: 'absolute',
+				top: 0,
+				left: 0,
+				right: 0,
+				bottom: 0,
+				backgroundColor: 'rgba(0,0,0,0.82)',
+				alignItems: 'center',
+				justifyContent: 'center',
+				padding: 32,
+				gap: 14
+			}}
+		>
+			<ActivityIndicator size="large" color={colors.accent} />
+			<Text style={{ color: '#fff', fontSize: 17, fontWeight: '600' }}>
+				{`Neue App-Version wird geladen … ${percent}%`}
+			</Text>
+			<Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, textAlign: 'center' }}>
+				Rund 64 MB. Danach fragt Android, ob es installieren darf — bitte
+				bestätigen. Die App bleibt so lange offen.
+			</Text>
+		</View>
+	);
+}
+
 /**
  * Steckt IN den Providern, damit die Animations-Einstellung sofort
  * wirkt: ohne Animationen werden Seitenwechsel hart geschnitten.
@@ -107,6 +136,8 @@ export default function RootLayout() {
 	const [splashDone, setSplashDone] = useState(false);
 	/** Ziel einer angetippten Benachrichtigung, bis die Navigation steht. */
 	const [pendingLink, setPendingLink] = useState<string | null>(null);
+	/** Fortschritt der APK-Installation in Prozent; null = läuft nicht. */
+	const [installing, setInstalling] = useState<number | null>(null);
 	// Theme folgt dem Profil (uiTheme), wie data-theme auf der Website.
 	const [themeId, setThemeId] = useState<UiThemeId>(DEFAULT_THEME);
 	useEffect(() => {
@@ -156,6 +187,41 @@ export default function RootLayout() {
 		})();
 	}, []);
 
+	/**
+	 * Lädt und installiert die neue APK — mit sichtbarem Fortschritt.
+	 * Ohne Anzeige wirkte die App während des 64-MB-Downloads eingefroren
+	 * („grau"), und blieb Androids Installationsdialog aus, stand man
+	 * ratlos da.
+	 */
+	const startApkInstall = (apk: Parameters<typeof downloadAndInstallApk>[0]) => {
+		setInstalling(0);
+		downloadAndInstallApk(apk, (p) => setInstalling(p))
+			.then(() => setInstalling(null))
+			.catch((e) => {
+				setInstalling(null);
+				const blocked = e instanceof Error && e.message === 'INSTALL_BLOCKED';
+				Alert.alert(
+					blocked ? 'Installation blockiert' : 'Fehler',
+					blocked
+						? 'Android erlaubt dieser App nicht, Apps zu installieren. Die Einstellung öffnet sich jetzt — dort „Aus dieser Quelle zulassen" einschalten und den Vorgang wiederholen.'
+						: e instanceof Error
+							? e.message
+							: 'Download fehlgeschlagen',
+					blocked
+						? [
+								{ text: 'Abbrechen', style: 'cancel' },
+								{
+									text: 'Einstellung öffnen',
+									onPress: () => {
+										openInstallPermissionSettings().catch(() => {});
+									}
+								}
+							]
+						: [{ text: 'OK' }]
+				);
+			});
+	};
+
 	// Neue App-Version (native Änderungen) höflich anbieten: höchstens
 	// einmal am Tag, und nur wenn jemand eingeloggt ist.
 	useEffect(() => {
@@ -166,20 +232,21 @@ export default function RootLayout() {
 				if ((await readToken('apk-hint-day')) === today) return;
 				const apk = await checkApkUpdate(BASE_URL || 'https://matetraining.duckdns.org');
 				if (!apk) return;
-				await writeToken('apk-hint-day', today);
 				Alert.alert(
 					`Neue App-Version ${apk.version}`,
 					`Es gibt eine neue Version mit Änderungen, die eine Installation brauchen (${Math.round(apk.sizeBytes / 1048576)} MB). Jetzt laden und installieren?`,
 					[
-						{ text: 'Später', style: 'cancel' },
 						{
-							text: 'Installieren',
+							text: 'Später',
+							style: 'cancel',
+							// Erst das Vertagen zählt als „heute erledigt". Vorher
+							// abgehakt hiess: nach einem Fehlschlag kam den ganzen
+							// Tag keine Nachfrage mehr.
 							onPress: () => {
-								downloadAndInstallApk(apk).catch((e) =>
-									Alert.alert('Fehler', e instanceof Error ? e.message : 'Download fehlgeschlagen')
-								);
+								writeToken('apk-hint-day', today).catch(() => {});
 							}
-						}
+						},
+						{ text: 'Installieren', onPress: () => startApkInstall(apk) }
 					]
 				);
 			} catch {
@@ -255,6 +322,7 @@ export default function RootLayout() {
 			<ActivityProvider enabled={me !== null}>
 				<StatusBar style={colors.dark ? 'light' : 'dark'} />
 				<AppStack bg={colors.bg} />
+				{installing !== null ? <InstallOverlay percent={installing} colors={colors} /> : null}
 			</ActivityProvider>
 			</ThemeProvider>
 		</AuthContext.Provider>
