@@ -54,12 +54,22 @@ export function DateField({
 	const base = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date();
 	const [view, setView] = useState({ y: base.getFullYear(), m: base.getMonth() });
 
+	/**
+	 * IMMER sechs Wochenzeilen — auch wenn der Monat nur fünf braucht.
+	 *
+	 * Sonst ändert sich die Höhe von Monat zu Monat. Das Sheet wächst vom
+	 * unteren Rand nach oben, also wandern die Pfeile bei jedem Wechsel an
+	 * eine andere Stelle und man klickt daneben. Die Tage der Nachbarmonate
+	 * füllen die Lücken, sind aber nicht wählbar.
+	 */
 	const daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
 	const lead = firstWeekdayIndex(view.y, view.m);
-	const cells: (number | null)[] = [
-		...Array.from({ length: lead }, () => null),
-		...Array.from({ length: daysInMonth }, (_, i) => i + 1)
+	const prevDays = new Date(view.y, view.m, 0).getDate();
+	const cells: { day: number; own: boolean }[] = [
+		...Array.from({ length: lead }, (_, i) => ({ day: prevDays - lead + 1 + i, own: false })),
+		...Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, own: true }))
 	];
+	while (cells.length < 42) cells.push({ day: cells.length - lead - daysInMonth + 1, own: false });
 
 	const monthName = new Date(view.y, view.m, 1).toLocaleDateString('de-CH', {
 		month: 'long',
@@ -105,8 +115,17 @@ export function DateField({
 								{w}
 							</Text>
 						))}
-						{cells.map((day, i) => {
-							if (day === null) return <View key={`x${i}`} style={styles.cell} />;
+						{cells.map((cell, i) => {
+							if (!cell.own) {
+								return (
+									<View key={`x${i}`} style={styles.cell}>
+										<Text style={[styles.day, { color: colors.fg + textAlpha.muted }]}>
+											{cell.day}
+										</Text>
+									</View>
+								);
+							}
+							const day = cell.day;
 							const iso = ymd(view.y, view.m, day);
 							const disabled = (min && iso < min) || (max && iso > max);
 							const active = iso === value;
