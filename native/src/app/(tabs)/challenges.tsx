@@ -155,7 +155,7 @@ export default function Challenges() {
 									>
 										{ch.images?.[0] && !isVideoUrl(ch.images[0].url) ? (
 											<Image
-												source={{ uri: mediaUrl(ch.images[0].url) ?? undefined }}
+												source={{ uri: mediaUrl(ch.images[0].url, 240) ?? undefined }}
 												style={styles.chImage}
 												contentFit="cover"
 												transition={150}

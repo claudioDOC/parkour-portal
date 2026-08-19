@@ -122,7 +122,7 @@ export default function Profile() {
 					<Modal visible={showFull} transparent animationType="fade">
 						<Pressable style={styles.viewerBackdrop} onPress={() => setShowFull(false)}>
 							<Image
-								source={{ uri: mediaUrl(p.avatarFull ?? p.avatar) ?? undefined }}
+								source={{ uri: mediaUrl(p.avatarFull ?? p.avatar, 480) ?? undefined }}
 								style={styles.viewerImage}
 								contentFit="contain"
 							/>

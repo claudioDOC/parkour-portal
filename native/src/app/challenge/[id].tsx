@@ -198,7 +198,7 @@ export default function ChallengeDetail() {
 										</View>
 									) : (
 										<Image
-											source={{ uri: mediaUrl(img.url) ?? undefined }}
+											source={{ uri: mediaUrl(img.url, 480) ?? undefined }}
 											style={styles.media}
 											contentFit="cover"
 											transition={150}

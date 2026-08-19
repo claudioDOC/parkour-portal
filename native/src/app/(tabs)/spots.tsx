@@ -161,7 +161,7 @@ function SpotRow({ spot, onPress }: { spot: SpotListItem; onPress: () => void })
 				<View style={[styles.row, pressed && { opacity: 0.8 }]}>
 					{spot.thumbnail ? (
 						<Image
-							source={{ uri: mediaUrl(spot.thumbnail) ?? undefined }}
+							source={{ uri: mediaUrl(spot.thumbnail, 960) ?? undefined }}
 							style={styles.thumb}
 							contentFit="cover"
 							transition={150}

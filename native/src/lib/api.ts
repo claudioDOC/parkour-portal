@@ -14,15 +14,25 @@ import { Platform } from 'react-native';
 export const BASE_URL = Platform.OS === 'web' ? '' : 'https://matetraining.duckdns.org';
 
 /** Relative Upload-Pfade (/uploads/…) zu vollen URLs machen. */
-export function mediaUrl(path: string | null | undefined): string | null {
-	if (!path) return null;
-	if (path.startsWith('http')) return path;
-	return `${BASE_URL || 'https://matetraining.duckdns.org'}${path}`;
-}
-
 /** Videos brauchen einen Player, Bilder nicht — überall gleich erkannt. */
 export const isVideoUrl = (url: string | null | undefined) =>
 	!!url && /\.(mp4|mov|webm)(\?|$)/i.test(url);
+
+/**
+ * Adresse eines Bildes oder Videos.
+ *
+ * `width` fordert eine verkleinerte Fassung an (120/240/480/960). Ohne
+ * das lieferte jede Vorschau das Original — bei Handyfotos mehrere
+ * Megabyte pro Bild, was Listen und Galerien spürbar bremst.
+ */
+export function mediaUrl(path: string | null | undefined, width?: 120 | 240 | 480 | 960) {
+	if (!path) return null;
+	const base = path.startsWith('http')
+		? path
+		: `${BASE_URL || 'https://matetraining.duckdns.org'}${path}`;
+	if (!width || isVideoUrl(path)) return base;
+	return `${base}${base.includes('?') ? '&' : '?'}w=${width}`;
+}
 
 const TOKEN_KEY = 'parkour-token';
 

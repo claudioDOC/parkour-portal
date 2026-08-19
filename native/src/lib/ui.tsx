@@ -396,7 +396,9 @@ export function Avatar({
 }) {
 	const { colors } = useTheme();
 	const color = AVATAR_COLORS[index % AVATAR_COLORS.length];
-	const url = mediaUrl(avatar);
+	// Profilbilder erscheinen nirgends grösser als ~120 px — die kleine
+	// Fassung genügt und spart bei Listen ein Vielfaches an Daten.
+	const url = mediaUrl(avatar, 120);
 	if (url) {
 		return (
 			<Image

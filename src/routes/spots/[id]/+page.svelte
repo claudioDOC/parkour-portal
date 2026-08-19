@@ -800,7 +800,7 @@
 						aria-label="Bild vergrössern"
 					>
 						<img
-							src={img.url}
+							src={`${img.url}?w=480`}
 							alt={data.spot.name}
 							class="aspect-video w-full object-cover"
 							loading="lazy"
@@ -1383,7 +1383,7 @@
 														aria-label="Challenge-Bild vergrössern"
 													>
 														<img
-															src={img.url}
+															src={`${img.url}?w=480`}
 															alt=""
 															class="h-24 max-w-[min(100%,14rem)] rounded-lg border border-border object-cover pointer-events-none"
 															loading="lazy"

@@ -85,7 +85,7 @@
 					<a href="/spots/{spot.id}" class="bg-bg-card rounded-xl border border-border hover:border-accent/50 transition-colors block overflow-hidden group">
 						{#if spot.thumbnail}
 							<div class="h-36 overflow-hidden">
-								<img src={spot.thumbnail} alt={spot.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+								<img src={`${spot.thumbnail}?w=480`} alt={spot.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
 							</div>
 						{/if}
 						<div class="p-5">

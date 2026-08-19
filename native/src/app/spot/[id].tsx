@@ -432,7 +432,7 @@ export default function SpotDetailScreen() {
 											onLongPress={() => (mayDelete ? removePhoto(item.id) : undefined)}
 										>
 											<Image
-												source={{ uri: mediaUrl(item.url) ?? undefined }}
+												source={{ uri: mediaUrl(item.url, 480) ?? undefined }}
 												style={styles.galleryImage}
 												contentFit="cover"
 												transition={150}
@@ -628,7 +628,7 @@ export default function SpotDetailScreen() {
 												</View>
 											) : (
 												<Image
-													source={{ uri: mediaUrl(ch.images[0].url) ?? undefined }}
+													source={{ uri: mediaUrl(ch.images[0].url, 480) ?? undefined }}
 													style={styles.challengeImage}
 													contentFit="cover"
 													transition={150}

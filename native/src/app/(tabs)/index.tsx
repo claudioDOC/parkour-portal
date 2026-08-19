@@ -353,7 +353,7 @@ export default function Dashboard() {
 						{s.spotThumbnail ? (
 							<View>
 								<Image
-									source={{ uri: mediaUrl(s.spotThumbnail) ?? undefined }}
+									source={{ uri: mediaUrl(s.spotThumbnail, 960) ?? undefined }}
 									style={styles.hero}
 									contentFit="cover"
 									transition={200}

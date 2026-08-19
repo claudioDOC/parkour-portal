@@ -177,7 +177,7 @@ export default function MapScreen() {
 						<View style={styles.sheetRow}>
 							{selected.thumbnail ? (
 								<Image
-									source={{ uri: mediaUrl(selected.thumbnail) ?? undefined }}
+									source={{ uri: mediaUrl(selected.thumbnail, 480) ?? undefined }}
 									style={styles.thumb}
 									contentFit="cover"
 								/>

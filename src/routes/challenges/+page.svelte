@@ -153,7 +153,7 @@
 												{#if ch.images && ch.images.length > 0 && isVideoUrl(ch.images[0].url)}
 													<!-- svelte-ignore a11y_media_has_caption -->
 													<video
-														src={ch.images[0].url}
+														src={`${ch.images[0].url}?w=240`}
 														controls
 														playsinline
 														preload="metadata"
@@ -172,7 +172,7 @@
 														aria-label="Challenge-Bild vergrössern"
 													>
 														<img
-															src={ch.images[0].url}
+															src={`${ch.images[0].url}?w=240`}
 															alt=""
 															class="pointer-events-none h-20 w-full rounded-lg border border-border object-cover sm:h-16"
 															loading="lazy"

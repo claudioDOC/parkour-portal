@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import sharp from 'sharp';
 import { Readable } from 'node:stream';
 import { join, resolve } from 'node:path';
 import { getUploadReadDirs } from '$lib/server/uploads';
@@ -18,7 +19,31 @@ const MIME: Record<string, string> = {
 
 const STREAMED = new Set(['mp4', 'mov', 'webm']);
 
-export const GET: RequestHandler = async ({ params, request }) => {
+/**
+ * Verkleinerte Fassungen für Galerien und Listen.
+ *
+ * Vorher lieferte jede Vorschau das Original — bei Handyfotos gern 4–8 MB
+ * pro Bild. Eine Spot-Seite mit zehn Bildern zog damit zig Megabyte und
+ * ruckelte entsprechend. Erlaubte Breiten sind fest vorgegeben, damit
+ * niemand den Server mit beliebigen Grössen beschäftigen kann; erzeugte
+ * Fassungen liegen als WebP im Zwischenspeicher auf der Platte.
+ */
+const THUMB_WIDTHS = new Set([120, 240, 480, 960]);
+
+function thumbnail(filepath: string, width: number, cacheDir: string, name: string): Buffer | null {
+	try {
+		mkdirSync(cacheDir, { recursive: true });
+		const cached = join(cacheDir, `${width}-${name}.webp`);
+		if (existsSync(cached) && statSync(cached).mtimeMs >= statSync(filepath).mtimeMs) {
+			return readFileSync(cached);
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+export const GET: RequestHandler = async ({ params, request, url }) => {
 	const raw = params.path;
 	if (!raw) throw error(404, 'Not found');
 
@@ -70,6 +95,44 @@ export const GET: RequestHandler = async ({ params, request }) => {
 				return new Response(Readable.toWeb(nodeStream) as unknown as ReadableStream, {
 					headers: { ...common, 'content-length': String(size) }
 				});
+			}
+
+			// Verkleinerte Fassung, falls angefragt und die Breite erlaubt ist.
+			const wanted = Number(url.searchParams.get('w') ?? '');
+			if (THUMB_WIDTHS.has(wanted)) {
+				const name = segments.at(-1) ?? 'bild';
+				const cacheDir = join(baseResolved, '.thumbs');
+				const cachedBuf = thumbnail(filepath, wanted, cacheDir, name);
+				if (cachedBuf) {
+					return new Response(new Uint8Array(cachedBuf), {
+						headers: {
+							'content-type': 'image/webp',
+							'cache-control': 'public, max-age=604800',
+							'X-Content-Type-Options': 'nosniff'
+						}
+					});
+				}
+				try {
+					const small = await sharp(filepath)
+						.rotate()
+						.resize({ width: wanted, withoutEnlargement: true })
+						.webp({ quality: 80 })
+						.toBuffer();
+					try {
+						writeFileSync(join(cacheDir, `${wanted}-${name}.webp`), small);
+					} catch {
+						/* ohne Zwischenspeicher halt jedes Mal neu */
+					}
+					return new Response(new Uint8Array(small), {
+						headers: {
+							'content-type': 'image/webp',
+							'cache-control': 'public, max-age=604800',
+							'X-Content-Type-Options': 'nosniff'
+						}
+					});
+				} catch {
+					// Kein Bild oder Umwandlung fehlgeschlagen — Original liefern.
+				}
 			}
 
 			const buf = readFileSync(filepath);
