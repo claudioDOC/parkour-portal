@@ -948,9 +948,6 @@ export default function SpotDetailScreen() {
 									onSingleTap={() => setViewer(null)}
 								/>
 							) : null}
-							<Text style={styles.viewerHint}>
-								Zwei Finger zum Zoomen · Doppeltippen · Tippen schliesst
-							</Text>
 							<Pressable style={styles.viewerClose} onPress={() => setViewer(null)}>
 								<Ionicons name="close" size={28} color="#fff" />
 							</Pressable>

@@ -45,14 +45,22 @@ export function ZoomableImage({
 		tapSeq: 0
 	}).current;
 
+	/**
+	 * Bewusst OHNE nativen Antrieb.
+	 *
+	 * Sobald ein Wert einmal nativ animiert wurde, wirken spätere
+	 * setValue-Aufrufe aus der Geste nicht mehr auf die Ansicht — nach dem
+	 * ersten Doppeltipp liess sich deshalb weder zurückzoomen noch mit zwei
+	 * Fingern etwas bewegen.
+	 */
 	const reset = (toScale = 1) => {
 		s.scale = toScale;
 		s.tx = 0;
 		s.ty = 0;
 		Animated.parallel([
-			Animated.spring(scale, { toValue: toScale, useNativeDriver: true, bounciness: 0 }),
-			Animated.spring(tx, { toValue: 0, useNativeDriver: true, bounciness: 0 }),
-			Animated.spring(ty, { toValue: 0, useNativeDriver: true, bounciness: 0 })
+			Animated.timing(scale, { toValue: toScale, duration: 160, useNativeDriver: false }),
+			Animated.timing(tx, { toValue: 0, duration: 160, useNativeDriver: false }),
+			Animated.timing(ty, { toValue: 0, duration: 160, useNativeDriver: false })
 		]).start();
 	};
 
@@ -72,6 +80,9 @@ export function ZoomableImage({
 			},
 			onPanResponderMove: (e, g) => {
 				const touches = e.nativeEvent.touches;
+				// Finger zittern immer ein wenig. Ohne Schwelle gilt jeder Tipp
+				// als Bewegung — dann greift weder Doppeltipp noch Schliessen.
+				const wandered = Math.abs(g.dx) + Math.abs(g.dy) > 8;
 				if (touches.length > 1) {
 					const [a, b] = touches;
 					const dist = Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY);
@@ -83,10 +94,10 @@ export function ZoomableImage({
 					const next = Math.min(MAX_SCALE, Math.max(1, (s.startScale * dist) / s.startDist));
 					s.scale = next;
 					scale.setValue(next);
-					s.moved = true;
+					if (Math.abs(dist - s.startDist) > 8) s.moved = true;
 					return;
 				}
-				if (s.scale > 1.01) {
+				if (s.scale > 1.01 && wandered) {
 					s.tx = s.startTx + g.dx;
 					s.ty = s.startTy + g.dy;
 					tx.setValue(s.tx);

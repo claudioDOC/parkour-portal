@@ -342,11 +342,6 @@ export default function ChallengeDetail() {
 									/>
 								)
 							) : null}
-							{viewer !== null && !isVideo(challenge.images[viewer]?.url ?? '') ? (
-								<Text style={styles.viewerHint}>
-									Zwei Finger zum Zoomen · Doppeltippen · Tippen schliesst
-								</Text>
-							) : null}
 						</View>
 					</Modal>
 				</>
