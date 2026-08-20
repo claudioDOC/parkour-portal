@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
 	View,
 	Text,
@@ -8,7 +8,9 @@ import {
 	Modal,
 	Dimensions,
 	FlatList,
-	Linking
+	Linking,
+	InteractionManager,
+	ActivityIndicator
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -34,6 +36,7 @@ import { useData } from '../../lib/store';
 import { NativeMap } from '../../lib/NativeMap';
 import { ParentPicker } from '../../lib/ParentPicker';
 import { ZoomableImage } from '../../lib/ZoomableImage';
+import { report } from '../../lib/report';
 import {
 	getSpot,
 	voteSpot,
@@ -125,6 +128,34 @@ export default function SpotDetailScreen() {
 		getSpot(spotId)
 	);
 	const [viewer, setViewer] = useState<number | null>(null);
+	/** Karte erst zeichnen, wenn die Seite steht (siehe unten). */
+	const [mapReady, setMapReady] = useState(false);
+	useEffect(() => {
+		const task = InteractionManager.runAfterInteractions(() => setMapReady(true));
+		return () => task.cancel();
+	}, []);
+
+	/**
+	 * Messen statt raten: Wie lange dauert das Öffnen, und was liegt auf der
+	 * Seite? Wird einmal je Öffnen gemeldet, sobald die Daten da sind.
+	 */
+	const openedAt = useRef(Date.now());
+	const measured = useRef(false);
+	useEffect(() => {
+		if (!data || measured.current) return;
+		measured.current = true;
+		const ms = Date.now() - openedAt.current;
+		void report('schritt', `Spot-Seite geöffnet in ${ms} ms`, {
+			spotId,
+			ms,
+			bilder: data.images.length,
+			challenges: data.challenges.length,
+			challengeBilder: data.challenges.filter((c) => c.images?.length).length,
+			kartenpunkte: data.mapMarkers?.length ?? 0,
+			parkplaetze: data.parkingLocations?.length ?? 0,
+			nachbarn: data.nearbySpots?.length ?? 0
+		});
+	}, [data, spotId]);
 	// Neue Challenge an diesem Spot
 	const [challengeOpen, setChallengeOpen] = useState(false);
 	const [chForm, setChForm] = useState({ title: '', description: '' });
@@ -514,6 +545,12 @@ export default function SpotDetailScreen() {
 					{data.mapMarkers?.length ? (
 						<View style={{ gap: 8 }}>
 							<SectionTitle>Karte</SectionTitle>
+							{/*
+							 * Die Karte kommt bewusst NACH dem ersten Zeichnen. Sie ist
+							 * mit Abstand der teuerste Teil der Seite; hängt sie sofort
+							 * mit drin, ruckelt das Öffnen und die ersten Wischer.
+							 */}
+							{mapReady ? (
 							<NativeMap
 								markers={data.mapMarkers}
 								height={240}
@@ -531,6 +568,12 @@ export default function SpotDetailScreen() {
 									);
 								}}
 							/>
+							) : (
+								<View style={[styles.mapPlaceholder, { height: 240 }]}>
+									<ActivityIndicator color={colors.accent} />
+									<Text style={styles.mapPlaceholderText}>Karte wird geladen …</Text>
+								</View>
+							)}
 							<View style={styles.legendRow}>
 								<Legend color={colors.accent} label="Spot" />
 								<Legend color="#47c5ff" label="Parkplatz" />
@@ -1020,6 +1063,14 @@ const makeStyles = (colors: ThemeColors) =>
 	},
 	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 	challengeVideo: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hover },
+	mapPlaceholder: {
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: 8,
+		borderRadius: 16,
+		backgroundColor: colors.bgSecondary
+	},
+	mapPlaceholderText: { color: colors.fg + textAlpha.muted, fontSize: 13, lineHeight: 18 },
 	imageDelete: {
 		position: 'absolute',
 		top: 6,
