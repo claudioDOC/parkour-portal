@@ -62,6 +62,26 @@ function deviceFacts() {
 	};
 }
 
+/** Welche nativen Bausteine hat diese Installation? Erklärt viele Abstürze. */
+function moduleFacts(): string {
+	// Namen müssen wörtlich dastehen — der Bündler löst require() nur so auf.
+	const has = (load: () => unknown) => {
+		try {
+			load();
+			return '✓';
+		} catch {
+			return '✗';
+		}
+	};
+	return [
+		`Installer ${has(() => require('expo-intent-launcher'))}`,
+		`Video ${has(() => require('expo-video'))}`,
+		`Karte ${has(() => require('@maplibre/maplibre-react-native'))}`,
+		`Fotos ${has(() => require('expo-image-picker'))}`,
+		`Standort ${has(() => require('expo-location'))}`
+	].join(' · ');
+}
+
 function appFacts() {
 	return {
 		appVersion: installedAppVersion() ?? 'unbekannt',
@@ -100,7 +120,11 @@ export async function report(kind: Kind, message: string, extra?: unknown): Prom
 				...app,
 				...dev,
 				stack: extra instanceof Error ? String(extra.stack ?? '').slice(0, 4000) : null,
-				extra: [extraText, app.updateCreatedAt ? `Stand vom ${app.updateCreatedAt}` : null]
+				extra: [
+					extraText,
+					`Bausteine: ${moduleFacts()}`,
+					app.updateCreatedAt ? `Stand vom ${app.updateCreatedAt}` : null
+				]
 					.filter(Boolean)
 					.join(' · ')
 					.slice(0, 4000)

@@ -16,7 +16,12 @@ import { THEMES, DEFAULT_THEME, isThemeId, type UiThemeId, type ThemeColors } fr
 import { ThemeProvider, useTheme } from '../lib/themeContext';
 import { getMe, getToken, logout, type Me } from '../lib/api';
 import { loadPrefs } from '../lib/prefs';
-import { checkApkUpdate, downloadAndInstallApk, openInstallPermissionSettings } from '../lib/apkUpdate';
+import {
+	checkApkUpdate,
+	downloadAndInstallApk,
+	openInstallPermissionSettings,
+	canSelfInstall
+} from '../lib/apkUpdate';
 import { readToken, writeToken } from '../lib/tokenStore';
 import { BASE_URL } from '../lib/api';
 import { setupPush } from '../lib/pushSetup';
@@ -281,9 +286,14 @@ export default function RootLayout() {
 				if ((await readToken('apk-hint-day')) === today) return;
 				const apk = await checkApkUpdate(BASE_URL || 'https://matetraining.duckdns.org');
 				if (!apk) return;
+				// Zu alte Installationen können sich nicht selbst aktualisieren —
+				// ihnen wird direkt die Download-Seite angeboten.
+				const selfInstall = canSelfInstall();
 				Alert.alert(
 					`Neue App-Version ${apk.version}`,
-					`Es gibt eine neue Version mit Änderungen, die eine Installation brauchen (${Math.round(apk.sizeBytes / 1048576)} MB). Jetzt laden und installieren?`,
+					selfInstall
+						? `Es gibt eine neue Version mit Änderungen, die eine Installation brauchen (${Math.round(apk.sizeBytes / 1048576)} MB). Jetzt laden und installieren?`
+						: `Es gibt eine neue Version (${Math.round(apk.sizeBytes / 1048576)} MB). Deine installierte App ist zu alt, um sich selbst zu aktualisieren — die Download-Seite öffnet die Datei zum Installieren.`,
 					[
 						{
 							text: 'Später',
@@ -295,7 +305,16 @@ export default function RootLayout() {
 								writeToken('apk-hint-day', today).catch(() => {});
 							}
 						},
-						{ text: 'Installieren', onPress: () => startApkInstall(apk) }
+						selfInstall
+							? { text: 'Installieren', onPress: () => startApkInstall(apk) }
+							: {
+									text: 'Seite öffnen',
+									onPress: () => {
+										Linking.openURL(
+											`${BASE_URL || 'https://matetraining.duckdns.org'}/app`
+										).catch(() => {});
+									}
+								}
 					]
 				);
 			} catch {

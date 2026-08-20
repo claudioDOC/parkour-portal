@@ -28,6 +28,20 @@ export type ApkInfo = {
 	url: string;
 };
 
+/**
+ * Kann sich diese Installation selbst aktualisieren?
+ *
+ * Ältere App-Dateien (vor 1.7) bringen die nötigen Bausteine nicht mit.
+ * Ihnen wird gar nicht erst „Installieren" angeboten — sonst tippt man
+ * auf einen Knopf, der nur abstürzen kann.
+ */
+export function canSelfInstall(): boolean {
+	if (Platform.OS !== 'android') return false;
+	const fs = tryLoad(() => require('expo-file-system/legacy'));
+	const intent = tryLoad(() => require('expo-intent-launcher'));
+	return Boolean(fs && intent);
+}
+
 /** Höhere Version verfügbar? Vergleich über die Versionsnummer (Code). */
 export async function checkApkUpdate(baseUrl: string): Promise<ApkInfo | null> {
 	if (Platform.OS !== 'android') return null;

@@ -14,7 +14,8 @@ import { getProfile, saveUiTheme, adminBroadcast, BASE_URL } from '../../lib/api
 import {
 	checkApkUpdate,
 	downloadAndInstallApk,
-	openInstallPermissionSettings
+	openInstallPermissionSettings,
+	canSelfInstall
 } from '../../lib/apkUpdate';
 import { useAuth } from '../_layout';
 
@@ -88,7 +89,8 @@ export default function More() {
 				`Enthält Änderungen, die eine Installation brauchen (${Math.round(apk.sizeBytes / 1048576)} MB). Jetzt laden und installieren?`,
 				[
 					{ text: 'Später', style: 'cancel' },
-					{
+					canSelfInstall()
+						? {
 						text: 'Installieren',
 						onPress: async () => {
 							try {
@@ -135,6 +137,15 @@ export default function More() {
 							}
 						}
 					}
+						: {
+								// Ältere App-Datei: Selbst-Installation gibt es dort nicht.
+								text: 'Seite öffnen',
+								onPress: () => {
+									Linking.openURL(
+										`${BASE_URL || 'https://matetraining.duckdns.org'}/app`
+									).catch(() => {});
+								}
+							}
 				]
 			);
 			return;
