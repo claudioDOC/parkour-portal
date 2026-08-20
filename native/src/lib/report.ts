@@ -1,6 +1,6 @@
 import { Platform, Dimensions } from 'react-native';
 import * as Updates from 'expo-updates';
-import { installedAppVersion } from './nativeModules';
+import { installedAppVersion, installedAppBuild } from './nativeModules';
 import { BASE_URL, getToken } from './api';
 
 /**
@@ -63,13 +63,9 @@ function deviceFacts() {
 }
 
 function appFacts() {
-	const constants = tryRequire(
-		() => require('expo-constants').default as Record<string, unknown>
-	);
-	const build = constants?.nativeBuildVersion;
 	return {
 		appVersion: installedAppVersion() ?? 'unbekannt',
-		appBuild: typeof build === 'string' || typeof build === 'number' ? String(build) : null,
+		appBuild: installedAppBuild(),
 		runtimeVersion:
 			typeof Updates.runtimeVersion === 'string' ? Updates.runtimeVersion : null,
 		updateId: Updates.updateId ?? 'eingebaut',

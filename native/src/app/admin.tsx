@@ -9,6 +9,7 @@ import { Card, TopBar, Screen, Button, Input, SectionTitle, Pill, Sheet, Avatar 
 import { useData } from '../lib/store';
 import { DateField } from '../lib/DateField';
 import { FilterSelect } from '../lib/FilterSelect';
+import { clientLogToText, clientLogsToText, auditToText } from '../lib/logText';
 import {
 	getAdminUsers,
 	adminUserAction,
@@ -803,9 +804,21 @@ export default function Admin() {
 								onChange={setLogVersion}
 							/>
 						</View>
-						<Text style={styles.muted}>
-							{`${(clientLogs.data?.entries ?? []).length} Meldungen`}
-						</Text>
+						<View style={styles.logHead}>
+							<Text style={[styles.muted, { flex: 1 }]}>
+								{`${(clientLogs.data?.entries ?? []).length} Meldungen`}
+							</Text>
+							<Button
+								label="Alle kopieren"
+								kind="ghost"
+								small
+								onPress={() =>
+									Share.share({
+										message: clientLogsToText(clientLogs.data?.entries ?? [])
+									}).catch(() => {})
+								}
+							/>
+						</View>
 					</Card>
 
 					{(clientLogs.data?.entries ?? []).length === 0 ? (
@@ -829,6 +842,18 @@ export default function Admin() {
 									<View style={[styles.kindTag, { borderColor: tint }]}>
 										<Text style={[styles.kindText, { color: tint }]}>{e.kind}</Text>
 									</View>
+									{/* Teilen statt Zwischenablage: Androids Dialog enthält
+									    „Kopieren" und schickt den Text direkt weiter. */}
+									<Pressable
+										onPress={() =>
+											Share.share({ message: clientLogToText(e) }).catch(() => {})
+										}
+										hitSlop={8}
+										style={({ pressed }) => [styles.copyBtn, pressed && { opacity: 0.6 }]}
+									>
+										<Ionicons name="copy-outline" size={15} color={colors.accentBlue} />
+										<Text style={styles.copyText}>Kopieren</Text>
+									</Pressable>
 									<Text style={styles.logTime}>
 										{new Date(e.createdAt.replace(' ', 'T') + 'Z').toLocaleString('de-CH', {
 											day: '2-digit',
@@ -930,7 +955,17 @@ export default function Admin() {
 					</Card>
 					{auditFiltered.map((l) => (
 						<Card key={l.id} style={{ gap: 2 }}>
-							<Text style={styles.logAction}>{l.action}</Text>
+							<View style={styles.logHead}>
+								<Text style={[styles.logAction, { flex: 1 }]}>{l.action}</Text>
+								<Pressable
+									onPress={() => Share.share({ message: auditToText(l) }).catch(() => {})}
+									hitSlop={8}
+									style={({ pressed }) => [styles.copyBtn, pressed && { opacity: 0.6 }]}
+								>
+									<Ionicons name="copy-outline" size={14} color={colors.accentBlue} />
+									<Text style={styles.copyText}>Kopieren</Text>
+								</Pressable>
+							</View>
 							<Text style={styles.muted}>
 								{[
 									new Date(l.createdAt.replace(' ', 'T') + 'Z').toLocaleString('de-CH', {
@@ -1164,6 +1199,8 @@ const makeStyles = (colors: ThemeColors) =>
 		chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 		filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
 		logHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+		copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+		copyText: { color: colors.accentBlue, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansSemi },
 		kindTag: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
 		kindText: { fontSize: 11, lineHeight: 15, fontFamily: fonts.sansBold, textTransform: 'uppercase' },
 		logTime: { flex: 1, textAlign: 'right', color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },

@@ -88,6 +88,13 @@ export function getVideoModule() {
  * die nativen Bausteine aus. Ohne Punkte-Format gilt sie als unbekannt.
  */
 function nativeVersionName(): string | null {
+	// Erst expo-application fragen — expo-constants liefert die native
+	// Version nicht mehr zuverlässig, wodurch die Prüfung IMMER scheiterte
+	// und die Video-Wiedergabe auch auf neuen Installationen ausblieb.
+	const app = tryRequire(() => require('expo-application') as typeof import('expo-application'));
+	if (app?.nativeApplicationVersion && /^\d+\.\d+/.test(app.nativeApplicationVersion)) {
+		return app.nativeApplicationVersion;
+	}
 	const c = tryRequire(() => require('expo-constants').default as Record<string, unknown>);
 	const v = c?.nativeAppVersion;
 	return typeof v === 'string' && /^\d+\.\d+/.test(v) ? v : null;
@@ -110,11 +117,25 @@ function atLeastVersion(have: string | null, want: string): boolean {
  * Kommt aus der nativen Seite; ohne sie bleibt es bei „unbekannt".
  */
 export function installedAppVersion(): string | null {
+	// expo-application ist die verlässliche Quelle; expo-constants liefert
+	// nativeAppVersion in neueren Fassungen nicht mehr — darum stand in den
+	// Fehlerberichten überall „unbekannt".
+	const app = tryRequire(() => require('expo-application') as typeof import('expo-application'));
+	if (app?.nativeApplicationVersion) return app.nativeApplicationVersion;
 	const c = tryRequire(() => require('expo-constants').default as Record<string, unknown>);
-	const native = c?.nativeAppVersion ?? c?.nativeBuildVersion;
+	const native = c?.nativeAppVersion;
 	if (typeof native === 'string' && native) return native;
 	const cfg = c?.expoConfig as { version?: string } | undefined;
 	return cfg?.version ?? null;
+}
+
+/** Build-Nummer der installierten App-Datei (versionCode). */
+export function installedAppBuild(): string | null {
+	const app = tryRequire(() => require('expo-application') as typeof import('expo-application'));
+	if (app?.nativeBuildVersion) return String(app.nativeBuildVersion);
+	const c = tryRequire(() => require('expo-constants').default as Record<string, unknown>);
+	const build = c?.nativeBuildVersion;
+	return typeof build === 'string' || typeof build === 'number' ? String(build) : null;
 }
 
 /**

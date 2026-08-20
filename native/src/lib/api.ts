@@ -429,7 +429,14 @@ export const getClientLogs = (filter: { kind?: string; user?: string; version?: 
 
 export const getAuditLog = (limit = 60) =>
 	get<{
-		logs: { id: number; createdAt: string; action: string; actorUsername: string | null }[];
+		logs: {
+			id: number;
+			createdAt: string;
+			action: string;
+			actorUsername: string | null;
+			ip?: string | null;
+			detail?: unknown;
+		}[];
 		total: number;
 	}>(`/api/admin/audit?limit=${limit}`);
 

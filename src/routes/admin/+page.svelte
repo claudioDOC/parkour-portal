@@ -223,6 +223,43 @@
 	let clientVersion = $state('');
 	let loadingClient = $state(false);
 
+	let copyHint = $state('');
+
+	/** Text in die Zwischenablage — mit Rückfall für ältere Browser. */
+	async function copyText(text: string, what: string) {
+		try {
+			await navigator.clipboard.writeText(text);
+		} catch {
+			// Ohne Zwischenablage-Recht: Textfeld anlegen und kopieren.
+			const el = document.createElement('textarea');
+			el.value = text;
+			document.body.appendChild(el);
+			el.select();
+			try {
+				document.execCommand('copy');
+			} finally {
+				el.remove();
+			}
+		}
+		copyHint = `${what} kopiert`;
+		setTimeout(() => (copyHint = ''), 2500);
+	}
+
+	function clientLogText(e: ClientLogEntry): string {
+		return [
+			`[${e.kind.toUpperCase()}] ${e.createdAt}`,
+			e.message,
+			`Person: ${e.username ?? 'nicht angemeldet'}${e.route ? ` · Seite: ${e.route}` : ''}`,
+			`App: ${e.appVersion ?? '?'}${e.appBuild ? ` (Build ${e.appBuild})` : ''} · Stand: ${e.updateId ?? '?'}`,
+			`System: ${e.os ?? '?'} ${e.osVersion ?? ''}`.trim(),
+			`Gerät: ${[e.manufacturer, e.model].filter(Boolean).join(' ') || 'unbekannt'}${e.device ? ` (${e.device})` : ''}`,
+			e.extra ? `Zusatz: ${e.extra}` : null,
+			e.stack ? `Stack:\n${e.stack}` : null
+		]
+			.filter(Boolean)
+			.join('\n');
+	}
+
 	async function loadClientLogs() {
 		loadingClient = true;
 		try {
@@ -2138,6 +2175,21 @@
 					{loadingClient ? 'Laden…' : 'Aktualisieren'}
 				</button>
 				<span class="self-center text-sm text-text-muted">{clientLogs.length} Meldungen</span>
+				<button
+					type="button"
+					onclick={() =>
+						copyText(
+							`Parkour Portal — ${clientLogs.length} Meldungen\n\n` +
+								clientLogs.slice(0, 25).map(clientLogText).join('\n\n────────────\n'),
+							'Alle Meldungen'
+						)}
+					class="rounded-lg border border-border bg-bg-secondary px-4 py-2 text-sm text-text-primary hover:bg-bg-hover"
+				>
+					Alle kopieren
+				</button>
+				{#if copyHint}
+					<span class="self-center text-sm text-success">{copyHint}</span>
+				{/if}
 			</div>
 
 			{#if clientLogs.length === 0}
@@ -2161,7 +2213,14 @@
 							>
 								{e.kind}
 							</span>
-							<span class="ml-auto text-xs text-text-muted">{e.createdAt}</span>
+							<button
+								type="button"
+								onclick={() => copyText(clientLogText(e), 'Meldung')}
+								class="ml-auto text-xs text-accent-blue hover:underline"
+							>
+								Kopieren
+							</button>
+							<span class="text-xs text-text-muted">{e.createdAt}</span>
 						</div>
 						<p class="text-text-primary text-sm font-medium break-words">{e.message}</p>
 						<p class="text-xs text-text-secondary">
