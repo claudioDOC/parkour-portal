@@ -400,15 +400,32 @@ export type ClientLog = {
 	username: string | null;
 	platform: string | null;
 	appVersion: string | null;
+	appBuild: string | null;
+	runtimeVersion: string | null;
 	updateId: string | null;
+	device: string | null;
+	os: string | null;
+	osVersion: string | null;
+	model: string | null;
+	manufacturer: string | null;
+	route: string | null;
+	sessionId: string | null;
 	kind: string;
 	message: string;
 	stack: string | null;
 	extra: string | null;
 };
 
-export const getClientLogs = (limit = 80) =>
-	get<{ entries: ClientLog[] }>(`/api/v1/client-log?limit=${limit}`);
+export const getClientLogs = (filter: { kind?: string; user?: string; version?: string } = {}) => {
+	const q = new URLSearchParams({ limit: '100' });
+	if (filter.kind) q.set('kind', filter.kind);
+	if (filter.user) q.set('user', filter.user);
+	if (filter.version) q.set('version', filter.version);
+	return get<{
+		entries: ClientLog[];
+		filters: { kinds: string[]; users: string[]; versions: string[] };
+	}>(`/api/v1/client-log?${q.toString()}`);
+};
 
 export const getAuditLog = (limit = 60) =>
 	get<{

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
 import { nativeReport, hasNativeMap } from '../../lib/nativeModules';
@@ -96,24 +96,39 @@ export default function More() {
 								await downloadAndInstallApk(apk, (p) => setInstalling(p));
 							} catch (e) {
 								const blocked = e instanceof Error && e.message === 'INSTALL_BLOCKED';
+								const tooOld = e instanceof Error && e.message === 'TOO_OLD';
 								Alert.alert(
-									blocked ? 'Installation blockiert' : 'Fehler',
-									blocked
+									tooOld ? 'App-Datei zu alt' : blocked ? 'Installation blockiert' : 'Fehler',
+									tooOld
+										? 'Deine installierte App ist älter als 1.7 und kann sich nicht selbst aktualisieren. Die Download-Seite öffnet sich jetzt — dort die neue Datei laden und installieren.'
+										: blocked
 										? 'Android erlaubt dieser App nicht, Apps zu installieren. Die Einstellung öffnet sich jetzt — dort „Aus dieser Quelle zulassen" einschalten und den Vorgang wiederholen.'
 										: e instanceof Error
 											? e.message
 											: 'Download fehlgeschlagen',
-									blocked
+									tooOld
 										? [
 												{ text: 'Abbrechen', style: 'cancel' },
 												{
-													text: 'Einstellung öffnen',
+													text: 'Seite öffnen',
 													onPress: () => {
-														openInstallPermissionSettings().catch(() => {});
+														Linking.openURL(
+															`${BASE_URL || 'https://matetraining.duckdns.org'}/app`
+														).catch(() => {});
 													}
 												}
 											]
-										: [{ text: 'OK' }]
+										: blocked
+											? [
+													{ text: 'Abbrechen', style: 'cancel' },
+													{
+														text: 'Einstellung öffnen',
+														onPress: () => {
+															openInstallPermissionSettings().catch(() => {});
+														}
+													}
+												]
+											: [{ text: 'OK' }]
 								);
 							} finally {
 								setInstalling(null);

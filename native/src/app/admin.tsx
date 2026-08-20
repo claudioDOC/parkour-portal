@@ -8,6 +8,7 @@ import { useTheme, useThemedStyles } from '../lib/themeContext';
 import { Card, TopBar, Screen, Button, Input, SectionTitle, Pill, Sheet, Avatar } from '../lib/ui';
 import { useData } from '../lib/store';
 import { DateField } from '../lib/DateField';
+import { FilterSelect } from '../lib/FilterSelect';
 import {
 	getAdminUsers,
 	adminUserAction,
@@ -102,7 +103,12 @@ export default function Admin() {
 	const trashTrips = useData('trash-trips', getTrashedTrips);
 	const trashUsers = useData('trash-users', () => getAdminUsers(true));
 	const soloEntries = useData('admin-solo', getAdminSolo);
-	const clientLogs = useData('client-logs', () => getClientLogs(80));
+	const [logKind, setLogKind] = useState('');
+	const [logUser, setLogUser] = useState('');
+	const [logVersion, setLogVersion] = useState('');
+	const clientLogs = useData(`client-logs:${logKind}:${logUser}:${logVersion}`, () =>
+		getClientLogs({ kind: logKind, user: logUser, version: logVersion })
+	);
 	// Solo-Trainings nachtragen — auf der Website Teil des Admin-Bereichs.
 	const [soloOpen, setSoloOpen] = useState(false);
 	const [soloUserId, setSoloUserId] = useState<number | null>(null);
@@ -119,6 +125,13 @@ export default function Admin() {
 	const [absentReason, setAbsentReason] = useState('');
 	const [logFilter, setLogFilter] = useState('');
 	const [logActor, setLogActor] = useState('');
+
+	/** Protokoll gefiltert — für Anzeige und Zähler. */
+	const auditFiltered = (audit.data?.logs ?? []).filter(
+		(l) =>
+			(!logFilter || l.action.startsWith(logFilter)) &&
+			(!logActor || (l.actorUsername ?? 'System') === logActor)
+	);
 
 	const [userFor, setUserFor] = useState<AdminUser | null>(null);
 	const [pwOpen, setPwOpen] = useState(false);
@@ -765,54 +778,96 @@ export default function Admin() {
 
 			{tab === 'fehler' ? (
 				<>
-					<Text style={styles.muted}>
-						Meldungen der App: Start, Update-Schritte und Abstürze — mit Version
-						und Gerät. Ältere als 30 Tage werden automatisch entfernt.
-					</Text>
+					<Card style={{ gap: 10 }}>
+						<Text style={styles.muted}>
+							Meldungen der App: Start, Update-Schritte und Abstürze — mit Version,
+							Build, Android-Fassung und Gerät. Älteres als 30 Tage fliegt raus.
+						</Text>
+						<View style={styles.filterRow}>
+							<FilterSelect
+								label="Art"
+								value={logKind}
+								options={clientLogs.data?.filters?.kinds ?? []}
+								onChange={setLogKind}
+							/>
+							<FilterSelect
+								label="Person"
+								value={logUser}
+								options={clientLogs.data?.filters?.users ?? []}
+								onChange={setLogUser}
+							/>
+							<FilterSelect
+								label="Version"
+								value={logVersion}
+								options={clientLogs.data?.filters?.versions ?? []}
+								onChange={setLogVersion}
+							/>
+						</View>
+						<Text style={styles.muted}>
+							{`${(clientLogs.data?.entries ?? []).length} Meldungen`}
+						</Text>
+					</Card>
+
 					{(clientLogs.data?.entries ?? []).length === 0 ? (
 						<Card>
-							<Text style={styles.muted}>Noch keine Meldungen.</Text>
+							<Text style={styles.muted}>Nichts gefunden.</Text>
 						</Card>
 					) : null}
-					{(clientLogs.data?.entries ?? []).map((e) => (
-						<Card key={e.id} style={{ gap: 4 }}>
-							<View style={styles.userHead}>
-								<Text
-									style={[
-										styles.userName,
-										e.kind === 'crash'
-											? { color: colors.danger }
-											: e.kind === 'error'
-												? { color: colors.warning }
-												: null
-									]}
-								>
-									{e.message}
-								</Text>
-							</View>
-							<Text style={styles.muted}>
-								{[
-									e.createdAt,
-									e.username ?? 'unbekannt',
-									e.appVersion ? `App ${e.appVersion}` : null,
-									e.platform,
-									e.updateId ? `Stand ${e.updateId.slice(0, 8)}` : null
-								]
-									.filter(Boolean)
-									.join(' · ')}
-							</Text>
-							{e.stack ? (
-								<Text style={styles.muted} numberOfLines={6}>
-									{e.stack}
-								</Text>
-							) : null}
-							{e.extra ? (
-								<Text style={styles.muted} numberOfLines={3}>
-									{e.extra}
-								</Text>
-							) : null}
-						</Card>
-					))}
+
+					{(clientLogs.data?.entries ?? []).map((e) => {
+						const tint =
+							e.kind === 'crash'
+								? colors.danger
+								: e.kind === 'error'
+									? colors.warning
+									: e.kind === 'start'
+										? colors.accentBlue
+										: colors.fg + textAlpha.secondary;
+						return (
+							<Card key={e.id} style={{ gap: 6 }}>
+								<View style={styles.logHead}>
+									<View style={[styles.kindTag, { borderColor: tint }]}>
+										<Text style={[styles.kindText, { color: tint }]}>{e.kind}</Text>
+									</View>
+									<Text style={styles.logTime}>
+										{new Date(e.createdAt.replace(' ', 'T') + 'Z').toLocaleString('de-CH', {
+											day: '2-digit',
+											month: '2-digit',
+											hour: '2-digit',
+											minute: '2-digit'
+										})}
+									</Text>
+								</View>
+								<Text style={styles.userName}>{e.message}</Text>
+								<View style={{ gap: 2 }}>
+									<Text style={styles.logMeta}>
+										{`👤 ${e.username ?? 'nicht angemeldet'}${e.route ? `   ·   Seite ${e.route}` : ''}`}
+									</Text>
+									<Text style={styles.logMeta}>
+										{`📱 App ${e.appVersion ?? '?'}${e.appBuild ? ` (Build ${e.appBuild})` : ''}   ·   Stand ${
+											e.updateId ? e.updateId.slice(0, 8) : '?'
+										}`}
+									</Text>
+									<Text style={styles.logMeta}>
+										{`⚙️ ${e.os ?? e.platform ?? '?'} ${e.osVersion ?? ''}   ·   ${
+											[e.manufacturer, e.model].filter(Boolean).join(' ') || 'Gerät unbekannt'
+										}`}
+									</Text>
+									{e.device ? <Text style={styles.logMeta}>{`🔎 ${e.device}`}</Text> : null}
+								</View>
+								{e.stack ? (
+									<Text style={styles.stackText} numberOfLines={8}>
+										{e.stack}
+									</Text>
+								) : null}
+								{e.extra ? (
+									<Text style={styles.logMeta} numberOfLines={3}>
+										{e.extra}
+									</Text>
+								) : null}
+							</Card>
+						);
+					})}
 				</>
 			) : null}
 
@@ -847,88 +902,49 @@ export default function Admin() {
 			) : null}
 
 			{tab === 'log' ? (
-				<Card style={{ gap: 10 }}>
-					<Text style={styles.muted}>Bereich:</Text>
-					<View style={styles.chipRow}>
-						{['alle', ...new Set((audit.data?.logs ?? []).map((l) => l.action.split('.')[0]))].map(
-							(g) => (
-								<Pressable
-									key={g}
-									onPress={() => setLogFilter(g === 'alle' ? '' : g)}
-									style={({ pressed }) => [
-										styles.chip,
-										(logFilter === g || (g === 'alle' && !logFilter)) && {
-											backgroundColor: colors.accent,
-											borderColor: colors.accent
-										},
-										pressed && { opacity: 0.8 }
-									]}
-								>
-									<Text
-										style={[
-											styles.chipText,
-											(logFilter === g || (g === 'alle' && !logFilter)) && {
-												color: colors.onAccent
-											}
-										]}
-									>
-										{g}
-									</Text>
-								</Pressable>
-							)
-						)}
-					</View>
-					<Text style={styles.muted}>Person:</Text>
-					<View style={styles.chipRow}>
-						{['alle', ...new Set((audit.data?.logs ?? []).map((l) => l.actorUsername ?? 'System'))].map(
-							(a) => (
-								<Pressable
-									key={a}
-									onPress={() => setLogActor(a === 'alle' ? '' : a)}
-									style={({ pressed }) => [
-										styles.chip,
-										(logActor === a || (a === 'alle' && !logActor)) && {
-											backgroundColor: colors.accent,
-											borderColor: colors.accent
-										},
-										pressed && { opacity: 0.8 }
-									]}
-								>
-									<Text
-										style={[
-											styles.chipText,
-											(logActor === a || (a === 'alle' && !logActor)) && {
-												color: colors.onAccent
-											}
-										]}
-									>
-										{a}
-									</Text>
-								</Pressable>
-							)
-						)}
-					</View>
-					{(audit.data?.logs ?? [])
-						.filter(
-							(l) =>
-								(!logFilter || l.action.startsWith(logFilter)) &&
-								(!logActor || (l.actorUsername ?? 'System') === logActor)
-						)
-						.map((l) => (
-						<View key={l.id} style={styles.logRow}>
+				<>
+					<Card style={{ gap: 10 }}>
+						<View style={styles.filterRow}>
+							<FilterSelect
+								label="Bereich"
+								value={logFilter}
+								options={[
+									...new Set((audit.data?.logs ?? []).map((l) => l.action.split('.')[0]))
+								].sort()}
+								onChange={setLogFilter}
+							/>
+							<FilterSelect
+								label="Person"
+								value={logActor}
+								options={[
+									...new Set(
+										(audit.data?.logs ?? []).map((l) => l.actorUsername ?? 'System')
+									)
+								].sort()}
+								onChange={setLogActor}
+							/>
+						</View>
+						<Text style={styles.muted}>
+							{`${auditFiltered.length} von ${(audit.data?.logs ?? []).length} Einträgen`}
+						</Text>
+					</Card>
+					{auditFiltered.map((l) => (
+						<Card key={l.id} style={{ gap: 2 }}>
 							<Text style={styles.logAction}>{l.action}</Text>
 							<Text style={styles.muted}>
-								{l.actorUsername ?? 'System'} ·{' '}
-								{new Date(l.createdAt.replace(' ', 'T') + 'Z').toLocaleString('de-CH', {
-									day: 'numeric',
-									month: 'short',
-									hour: '2-digit',
-									minute: '2-digit'
-								})}
+								{[
+									new Date(l.createdAt.replace(' ', 'T') + 'Z').toLocaleString('de-CH', {
+										day: '2-digit',
+										month: '2-digit',
+										hour: '2-digit',
+										minute: '2-digit'
+									}),
+									l.actorUsername ?? 'System'
+								].join('  ·  ')}
 							</Text>
-						</View>
-						))}
-				</Card>
+						</Card>
+					))}
+				</>
 			) : null}
 
 			<Sheet
@@ -1146,6 +1162,21 @@ const makeStyles = (colors: ThemeColors) =>
 			fontFamily: fonts.sansSemi
 		},
 		chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+		filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+		logHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+		kindTag: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+		kindText: { fontSize: 11, lineHeight: 15, fontFamily: fonts.sansBold, textTransform: 'uppercase' },
+		logTime: { flex: 1, textAlign: 'right', color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
+		logMeta: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 18, fontFamily: fonts.sans },
+		stackText: {
+			color: colors.fg + textAlpha.muted,
+			fontSize: 11,
+			lineHeight: 15,
+			fontFamily: 'monospace',
+			backgroundColor: colors.bgSecondary,
+			borderRadius: 8,
+			padding: 8
+		},
 		chip: {
 			borderRadius: 999,
 			borderWidth: 1,

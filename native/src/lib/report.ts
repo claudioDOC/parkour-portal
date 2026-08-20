@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, Dimensions } from 'react-native';
 import * as Updates from 'expo-updates';
 import { installedAppVersion } from './nativeModules';
 import { BASE_URL, getToken } from './api';
@@ -8,21 +8,87 @@ import { BASE_URL, getToken } from './api';
  *
  * Vorher gab es nichts dergleichen: Stürzte die App bei jemand anderem
  * ab, liess sich nur raten — wir wussten nicht einmal, welche App-Version
- * die Person installiert hat. Jetzt meldet die App beim Start ihre
- * Eckdaten und schickt jeden unbehandelten Fehler mit.
- *
- * Bewusst sparsam: kurze Texte, keine Inhalte, kein eigener Speicher.
+ * oder welches Android die Person hat. Jede Meldung trägt darum den
+ * vollen Kontext: App-Version und Build, Android-Fassung, Gerät,
+ * Update-Stand, Bildschirm und eine Sitzungs-Kennung, die alle Meldungen
+ * eines App-Starts zusammenhält.
  */
 type Kind = 'start' | 'crash' | 'error' | 'schritt';
 
-let device = '';
-export function setDeviceHint(hint: string) {
-	device = hint;
+/** Eine Kennung je App-Start — ohne sie liessen sich Meldungen nicht paaren. */
+const sessionId = `${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
+
+let currentRoute = '/';
+export function setReportRoute(path: string) {
+	currentRoute = path || '/';
+}
+
+function tryRequire<T>(load: () => T): T | null {
+	try {
+		return load();
+	} catch {
+		return null;
+	}
+}
+
+/** Gerätedaten: erst expo-device, sonst die Angaben aus React Native. */
+function deviceFacts() {
+	const androidConstants = (Platform.constants ?? {}) as Record<string, unknown>;
+	const dev = tryRequire(() => require('expo-device') as typeof import('expo-device'));
+	const win = Dimensions.get('window');
+	const model =
+		dev?.modelName ?? (typeof androidConstants.Model === 'string' ? androidConstants.Model : null);
+	const manufacturer =
+		dev?.manufacturer ??
+		(typeof androidConstants.Manufacturer === 'string' ? androidConstants.Manufacturer : null);
+	const osVersion =
+		dev?.osVersion ??
+		(typeof androidConstants.Release === 'string' ? androidConstants.Release : String(Platform.Version));
+	return {
+		os: Platform.OS === 'android' ? 'Android' : Platform.OS === 'ios' ? 'iOS' : Platform.OS,
+		osVersion,
+		model,
+		manufacturer,
+		device: [
+			manufacturer,
+			model,
+			`API ${Platform.Version}`,
+			`${Math.round(win.width)}×${Math.round(win.height)}`,
+			dev?.totalMemory ? `${Math.round(dev.totalMemory / 1024 / 1024 / 1024)} GB RAM` : null,
+			dev?.isDevice === false ? 'Emulator' : null
+		]
+			.filter(Boolean)
+			.join(' · ')
+	};
+}
+
+function appFacts() {
+	const constants = tryRequire(
+		() => require('expo-constants').default as Record<string, unknown>
+	);
+	const build = constants?.nativeBuildVersion;
+	return {
+		appVersion: installedAppVersion() ?? 'unbekannt',
+		appBuild: typeof build === 'string' || typeof build === 'number' ? String(build) : null,
+		runtimeVersion:
+			typeof Updates.runtimeVersion === 'string' ? Updates.runtimeVersion : null,
+		updateId: Updates.updateId ?? 'eingebaut',
+		updateCreatedAt: Updates.createdAt ? new Date(Updates.createdAt).toISOString() : null,
+		channel: Updates.channel ?? null
+	};
 }
 
 export async function report(kind: Kind, message: string, extra?: unknown): Promise<void> {
 	try {
 		const token = await getToken().catch(() => null);
+		const app = appFacts();
+		const dev = deviceFacts();
+		const extraText =
+			extra instanceof Error
+				? extra.message
+				: extra != null
+					? JSON.stringify(extra)
+					: null;
 		await fetch(`${BASE_URL || 'https://matetraining.duckdns.org'}/api/v1/client-log`, {
 			method: 'POST',
 			headers: {
@@ -33,17 +99,15 @@ export async function report(kind: Kind, message: string, extra?: unknown): Prom
 				kind,
 				message: String(message).slice(0, 4000),
 				platform: Platform.OS,
-				appVersion: installedAppVersion() ?? 'unbekannt',
-				runtimeVersion: Updates.runtimeVersion ?? null,
-				updateId: Updates.updateId ?? 'eingebaut',
-				device,
+				route: currentRoute,
+				sessionId,
+				...app,
+				...dev,
 				stack: extra instanceof Error ? String(extra.stack ?? '').slice(0, 4000) : null,
-				extra:
-					extra && !(extra instanceof Error)
-						? JSON.stringify(extra).slice(0, 4000)
-						: extra instanceof Error
-							? String(extra.message)
-							: null
+				extra: [extraText, app.updateCreatedAt ? `Stand vom ${app.updateCreatedAt}` : null]
+					.filter(Boolean)
+					.join(' · ')
+					.slice(0, 4000)
 			})
 		});
 	} catch {

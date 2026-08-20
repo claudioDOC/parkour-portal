@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { clientLogs } from '$lib/server/db/schema';
-import { desc, lt } from 'drizzle-orm';
+import { and, desc, eq, lt } from 'drizzle-orm';
 
 /**
  * Fehlerberichte der App entgegennehmen.
@@ -36,9 +36,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				username: locals.user?.username ?? trim(body.username, 60),
 				platform: trim(body.platform, 20),
 				appVersion: trim(body.appVersion, 30),
+				appBuild: trim(body.appBuild, 20),
 				runtimeVersion: trim(body.runtimeVersion, 30),
 				updateId: trim(body.updateId, 60),
-				device: trim(body.device, 120),
+				device: trim(body.device, 160),
+				os: trim(body.os, 20),
+				osVersion: trim(body.osVersion, 30),
+				model: trim(body.model, 60),
+				manufacturer: trim(body.manufacturer, 60),
+				route: trim(body.route, 120),
+				sessionId: trim(body.sessionId, 40),
 				kind,
 				message,
 				stack: trim(body.stack, MAX_TEXT),
@@ -67,7 +74,41 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user || locals.user.role !== 'admin') {
 		return json({ error: 'Keine Berechtigung' }, { status: 403 });
 	}
-	const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? 80)));
-	const entries = db.select().from(clientLogs).orderBy(desc(clientLogs.id)).limit(limit).all();
-	return json({ entries });
+	const limit = Math.min(300, Math.max(1, Number(url.searchParams.get('limit') ?? 100)));
+	const kindFilter = url.searchParams.get('kind');
+	const userFilter = url.searchParams.get('user');
+	const versionFilter = url.searchParams.get('version');
+
+	const conditions = [
+		kindFilter && kindFilter !== 'alle' ? eq(clientLogs.kind, kindFilter) : null,
+		userFilter && userFilter !== 'alle' ? eq(clientLogs.username, userFilter) : null,
+		versionFilter && versionFilter !== 'alle' ? eq(clientLogs.appVersion, versionFilter) : null
+	].filter(Boolean);
+
+	const base = db.select().from(clientLogs);
+	const entries = (conditions.length ? base.where(and(...(conditions as never[]))) : base)
+		.orderBy(desc(clientLogs.id))
+		.limit(limit)
+		.all();
+
+	// Auswahlwerte für die Filter — aus dem tatsächlichen Bestand.
+	const all = db
+		.select({
+			kind: clientLogs.kind,
+			username: clientLogs.username,
+			appVersion: clientLogs.appVersion
+		})
+		.from(clientLogs)
+		.orderBy(desc(clientLogs.id))
+		.limit(1000)
+		.all();
+	const uniq = (xs: (string | null)[]) => [...new Set(xs.filter(Boolean) as string[])].sort();
+	return json({
+		entries,
+		filters: {
+			kinds: uniq(all.map((r) => r.kind)),
+			users: uniq(all.map((r) => r.username)),
+			versions: uniq(all.map((r) => r.appVersion))
+		}
+	});
 };

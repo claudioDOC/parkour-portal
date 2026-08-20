@@ -492,6 +492,16 @@ export const clientLogs = sqliteTable('client_logs', {
 	runtimeVersion: text('runtime_version'),
 	updateId: text('update_id'),
 	device: text('device'),
+	/** Build-Nummer der APK (versionCode) — unterscheidet gleiche Versionsnamen. */
+	appBuild: text('app_build'),
+	os: text('os'),
+	osVersion: text('os_version'),
+	model: text('model'),
+	manufacturer: text('manufacturer'),
+	/** Bildschirm, auf dem es passierte. */
+	route: text('route'),
+	/** Ein Wert je App-Start — gruppiert zusammengehörige Meldungen. */
+	sessionId: text('session_id'),
 	/** 'start' | 'crash' | 'error' | 'schritt' */
 	kind: text('kind').notNull(),
 	message: text('message').notNull(),

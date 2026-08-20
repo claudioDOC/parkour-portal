@@ -11,6 +11,15 @@ import { report } from './report';
  * Teile zur Laufzeit. Statt alle zum Browser zu schicken, lädt die App
  * die neue Datei selbst herunter und öffnet Androids Installer.
  */
+/** Lädt ein natives Modul, ohne die App mitzureissen, wenn es fehlt. */
+function tryLoad<T>(load: () => T): T | null {
+	try {
+		return load();
+	} catch {
+		return null;
+	}
+}
+
 export type ApkInfo = {
 	version: string;
 	versionCode: number;
@@ -43,8 +52,26 @@ export async function downloadAndInstallApk(
 	info: ApkInfo,
 	onProgress?: (percent: number) => void
 ): Promise<void> {
-	const FileSystem = require('expo-file-system/legacy') as typeof import('expo-file-system/legacy');
-	const IntentLauncher = require('expo-intent-launcher') as typeof import('expo-intent-launcher');
+	/**
+	 * Beide Bausteine sind erst ab App-Paket 1.7 enthalten. Fehlen sie,
+	 * darf die App NICHT abstürzen — genau das passierte bisher: Der
+	 * Zugriff auf ein fehlendes natives Modul beendet die App sofort,
+	 * ohne Fehlermeldung. Ältere Installationen bekommen darum den
+	 * Browser-Weg als Rückfall.
+	 */
+	const FileSystem = tryLoad(
+		() => require('expo-file-system/legacy') as typeof import('expo-file-system/legacy')
+	);
+	const IntentLauncher = tryLoad(
+		() => require('expo-intent-launcher') as typeof import('expo-intent-launcher')
+	);
+	if (!FileSystem || !IntentLauncher) {
+		void report('error', 'Update: App-Datei zu alt für die eingebaute Installation', {
+			fileSystem: !!FileSystem,
+			intentLauncher: !!IntentLauncher
+		});
+		throw new Error('TOO_OLD');
+	}
 
 	void report('schritt', `Update gestartet auf Version ${info.version}`, {
 		sizeMB: Math.round(info.sizeBytes / 1048576)

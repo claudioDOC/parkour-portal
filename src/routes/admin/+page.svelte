@@ -34,7 +34,9 @@
 		deleted: boolean;
 	};
 
-	let activeTab = $state<'invites' | 'users' | 'spots' | 'trash' | 'trainings' | 'server' | 'audit'>('users');
+	let activeTab = $state<
+		'invites' | 'users' | 'spots' | 'trash' | 'trainings' | 'server' | 'audit' | 'appfehler'
+	>('users');
 
 	let invites = $state<Invite[]>([]);
 	let generatingInvite = $state(false);
@@ -190,6 +192,56 @@
 	let auditFilterGroup = $state('');
 	let auditFilterActor = $state('');
 	let loadingAudit = $state(false);
+
+	/** Fehlerberichte der App (siehe /api/v1/client-log). */
+	type ClientLogEntry = {
+		id: number;
+		createdAt: string;
+		username: string | null;
+		kind: string;
+		message: string;
+		appVersion: string | null;
+		appBuild: string | null;
+		os: string | null;
+		osVersion: string | null;
+		model: string | null;
+		manufacturer: string | null;
+		device: string | null;
+		route: string | null;
+		updateId: string | null;
+		stack: string | null;
+		extra: string | null;
+	};
+	let clientLogs = $state<ClientLogEntry[]>([]);
+	let clientFilters = $state<{ kinds: string[]; users: string[]; versions: string[] }>({
+		kinds: [],
+		users: [],
+		versions: []
+	});
+	let clientKind = $state('');
+	let clientUser = $state('');
+	let clientVersion = $state('');
+	let loadingClient = $state(false);
+
+	async function loadClientLogs() {
+		loadingClient = true;
+		try {
+			const q = new URLSearchParams({ limit: '100' });
+			if (clientKind) q.set('kind', clientKind);
+			if (clientUser) q.set('user', clientUser);
+			if (clientVersion) q.set('version', clientVersion);
+			const res = await fetch(`/api/v1/client-log?${q.toString()}`, { credentials: 'include' });
+			if (!res.ok) return;
+			const body = (await res.json()) as {
+				entries: ClientLogEntry[];
+				filters: { kinds: string[]; users: string[]; versions: string[] };
+			};
+			clientLogs = body.entries;
+			clientFilters = body.filters;
+		} finally {
+			loadingClient = false;
+		}
+	}
 	const AUDIT_PAGE = 80;
 
 	const ACTION_LABELS: Record<string, string> = {
@@ -1255,12 +1307,14 @@
 			},
 			{ id: 'invites' as const, label: 'Einladungen', count: invites.length },
 			{ id: 'server' as const, label: 'Server', count: null as number | null },
-			{ id: 'audit' as const, label: 'Protokoll', count: null as number | null }
+			{ id: 'audit' as const, label: 'Protokoll', count: null as number | null },
+			{ id: 'appfehler' as const, label: 'App-Fehler', count: null as number | null }
 		] as tab}
 			<button
 				onclick={() => {
 					activeTab = tab.id;
 					if (tab.id === 'audit') loadAudit(false);
+					if (tab.id === 'appfehler') loadClientLogs();
 					if (tab.id === 'trash') {
 						loadTrashedSpots();
 						loadTrashedUsers();
@@ -2050,6 +2104,94 @@
 		</div>
 	{/if}
 
+	{#if activeTab === 'appfehler'}
+		<!-- Fehlerberichte der App: Version, Build, Android, Gerät, Seite -->
+		<section class="space-y-4">
+			<div class="flex flex-wrap items-end gap-3">
+				<label class="flex flex-col gap-1 text-xs text-text-muted">
+					Art
+					<select bind:value={clientKind} onchange={loadClientLogs} class="min-w-[9rem] rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none">
+						<option value="">Alle</option>
+						{#each clientFilters.kinds as k}<option value={k}>{k}</option>{/each}
+					</select>
+				</label>
+				<label class="flex flex-col gap-1 text-xs text-text-muted">
+					Person
+					<select bind:value={clientUser} onchange={loadClientLogs} class="min-w-[9rem] rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none">
+						<option value="">Alle</option>
+						{#each clientFilters.users as u}<option value={u}>{u}</option>{/each}
+					</select>
+				</label>
+				<label class="flex flex-col gap-1 text-xs text-text-muted">
+					App-Version
+					<select bind:value={clientVersion} onchange={loadClientLogs} class="min-w-[9rem] rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none">
+						<option value="">Alle</option>
+						{#each clientFilters.versions as v}<option value={v}>{v}</option>{/each}
+					</select>
+				</label>
+				<button
+					type="button"
+					onclick={loadClientLogs}
+					disabled={loadingClient}
+					class="rounded-lg border border-border bg-bg-secondary px-4 py-2 text-sm text-text-primary hover:bg-bg-hover disabled:opacity-50"
+				>
+					{loadingClient ? 'Laden…' : 'Aktualisieren'}
+				</button>
+				<span class="self-center text-sm text-text-muted">{clientLogs.length} Meldungen</span>
+			</div>
+
+			{#if clientLogs.length === 0}
+				<p class="py-8 text-center text-text-muted">
+					{loadingClient ? 'Laden…' : 'Keine Meldungen — auf „Aktualisieren“ tippen.'}
+				</p>
+			{/if}
+
+			<div class="space-y-2">
+				{#each clientLogs as e}
+					<div class="rounded-xl border border-border bg-bg-card p-4 space-y-1.5">
+						<div class="flex items-center gap-2">
+							<span
+								class="rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase {e.kind === 'crash'
+									? 'border-danger text-danger'
+									: e.kind === 'error'
+										? 'border-amber-500 text-amber-400'
+										: e.kind === 'start'
+											? 'border-accent-blue text-accent-blue'
+											: 'border-border text-text-muted'}"
+							>
+								{e.kind}
+							</span>
+							<span class="ml-auto text-xs text-text-muted">{e.createdAt}</span>
+						</div>
+						<p class="text-text-primary text-sm font-medium break-words">{e.message}</p>
+						<p class="text-xs text-text-secondary">
+							👤 {e.username ?? 'nicht angemeldet'}{e.route ? `   ·   Seite ${e.route}` : ''}
+						</p>
+						<p class="text-xs text-text-secondary">
+							📱 App {e.appVersion ?? '?'}{e.appBuild ? ` (Build ${e.appBuild})` : ''}   ·   Stand {e.updateId
+								? e.updateId.slice(0, 8)
+								: '?'}
+						</p>
+						<p class="text-xs text-text-secondary">
+							⚙️ {e.os ?? '?'} {e.osVersion ?? ''}   ·   {[e.manufacturer, e.model]
+								.filter(Boolean)
+								.join(' ') || 'Gerät unbekannt'}
+						</p>
+						{#if e.device}
+							<p class="text-xs text-text-muted">🔎 {e.device}</p>
+						{/if}
+						{#if e.stack}
+							<pre class="mt-1 overflow-x-auto rounded-lg bg-bg-secondary p-2 text-[11px] leading-4 text-text-muted">{e.stack}</pre>
+						{/if}
+						{#if e.extra}
+							<p class="text-xs text-text-muted break-words">{e.extra}</p>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		</section>
+	{/if}
+
 	{#if activeTab === 'audit'}
 		<div class="space-y-4">
 			<p class="text-text-secondary text-sm">
@@ -2066,30 +2208,32 @@
 				<span class="text-text-muted text-sm self-center">{auditTotal} Einträge gesamt</span>
 			</div>
 
-			<!-- Filter wie in der App: Bereich (Aktions-Präfix) und Person -->
-			<div class="flex gap-2 flex-wrap items-center">
-				<span class="text-text-muted text-xs">Bereich:</span>
-				{#each ['alle', ...new Set(auditLogs.map((l) => l.action.split('.')[0]))] as g}
-					<button
-						type="button"
-						onclick={() => (auditFilterGroup = g === 'alle' ? '' : g)}
-						class="px-2.5 py-1 rounded-full border text-xs transition-colors {auditFilterGroup === g || (g === 'alle' && !auditFilterGroup) ? 'border-accent bg-accent text-[#0c0c0e] font-semibold' : 'border-border bg-bg-secondary text-text-secondary hover:text-text-primary'}"
+			<!-- Auswahlfelder statt Chip-Wand: bei vielen Aktionsarten sonst unlesbar -->
+			<div class="flex flex-wrap gap-3">
+				<label class="flex flex-col gap-1 text-xs text-text-muted">
+					Bereich
+					<select
+						bind:value={auditFilterGroup}
+						class="min-w-[10rem] rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
 					>
-						{g}
-					</button>
-				{/each}
-			</div>
-			<div class="flex gap-2 flex-wrap items-center">
-				<span class="text-text-muted text-xs">Person:</span>
-				{#each ['alle', ...new Set(auditLogs.map((l) => l.actorUsername ?? 'System'))] as a}
-					<button
-						type="button"
-						onclick={() => (auditFilterActor = a === 'alle' ? '' : a)}
-						class="px-2.5 py-1 rounded-full border text-xs transition-colors {auditFilterActor === a || (a === 'alle' && !auditFilterActor) ? 'border-accent bg-accent text-[#0c0c0e] font-semibold' : 'border-border bg-bg-secondary text-text-secondary hover:text-text-primary'}"
+						<option value="">Alle</option>
+						{#each [...new Set(auditLogs.map((l) => l.action.split('.')[0]))].sort() as g}
+							<option value={g}>{g}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="flex flex-col gap-1 text-xs text-text-muted">
+					Person
+					<select
+						bind:value={auditFilterActor}
+						class="min-w-[10rem] rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
 					>
-						{a}
-					</button>
-				{/each}
+						<option value="">Alle</option>
+						{#each [...new Set(auditLogs.map((l) => l.actorUsername ?? 'System'))].sort() as a}
+							<option value={a}>{a}</option>
+						{/each}
+					</select>
+				</label>
 			</div>
 
 			{#if loadingAudit && auditLogs.length === 0}

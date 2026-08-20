@@ -1,7 +1,7 @@
 import { useEffect, useState, createContext, useContext } from 'react';
 import { Stack, useRouter, useSegments, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, ActivityIndicator, AppState, Alert } from 'react-native';
+import { View, Text, ActivityIndicator, AppState, Alert, Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Updates from 'expo-updates';
 import { useFonts } from 'expo-font';
@@ -21,7 +21,7 @@ import { readToken, writeToken } from '../lib/tokenStore';
 import { BASE_URL } from '../lib/api';
 import { setupPush } from '../lib/pushSetup';
 import { appPathFromPortalUrl } from '../lib/appLink';
-import { installCrashReporter, report } from '../lib/report';
+import { installCrashReporter, report, setReportRoute } from '../lib/report';
 import {
 	noteBoot,
 	bootLoopSuspected,
@@ -196,6 +196,8 @@ export default function RootLayout() {
 	// Jede besuchte Seite merken — für den Fall, dass Android die App im
 	// Hintergrund beendet.
 	useEffect(() => {
+		// Auch für Fehlerberichte: Auf welchem Bildschirm ist es passiert?
+		setReportRoute(pathname);
 		if (!ready || !me) return;
 		rememberRoute(pathname, Date.now()).catch(() => {});
 	}, [pathname, ready, me]);
@@ -246,6 +248,7 @@ export default function RootLayout() {
 			.catch((e) => {
 				setInstalling(null);
 				const blocked = e instanceof Error && e.message === 'INSTALL_BLOCKED';
+								const tooOld = e instanceof Error && e.message === 'TOO_OLD';
 				Alert.alert(
 					blocked ? 'Installation blockiert' : 'Fehler',
 					blocked
