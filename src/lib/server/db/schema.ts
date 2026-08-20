@@ -475,3 +475,26 @@ export const auditLogs = sqliteTable('audit_logs', {
 	detailJson: text('detail_json'),
 	ip: text('ip')
 });
+
+/**
+ * Fehlerberichte und Startmeldungen der App.
+ *
+ * Ohne sie liess sich ein Absturz auf einem fremden Gerät nur raten: Wir
+ * wussten nicht einmal, wer welche App-Version installiert hat.
+ */
+export const clientLogs = sqliteTable('client_logs', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+	userId: integer('user_id').references(() => users.id),
+	username: text('username'),
+	platform: text('platform'),
+	appVersion: text('app_version'),
+	runtimeVersion: text('runtime_version'),
+	updateId: text('update_id'),
+	device: text('device'),
+	/** 'start' | 'crash' | 'error' | 'schritt' */
+	kind: text('kind').notNull(),
+	message: text('message').notNull(),
+	stack: text('stack'),
+	extra: text('extra')
+});

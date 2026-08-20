@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as Application from 'expo-application';
+import { report } from './report';
 
 /**
  * Selbst-Aktualisierung der APK.
@@ -45,6 +46,10 @@ export async function downloadAndInstallApk(
 	const FileSystem = require('expo-file-system/legacy') as typeof import('expo-file-system/legacy');
 	const IntentLauncher = require('expo-intent-launcher') as typeof import('expo-intent-launcher');
 
+	void report('schritt', `Update gestartet auf Version ${info.version}`, {
+		sizeMB: Math.round(info.sizeBytes / 1048576)
+	});
+
 	const target = `${FileSystem.cacheDirectory}parkour-portal-${info.version}.apk`;
 	// Alte Teildownloads verwerfen, sonst installiert Android womöglich Müll.
 	try {
@@ -59,7 +64,11 @@ export async function downloadAndInstallApk(
 		}
 	});
 	const result = await task.downloadAsync();
-	if (!result?.uri) throw new Error('Download fehlgeschlagen');
+	if (!result?.uri) {
+		void report('error', 'Update: Download lieferte keine Datei');
+		throw new Error('Download fehlgeschlagen');
+	}
+	void report('schritt', 'Update: Datei geladen');
 
 	// Kam weniger an als angekündigt, ist die Datei kaputt — Androids
 	// Installer meldet das nicht, er tut einfach nichts.
@@ -90,9 +99,10 @@ export async function downloadAndInstallApk(
 			type: 'application/vnd.android.package-archive',
 			flags: FLAGS
 		});
+		void report('schritt', 'Update: Installationsdialog geöffnet');
 		return;
-	} catch {
-		/* nächster Versuch */
+	} catch (e) {
+		void report('error', 'Update: Öffnen der Datei schlug fehl', e);
 	}
 
 	try {
@@ -100,7 +110,8 @@ export async function downloadAndInstallApk(
 			data: contentUri,
 			flags: FLAGS
 		});
-	} catch {
+	} catch (e) {
+		void report('error', 'Update: Installation blockiert', e);
 		throw new Error('INSTALL_BLOCKED');
 	}
 }

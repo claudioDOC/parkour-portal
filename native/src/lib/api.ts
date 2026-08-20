@@ -393,6 +393,23 @@ export const getSystemInfo = () =>
 		load: { avg1: number; cpus: number };
 	}>('/api/admin/system');
 
+/** Fehlerberichte der App (nur Admin). */
+export type ClientLog = {
+	id: number;
+	createdAt: string;
+	username: string | null;
+	platform: string | null;
+	appVersion: string | null;
+	updateId: string | null;
+	kind: string;
+	message: string;
+	stack: string | null;
+	extra: string | null;
+};
+
+export const getClientLogs = (limit = 80) =>
+	get<{ entries: ClientLog[] }>(`/api/v1/client-log?limit=${limit}`);
+
 export const getAuditLog = (limit = 60) =>
 	get<{
 		logs: { id: number; createdAt: string; action: string; actorUsername: string | null }[];

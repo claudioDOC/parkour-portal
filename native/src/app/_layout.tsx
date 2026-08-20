@@ -21,6 +21,7 @@ import { readToken, writeToken } from '../lib/tokenStore';
 import { BASE_URL } from '../lib/api';
 import { setupPush } from '../lib/pushSetup';
 import { appPathFromPortalUrl } from '../lib/appLink';
+import { installCrashReporter, report } from '../lib/report';
 import {
 	noteBoot,
 	bootLoopSuspected,
@@ -207,6 +208,15 @@ export default function RootLayout() {
 				// Erst zählen, dann alles andere: nur so greift die Notbremse
 				// auch dann, wenn der Rest des Starts abstürzt.
 				await noteBoot(Date.now());
+				// Meldet Version und Update-Stand — ohne das wussten wir bei
+				// fremden Geräten nicht einmal, welche App-Datei läuft.
+				installCrashReporter();
+				void report(
+					bootLoopSuspected() ? 'crash' : 'start',
+					bootLoopSuspected()
+						? 'Mehrere schnelle Neustarts — vermutlich Absturzschleife'
+						: 'App gestartet'
+				);
 				// Letzte Seite vormerken; sie wird geöffnet, sobald die
 				// Navigation steht (siehe Effekt weiter unten).
 				const last = await takeRememberedRoute(Date.now());

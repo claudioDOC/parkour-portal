@@ -30,6 +30,7 @@ import {
 	getTrips,
 	adminTrashTrip,
 	getAdminSolo,
+	getClientLogs,
 	addAdminSolo,
 	deleteAdminSolo,
 	BASE_URL,
@@ -37,7 +38,16 @@ import {
 } from '../lib/api';
 import { useAuth } from './_layout';
 
-type Tab = 'users' | 'trainings' | 'spots' | 'trips' | 'trash' | 'invites' | 'system' | 'log';
+type Tab =
+	| 'users'
+	| 'trainings'
+	| 'spots'
+	| 'trips'
+	| 'trash'
+	| 'invites'
+	| 'system'
+	| 'log'
+	| 'fehler';
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
 	{ key: 'users', label: 'Benutzer', icon: 'people-outline' },
@@ -47,7 +57,8 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 	{ key: 'trash', label: 'Papierkorb', icon: 'trash-outline' },
 	{ key: 'invites', label: 'Einladungen', icon: 'mail-outline' },
 	{ key: 'system', label: 'Server', icon: 'hardware-chip-outline' },
-	{ key: 'log', label: 'Protokoll', icon: 'list-outline' }
+	{ key: 'log', label: 'Protokoll', icon: 'list-outline' },
+	{ key: 'fehler', label: 'App-Fehler', icon: 'bug-outline' }
 ];
 
 const ROLES: AdminUser['role'][] = ['member', 'spotmanager', 'admin'];
@@ -91,6 +102,7 @@ export default function Admin() {
 	const trashTrips = useData('trash-trips', getTrashedTrips);
 	const trashUsers = useData('trash-users', () => getAdminUsers(true));
 	const soloEntries = useData('admin-solo', getAdminSolo);
+	const clientLogs = useData('client-logs', () => getClientLogs(80));
 	// Solo-Trainings nachtragen — auf der Website Teil des Admin-Bereichs.
 	const [soloOpen, setSoloOpen] = useState(false);
 	const [soloUserId, setSoloUserId] = useState<number | null>(null);
@@ -748,6 +760,59 @@ export default function Admin() {
 							</Card>
 						);
 					})}
+				</>
+			) : null}
+
+			{tab === 'fehler' ? (
+				<>
+					<Text style={styles.muted}>
+						Meldungen der App: Start, Update-Schritte und Abstürze — mit Version
+						und Gerät. Ältere als 30 Tage werden automatisch entfernt.
+					</Text>
+					{(clientLogs.data?.entries ?? []).length === 0 ? (
+						<Card>
+							<Text style={styles.muted}>Noch keine Meldungen.</Text>
+						</Card>
+					) : null}
+					{(clientLogs.data?.entries ?? []).map((e) => (
+						<Card key={e.id} style={{ gap: 4 }}>
+							<View style={styles.userHead}>
+								<Text
+									style={[
+										styles.userName,
+										e.kind === 'crash'
+											? { color: colors.danger }
+											: e.kind === 'error'
+												? { color: colors.warning }
+												: null
+									]}
+								>
+									{e.message}
+								</Text>
+							</View>
+							<Text style={styles.muted}>
+								{[
+									e.createdAt,
+									e.username ?? 'unbekannt',
+									e.appVersion ? `App ${e.appVersion}` : null,
+									e.platform,
+									e.updateId ? `Stand ${e.updateId.slice(0, 8)}` : null
+								]
+									.filter(Boolean)
+									.join(' · ')}
+							</Text>
+							{e.stack ? (
+								<Text style={styles.muted} numberOfLines={6}>
+									{e.stack}
+								</Text>
+							) : null}
+							{e.extra ? (
+								<Text style={styles.muted} numberOfLines={3}>
+									{e.extra}
+								</Text>
+							) : null}
+						</Card>
+					))}
 				</>
 			) : null}
 
