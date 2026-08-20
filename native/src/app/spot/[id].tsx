@@ -37,6 +37,7 @@ import { NativeMap } from '../../lib/NativeMap';
 import { ParentPicker } from '../../lib/ParentPicker';
 import { ZoomableImage } from '../../lib/ZoomableImage';
 import { report } from '../../lib/report';
+import { StaticMapPreview } from '../../lib/StaticMapPreview';
 import {
 	getSpot,
 	voteSpot,
@@ -128,6 +129,8 @@ export default function SpotDetailScreen() {
 		getSpot(spotId)
 	);
 	const [viewer, setViewer] = useState<number | null>(null);
+	/** Vollbild-Karte (aus der Vorschau heraus). */
+	const [mapOpen, setMapOpen] = useState(false);
 	/** Karte erst zeichnen, wenn die Seite steht (siehe unten). */
 	const [mapReady, setMapReady] = useState(false);
 	useEffect(() => {
@@ -550,7 +553,16 @@ export default function SpotDetailScreen() {
 							 * mit Abstand der teuerste Teil der Seite; hängt sie sofort
 							 * mit drin, ruckelt das Öffnen und die ersten Wischer.
 							 */}
-							{mapReady ? (
+							{base.latitude != null && base.longitude != null ? (
+								<StaticMapPreview
+									lat={base.latitude}
+									lon={base.longitude}
+									markers={data.mapMarkers}
+									width={SCREEN_W - 40}
+									height={200}
+									onPress={() => setMapOpen(true)}
+								/>
+							) : mapReady ? (
 							<NativeMap
 								markers={data.mapMarkers}
 								height={240}
@@ -978,6 +990,48 @@ export default function SpotDetailScreen() {
 					</Sheet>
 
 					{/* Vollbild-Viewer für Spot-Bilder */}
+					{/* Echte Karte im Vollbild — dort stört sie kein Scrollen. */}
+					<Modal visible={mapOpen} animationType="slide" onRequestClose={() => setMapOpen(false)}>
+						<View style={{ flex: 1, backgroundColor: colors.bg }}>
+							<View style={styles.mapBar}>
+								<Pressable onPress={() => setMapOpen(false)} hitSlop={10} style={{ padding: 6 }}>
+									<Ionicons name="close" size={24} color={colors.fg} />
+								</Pressable>
+								<Text style={styles.mapTitle} numberOfLines={1}>
+									{base.name}
+								</Text>
+								<Pressable
+									onPress={() =>
+										base.latitude && base.longitude
+											? Linking.openURL(
+													`geo:${base.latitude},${base.longitude}?q=${base.latitude},${base.longitude}(${encodeURIComponent(base.name)})`
+												)
+											: undefined
+									}
+									hitSlop={10}
+									style={{ padding: 6 }}
+								>
+									<Ionicons name="navigate" size={20} color={colors.accent} />
+								</Pressable>
+							</View>
+							<NativeMap
+								markers={data.mapMarkers}
+								height={Dimensions.get('window').height - 120}
+								defaultSatellite
+								onMarkerPress={(m) => {
+									if ((m.kind === 'micro' || m.kind === 'parent' || m.kind === 'nearby') && m.id > 0) {
+										setMapOpen(false);
+										router.push(`/spot/${m.id}`);
+										return;
+									}
+									Linking.openURL(
+										`geo:${m.lat},${m.lon}?q=${m.lat},${m.lon}(${encodeURIComponent(m.name)})`
+									);
+								}}
+							/>
+						</View>
+					</Modal>
+
 					<Modal visible={viewer !== null} transparent animationType="fade">
 						<View style={styles.viewerBackdrop}>
 							{/* Hintergrund schliesst; das Bild selbst nimmt die Gesten. */}
@@ -1063,6 +1117,22 @@ const makeStyles = (colors: ThemeColors) =>
 	},
 	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 	challengeVideo: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hover },
+	mapBar: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 10,
+		paddingHorizontal: 12,
+		paddingTop: 48,
+		paddingBottom: 8,
+		backgroundColor: colors.bgSecondary
+	},
+	mapTitle: {
+		flex: 1,
+		color: colors.fg + textAlpha.primary,
+		fontSize: 16,
+		lineHeight: 21,
+		fontFamily: fonts.sansSemi
+	},
 	mapPlaceholder: {
 		alignItems: 'center',
 		justifyContent: 'center',

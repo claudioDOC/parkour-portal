@@ -148,13 +148,20 @@ export function Screen({
 	children,
 	refreshing,
 	onRefresh,
-	header = true
+	header = true,
+	scroll = true
 }: {
 	children: ReactNode;
 	refreshing?: boolean;
 	onRefresh?: () => void;
 	/** Feste Kopfleiste mit Logo — auf Unterseiten abschaltbar. */
 	header?: boolean;
+	/**
+	 * Bringt der Bildschirm seine eigene Scrollfläche mit (lange Liste)?
+	 * Dann zeichnet er hier KEINE — sonst entstünde jede Zeile sofort,
+	 * auch die unsichtbaren.
+	 */
+	scroll?: boolean;
 }) {
 	const { colors } = useTheme();
 	const insets = useSafeAreaInsets();
@@ -164,6 +171,19 @@ export function Screen({
 		<View style={{ flex: 1, backgroundColor: colors.bg }}>
 			<Image source={{ uri: bg }} style={StyleSheet.absoluteFill} contentFit="cover" />
 			{header ? <AppHeader /> : null}
+			{!scroll ? (
+				<View
+					style={{
+						flex: 1,
+						paddingHorizontal: 20,
+						paddingTop: header ? 18 : insets.top + 16
+					}}
+				>
+					<ScrollLockContext.Provider value={setScrollEnabled}>
+						{children}
+					</ScrollLockContext.Provider>
+				</View>
+			) : (
 			<ScrollView
 				style={{ flex: 1 }}
 				scrollEnabled={scrollEnabled}
@@ -189,6 +209,7 @@ export function Screen({
 					{children}
 				</ScrollLockContext.Provider>
 			</ScrollView>
+			)}
 		</View>
 	);
 }

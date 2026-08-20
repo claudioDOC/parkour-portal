@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
+import {
+	View,
+	Text,
+	StyleSheet,
+	Pressable,
+	TextInput,
+	FlatList,
+	RefreshControl
+} from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -49,8 +57,28 @@ export default function Spots() {
 	const microSpots = filtered.filter((s) => s.isMicro);
 	const activeFilters = (city ? 1 : 0) + (technique ? 1 : 0);
 
+	/**
+	 * Eine Zeile je Eintrag, dazwischen die Abschnittsköpfe — als flache
+	 * Liste, damit nur das Sichtbare gezeichnet wird. Vorher entstanden
+	 * ALLE Zeilen auf einmal; bei knapp sechzig Spots mit Bild machte das
+	 * jedes Scrollen zäh.
+	 */
+	type ListItem =
+		| { kind: 'label'; key: string; text: string }
+		| { kind: 'spot'; key: string; spot: SpotListItem };
+	const listData: ListItem[] = [
+		...(mainSpots.length > 0
+			? [{ kind: 'label' as const, key: 'l-main', text: 'Normale Spots' }]
+			: []),
+		...mainSpots.map((sp) => ({ kind: 'spot' as const, key: `s${sp.id}`, spot: sp })),
+		...(microSpots.length > 0
+			? [{ kind: 'label' as const, key: 'l-micro', text: 'Microspots' }]
+			: []),
+		...microSpots.map((sp) => ({ kind: 'spot' as const, key: `m${sp.id}`, spot: sp }))
+	];
+
 	return (
-		<Screen refreshing={refreshing} onRefresh={onRefresh}>
+		<Screen refreshing={refreshing} onRefresh={onRefresh} scroll={false}>
 			<TopBar
 				kicker="Orte"
 				title="Spots"
@@ -99,22 +127,45 @@ export default function Spots() {
 				</Text>
 			</View>
 
-			{mainSpots.length > 0 ? <SectionTitle>Normale Spots</SectionTitle> : null}
-			{mainSpots.map((s) => (
-				<SpotRow key={s.id} spot={s} onPress={() => router.push(`/spot/${s.id}`)} />
-			))}
-
-			{microSpots.length > 0 ? <SectionTitle>Microspots</SectionTitle> : null}
-			{microSpots.map((s) => (
-				<SpotRow key={s.id} spot={s} onPress={() => router.push(`/spot/${s.id}`)} />
-			))}
-
-			{data && filtered.length === 0 ? (
-				<EmptyState
-					icon="location-outline"
-					text={q || activeFilters ? 'Nichts gefunden — Filter zurücksetzen?' : 'Noch keine Spots erfasst.'}
-				/>
-			) : null}
+			<FlatList
+				data={listData}
+				keyExtractor={(item) => item.key}
+				renderItem={({ item }) =>
+					item.kind === 'label' ? (
+						<SectionTitle>{item.text}</SectionTitle>
+					) : (
+						<SpotRow spot={item.spot} onPress={() => router.push(`/spot/${item.spot.id}`)} />
+					)
+				}
+				// Fenstergrössen bewusst knapp: Es sind immer nur wenige
+				// Zeilen sichtbar, alles andere kostet nur Speicher.
+				initialNumToRender={6}
+				maxToRenderPerBatch={6}
+				windowSize={5}
+				removeClippedSubviews
+				contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
+				showsVerticalScrollIndicator={false}
+				refreshControl={
+					<RefreshControl
+						refreshing={refreshing ?? false}
+						onRefresh={onRefresh}
+						tintColor={colors.accent}
+						colors={[colors.accent]}
+					/>
+				}
+				ListEmptyComponent={
+					data ? (
+						<EmptyState
+							icon="location-outline"
+							text={
+								q || activeFilters
+									? 'Nichts gefunden — Filter zurücksetzen?'
+									: 'Noch keine Spots erfasst.'
+							}
+						/>
+					) : null
+				}
+			/>
 
 			<Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filter">
 				<Text style={styles.filterLabel}>Ort</Text>
@@ -161,10 +212,16 @@ function SpotRow({ spot, onPress }: { spot: SpotListItem; onPress: () => void })
 				<View style={[styles.row, pressed && { opacity: 0.8 }]}>
 					{spot.thumbnail ? (
 						<Image
-							source={{ uri: mediaUrl(spot.thumbnail, 960) ?? undefined }}
+							// 480 statt 960: Die Zeile ist 150 px hoch — mehr sieht
+							// niemand, kostet aber Ladezeit und Speicher.
+							source={{ uri: mediaUrl(spot.thumbnail, 480) ?? undefined }}
 							style={styles.thumb}
 							contentFit="cover"
-							transition={150}
+							// Kein Einblenden und feste Kennung: In einer
+							// wiederverwendeten Liste sonst Flackern und Extra-Arbeit.
+							transition={0}
+							recyclingKey={String(spot.id)}
+							cachePolicy="memory-disk"
 						/>
 					) : null}
 					<View style={styles.rowBody}>
