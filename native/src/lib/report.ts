@@ -95,6 +95,9 @@ function appFacts() {
 }
 
 export async function report(kind: Kind, message: string, extra?: unknown): Promise<void> {
+	// Nur aus der echten App melden — der Web-Export dient nur zum Testen
+	// und würde das Protokoll mit Meldungen der Entwicklungsumgebung füllen.
+	if (Platform.OS === 'web') return;
 	try {
 		const token = await getToken().catch(() => null);
 		const app = appFacts();
