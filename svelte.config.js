@@ -24,7 +24,46 @@ const config = {
 		// (Bild-Uploads schlugen mit 403 fehl). Der Schutz läuft jetzt in
 		// src/hooks.server.ts: gleiche Regel für Browser, Ausnahme nur für
 		// Anfragen mit gültigem Bearer-Token.
-		csrf: { checkOrigin: false }
+		csrf: { checkOrigin: false },
+		/**
+		 * Content-Security-Policy (Pentest F-01/F-05).
+		 *
+		 * Muss HIER stehen, nicht im Hook: SvelteKit bindet ein eigenes
+		 * Startskript inline ein und ergänzt dafür automatisch die passenden
+		 * Hashes. Setzt man die CSP von Hand, blockiert sie genau dieses
+		 * Skript — die Seite wird dann zwar angezeigt, reagiert aber auf
+		 * keinen Knopf mehr (nachgemessen).
+		 */
+		csp: {
+			directives: {
+				'default-src': ['self'],
+				'base-uri': ['self'],
+				'object-src': ['none'],
+				'frame-ancestors': ['none'],
+				'form-action': ['self'],
+				'script-src': ['self'],
+				'style-src': ['self', 'unsafe-inline', 'https://fonts.googleapis.com'],
+				'font-src': ['self', 'https://fonts.gstatic.com', 'data:'],
+				'img-src': [
+					'self',
+					'data:',
+					'blob:',
+					'https://server.arcgisonline.com',
+					'https://tiles.openfreemap.org',
+					'https://*.basemaps.cartocdn.com',
+					'https://*.tile.openstreetmap.org'
+				],
+				'connect-src': [
+					'self',
+					'https://tiles.openfreemap.org',
+					'https://server.arcgisonline.com',
+					'https://nominatim.openstreetmap.org'
+				],
+				'worker-src': ['self', 'blob:'],
+				'manifest-src': ['self'],
+				'upgrade-insecure-requests': true
+			}
+		}
 	}
 };
 

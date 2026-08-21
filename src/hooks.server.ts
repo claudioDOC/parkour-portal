@@ -151,5 +151,56 @@ export const handle: Handle = async ({ event, resolve }) => {
 		broadcastDataChanged();
 	}
 
+	setSecurityHeaders(event, response);
 	return response;
 };
+
+/**
+ * Schutz-Header für jede Antwort (Pentest F-01/F-05).
+ *
+ * Bewusst hier statt im Reverse-Proxy: So gilt es unabhängig davon, wer
+ * die App ausliefert, und wandert mit dem Code mit.
+ *
+ * Zur CSP: Karten-Kacheln (OpenFreeMap, Esri), das Kalender-Abo und die
+ * Schriften brauchen ihre Quellen ausdrücklich. `unsafe-inline` für Stile
+ * ist nötig, weil SvelteKit und die Karte Stile direkt am Element setzen;
+ * für Skripte bleibt es aus — dort liegt das eigentliche XSS-Risiko.
+ */
+function setSecurityHeaders(event: RequestEvent, response: Response): void {
+	const h = response.headers;
+	h.set('X-Content-Type-Options', 'nosniff');
+	h.set('X-Frame-Options', 'DENY');
+	h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	h.set(
+		'Permissions-Policy',
+		'camera=(self), microphone=(), geolocation=(self), payment=(), usb=(), interest-cohort=()'
+	);
+	// Seiten bekommen ihre CSP von SvelteKit (mit den nötigen Skript-Hashes).
+	// Hier nur ergänzen, wo keine gesetzt ist: Bilder, Dateien, API.
+	if (!h.has('content-security-policy'))
+		h.set(
+		'Content-Security-Policy',
+		[
+			"default-src 'self'",
+			"base-uri 'self'",
+			"object-src 'none'",
+			"frame-ancestors 'none'",
+			"form-action 'self'",
+			"script-src 'self'",
+			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+			"font-src 'self' https://fonts.gstatic.com data:",
+			"img-src 'self' data: blob: https://server.arcgisonline.com https://tiles.openfreemap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org",
+			"connect-src 'self' https://tiles.openfreemap.org https://server.arcgisonline.com https://nominatim.openstreetmap.org",
+			"worker-src 'self' blob:",
+			"manifest-src 'self'",
+			"upgrade-insecure-requests"
+		].join('; ')
+	);
+
+	// HSTS nur, wenn die Anfrage wirklich über HTTPS kam — sonst sperrt man
+	// sich eine rein lokale Installation aus.
+	const proto = event.request.headers.get('x-forwarded-proto') ?? event.url.protocol.replace(':', '');
+	if (proto === 'https') {
+		h.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+	}
+}

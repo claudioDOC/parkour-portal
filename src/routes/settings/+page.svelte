@@ -1,4 +1,21 @@
 <script lang="ts">
+	/** Alle Sitzungen entwerten (Pentest F-08) und hier neu anmelden. */
+	let logoutAllBusy = $state(false);
+	let logoutAllMsg = $state('');
+	async function logoutEverywhere() {
+		if (!confirm('Wirklich auf allen Geräten abmelden?')) return;
+		logoutAllBusy = true;
+		try {
+			const res = await fetch('/api/auth/logout-all', { method: 'POST', credentials: 'include' });
+			if (res.ok) {
+				logoutAllMsg = 'Erledigt — alle Geräte müssen sich neu anmelden.';
+				setTimeout(() => (window.location.href = '/login'), 1200);
+			}
+		} finally {
+			logoutAllBusy = false;
+		}
+	}
+
 	import { goto, invalidateAll } from '$app/navigation';
 	import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
 	import type { PageData } from './$types';
@@ -365,6 +382,26 @@
 	{/if}
 
 	<PushSettings />
+
+	<!-- Sitzungen entwerten: gestohlenes Token sofort wertlos machen -->
+	<div class="bg-bg-card rounded-xl border border-border p-6">
+		<h3 class="text-lg font-semibold text-text-primary mb-2">Auf allen Geräten abmelden</h3>
+		<p class="text-text-muted text-sm mb-4">
+			Meldet dich überall ab — Handy, Tablet, andere Browser. Sinnvoll, wenn du ein
+			Gerät verloren hast oder jemand mitgelesen haben könnte.
+		</p>
+		{#if logoutAllMsg}
+			<p class="mb-3 text-sm text-success">{logoutAllMsg}</p>
+		{/if}
+		<button
+			type="button"
+			onclick={logoutEverywhere}
+			disabled={logoutAllBusy}
+			class="cursor-pointer rounded-lg border border-danger/40 bg-danger/10 px-4 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/20 disabled:opacity-50"
+		>
+			{logoutAllBusy ? 'Wird abgemeldet …' : 'Überall abmelden'}
+		</button>
+	</div>
 
 	<div class="bg-bg-card rounded-xl border border-border p-6">
 		<h3 class="text-lg font-semibold text-text-primary mb-2">Passwort ändern</h3>

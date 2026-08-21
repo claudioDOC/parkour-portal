@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { spotChallenges, spotChallengeImages } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { logAudit } from '$lib/server/audit';
 import { getUploadWriteDir } from '$lib/server/uploads';
@@ -101,7 +102,9 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		const ext = magic.ext;
-		const filename = `ch${challengeId}-${Date.now()}.${ext}`;
+		// Zufallsanteil wie bei Spot-Bildern — /uploads ist ohne Login lesbar,
+		// die Namen sollen sich nicht erraten lassen.
+		const filename = `ch${challengeId}-${Date.now()}-${randomBytes(6).toString('hex')}.${ext}`;
 		const filepath = join(uploadDir, filename);
 
 		try {

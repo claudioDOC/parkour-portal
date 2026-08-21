@@ -345,6 +345,10 @@ export async function uploadAvatar(uri: string, name: string, type: string): Pro
 		throw uploadFailure(res.status, res.body, 'Avatar-Upload');
 }
 
+/** Alle Sitzungen entwerten — auch die auf anderen Geräten. */
+export const logoutEverywhere = () =>
+	post<{ success?: boolean }>('/api/auth/logout-all', {});
+
 export const changePassword = (currentPassword: string, newPassword: string) =>
 	post<{ success?: boolean }>('/api/auth/change-password', { currentPassword, newPassword });
 

@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { eq } from 'drizzle-orm';
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { randomBytes } from 'node:crypto';
 import sharp from 'sharp';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
@@ -71,7 +72,8 @@ export const POST: RequestHandler = async (event) => {
 	const uploadDir = getUploadWriteDir();
 	if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true, mode: 0o775 });
 
-	const filename = `avatar-${locals.user.id}-${Date.now()}.webp`;
+	// Profilbilder liegen im selben offenen Ordner — Zufallsanteil im Namen.
+	const filename = `avatar-${locals.user.id}-${Date.now()}-${randomBytes(6).toString('hex')}.webp`;
 	writeFileSync(join(uploadDir, filename), square);
 	writeFileSync(join(uploadDir, avatarFullFilename(filename)), full);
 

@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { spotImages, spots } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { logAudit } from '$lib/server/audit';
 import { getUploadWriteDir } from '$lib/server/uploads';
@@ -58,7 +59,10 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		const ext = magic.ext;
-		const filename = `${spotId}-${Date.now()}.${ext}`;
+		// Zufallsanteil im Namen: Ohne ihn liessen sich Bilder fremder Spots
+		// erraten (`<spotId>-<zeitstempel>`), obwohl /uploads ohne Login
+		// erreichbar sein MUSS — die App lädt Bilder ohne Sitzung.
+		const filename = `${spotId}-${Date.now()}-${randomBytes(6).toString('hex')}.${ext}`;
 		const filepath = join(uploadDir, filename);
 
 		// HEIC/HEIF zeigt kein Browser an → in WebP umwandeln. Alles andere

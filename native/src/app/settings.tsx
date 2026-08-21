@@ -15,6 +15,7 @@ import {
 	changePassword,
 	saveUiTheme,
 	getNtfyInfo,
+	logoutEverywhere,
 	getPushConfig,
 	savePushPrefs,
 	sendPushTest,
@@ -212,6 +213,35 @@ export default function Settings() {
 			</Card>
 
 			<SectionTitle>Sicherheit</SectionTitle>
+			<Card style={{ gap: 8 }}>
+				<Text style={styles.prefLabel}>Auf allen Geräten abmelden</Text>
+				<Text style={styles.ntfyHint}>
+					Meldet dich überall ab — Handy, Browser, alles. Sinnvoll bei einem
+					verlorenen Gerät.
+				</Text>
+				<Button
+					label="Überall abmelden"
+					kind="danger"
+					small
+					onPress={() =>
+						Alert.alert('Überall abmelden?', 'Danach musst du dich neu anmelden.', [
+							{ text: 'Abbrechen', style: 'cancel' },
+							{
+								text: 'Abmelden',
+								style: 'destructive',
+								onPress: async () => {
+									try {
+										await logoutEverywhere();
+									} catch {
+										/* Server hat die Sitzung ohnehin entwertet */
+									}
+									await signOut();
+								}
+							}
+						])
+					}
+				/>
+			</Card>
 			<Card style={{ padding: 6 }}>
 				<Row
 					icon="key-outline"
