@@ -4,6 +4,8 @@ type Bucket = { count: number; resetAt: number };
 
 const loginFailureBuckets = new Map<string, Bucket>();
 const registerBuckets = new Map<string, Bucket>();
+/** Fehlerberichte der App — nimmt der Server bewusst ohne Login entgegen. */
+const clientLogBuckets = new Map<string, Bucket>();
 
 const LOGIN_FAIL_MAX = 5;
 const LOGIN_FAIL_WINDOW_MS = 60_000;
@@ -73,4 +75,16 @@ export function clearLoginAuthFailures(ip: string) {
 /** Max. 10 Registrierungen pro Stunde pro IP (Invite + Massen-Accounts). */
 export function rateLimitAuthRegister(ip: string) {
 	return consume(registerBuckets, ip, 10, 3_600_000);
+}
+
+/**
+ * Fehlerberichte je IP begrenzen.
+ *
+ * Der Endpunkt muss ohne Login erreichbar sein — Abstürze passieren oft
+ * vor der Anmeldung. Ohne Bremse könnte aber jede beliebige Person die
+ * Tabelle vollschreiben. 40 Meldungen pro Viertelstunde reichen selbst
+ * für eine Absturzschleife locker.
+ */
+export function rateLimitClientLog(ip: string) {
+	return consume(clientLogBuckets, ip, 40, 15 * 60_000);
 }

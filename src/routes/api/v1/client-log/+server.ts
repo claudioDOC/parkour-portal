@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { clientLogs } from '$lib/server/db/schema';
 import { and, desc, eq, lt } from 'drizzle-orm';
+import { getClientIp, rateLimitClientLog } from '$lib/server/rateLimitAuth';
 
 /**
  * Fehlerberichte der App entgegennehmen.
@@ -13,11 +14,24 @@ import { and, desc, eq, lt } from 'drizzle-orm';
  */
 const MAX_TEXT = 4000;
 const KEEP_DAYS = 30;
+const MAX_ROWS = 5000;
 
 const trim = (v: unknown, max = 300) =>
 	typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, locals } = event;
+
+	// Ohne Login erreichbar → begrenzen, sonst könnte jede beliebige Person
+	// die Tabelle vollschreiben.
+	const limited = rateLimitClientLog(getClientIp(event));
+	if (!limited.ok) {
+		return json(
+			{ error: 'Zu viele Meldungen' },
+			{ status: 429, headers: { 'retry-after': String(limited.retryAfterSec) } }
+		);
+	}
+
 	let body: Record<string, unknown>;
 	try {
 		body = (await request.json()) as Record<string, unknown>;
@@ -62,6 +76,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		const cutoff = new Date(Date.now() - KEEP_DAYS * 86_400_000).toISOString().slice(0, 19).replace('T', ' ');
 		db.delete(clientLogs).where(lt(clientLogs.createdAt, cutoff)).run();
+
+		// Zweite Bremse: nie mehr als MAX_ROWS Zeilen behalten, damit auch
+		// eine Flut die Datenbank nicht aufbläht.
+		const total = db.select({ id: clientLogs.id }).from(clientLogs).all().length;
+		if (total > MAX_ROWS) {
+			const keep = db
+				.select({ id: clientLogs.id })
+				.from(clientLogs)
+				.orderBy(desc(clientLogs.id))
+				.limit(MAX_ROWS)
+				.all();
+			const smallest = keep[keep.length - 1]?.id ?? 0;
+			db.delete(clientLogs).where(lt(clientLogs.id, smallest)).run();
+		}
 	} catch (e) {
 		console.error('client-log insert failed', e);
 		return json({ ok: false }, { status: 500 });
