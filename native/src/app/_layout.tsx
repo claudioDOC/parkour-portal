@@ -1,5 +1,11 @@
 import { useEffect, useState, createContext, useContext } from 'react';
-import { Stack, useRouter, useSegments, usePathname } from 'expo-router';
+import {
+	Stack,
+	useRouter,
+	useSegments,
+	usePathname,
+	useRootNavigationState
+} from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, ActivityIndicator, AppState, Alert, Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -335,22 +341,27 @@ export default function RootLayout() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [me?.id]);
 
-	// Erst wenn die Navigation wirklich steht, zum gemerkten Ziel springen.
+	/**
+	 * Erst springen, wenn die Navigation WIRKLICH steht.
+	 *
+	 * Vorher genügte „Splash fertig" — der Sprung lief dann ins Leere, weil
+	 * der Navigator im selben Moment erst entsteht. Sichtbar wurde das als:
+	 * App kommt zurück, landet aber auf der Startseite statt beim Spot.
+	 * `useRootNavigationState().key` ist erst gesetzt, wenn er bereit ist.
+	 */
+	const navState = useRootNavigationState();
 	useEffect(() => {
-		if (!ready || !splashDone || !me || !pendingLink) return;
+		if (!navState?.key || !ready || !splashDone || !me || !pendingLink) return;
 		const target = pendingLink;
 		setPendingLink(null);
 		// Nach einer Startschleife bleibt die App bewusst auf der Startseite.
 		if (bootLoopSuspected()) return;
-		const t = setTimeout(() => {
-			try {
-				router.push(target as never);
-			} catch {
-				/* Ziel nicht erreichbar — Startseite ist gut genug */
-			}
-		}, 0);
-		return () => clearTimeout(t);
-	}, [ready, splashDone, me, pendingLink, router]);
+		try {
+			router.push(target as never);
+		} catch {
+			/* Ziel nicht erreichbar — Startseite ist gut genug */
+		}
+	}, [navState?.key, ready, splashDone, me, pendingLink, router]);
 
 	// Läuft die App sichtbar weiter, war es keine Schleife.
 	useEffect(() => {

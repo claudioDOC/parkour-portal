@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useData } from '../lib/store';
+import { loadDraft, saveDraft, clearDraft } from '../lib/draft';
 import { ParentPicker } from '../lib/ParentPicker';
 import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -54,6 +55,61 @@ export default function NewSpot() {
 	// Microspot samt Hauptspot — wie „Spot vorschlagen" auf der Website.
 	const [isMicro, setIsMicro] = useState(false);
 	const [parentSpotId, setParentSpotId] = useState<number | null>(null);
+
+	/**
+	 * Eingaben überleben jetzt den Wechsel in eine andere App: Sie werden
+	 * fortlaufend gesichert und beim Öffnen wieder eingesetzt. Vorher war
+	 * alles weg, sobald Android die App im Hintergrund beendete — genau
+	 * dann, wenn man kurz Koordinaten holen wollte.
+	 */
+	const draftLoaded = useRef(false);
+	useEffect(() => {
+		(async () => {
+			const d = await loadDraft<{
+				name: string;
+				city: string;
+				description: string;
+				lighting: string;
+				weather: string[];
+				techniques: string[];
+				coords: { lat: number; lon: number } | null;
+				isMicro: boolean;
+				parentSpotId: number | null;
+			}>('spot-new');
+			if (d) {
+				setName(d.name ?? '');
+				setCity(d.city ?? '');
+				setDescription(d.description ?? '');
+				setLighting(d.lighting ?? 'teilweise');
+				setWeather(d.weather ?? ['trocken']);
+				setTechniques(d.techniques ?? []);
+				setCoords(d.coords ?? null);
+				setIsMicro(Boolean(d.isMicro));
+				setParentSpotId(d.parentSpotId ?? null);
+			}
+			draftLoaded.current = true;
+		})();
+	}, []);
+
+	useEffect(() => {
+		// Erst nach dem Laden sichern — sonst überschriebe der leere
+		// Anfangszustand den gemerkten Entwurf.
+		if (!draftLoaded.current) return;
+		const empty =
+			!name.trim() && !city.trim() && !description.trim() && !coords && techniques.length === 0;
+		if (empty) return;
+		void saveDraft('spot-new', {
+			name,
+			city,
+			description,
+			lighting,
+			weather,
+			techniques,
+			coords,
+			isMicro,
+			parentSpotId
+		});
+	}, [name, city, description, lighting, weather, techniques, coords, isMicro, parentSpotId]);
 	const { data: spotList } = useData('spots-for-parent', getSpots);
 	const parentOptions = (spotList?.spots ?? []).filter((sp) => !sp.isMicro);
 
@@ -162,6 +218,7 @@ export default function NewSpot() {
 					failed.push(e instanceof Error ? e.message : 'Unbekannter Fehler');
 				}
 			}
+			await clearDraft('spot-new');
 			Alert.alert(
 				failed.length ? 'Spot angelegt — Fotos unvollständig' : 'Gespeichert',
 				failed.length
