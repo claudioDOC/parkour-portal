@@ -238,6 +238,74 @@ async function runRsvpReminder(now: Date): Promise<void> {
 }
 
 /**
+ * Zusatztraining: Wer weder zu- noch abgesagt hat, bekommt gut drei Stunden
+ * vor Beginn eine Erinnerung. Anders als beim festen Termin zählt hier nur
+ * die ausdrückliche Antwort — also müssen wir aktiv nachfragen, und zwar bei
+ * allen, nicht nur bei Opt-in-Accounts.
+ */
+const EXTRA_REMINDER_LEAD_MIN = 180;
+
+async function runExtraRsvpReminder(now: Date): Promise<void> {
+	const today = todayYmdInAppTZ(now);
+	const nowMin = currentMinutesInAppTZ(now);
+
+	let sessions;
+	try {
+		sessions = db
+			.select()
+			.from(trainingSessions)
+			.where(and(eq(trainingSessions.date, today), eq(trainingSessions.isExtra, true)))
+			.all();
+	} catch {
+		return; // Migration ausstehend
+	}
+
+	for (const session of sessions) {
+		if (session.cancelled) continue;
+		const start = parseTimeToMinutes(session.timeStart);
+		if (start === null) continue;
+		// Fenster: ab drei Stunden vor Beginn bis zum Beginn.
+		if (nowMin < start - EXTRA_REMINDER_LEAD_MIN || nowMin >= start) continue;
+		if (!claimReminder(session.id, 'extra-rsvp')) continue;
+
+		const allIds = db
+			.select({ id: users.id })
+			.from(users)
+			.where(usersNotDeletedCondition())
+			.all()
+			.map((u) => u.id);
+		const decided = new Set<number>();
+		for (const row of db
+			.select({ userId: trainingSessionRsvp.userId })
+			.from(trainingSessionRsvp)
+			.where(eq(trainingSessionRsvp.sessionId, session.id))
+			.all()) {
+			decided.add(row.userId);
+		}
+		for (const row of db
+			.select({ userId: absences.userId })
+			.from(absences)
+			.where(eq(absences.sessionId, session.id))
+			.all()) {
+			decided.add(row.userId);
+		}
+		const undecided = allIds.filter((id) => !decided.has(id));
+		if (undecided.length === 0) continue;
+
+		await sendToUsersWithPref(
+			'trainingRsvpReminder',
+			{
+				title: `Zusatztraining heute — ${formatTime(session)}`,
+				body: 'Du hast noch nicht geantwortet. Bist du dabei?',
+				url: '/training',
+				tag: `training-extra-rsvp-${session.id}`
+			},
+			undecided
+		);
+	}
+}
+
+/**
  * „Spot fix“: Sobald das Voting schliesst (2 h vor Trainingsbeginn, bei 18:15
  * also 16:15), bekommen alle Mitziehenden den Gewinner-Spot gemeldet.
  * Ohne Votes gibt es nichts zu melden — dann wird still übersprungen.
@@ -332,6 +400,7 @@ async function tick(): Promise<void> {
 		await runEveningReminder(now);
 		await runSpotFixNotification(now);
 		await runRsvpReminder(now);
+		await runExtraRsvpReminder(now);
 		cleanupOldReminderLog();
 	} catch (err) {
 		console.error('[push] Erinnerungslauf fehlgeschlagen:', err);

@@ -81,6 +81,12 @@ export const POST: RequestHandler = async (event) => {
 			.run();
 		const newId = Number(ins.lastInsertRowid);
 
+		// Wer den Termin einträgt, ist offensichtlich dabei — sonst stünde der
+		// Ersteller selbst unter „noch keine Antwort".
+		if (isTrainingAttendanceSchemaReady()) {
+			db.insert(trainingSessionRsvp).values({ sessionId: newId, userId: locals.user.id }).run();
+		}
+
 		const pretty = new Date(`${date}T12:00:00`).toLocaleDateString('de-CH', {
 			weekday: 'long',
 			day: 'numeric',
@@ -166,7 +172,14 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	if (action === 'absence') {
-		if (!reason || reason.trim().length < 10) {
+		// Beim Zusatztraining soll die Absage ein Tipp sein: Der Termin ist
+		// freiwillig, ein Pflicht-Grund würde nur dazu führen, dass gar nicht
+		// geantwortet wird. Beim festen Termin bleibt der Grund Pflicht.
+		if (session.isExtra) {
+			if (reason && reason.trim().length > 0 && reason.trim().length < 10) {
+				return json({ error: 'Grund entweder weglassen oder mind. 10 Zeichen' }, { status: 400 });
+			}
+		} else if (!reason || reason.trim().length < 10) {
 			return json({ error: 'Grund ist erforderlich (mind. 10 Zeichen)' }, { status: 400 });
 		}
 
@@ -181,7 +194,7 @@ export const POST: RequestHandler = async (event) => {
 		db.insert(absences).values({
 			userId: locals.user.id,
 			sessionId,
-			reason: reason.trim()
+			reason: reason?.trim() ? reason.trim() : 'Kann nicht'
 		}).run();
 
 		if (isTrainingAttendanceSchemaReady()) {

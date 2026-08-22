@@ -146,6 +146,8 @@ export type TrainingSession = {
 		avatar?: string | null;
 	}[];
 	guests: { id: number; name: string }[];
+	/** Nur bei Zusatztrainings: wer weder zu- noch abgesagt hat. */
+	pendingResponders?: { id: number; username: string; avatar?: string | null }[];
 	userDbAbsent: boolean;
 	userVirtualAbsent: boolean;
 	userHasRsvp: boolean;
@@ -868,6 +870,22 @@ export function myTripStatus(
 }
 
 /** Erster Trip, zu dem meine Antwort fehlt (inkl. 3-Tage-Wiedervorlage). */
+export type PendingExtra = {
+	id: number;
+	date: string;
+	dayOfWeek: string;
+	timeStart: string;
+	timeEnd: string;
+	note: string | null;
+	createdByName: string | null;
+	inCount: number;
+	outCount: number;
+};
+
+/** Nächstes Zusatztraining ohne eigene Antwort — Grundlage für den Start-Dialog. */
+export const getPendingExtra = () =>
+	get<{ session: PendingExtra | null }>('/api/training/pending-extra');
+
 export const getPendingTrip = () =>
 	get<{ trip: { id: number; title: string; startDate: string; creatorName: string | null; inCount: number } | null }>(
 		'/api/trips/pending'

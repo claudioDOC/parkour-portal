@@ -81,6 +81,16 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 					trainingAttendance: 'implicit' as const,
 					autoAbsentWeekdays: [] as string[]
 				}));
+	// Avatare getrennt nachschlagen: die Anwesenheits-Normalisierung trägt sie
+	// nicht mit, gebraucht werden sie nur für die Namenslisten.
+	const avatarById = new Map<number, string | null>(
+		db
+			.select({ id: users.id, avatar: users.avatar })
+			.from(users)
+			.where(usersNotDeletedCondition())
+			.all()
+			.map((u) => [u.id, u.avatar ? `/uploads/${u.avatar}` : null])
+	);
 	const allSpots = db.select({ id: spots.id, name: spots.name, city: spots.city }).from(spots).all();
 
 	/**
@@ -156,6 +166,8 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 		let userVirtualAbsent: boolean;
 		let userHasWeekdayOverride: boolean;
 		let userHasRsvp: boolean;
+		/** Nur bei Zusatztrainings gefüllt: wer noch gar nicht geantwortet hat. */
+		let pendingResponders: { id: number; username: string; avatar: string | null }[] = [];
 		const uid = user?.id;
 
 		if (!schemaOk) {
@@ -222,6 +234,20 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 						dbAbsentIds,
 						session.dayOfWeek
 					);
+			// Beim Zusatztraining gibt es drei Zustände statt zwei: zugesagt,
+			// abgesagt — und schlicht noch nichts gesagt. Letztere sind weder
+			// dabei noch abgemeldet und werden eigens ausgewiesen.
+			if (session.isExtra) {
+				pendingResponders = allUsers
+					.filter(
+						(u) => !rsvpUserIds.has(u.id) && !dbAbsentIds.has(u.id) && !hiddenUserIds.has(u.id)
+					)
+						.map((u) => ({
+						id: u.id,
+						username: u.username,
+						avatar: avatarById.get(u.id) ?? null
+					}));
+			}
 			userDbAbsent = uid ? dbAbsentIds.has(uid) : false;
 			userVirtualAbsent =
 				!session.isExtra && uid ? effectiveAbsentIds.has(uid) && !dbAbsentIds.has(uid) : false;
@@ -330,6 +356,7 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 			spotThumbnail: effectiveSpotId ? (spotThumbs.get(effectiveSpotId) ?? null) : null,
 			overrideSpot,
 			absences: absencesForList,
+			pendingResponders,
 			attending,
 			guests,
 			userDbAbsent,

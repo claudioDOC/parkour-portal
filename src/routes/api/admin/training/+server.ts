@@ -250,6 +250,57 @@ export const POST: RequestHandler = async (event) => {
 			return json({ success: true });
 		}
 
+		/**
+		 * Nachträglich als anwesend eintragen — vor allem für Zusatztrainings,
+		 * wo nur die ausdrückliche Zusage zählt: Wer da war, es aber nie
+		 * angeklickt hat, kann so von einem Admin nachgetragen werden.
+		 */
+		if ((type === 'add_rsvp' || type === 'remove_rsvp') && sessionId && Number.isFinite(userId) && userId > 0) {
+			if (!isTrainingAttendanceSchemaReady()) {
+				return json({ error: 'Datenbank-Migration fehlt (0002)' }, { status: 503 });
+			}
+			const session = db.select().from(trainingSessions).where(eq(trainingSessions.id, sessionId)).get();
+			if (!session) {
+				return json({ error: 'Training nicht gefunden' }, { status: 404 });
+			}
+			const target = db
+				.select({ id: users.id })
+				.from(users)
+				.where(and(eq(users.id, userId), usersNotDeletedCondition()))
+				.get();
+			if (!target) {
+				return json({ error: 'User nicht gefunden' }, { status: 404 });
+			}
+			if (type === 'remove_rsvp') {
+				db.delete(trainingSessionRsvp)
+					.where(and(eq(trainingSessionRsvp.sessionId, sessionId), eq(trainingSessionRsvp.userId, userId)))
+					.run();
+			} else {
+				// Eine Zusage schliesst eine Abmeldung aus — sonst stünde die
+				// Person gleichzeitig in beiden Listen.
+				db.delete(absences)
+					.where(and(eq(absences.sessionId, sessionId), eq(absences.userId, userId)))
+					.run();
+				const existing = db
+					.select({ id: trainingSessionRsvp.id })
+					.from(trainingSessionRsvp)
+					.where(and(eq(trainingSessionRsvp.sessionId, sessionId), eq(trainingSessionRsvp.userId, userId)))
+					.get();
+				if (!existing) {
+					db.insert(trainingSessionRsvp).values({ sessionId, userId }).run();
+				}
+			}
+			logAudit({
+				event,
+				action: type === 'add_rsvp' ? 'admin.training.add_rsvp' : 'admin.training.remove_rsvp',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				targetUserId: userId,
+				detail: { sessionId, date: session.date }
+			});
+			return json({ success: true });
+		}
+
 		/** Training absagen/aufheben — bei Absage geht ein Push an alle Mitziehenden. */
 		if ((type === 'cancel_session' || type === 'uncancel_session') && sessionId) {
 			const session = db

@@ -496,14 +496,26 @@
 								     Zusage-Knopf hier vor allen Abmelde-Zweigen — auch für Accounts,
 								     die bei den festen Terminen automatisch als dabei gelten. -->
 								{#if session.isExtra}
+									<!-- Drei Zustände, nie mehr als eine Gegenaktion: zugesagt,
+									     abgesagt oder noch offen. -->
 									<div class="flex flex-wrap justify-end gap-2">
 										{#if session.userHasRsvp}
+											<span class="rounded-lg bg-success/15 px-3 py-2 text-sm font-medium text-success">Zugesagt</span>
 											<button
-												onclick={() => postAction('rsvp_no', session.id)}
+												onclick={() => (showReason = showReason === session.id ? null : session.id)}
 												disabled={loadingSession === session.id}
-												class="bg-bg-hover hover:bg-warning/15 text-text-secondary px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+												class="bg-bg-hover hover:bg-danger/15 text-text-secondary px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
 											>
-												{loadingSession === session.id ? '...' : 'Zusage zurücknehmen'}
+												Kann doch nicht
+											</button>
+										{:else if session.userDbAbsent}
+											<span class="rounded-lg bg-danger/15 px-3 py-2 text-sm font-medium text-danger">Abgesagt</span>
+											<button
+												onclick={() => postAction('rsvp_yes', session.id)}
+												disabled={loadingSession === session.id}
+												class="bg-accent/15 hover:bg-accent/25 text-accent px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+											>
+												{loadingSession === session.id ? '...' : 'Doch dabei'}
 											</button>
 										{:else}
 											<button
@@ -512,6 +524,13 @@
 												class="bg-accent/15 hover:bg-accent/25 text-accent px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
 											>
 												{loadingSession === session.id ? '...' : 'Dabei!'}
+											</button>
+											<button
+												onclick={() => (showReason = showReason === session.id ? null : session.id)}
+												disabled={loadingSession === session.id}
+												class="bg-bg-hover hover:bg-danger/15 text-text-secondary px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+											>
+												Kann nicht
 											</button>
 										{/if}
 									</div>
@@ -567,12 +586,16 @@
 										<input
 											type="text"
 											bind:value={reasonInput[session.id]}
-											placeholder="Grund angeben (mind. 10 Zeichen)"
+											placeholder={session.isExtra ? 'Grund (optional)' : 'Grund angeben (mind. 10 Zeichen)'}
 											class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-56 focus:outline-none focus:border-accent"
 										/>
 										<button
 											onclick={() => postAction('absence', session.id, { reason: reasonInput[session.id] || '' })}
-											disabled={loadingSession === session.id || !reasonInput[session.id] || reasonInput[session.id].trim().length < 10}
+											disabled={loadingSession === session.id ||
+												(session.isExtra
+													? (reasonInput[session.id]?.trim().length ?? 0) > 0 &&
+														(reasonInput[session.id]?.trim().length ?? 0) < 10
+													: !reasonInput[session.id] || reasonInput[session.id].trim().length < 10)}
 											class="bg-danger hover:bg-danger/80 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer"
 										>
 											{loadingSession === session.id ? '...' : 'Abmelden'}
@@ -772,6 +795,23 @@
 									{/if}
 								</div>
 							</div>
+							<!-- Nur beim Zusatztraining: Wer nichts gesagt hat, ist weder
+							     dabei noch abgemeldet — das soll man auch sehen. -->
+							{#if session.isExtra && session.pendingResponders?.length}
+								<div class="sm:col-span-2">
+									<p class="text-text-muted text-xs font-medium uppercase tracking-wide mb-2">
+										Noch keine Antwort ({session.pendingResponders.length})
+									</p>
+									<div class="flex flex-wrap gap-1.5">
+										{#each session.pendingResponders as user}
+											<a
+												href="/profil/{user.id}"
+												class="rounded-full bg-bg-hover px-2.5 py-1 text-xs text-text-secondary transition-colors hover:text-text-primary"
+											>{user.username}</a>
+										{/each}
+									</div>
+								</div>
+							{/if}
 						</div>
 					</div>
 				</div>

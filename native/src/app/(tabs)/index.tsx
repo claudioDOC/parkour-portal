@@ -167,7 +167,11 @@ export default function Dashboard() {
 
 	const submitAbsence = async () => {
 		if (!absenceFor) return;
-		if (absenceReason.trim().length < 10) {
+		// Beim Zusatztraining ist der Grund freiwillig — der Termin ist es ja
+		// auch. Wer etwas schreibt, soll aber verständlich bleiben.
+		const needsReason = !absenceFor.isExtra;
+		const len = absenceReason.trim().length;
+		if (needsReason ? len < 10 : len > 0 && len < 10) {
 			Alert.alert('Begründung zu kurz', 'Bitte mindestens 10 Zeichen — wie im Portal.');
 			return;
 		}
@@ -553,12 +557,68 @@ export default function Dashboard() {
 										))}
 										{s.absences.length === 0 ? <Text style={styles.emptyDash}>—</Text> : null}
 									</View>
+									{s.isExtra && (s.pendingResponders?.length ?? 0) > 0 ? (
+										<>
+											<GroupLabel color={colors.fg + textAlpha.muted}>
+												{`Noch keine Antwort (${s.pendingResponders!.length})`}
+											</GroupLabel>
+											<View style={styles.chipWrap}>
+												{s.pendingResponders!.map((u, i) => (
+													<NameChip
+														key={u.id}
+														name={u.username}
+														avatar={u.avatar ?? null}
+														userId={u.id}
+														index={i}
+													/>
+												))}
+											</View>
+										</>
+									) : null}
 
 									<View style={styles.actions}>
-										{iAmIn ? <Pill label="✓ Du ziehst mit" color={colors.success} /> : null}
-										{/* Zusatztrainings zählen nur mit ausdrücklicher Zusage — sonst
-										    stünde jeder automatisch drin, der sich nicht abmeldet. */}
-										{optIn || s.isExtra ? (
+										{iAmIn && !s.isExtra ? (
+											<Pill label="✓ Du ziehst mit" color={colors.success} />
+										) : null}
+										{s.isExtra ? (
+											/* Zusatztraining: drei Zustände — zugesagt, abgesagt oder
+											   noch offen. Ohne Antwort zählt man nicht mit, darum steht
+											   immer genau eine Gegenaktion daneben. */
+											s.userHasRsvp ? (
+												<>
+													<Pill label="Zugesagt" color={colors.success} />
+													<Button
+														label="Kann doch nicht"
+														kind="ghost"
+														small
+														onPress={() => setAbsenceFor(s)}
+													/>
+												</>
+											) : s.userDbAbsent ? (
+												<>
+													<Pill label="Abgesagt" color={colors.danger} />
+													<Button
+														label="Doch dabei"
+														small
+														onPress={() => act(() => trainingAction('rsvp_yes', s.id))}
+													/>
+												</>
+											) : (
+												<>
+													<Button
+														label="Dabei!"
+														small
+														onPress={() => act(() => trainingAction('rsvp_yes', s.id))}
+													/>
+													<Button
+														label="Kann nicht"
+														kind="ghost"
+														small
+														onPress={() => setAbsenceFor(s)}
+													/>
+												</>
+											)
+										) : optIn ? (
 											s.userHasRsvp ? (
 												<Button
 													label="Doch nicht"
@@ -694,10 +754,12 @@ export default function Dashboard() {
 					setAbsenceFor(null);
 					setAbsenceReason('');
 				}}
-				title={`Abmelden — ${absenceFor ? metaDate(absenceFor.date) : ''}`}
+				title={`${absenceFor?.isExtra ? 'Kann nicht' : 'Abmelden'} — ${absenceFor ? metaDate(absenceFor.date) : ''}`}
 			>
 				<Input
-					placeholder="Begründung (mind. 10 Zeichen)"
+					placeholder={
+						absenceFor?.isExtra ? 'Grund (optional)' : 'Begründung (mind. 10 Zeichen)'
+					}
 					multiline
 					autoFocus
 					value={absenceReason}
@@ -712,7 +774,10 @@ export default function Dashboard() {
 							setAbsenceReason('');
 						}}
 					/>
-					<Button label="Abmelden" onPress={submitAbsence} />
+					<Button
+						label={absenceFor?.isExtra ? 'Absagen' : 'Abmelden'}
+						onPress={submitAbsence}
+					/>
 				</View>
 			</Sheet>
 

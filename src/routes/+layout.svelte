@@ -17,6 +17,7 @@
 	import ActivityBell from '$lib/components/ActivityBell.svelte';
 	import ActivityToasts from '$lib/components/ActivityToasts.svelte';
 	import TripDecisionGate from '$lib/components/TripDecisionGate.svelte';
+	import ExtraTrainingGate from '$lib/components/ExtraTrainingGate.svelte';
 	import { refreshActivity, setActivitySelf } from '$lib/activityStore.svelte';
 	import { ANDROID_APP_VERSION } from '$lib/appVersion';
 
@@ -530,6 +531,7 @@ let mobileMoreOpen = $state(false);
 		<OfflineIndicator />
 		<ActivityToasts />
 		<TripDecisionGate />
+		<ExtraTrainingGate />
 		<PwaInstallBanner />
 		<PushOnboarding />
 	</div>

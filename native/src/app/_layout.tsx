@@ -41,6 +41,7 @@ import {
 	takeRememberedRoute
 } from '../lib/bootGuard';
 import { clearDataCache } from '../lib/store';
+import { DecisionGate } from '../lib/DecisionGate';
 import { ActivityProvider } from '../lib/activity';
 import { Splash } from '../lib/Splash';
 
@@ -401,6 +402,9 @@ export default function RootLayout() {
 			<ActivityProvider enabled={me !== null}>
 				<StatusBar style={colors.dark ? 'light' : 'dark'} />
 				<AppStack bg={colors.bg} />
+				{/* Offene Entscheidungen (Zusatztraining, Trip) beim Start abfragen —
+				    nur angemeldet, sonst gibt es nichts zu antworten. */}
+				{me ? <DecisionGate onDecided={() => clearDataCache()} /> : null}
 				{installing !== null ? <InstallOverlay percent={installing} colors={colors} /> : null}
 			</ActivityProvider>
 			</ThemeProvider>
