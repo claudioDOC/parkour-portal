@@ -937,6 +937,11 @@ export type StatsPayload = {
 		leaderboard: { userId: number; username: string; avatar?: string | null; total: number; last90: number }[];
 		recent: { username: string; avatar?: string | null; date: string; note: string | null }[];
 	};
+	/** Teilnahmen an vergangenen Zusatztrainings (nur ausdrückliche Zusagen). */
+	extra?: {
+		rows: { userId: number; username: string; avatar: string | null; extraSessions: number }[];
+		pastExtraCount: number;
+	};
 };
 
 export const getStats = () => get<StatsPayload>('/api/v1/stats');
@@ -952,6 +957,8 @@ export type ProfilePayload = {
 	completedChallenges: { title: string; spotName?: string; spotId?: number }[];
 	openChallengeCount: number;
 	soloCount: number;
+	/** Teilnahmen an vergangenen Zusatztrainings (nur ausdrückliche Zusagen). */
+	extraCount?: number;
 	members: { id: number; username: string; avatar: string | null }[];
 };
 

@@ -83,9 +83,11 @@
 				<p class="text-text-muted text-xs mt-1">geschafft · {data.openChallengeCount} offen</p>
 			</div>
 			<div class="bg-bg-card rounded-xl border border-border p-4 md:p-5 col-span-2 lg:col-span-1">
-				<p class="text-text-muted text-xs uppercase tracking-wide">🏃 Solo</p>
-				<p class="text-2xl md:text-3xl font-bold text-text-primary mt-1">{data.soloCount}</p>
-				<p class="text-text-muted text-xs mt-1">Solo-Trainings</p>
+				<p class="text-text-muted text-xs uppercase tracking-wide">🏃 Extra</p>
+				<p class="text-2xl md:text-3xl font-bold text-text-primary mt-1">{data.soloCount + data.extraCount}</p>
+				<p class="text-text-muted text-xs mt-1">
+					{data.soloCount} solo{data.extraCount > 0 ? ` · ${data.extraCount} Zusatztraining${data.extraCount === 1 ? '' : 'e'}` : ''}
+				</p>
 			</div>
 		</section>
 

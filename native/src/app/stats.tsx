@@ -23,6 +23,42 @@ export default function Stats() {
 
 	const lb = data?.stats.leaderboard ?? [];
 
+	/**
+	 * Extra-Einheiten = Solo-Trainings + Zusatztrainings. Beides bleibt aus der
+	 * Hall of Fame heraus, damit „Gezogen %" weiter nur die Verlässlichkeit bei
+	 * den festen Terminen misst.
+	 */
+	const extraUnits = (() => {
+		const map = new Map<
+			number,
+			{ userId: number; username: string; avatar: string | null; solo: number; extra: number; total: number }
+		>();
+		for (const r of data?.solo.leaderboard ?? []) {
+			map.set(r.userId, {
+				userId: r.userId,
+				username: r.username,
+				avatar: r.avatar ?? null,
+				solo: r.total,
+				extra: 0,
+				total: r.total
+			});
+		}
+		for (const r of data?.extra?.rows ?? []) {
+			const e = map.get(r.userId) ?? {
+				userId: r.userId,
+				username: r.username,
+				avatar: r.avatar ?? null,
+				solo: 0,
+				extra: 0,
+				total: 0
+			};
+			e.extra = r.extraSessions;
+			e.total = e.solo + e.extra;
+			map.set(r.userId, e);
+		}
+		return [...map.values()].sort((a, b) => b.total - a.total || b.extra - a.extra);
+	})();
+
 	// Neuester Monat zuerst; „gesamt" = null zeigt die Hall of Fame ab Beginn.
 	const months = [...(data?.stats.monthDetail ?? [])].reverse();
 	const [monthKey, setMonthKey] = useState<string | null>(null);
@@ -179,18 +215,23 @@ export default function Stats() {
 				</>
 			) : null}
 
-			{data?.solo.leaderboard.length ? (
+			{extraUnits.length ? (
 				<>
-					<SectionTitle>Solo-Training</SectionTitle>
+					<SectionTitle>Extra-Einheiten</SectionTitle>
 					<Card style={{ gap: 8 }}>
-						{data.solo.leaderboard.map((row, i) => (
+						<Text style={styles.soloHint}>
+							Solo-Trainings und Zusatztrainings — zählt nicht in „Gezogen %".
+						</Text>
+						{extraUnits.map((row, i) => (
 							<View key={row.userId} style={styles.lbRow}>
 								<Text style={[styles.lbRank, i === 0 && { color: colors.accent }]}>{i + 1}</Text>
 								<Avatar username={row.username} avatar={row.avatar} size={26} index={i} />
 								<Text style={[styles.lbName, me?.id === row.userId && { color: colors.accent }]}>
 									{row.username}
 								</Text>
-								<Text style={styles.soloMeta}>{row.last90} in 90 Tagen</Text>
+								<Text style={styles.soloMeta}>
+									{row.solo} solo{row.extra > 0 ? ` · ${row.extra} zusatz` : ''}
+								</Text>
 								<Text style={styles.lbPercent}>{row.total}</Text>
 							</View>
 						))}
@@ -341,6 +382,7 @@ const makeStyles = (colors: ThemeColors) =>
 	streak: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 	streakText: { color: colors.warning, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansBold },
 	soloMeta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
+	soloHint: { color: colors.fg + textAlpha.muted, fontSize: 11, lineHeight: 15, marginBottom: 2 },
 	recentRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 	recentText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, flex: 1 }
 });

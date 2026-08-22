@@ -57,8 +57,8 @@ export default function Profile() {
 							<Text style={styles.statLabel}>Challenges</Text>
 						</View>
 						<View style={styles.statBox}>
-							<Text style={styles.statNum}>{data.soloCount}</Text>
-							<Text style={styles.statLabel}>Solo</Text>
+							<Text style={styles.statNum}>{data.soloCount + (data.extraCount ?? 0)}</Text>
+							<Text style={styles.statLabel}>Extra</Text>
 						</View>
 					</View>
 

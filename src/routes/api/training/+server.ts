@@ -299,14 +299,24 @@ export const POST: RequestHandler = async (event) => {
 				{ status: 503 }
 			);
 		}
-		if (locals.user.trainingAttendance !== 'opt_in') {
+		// Bei Zusatztrainings sagt JEDE Person ausdrücklich zu — sonst gälte
+		// jede:r als dabei, der nur nichts gemacht hat. Für die festen
+		// Termine bleibt es beim bisherigen Modus.
+		if (!session.isExtra && locals.user.trainingAttendance !== 'opt_in') {
 			return json({ error: 'Zusage nur für Opt-in-Accounts' }, { status: 400 });
 		}
 		const absent = db.select().from(absences)
 			.where(and(eq(absences.userId, locals.user.id), eq(absences.sessionId, sessionId)))
 			.get();
 		if (absent) {
-			return json({ error: 'Zuerst Abmeldung zurücknehmen' }, { status: 400 });
+			// Beim Zusatztraining ist „Dabei!" die klarere Aussage — die frühere
+			// Abmeldung fällt damit weg, statt die Zusage zu blockieren.
+			if (!session.isExtra) {
+				return json({ error: 'Zuerst Abmeldung zurücknehmen' }, { status: 400 });
+			}
+			db.delete(absences)
+				.where(and(eq(absences.userId, locals.user.id), eq(absences.sessionId, sessionId)))
+				.run();
 		}
 		const existingRsvp = db.select().from(trainingSessionRsvp)
 			.where(and(
@@ -337,7 +347,7 @@ export const POST: RequestHandler = async (event) => {
 				{ status: 503 }
 			);
 		}
-		if (locals.user.trainingAttendance !== 'opt_in') {
+		if (!session.isExtra && locals.user.trainingAttendance !== 'opt_in') {
 			return json({ error: 'Nur für Opt-in-Accounts' }, { status: 400 });
 		}
 		db.delete(trainingSessionRsvp)

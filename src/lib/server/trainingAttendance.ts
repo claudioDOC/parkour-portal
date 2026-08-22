@@ -71,11 +71,17 @@ export function isListedAsAttending(
 	user: UserForAttendance,
 	effectiveAbsentUserIds: Set<number>,
 	hiddenUserIds: Set<number>,
-	rsvpUserIds: Set<number>
+	rsvpUserIds: Set<number>,
+	/**
+	 * Zusatztrainings verlangen von ALLEN eine ausdrückliche Zusage.
+	 * Ohne das gälte jede Person als dabei, die den spontanen Termin gar
+	 * nicht mitbekommen hat — und die Zählung wäre wertlos.
+	 */
+	requireRsvp = false
 ): boolean {
 	if (user.active === false) return false;
 	if (hiddenUserIds.has(user.id) || effectiveAbsentUserIds.has(user.id)) return false;
-	if (user.trainingAttendance === 'opt_in') return rsvpUserIds.has(user.id);
+	if (requireRsvp || user.trainingAttendance === 'opt_in') return rsvpUserIds.has(user.id);
 	return true;
 }
 
@@ -83,10 +89,13 @@ export function filterAttendingUsers(
 	allUsers: UserForAttendance[],
 	effectiveAbsentUserIds: Set<number>,
 	hiddenUserIds: Set<number>,
-	rsvpUserIds: Set<number>
+	rsvpUserIds: Set<number>,
+	requireRsvp = false
 ): { id: number; username: string; avatar: string | null }[] {
 	return allUsers
-		.filter((u) => isListedAsAttending(u, effectiveAbsentUserIds, hiddenUserIds, rsvpUserIds))
+		.filter((u) =>
+			isListedAsAttending(u, effectiveAbsentUserIds, hiddenUserIds, rsvpUserIds, requireRsvp)
+		)
 		.map((u) => ({
 			id: u.id,
 			username: u.username,

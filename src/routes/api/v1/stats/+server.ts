@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { desc, eq } from 'drizzle-orm';
 import { soloTrainings, users } from '$lib/server/db/schema';
 import { computeTrainingStats } from '$lib/server/stats';
+import { computeExtraTrainingStats } from '$lib/server/extraStats';
 import { usersNotDeletedCondition } from '$lib/server/usersWhere';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 
@@ -70,5 +71,5 @@ export const GET: RequestHandler = async ({ locals }) => {
 		/* Tabelle fehlt (Migration ausstehend) — Sektion bleibt leer. */
 	}
 
-	return json({ stats: computeTrainingStats(), solo });
+	return json({ stats: computeTrainingStats(), solo, extra: computeExtraTrainingStats() });
 };

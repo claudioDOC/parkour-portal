@@ -556,7 +556,9 @@ export default function Dashboard() {
 
 									<View style={styles.actions}>
 										{iAmIn ? <Pill label="✓ Du ziehst mit" color={colors.success} /> : null}
-										{optIn ? (
+										{/* Zusatztrainings zählen nur mit ausdrücklicher Zusage — sonst
+										    stünde jeder automatisch drin, der sich nicht abmeldet. */}
+										{optIn || s.isExtra ? (
 											s.userHasRsvp ? (
 												<Button
 													label="Doch nicht"

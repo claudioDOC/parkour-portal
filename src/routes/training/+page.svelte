@@ -492,7 +492,30 @@
 
 						{#if !past && !session.cancelled}
 							<div class="shrink-0 flex flex-col items-end gap-2">
-								{#if session.userDbAbsent}
+								<!-- Zusatztrainings: nur ausdrückliche Zusage zählt, darum steht der
+								     Zusage-Knopf hier vor allen Abmelde-Zweigen — auch für Accounts,
+								     die bei den festen Terminen automatisch als dabei gelten. -->
+								{#if session.isExtra}
+									<div class="flex flex-wrap justify-end gap-2">
+										{#if session.userHasRsvp}
+											<button
+												onclick={() => postAction('rsvp_no', session.id)}
+												disabled={loadingSession === session.id}
+												class="bg-bg-hover hover:bg-warning/15 text-text-secondary px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+											>
+												{loadingSession === session.id ? '...' : 'Zusage zurücknehmen'}
+											</button>
+										{:else}
+											<button
+												onclick={() => postAction('rsvp_yes', session.id)}
+												disabled={loadingSession === session.id}
+												class="bg-accent/15 hover:bg-accent/25 text-accent px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+											>
+												{loadingSession === session.id ? '...' : 'Dabei!'}
+											</button>
+										{/if}
+									</div>
+								{:else if session.userDbAbsent}
 									<button
 										onclick={() => postAction('cancel_absence', session.id)}
 										disabled={loadingSession === session.id}

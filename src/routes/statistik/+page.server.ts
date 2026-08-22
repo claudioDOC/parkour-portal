@@ -3,6 +3,7 @@ import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { soloTrainings, users } from '$lib/server/db/schema';
 import { computeTrainingStats } from '$lib/server/stats';
+import { computeExtraTrainingStats } from '$lib/server/extraStats';
 import { usersNotDeletedCondition } from '$lib/server/usersWhere';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 
@@ -48,6 +49,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		user: locals.user,
 		stats: computeTrainingStats(),
-		solo
+		solo,
+		extra: computeExtraTrainingStats()
 	};
 };

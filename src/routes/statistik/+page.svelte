@@ -6,6 +6,43 @@
 
 	const stats = data.stats;
 	const myId = data.user?.id;
+	/**
+	 * Extra-Einheiten = Solo-Trainings + Teilnahmen an Zusatztrainings.
+	 * Beides ist Eigeninitiative ausserhalb der festen Termine und bleibt
+	 * darum aus „Gezogen %" heraus — sonst würde ein Zusatztraining die
+	 * Verlässlichkeits-Quote der regulären Trainings verfälschen.
+	 */
+	const extraUnits = (() => {
+		const map = new Map<
+			number,
+			{ userId: number; username: string; solo: number; soloLast90: number; extra: number; total: number }
+		>();
+		for (const r of data.solo.leaderboard) {
+			map.set(r.userId, {
+				userId: r.userId,
+				username: r.username,
+				solo: r.total,
+				soloLast90: r.last90,
+				extra: 0,
+				total: r.total
+			});
+		}
+		for (const r of data.extra.rows) {
+			const e = map.get(r.userId) ?? {
+				userId: r.userId,
+				username: r.username,
+				solo: 0,
+				soloLast90: 0,
+				extra: 0,
+				total: 0
+			};
+			e.extra = r.extraSessions;
+			e.total = e.solo + e.extra;
+			map.set(r.userId, e);
+		}
+		return [...map.values()].sort((a, b) => b.total - a.total || b.extra - a.extra);
+	})();
+
 	const spotMonths = [...new Set(stats.spotUsageEvents.map((e) => e.date.slice(0, 7)))].sort();
 	const spotYears = [...new Set(stats.spotUsageEvents.map((e) => e.date.slice(0, 4)))].sort();
 	const monthKeys = stats.monthDetail.map((m) => m.key);
@@ -289,16 +326,18 @@
 		</section>
 
 		<section>
-			<h3 class="text-lg font-semibold text-text-primary mb-1">🏃 Solo-Trainings</h3>
+			<h3 class="text-lg font-semibold text-text-primary mb-1">🏃 Extra-Einheiten</h3>
 			<p class="text-text-muted text-xs sm:text-sm mb-3">
-				Selbst eingetragen — Eigeninitiative ausserhalb der Gruppentrainings.
-				Zählt bewusst <strong class="text-text-secondary">nicht</strong> in „Gezogen %".
+				Solo-Trainings und Zusatztrainings — alles ausserhalb der festen Termine.
+				Zählt bewusst <strong class="text-text-secondary">nicht</strong> in „Gezogen %",
+				damit die Verlässlichkeit bei den regulären Trainings sauber bleibt.
+				Bei Zusatztrainings zählt nur, wer ausdrücklich zugesagt hat.
 				Eintragen auf der <a href="/training" class="text-accent hover:underline">Training-Seite</a>.
 			</p>
-			{#if data.solo.leaderboard.length === 0}
+			{#if extraUnits.length === 0}
 				<div class="rounded-xl border border-dashed border-border bg-bg-card px-5 py-6 text-center">
 					<p class="text-text-secondary text-sm">
-						Noch keine Solo-Trainings eingetragen. Alleine gezogen?
+						Noch nichts eingetragen. Alleine gezogen oder spontan trainiert?
 						<a href="/training" class="text-accent hover:underline font-medium">Trag's ein</a> —
 						hier entsteht die Rangliste.
 					</p>
@@ -306,31 +345,42 @@
 			{:else}
 				<div class="grid gap-4 lg:grid-cols-[1fr_minmax(16rem,22rem)]">
 					<div class="rounded-xl border border-border bg-bg-card divide-y divide-border">
-						{#each data.solo.leaderboard as row, i (row.userId)}
+						{#each extraUnits as row, i (row.userId)}
 							<div class="flex items-center justify-between gap-3 px-4 py-2.5 {row.userId === myId ? 'bg-accent/10' : ''}">
 								<p class="min-w-0 truncate font-medium text-text-primary">
 									<span class="text-text-secondary text-sm mr-1 tabular-nums">{medal(i) || `${i + 1}.`}</span>
 									<a href="/profil/{row.userId}" class="hover:text-accent transition-colors">{row.username}</a>
 								</p>
 								<p class="shrink-0 text-sm tabular-nums">
-									<span class="font-bold text-accent-hot">{row.last90}</span>
-									<span class="text-text-muted text-xs"> / 90 Tage</span>
-									<span class="text-text-muted text-xs ml-2">({row.total} gesamt)</span>
+									<span class="font-bold text-accent-hot">{row.total}</span>
+									<span class="text-text-muted text-xs">
+										{' '}({row.solo} solo{row.extra > 0 ? `, ${row.extra} zusatz` : ''})
+									</span>
 								</p>
 							</div>
 						{/each}
 					</div>
 					<div class="rounded-xl border border-border bg-bg-card p-4">
-						<p class="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">Zuletzt</p>
-						<ul class="space-y-1.5">
-							{#each data.solo.recent as e (`${e.username}-${e.date}`)}
-								<li class="text-xs leading-snug">
-									<span class="font-semibold text-text-primary">{e.username}</span>
-									<span class="text-text-muted"> · {new Date(e.date + 'T12:00:00').toLocaleDateString('de-CH', { day: 'numeric', month: 'short' })}</span>
-									{#if e.note}<span class="text-text-secondary"> — {e.note}</span>{/if}
-								</li>
-							{/each}
-						</ul>
+						<p class="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">Zuletzt solo</p>
+						{#if data.solo.recent.length === 0}
+							<p class="text-text-muted text-xs">Noch keine Solo-Einträge.</p>
+						{:else}
+							<ul class="space-y-1.5">
+								{#each data.solo.recent as e (`${e.username}-${e.date}`)}
+									<li class="text-xs leading-snug">
+										<span class="font-semibold text-text-primary">{e.username}</span>
+										<span class="text-text-muted"> · {new Date(e.date + 'T12:00:00').toLocaleDateString('de-CH', { day: 'numeric', month: 'short' })}</span>
+										{#if e.note}<span class="text-text-secondary"> — {e.note}</span>{/if}
+									</li>
+								{/each}
+							</ul>
+						{/if}
+						{#if data.extra.pastExtraCount > 0}
+							<p class="mt-3 border-t border-border pt-2 text-xs text-text-muted">
+								{data.extra.pastExtraCount}
+								{data.extra.pastExtraCount === 1 ? 'Zusatztraining' : 'Zusatztrainings'} bisher gelaufen.
+							</p>
+						{/if}
 					</div>
 				</div>
 			{/if}

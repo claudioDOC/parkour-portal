@@ -1,10 +1,19 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { desc, eq, lt, sql } from 'drizzle-orm';
 import { db } from './db';
-import { soloTrainings, spotChallengeCompletions, spotChallenges, spots, users } from './db/schema';
+import {
+	soloTrainings,
+	spotChallengeCompletions,
+	spotChallenges,
+	spots,
+	trainingSessionRsvp,
+	trainingSessions,
+	users
+} from './db/schema';
 import { computeTrainingStats } from './stats';
 import { isSpotChallengesSchemaReady } from './spotChallengesSchemaReady';
 import { usersNotDeletedCondition } from './usersWhere';
 import { avatarFullUrl } from './avatar';
+import { todayYmdInAppTZ } from './calendarToday';
 import { and } from 'drizzle-orm';
 
 export type ProfilePayload = NonNullable<ReturnType<typeof buildProfilePayload>>;
@@ -85,6 +94,28 @@ export function buildProfilePayload(userId: number) {
 		/* Tabelle fehlt — 0 reicht */
 	}
 
+	// Zusatztrainings: nur vergangene, nicht abgesagte, mit ausdrücklicher Zusage.
+	let extraCount = 0;
+	try {
+		extraCount = Number(
+			db
+				.select({ c: sql<number>`COUNT(*)` })
+				.from(trainingSessionRsvp)
+				.innerJoin(trainingSessions, eq(trainingSessions.id, trainingSessionRsvp.sessionId))
+				.where(
+					and(
+						eq(trainingSessionRsvp.userId, userId),
+						eq(trainingSessions.isExtra, true),
+						eq(trainingSessions.cancelled, false),
+						lt(trainingSessions.date, todayYmdInAppTZ())
+					)
+				)
+				.get()?.c ?? 0
+		);
+	} catch {
+		/* Migration ausstehend — 0 reicht */
+	}
+
 	// Alle Mitglieder für die Übersicht unten auf der Profilseite.
 	const members = db
 		.select({ id: users.id, username: users.username, avatar: users.avatar, active: users.active })
@@ -113,6 +144,7 @@ export function buildProfilePayload(userId: number) {
 		completedChallenges,
 		openChallengeCount,
 		soloCount,
+		extraCount,
 		members
 	};
 }

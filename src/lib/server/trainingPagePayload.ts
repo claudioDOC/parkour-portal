@@ -195,16 +195,36 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 					.all()
 					.map((r) => r.userId)
 			);
-			attending = filterAttendingUsers(allUsers, effectiveAbsentIds, hiddenUserIds, rsvpUserIds);
-			absencesForList = buildAbsenceListForSession(
+			// Zusatztrainings: nur wer ausdrücklich zusagt, steht in der Liste.
+			attending = filterAttendingUsers(
 				allUsers,
-				sessionAbsences,
 				effectiveAbsentIds,
-				dbAbsentIds,
-				session.dayOfWeek
+				hiddenUserIds,
+				rsvpUserIds,
+				Boolean(session.isExtra)
 			);
+			// Bei Zusatztrainings zählt nur, was jemand ausdrücklich gesagt hat:
+			// eine stehende Wochentags-Abmeldung gilt dem festen Termin, nicht
+			// einem spontanen Zusatztraining — sonst stünden Leute unter „zieht
+			// nicht", die von der Sache gar nichts wussten.
+			absencesForList = session.isExtra
+				? sessionAbsences.map((a) => ({
+						id: a.id,
+						userId: a.userId,
+						username: a.username,
+						reason: a.reason,
+						virtual: false as const
+					}))
+				: buildAbsenceListForSession(
+						allUsers,
+						sessionAbsences,
+						effectiveAbsentIds,
+						dbAbsentIds,
+						session.dayOfWeek
+					);
 			userDbAbsent = uid ? dbAbsentIds.has(uid) : false;
-			userVirtualAbsent = uid ? effectiveAbsentIds.has(uid) && !dbAbsentIds.has(uid) : false;
+			userVirtualAbsent =
+				!session.isExtra && uid ? effectiveAbsentIds.has(uid) && !dbAbsentIds.has(uid) : false;
 			userHasWeekdayOverride = uid ? overrideUserIds.has(uid) : false;
 			userHasRsvp = uid ? rsvpUserIds.has(uid) : false;
 		}
