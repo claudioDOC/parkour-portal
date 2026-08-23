@@ -254,21 +254,6 @@ export default function Dashboard() {
 				</Pressable>
 			) : null}
 
-			{/* Bewusst nur eine schmale Zeile — Info ja, Bühne nein. */}
-			{data?.trainingForecast?.summaryLine ? (
-				<View style={styles.weatherRow}>
-					<Ionicons
-						name={data.trainingForecast.isWet ? 'rainy-outline' : 'partly-sunny-outline'}
-						size={14}
-						color={colors.fg + textAlpha.muted}
-					/>
-					<Text style={styles.weatherRowText} numberOfLines={1}>
-						{/* Serverzeile beginnt schon mit „Prognose:" */}
-						Training — {data.trainingForecast.summaryLine}
-					</Text>
-				</View>
-			) : null}
-
 			{pendingTrip ? (
 				<Pressable onPress={() => router.push('/trips')}>
 					{({ pressed }) => (
@@ -285,27 +270,44 @@ export default function Dashboard() {
 				</Pressable>
 			) : null}
 
-			{/* Eine Zeile statt Kachel — und ein Weg zurück, falls man
-			    danebentippt. */}
-			<View style={styles.soloRow}>
-				<Ionicons name="flash-outline" size={15} color={colors.accent} />
-				<Text style={styles.soloText}>
-					{`Solo · ${data?.mySolo.countMonth ?? 0} diesen Monat`}
-					{data?.mySolo.todayLogged ? ' · heute ✓' : ''}
-				</Text>
-				{data?.mySolo.todayLogged ? (
-					<Pressable onPress={undoSoloToday} hitSlop={8}>
-						<Text style={styles.soloUndo}>Rückgängig</Text>
-					</Pressable>
-				) : (
-					<Pressable onPress={logSoloToday} hitSlop={8}>
-						<Text style={styles.soloAction}>Heute eintragen</Text>
-					</Pressable>
-				)}
+			{/* Nebeninfos rechtsbündig und dicht beieinander: Wetter und Solo
+			    sind Randnotizen — das nächste Training soll oben stehen. */}
+			<View style={styles.metaBlock}>
+				{data?.trainingForecast?.summaryLine ? (
+					<View style={styles.metaRow}>
+						<Ionicons
+							name={data.trainingForecast.isWet ? 'rainy-outline' : 'partly-sunny-outline'}
+							size={13}
+							color={colors.fg + textAlpha.muted}
+						/>
+						{/* Serverzeile beginnt schon mit „Prognose:" */}
+						<Text style={styles.metaSmall} numberOfLines={1}>
+							{data.trainingForecast.summaryLine}
+						</Text>
+					</View>
+				) : null}
+				<View style={styles.metaRow}>
+					<Ionicons name="flash-outline" size={13} color={colors.accent} />
+					<Text style={styles.metaSmall}>
+						{`Solo · ${data?.mySolo.countMonth ?? 0} diesen Monat`}
+						{data?.mySolo.todayLogged ? ' · heute ✓' : ''}
+					</Text>
+					{data?.mySolo.todayLogged ? (
+						<Pressable onPress={undoSoloToday} hitSlop={8}>
+							<Text style={styles.soloUndo}>Rückgängig</Text>
+						</Pressable>
+					) : (
+						<Pressable onPress={logSoloToday} hitSlop={8}>
+							<Text style={styles.soloAction}>Heute eintragen</Text>
+						</Pressable>
+					)}
+				</View>
 			</View>
 
-			<View style={styles.rowBetween}>
-				<SectionTitle>Nächste Trainings</SectionTitle>
+			{/* Eigene Beschriftung statt SectionTitle: dessen Abstände nach oben
+			    und unten verschieben den Text gegen den Knopf daneben. */}
+			<View style={[styles.rowBetween, { marginTop: 14 }]}>
+				<Text style={styles.sectionLabel}>NÄCHSTE TRAININGS</Text>
 				<Pressable
 					onPress={() => {
 						setExtraForm((f) => ({ ...f, date: f.date || (data?.calendarToday ?? '') }));
@@ -477,21 +479,35 @@ export default function Dashboard() {
 											</Pressable>
 										</View>
 									) : !s.votingClosed ? (
-										<View style={{ gap: 8, marginTop: 4 }}>
-											<Text style={styles.metaLine}>Noch kein Spot vorgeschlagen</Text>
+										/* Zustand links, Handlung rechts — eine Zeile statt zwei
+										   gleich aussehender Textzeilen untereinander. */
+										<View style={styles.spotEmptyRow}>
+											<Ionicons
+												name="location-outline"
+												size={15}
+												color={colors.fg + textAlpha.muted}
+											/>
+											<Text style={styles.spotEmptyText}>Noch kein Spot</Text>
 											<Pressable
 												onPress={() => {
 													setVoteFor(s);
 													setVoteQuery('');
 												}}
-												style={({ pressed }) => [styles.proposeSpotRow, pressed && { opacity: 0.7 }]}
+												hitSlop={8}
+												style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
 											>
-												<Ionicons name="add-circle-outline" size={16} color={colors.accentBlue} />
-												<Text style={styles.proposeSpotText}>Spot vorschlagen</Text>
+												<Text style={styles.proposeSpotText}>Vorschlagen</Text>
 											</Pressable>
 										</View>
 									) : (
-										<Text style={styles.metaLine}>Noch kein Spot vorgeschlagen</Text>
+										<View style={styles.spotEmptyRow}>
+											<Ionicons
+												name="location-outline"
+												size={15}
+												color={colors.fg + textAlpha.muted}
+											/>
+											<Text style={styles.spotEmptyText}>Kein Spot festgelegt</Text>
+										</View>
 									)}
 
 									<GroupLabel color={colors.success}>
@@ -995,6 +1011,13 @@ export default function Dashboard() {
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
 		rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+		sectionLabel: {
+			color: colors.fg + textAlpha.secondary,
+			fontFamily: fonts.sansSemi,
+			fontSize: 11,
+			lineHeight: 14,
+			letterSpacing: 1.2
+		},
 		streakChip: {
 			flexDirection: 'row',
 			alignItems: 'center',
@@ -1030,7 +1053,6 @@ const makeStyles = (colors: ThemeColors) =>
 			lineHeight: 16,
 			marginTop: 2
 		},
-		weatherRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
 		absenceRow: { gap: 3, alignItems: 'flex-start' },
 		absenceReason: {
 			color: colors.fg + textAlpha.muted,
@@ -1041,13 +1063,6 @@ const makeStyles = (colors: ThemeColors) =>
 			// Unter dem Namen, auf Höhe des Texts im Chip — und ohne Kürzung.
 			marginLeft: 38,
 			paddingRight: 4
-		},
-		weatherRowText: {
-			color: colors.fg + textAlpha.muted,
-			fontFamily: fonts.sans,
-			fontSize: 12,
-			lineHeight: 16,
-			flex: 1
 		},
 		tripCard: { backgroundColor: colors.accentBlue + '14' },
 		tripKicker: {
@@ -1190,7 +1205,27 @@ const makeStyles = (colors: ThemeColors) =>
 			fontFamily: fonts.sansSemi
 		},
 		laterMeta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 17 },
-		soloRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
+		metaBlock: { alignItems: 'flex-end', gap: 3, paddingHorizontal: 4, marginTop: 2 },
+		metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+		metaSmall: {
+			color: colors.fg + textAlpha.muted,
+			fontSize: 12,
+			lineHeight: 16,
+			fontFamily: fonts.sans
+		},
+		spotEmptyRow: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			gap: 6,
+			marginTop: 4
+		},
+		spotEmptyText: {
+			flex: 1,
+			color: colors.fg + textAlpha.muted,
+			fontSize: 13,
+			lineHeight: 18,
+			fontFamily: fonts.sans
+		},
 		soloAction: { color: colors.accent, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansSemi },
 		soloUndo: {
 			color: colors.fg + textAlpha.secondary,
@@ -1199,8 +1234,6 @@ const makeStyles = (colors: ThemeColors) =>
 			fontFamily: fonts.sans
 		},
 		soloTitle: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
-		soloText: {
-			flex: 1, color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sans, marginTop: 0 },
 		sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 		spotOption: {
 			flexDirection: 'row',
