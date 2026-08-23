@@ -42,9 +42,6 @@
 				></div>
 			</div>
 			<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-				<p class="text-text-secondary">
-					Hey <span class="font-medium text-text-primary">{data.user?.username}</span>
-				</p>
 				{#if data.myStreak >= 2}
 					<span
 						class="rounded-full bg-accent-hot/15 px-2.5 py-0.5 text-xs font-semibold text-accent-hot"

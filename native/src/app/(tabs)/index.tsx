@@ -224,9 +224,6 @@ export default function Dashboard() {
 				title="Start"
 				sub={
 					<View style={{ gap: 8, marginTop: 8 }}>
-						<Text style={styles.greeting}>
-							Hey <Text style={styles.greetingName}>{me?.username}</Text>
-						</Text>
 						{myStreak >= 2 ? (
 							<View style={styles.streakChip}>
 								<Ionicons name="flame" size={15} color={colors.accent} />
@@ -998,8 +995,6 @@ export default function Dashboard() {
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
 		rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-		greeting: { color: colors.fg + textAlpha.secondary, fontFamily: fonts.sans, fontSize: 16, lineHeight: 22 },
-		greetingName: { color: colors.fg + textAlpha.primary, fontFamily: fonts.sansBold },
 		streakChip: {
 			flexDirection: 'row',
 			alignItems: 'center',
