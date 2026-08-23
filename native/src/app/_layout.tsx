@@ -21,7 +21,7 @@ import {
 import { THEMES, DEFAULT_THEME, isThemeId, type UiThemeId, type ThemeColors } from '../lib/theme';
 import { ThemeProvider, useTheme } from '../lib/themeContext';
 import { getMe, getToken, logout, type Me } from '../lib/api';
-import { loadPrefs } from '../lib/prefs';
+import { loadPrefs, getStartTab } from '../lib/prefs';
 import {
 	checkApkUpdate,
 	downloadAndInstallApk,
@@ -237,6 +237,12 @@ export default function RootLayout() {
 				if (last && !bootLoopSuspected()) setPendingLink(last);
 				// Einstellungen (Startseite, Schriftgrösse) VOR dem ersten Render.
 				await loadPrefs();
+				// Mit im Startbericht, damit sich „warum lande ich in Mehr?"
+				// am Log beantworten lässt statt am Bauchgefühl.
+				void report('schritt', 'Startziel', {
+					startTab: getStartTab(),
+					gemerkteRoute: last ?? '(keine)'
+				});
 				const token = await getToken();
 				if (token) setMe(await getMe());
 			} catch {

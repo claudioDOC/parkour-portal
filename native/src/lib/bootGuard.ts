@@ -59,9 +59,17 @@ export async function clearBootLoop(): Promise<void> {
 const KEY_ROUTE = 'last-route';
 const ROUTE_MAX_AGE_MS = 30 * 60 * 1000;
 
+/**
+ * Tabs merken wir NICHT: Sie sind einen Fingertipp entfernt, und nach
+ * einem Update-Neustart wieder in „Mehr" statt auf der Startseite zu
+ * landen, wirkt wie ein Fehler. Gemerkt wird nur, was Arbeit kostet —
+ * eine Spot-Seite, ein Formular, eine Detailansicht.
+ */
+const TAB_ROUTES = ['/', '/finder', '/spots', '/challenges', '/more'];
+
 export async function rememberRoute(path: string, now: number): Promise<void> {
-	// Startseite und Login lohnen sich nicht — dort landet man ohnehin.
-	if (!path || path === '/' || path.startsWith('/login')) return;
+	if (!path || path.startsWith('/login')) return;
+	if (TAB_ROUTES.includes(path)) return;
 	try {
 		await writeToken(KEY_ROUTE, `${now}|${path}`);
 	} catch {

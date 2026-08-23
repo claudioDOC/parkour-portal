@@ -223,13 +223,44 @@ export default function Dashboard() {
 				kicker="Übersicht"
 				title="Start"
 				sub={
-					<View style={{ gap: 8, marginTop: 8 }}>
+					/* Wetter und Solo gehören direkt unter den Titel: Randnotizen,
+					   die keine eigene Zeile mitten auf der Seite brauchen. */
+					<View style={{ gap: 6, marginTop: 8 }}>
 						{myStreak >= 2 ? (
 							<View style={styles.streakChip}>
 								<Ionicons name="flame" size={15} color={colors.accent} />
 								<Text style={styles.streakText}>{myStreak}er-Streak</Text>
 							</View>
 						) : null}
+						{data?.trainingForecast?.summaryLine ? (
+							<View style={styles.metaRow}>
+								<Ionicons
+									name={data.trainingForecast.isWet ? 'rainy-outline' : 'partly-sunny-outline'}
+									size={13}
+									color={colors.fg + textAlpha.muted}
+								/>
+								{/* Serverzeile beginnt schon mit „Prognose:" */}
+								<Text style={styles.metaSmall} numberOfLines={1}>
+									{data.trainingForecast.summaryLine}
+								</Text>
+							</View>
+						) : null}
+						<View style={styles.metaRow}>
+							<Ionicons name="flash-outline" size={13} color={colors.accent} />
+							<Text style={styles.metaSmall}>
+								{`Solo · ${data?.mySolo.countMonth ?? 0} diesen Monat`}
+								{data?.mySolo.todayLogged ? ' · heute ✓' : ''}
+							</Text>
+							{data?.mySolo.todayLogged ? (
+								<Pressable onPress={undoSoloToday} hitSlop={8}>
+									<Text style={styles.soloUndo}>Rückgängig</Text>
+								</Pressable>
+							) : (
+								<Pressable onPress={logSoloToday} hitSlop={8}>
+									<Text style={styles.soloAction}>Heute eintragen</Text>
+								</Pressable>
+							)}
+						</View>
 					</View>
 				}
 			/>
@@ -269,40 +300,6 @@ export default function Dashboard() {
 					)}
 				</Pressable>
 			) : null}
-
-			{/* Nebeninfos rechtsbündig und dicht beieinander: Wetter und Solo
-			    sind Randnotizen — das nächste Training soll oben stehen. */}
-			<View style={styles.metaBlock}>
-				{data?.trainingForecast?.summaryLine ? (
-					<View style={styles.metaRow}>
-						<Ionicons
-							name={data.trainingForecast.isWet ? 'rainy-outline' : 'partly-sunny-outline'}
-							size={13}
-							color={colors.fg + textAlpha.muted}
-						/>
-						{/* Serverzeile beginnt schon mit „Prognose:" */}
-						<Text style={styles.metaSmall} numberOfLines={1}>
-							{data.trainingForecast.summaryLine}
-						</Text>
-					</View>
-				) : null}
-				<View style={styles.metaRow}>
-					<Ionicons name="flash-outline" size={13} color={colors.accent} />
-					<Text style={styles.metaSmall}>
-						{`Solo · ${data?.mySolo.countMonth ?? 0} diesen Monat`}
-						{data?.mySolo.todayLogged ? ' · heute ✓' : ''}
-					</Text>
-					{data?.mySolo.todayLogged ? (
-						<Pressable onPress={undoSoloToday} hitSlop={8}>
-							<Text style={styles.soloUndo}>Rückgängig</Text>
-						</Pressable>
-					) : (
-						<Pressable onPress={logSoloToday} hitSlop={8}>
-							<Text style={styles.soloAction}>Heute eintragen</Text>
-						</Pressable>
-					)}
-				</View>
-			</View>
 
 			{/* Eigene Beschriftung statt SectionTitle: dessen Abstände nach oben
 			    und unten verschieben den Text gegen den Knopf daneben. */}
@@ -1205,7 +1202,6 @@ const makeStyles = (colors: ThemeColors) =>
 			fontFamily: fonts.sansSemi
 		},
 		laterMeta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 17 },
-		metaBlock: { alignItems: 'flex-end', gap: 3, paddingHorizontal: 4, marginTop: 2 },
 		metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 		metaSmall: {
 			color: colors.fg + textAlpha.muted,
