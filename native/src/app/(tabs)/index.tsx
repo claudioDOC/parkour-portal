@@ -44,27 +44,8 @@ import { useAuth } from '../_layout';
 import { hasNativeExtras } from '../../lib/nativeModules';
 import { Linking } from 'react-native';
 
-/** Sprüche der Website-Startseite — gleiche Rotation nach Kalendertag. */
 /** So viele Trainings stehen ausführlich da; der Rest kommt in die Kurzliste. */
 const DETAILED_SESSIONS = 3;
-
-const GREETINGS = [
-	'Bereit für den nächsten Sprung?',
-	'Der Beton wartet auf dich.',
-	'Präzis bleiben. 🎯',
-	'Heute wieder fliegen?',
-	'Ein Sprung nach dem anderen.',
-	'Send it! 🚀',
-	'Die Mauer springt nicht über sich selbst.',
-	'Flow > Kraft.',
-	'Erst schauen, dann springen — aber springen.'
-];
-
-function greetingFor(calendarToday: string): string {
-	const [y, m, d] = calendarToday.split('-').map(Number);
-	const dayIndex = Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
-	return GREETINGS[dayIndex % GREETINGS.length];
-}
 
 /** „Heute", „Morgen", sonst „in N Tagen" — wie auf der Website. */
 function countdownLabel(dateStr: string, calendarToday: string): string {
@@ -245,7 +226,6 @@ export default function Dashboard() {
 					<View style={{ gap: 8, marginTop: 8 }}>
 						<Text style={styles.greeting}>
 							Hey <Text style={styles.greetingName}>{me?.username}</Text>
-							{data ? ` — ${greetingFor(data.calendarToday)}` : ''}
 						</Text>
 						{myStreak >= 2 ? (
 							<View style={styles.streakChip}>

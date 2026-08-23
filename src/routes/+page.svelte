@@ -13,24 +13,6 @@
 		return dateStr === data.calendarToday;
 	}
 
-	/** Rotierende Begrüssung — pro Tag ein Spruch (SSR-stabil über calendarToday). */
-	const greetings = [
-		'Bereit für den nächsten Sprung?',
-		'Der Beton wartet auf dich.',
-		'Präzis bleiben. 🎯',
-		'Heute wieder fliegen?',
-		'Ein Sprung nach dem anderen.',
-		'Send it! 🚀',
-		'Die Mauer springt nicht über sich selbst.',
-		'Flow > Kraft.',
-		'Erst schauen, dann springen — aber springen.'
-	];
-	const greeting = $derived.by(() => {
-		const [y, m, d] = data.calendarToday.split('-').map(Number);
-		const dayIndex = Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
-		return greetings[dayIndex % greetings.length];
-	});
-
 	/** „Heute“, „Morgen“, sonst „in N Tagen“ — fürs schnelle Einordnen. */
 	function countdownLabel(dateStr: string): string {
 		const target = new Date(dateStr + 'T00:00:00');
@@ -61,7 +43,7 @@
 			</div>
 			<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
 				<p class="text-text-secondary">
-					Hey <span class="font-medium text-text-primary">{data.user?.username}</span> — {greeting}
+					Hey <span class="font-medium text-text-primary">{data.user?.username}</span>
 				</p>
 				{#if data.myStreak >= 2}
 					<span
