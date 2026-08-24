@@ -171,15 +171,13 @@ type NavIcon =
 	});
 
 	/**
-	 * Seitenwechsel wie in nativen Apps: vorwärts schiebt von rechts rein,
-	 * zurück (Browser-/Gesten-Back) von links. Richtung via data-navdir,
-	 * Animationen in app.css.
+	 * Seitenwechsel nur kurz überblenden (Animation in app.css). Das frühere
+	 * Schieben von rechts/links ist raus — es sah im Browser verkehrt aus,
+	 * weil die feststehenden Leisten mitgewandert sind.
 	 */
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
 		if (motionDisabled()) return;
-		document.documentElement.dataset.navdir =
-			navigation.delta !== undefined && navigation.delta < 0 ? 'back' : 'fwd';
 		return new Promise((resolve) => {
 			document.startViewTransition(async () => {
 				resolve();

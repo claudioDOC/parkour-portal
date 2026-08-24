@@ -1,10 +1,15 @@
 <script lang="ts">
-	import ViewSwitch from '$lib/components/ViewSwitch.svelte';
-	import type { PageData } from './$types';
+	/**
+	 * Leaflet-Karte aller Spots. Bekommt ihre Daten als Eigenschaften, damit
+	 * sie als zweite Ansicht in der Spots-Seite leben kann — ein eigener
+	 * Seitenaufruf für „Karte" wäre ein Bruch mitten in derselben Aufgabe.
+	 */
 	import { onDestroy, onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import type { buildSpotMapPayload } from '$lib/server/spotMapPayload';
 
-	let { data }: { data: PageData } = $props();
+	type MapPayload = ReturnType<typeof buildSpotMapPayload>;
+	let { data }: { data: MapPayload } = $props();
 
 	let mapContainer = $state<HTMLDivElement | null>(null);
 	let mapError = $state('');
@@ -203,41 +208,7 @@
 	});
 </script>
 
-<svelte:head>
-	<title>Karte — Parkour Portal</title>
-</svelte:head>
-
-<div class="space-y-4">
-	<div class="flex items-end justify-between gap-3 flex-wrap">
-		<div>
-			<!-- Derselbe Schieber wie auf der Spots-Seite und im App-Tab. -->
-			<ViewSwitch
-				current="/map"
-				items={[
-					{ href: '/spots', label: 'Liste', icon: 'list' },
-					{ href: '/map', label: 'Karte', icon: 'map' }
-				]}
-			/>
-			<h1 class="mt-2 text-2xl font-bold text-text-primary">Spot-Karte</h1>
-		</div>
-		<div class="flex gap-1 rounded-lg border border-border bg-bg-secondary p-1">
-			<button
-				type="button"
-				onclick={() => setMapMode('street')}
-				class="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors {mapMode === 'street' ? 'bg-accent text-[#0c0c0e]' : 'text-text-secondary hover:text-text-primary'}"
-			>
-				Karte
-			</button>
-			<button
-				type="button"
-				onclick={() => setMapMode('satellite')}
-				class="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors {mapMode === 'satellite' ? 'bg-accent text-[#0c0c0e]' : 'text-text-secondary hover:text-text-primary'}"
-			>
-				Satellit
-			</button>
-		</div>
-	</div>
-
+<div class="space-y-3">
 	{#if mapError}
 		<div class="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{mapError}</div>
 	{/if}
@@ -266,6 +237,23 @@
 		>
 			{locating ? '…' : '📍 Mein Standort'}
 		</button>
+		<!-- Kartenbild-Wahl gehört zu den Filtern, nicht in eine eigene Zeile. -->
+		<div class="flex gap-1 rounded-full border border-border bg-bg-card p-1">
+			<button
+				type="button"
+				onclick={() => setMapMode('street')}
+				class="cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition-colors {mapMode === 'street' ? 'bg-accent text-[#0c0c0e]' : 'text-text-secondary hover:text-text-primary'}"
+			>
+				Karte
+			</button>
+			<button
+				type="button"
+				onclick={() => setMapMode('satellite')}
+				class="cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition-colors {mapMode === 'satellite' ? 'bg-accent text-[#0c0c0e]' : 'text-text-secondary hover:text-text-primary'}"
+			>
+				Satellit
+			</button>
+		</div>
 	</div>
 	{#if locateError}
 		<p class="text-xs text-danger">{locateError}</p>

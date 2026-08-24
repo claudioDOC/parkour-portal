@@ -2,8 +2,26 @@
 	import type { PageData } from './$types';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import ViewSwitch from '$lib/components/ViewSwitch.svelte';
+	import SpotMap from '$lib/components/SpotMap.svelte';
+	import { page } from '$app/stores';
+	import { replaceState } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
+
+	/**
+	 * Liste oder Karte — zwei Sichten auf dieselben Spots, darum kein
+	 * Seitenwechsel. Die Wahl steht in der Adresse (?ansicht=karte), damit
+	 * ein geteilter Link und die Zurück-Taste weiter funktionieren.
+	 */
+	let view = $state($page.url.searchParams.get('ansicht') === 'karte' ? 'karte' : 'liste');
+
+	function setView(next: string) {
+		view = next;
+		const url = new URL($page.url);
+		if (next === 'karte') url.searchParams.set('ansicht', 'karte');
+		else url.searchParams.delete('ansicht');
+		replaceState(url, {});
+	}
 
 	let filterCity = $state('');
 	let filterTechnique = $state('');
@@ -49,10 +67,11 @@
 	<PageHeader kicker="Raum Thun – Bern" title="Spots" sub="{data.spots.length} Spots zum Ziehen">
 		{#snippet actions()}
 			<ViewSwitch
-				current={'/spots'}
+				current={view}
+				onSelect={setView}
 				items={[
-					{ href: '/spots', label: 'Liste', icon: 'list' },
-					{ href: '/map', label: 'Karte', icon: 'map' }
+					{ key: 'liste', label: 'Liste', icon: 'list' },
+					{ key: 'karte', label: 'Karte', icon: 'map' }
 				]}
 			/>
 			<a
@@ -64,6 +83,9 @@
 		{/snippet}
 	</PageHeader>
 
+	{#if view === 'karte'}
+		<SpotMap data={data.map} />
+	{:else}
 	<div class="flex gap-3 flex-wrap">
 		<input
 			type="search"
@@ -160,4 +182,5 @@
 			</div>
 		</div>
 	</div>
+	{/if}
 </div>

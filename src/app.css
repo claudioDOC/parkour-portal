@@ -331,34 +331,7 @@ header a,
 	user-select: none;
 }
 
-/* Seitenwechsel wie native Apps: vorwärts schiebt von rechts rein,
-   zurück von links — Richtung setzt das Layout via data-navdir. */
-@keyframes slide-cover-in-right {
-	from { transform: translateX(100%); }
-	to { transform: translateX(0); }
-}
-@keyframes slide-parallax-left {
-	from { transform: translateX(0); }
-	to { transform: translateX(-24%); }
-}
-@keyframes slide-cover-in-left {
-	from { transform: translateX(-100%); }
-	to { transform: translateX(0); }
-}
-@keyframes slide-parallax-right {
-	from { transform: translateX(0); }
-	to { transform: translateX(24%); }
-}
-/* Neue Seite liegt ÜBER der alten und schiebt sie deckend zu (iOS-Stil) —
-   ohne Opacity-Crossfade kann nichts durchscheinen oder flashen. */
-html[data-navdir]::view-transition-old(root),
-html[data-navdir]::view-transition-new(root) {
-	animation-duration: 240ms;
-	animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-	animation-fill-mode: both;
-	mix-blend-mode: normal;
-}
-html[data-navdir='fwd']::view-transition-old(root) { animation-name: slide-parallax-left; }
-html[data-navdir='fwd']::view-transition-new(root) { animation-name: slide-cover-in-right; }
-html[data-navdir='back']::view-transition-old(root) { animation-name: slide-parallax-right; }
-html[data-navdir='back']::view-transition-new(root) { animation-name: slide-cover-in-left; }
+/* Kein Schieben mehr beim Seitenwechsel: Die ganze Seite von rechts
+   hereinzufahren wirkt im Browser aufgesetzt, weil Kopf- und Fussleiste
+   mitwandern, obwohl sie stehen bleiben. Es bleibt der sehr kurze
+   Überblend-Effekt oben (vt-out/vt-in) — ruhig und kaum wahrnehmbar. */

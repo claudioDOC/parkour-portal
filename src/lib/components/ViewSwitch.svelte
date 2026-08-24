@@ -4,19 +4,27 @@
 	 *
 	 * Bewusst als Schieber und nicht als einzelner Knopf: Man sieht damit,
 	 * wo man gerade steht — ein Knopf, der nur die Gegenrichtung beschriftet,
-	 * lässt das offen. Gleiche Bedienung wie im Spots-Tab der App.
+	 * lässt das offen. Und bewusst als Knöpfe statt Links: Umgeschaltet wird
+	 * an Ort und Stelle, ohne Seitenwechsel. Gleiche Bedienung wie im
+	 * Spots-Tab der App.
 	 */
-	type Item = { href: string; label: string; icon: 'list' | 'map' };
-	let { items, current }: { items: Item[]; current: string } = $props();
+	type Item = { key: string; label: string; icon: 'list' | 'map' };
+	let {
+		items,
+		current,
+		onSelect
+	}: { items: Item[]; current: string; onSelect: (key: string) => void } = $props();
 </script>
 
 <div class="inline-flex shrink-0 rounded-full bg-bg-hover p-1">
-	{#each items as item (item.href)}
-		{@const active = item.href === current}
-		<a
-			href={item.href}
-			aria-current={active ? 'page' : undefined}
-			class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors
+	{#each items as item (item.key)}
+		{@const active = item.key === current}
+		<button
+			type="button"
+			onclick={() => onSelect(item.key)}
+			aria-pressed={active}
+			aria-current={active ? 'true' : undefined}
+			class="flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors
 				{active
 				? 'bg-accent text-[#0c0c0e]'
 				: 'text-text-secondary hover:text-text-primary'}"
@@ -31,6 +39,6 @@
 				</svg>
 			{/if}
 			{item.label}
-		</a>
+		</button>
 	{/each}
 </div>
