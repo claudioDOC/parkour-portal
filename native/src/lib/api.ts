@@ -25,7 +25,7 @@ export const isVideoUrl = (url: string | null | undefined) =>
  * das lieferte jede Vorschau das Original — bei Handyfotos mehrere
  * Megabyte pro Bild, was Listen und Galerien spürbar bremst.
  */
-export function mediaUrl(path: string | null | undefined, width?: 120 | 240 | 480 | 960) {
+export function mediaUrl(path: string | null | undefined, width?: 120 | 240 | 480 | 960 | 1600) {
 	if (!path) return null;
 	const base = path.startsWith('http')
 		? path

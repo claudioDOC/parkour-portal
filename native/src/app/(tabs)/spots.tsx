@@ -16,6 +16,7 @@ import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
 import { TopBar, Screen, ErrorCard, EmptyState, SectionTitle, Sheet, Button } from '../../lib/ui';
 import { useData } from '../../lib/store';
+import { SpotsMap } from '../map';
 import { getSpots, mediaUrl, type SpotListItem } from '../../lib/api';
 
 export default function Spots() {
@@ -27,6 +28,7 @@ export default function Spots() {
 	const [city, setCity] = useState('');
 	const [technique, setTechnique] = useState('');
 	const [filtersOpen, setFiltersOpen] = useState(false);
+	const [view, setView] = useState<'liste' | 'karte'>('liste');
 
 	const all = data?.spots ?? [];
 	const cities = [...new Set(all.map((s) => s.city))].sort((a, b) => a.localeCompare(b, 'de'));
@@ -83,16 +85,36 @@ export default function Spots() {
 				kicker="Orte"
 				title="Spots"
 				right={
-					<Pressable
-						onPress={() => router.push('/spot-new')}
-						hitSlop={8}
-						style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}
-					>
-						<Ionicons name="add" size={24} color={colors.onAccent} />
-					</Pressable>
+					<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+						{/* Liste und Karte sind zwei Sichten auf dasselbe — darum
+						    hier ein Umschalter statt eines eigenen Menüpunkts. */}
+						<Pressable
+							onPress={() => setView(view === 'liste' ? 'karte' : 'liste')}
+							hitSlop={8}
+							style={({ pressed }) => [styles.viewBtn, pressed && { opacity: 0.7 }]}
+						>
+							<Ionicons
+								name={view === 'liste' ? 'map-outline' : 'list-outline'}
+								size={17}
+								color={colors.fg + textAlpha.secondary}
+							/>
+							<Text style={styles.viewBtnText}>{view === 'liste' ? 'Karte' : 'Liste'}</Text>
+						</Pressable>
+						<Pressable
+							onPress={() => router.push('/spot-new')}
+							hitSlop={8}
+							style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}
+						>
+							<Ionicons name="add" size={24} color={colors.onAccent} />
+						</Pressable>
+					</View>
 				}
 			/>
 
+			{view === 'karte' ? <SpotsMap embedded /> : null}
+
+			{view === 'liste' ? (
+				<>
 			<View style={styles.search}>
 				<Ionicons name="search" size={17} color={colors.textMuted} />
 				<TextInput
@@ -166,6 +188,8 @@ export default function Spots() {
 					) : null
 				}
 			/>
+				</>
+			) : null}
 
 			<Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filter">
 				<Text style={styles.filterLabel}>Ort</Text>
@@ -274,6 +298,21 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
+	viewBtn: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 5,
+		paddingHorizontal: 10,
+		paddingVertical: 6,
+		borderRadius: 999,
+		backgroundColor: colors.hover
+	},
+	viewBtnText: {
+		color: colors.fg + textAlpha.secondary,
+		fontFamily: fonts.sansSemi,
+		fontSize: 12,
+		lineHeight: 16
+	},
 	addBtn: {
 		width: 40,
 		height: 40,

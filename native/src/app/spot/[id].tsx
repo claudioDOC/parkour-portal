@@ -987,7 +987,8 @@ export default function SpotDetailScreen() {
 							/>
 							{viewer !== null && data.images[viewer] ? (
 								<ZoomableImage
-									uri={mediaUrl(data.images[viewer].url) ?? ''}
+									/* Vollansicht in 1600 px statt Original: bis 8 MB weniger. */
+									uri={mediaUrl(data.images[viewer].url, 1600) ?? ''}
 									onSingleTap={() => setViewer(null)}
 								/>
 							) : null}

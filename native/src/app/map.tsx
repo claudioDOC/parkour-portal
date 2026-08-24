@@ -29,7 +29,12 @@ function pinPalette(avgScore: number, voteCount: number): { fill: string; fg: st
 	if (avgScore < 4.35) return { fill: '#65a30d', fg: '#f7fee7' };
 	return { fill: '#15803d', fg: '#f0fdf4' };
 }
-export default function MapScreen() {
+/**
+ * Karteninhalt ohne eigene Kopfzeile — so lässt er sich sowohl als eigener
+ * Bildschirm (`/map`, für Benachrichtigungs-Links) als auch im Spots-Tab
+ * als zweite Ansicht der Liste einsetzen.
+ */
+export function SpotsMap({ embedded = false }: { embedded?: boolean }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
 	const insets = useSafeAreaInsets();
@@ -107,10 +112,18 @@ export default function MapScreen() {
 	const selected: SpotListItem | null = spots.find((s) => s.id === selectedId) ?? null;
 
 	return (
-		<View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + 12 }}>
-			<View style={{ paddingHorizontal: 20 }}>
-				<TopBar back kicker={`${markers.length} Pins`} title="Karte" />
-			</View>
+		<View
+			style={{
+				flex: 1,
+				backgroundColor: colors.bg,
+				paddingTop: embedded ? 0 : insets.top + 12
+			}}
+		>
+			{embedded ? null : (
+				<View style={{ paddingHorizontal: 20 }}>
+					<TopBar back kicker={`${markers.length} Pins`} title="Karte" />
+				</View>
+			)}
 			<View style={styles.filterWrap}>
 				{(
 					[
@@ -134,7 +147,14 @@ export default function MapScreen() {
 					</Pressable>
 				))}
 			</View>
-			<View style={{ flex: 1, marginTop: 12, marginHorizontal: 12, marginBottom: insets.bottom + 12 }}>
+			<View
+				style={{
+					flex: 1,
+					marginTop: 12,
+					marginHorizontal: embedded ? 0 : 12,
+					marginBottom: embedded ? 0 : insets.bottom + 12
+				}}
+			>
 				{markers.length > 0 ? (
 					<NativeMap
 						key={`${mapKey}`}
@@ -324,3 +344,8 @@ const makeStyles = (colors: ThemeColors) =>
 		ghostBtn: { backgroundColor: colors.hover, borderWidth: 1, borderColor: colors.border },
 		actionText: { fontSize: 14, lineHeight: 20, fontFamily: fonts.sansSemi }
 	});
+
+/** Eigener Bildschirm — bleibt für Links aus Benachrichtigungen bestehen. */
+export default function MapScreen() {
+	return <SpotsMap />;
+}

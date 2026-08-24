@@ -28,7 +28,9 @@ const STREAMED = new Set(['mp4', 'mov', 'webm']);
  * niemand den Server mit beliebigen Grössen beschäftigen kann; erzeugte
  * Fassungen liegen als WebP im Zwischenspeicher auf der Platte.
  */
-const THUMB_WIDTHS = new Set([120, 240, 480, 960]);
+// 1600 ist die Vollansicht (Lightbox): scharf auch auf grossen Displays,
+// aber ein Bruchteil eines 8-MB-Originals.
+const THUMB_WIDTHS = new Set([120, 240, 480, 960, 1600]);
 
 function thumbnail(filepath: string, width: number, cacheDir: string, name: string): Buffer | null {
 	try {

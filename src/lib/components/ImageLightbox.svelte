@@ -6,6 +6,17 @@
 	};
 	let { url, alt = '', onClose }: Props = $props();
 
+	/**
+	 * Vollansicht in 1600 px statt Original. Handyfotos liegen als 4–8-MB-
+	 * Dateien auf dem Server; die verkleinerte Fassung ist auf jedem
+	 * Bildschirm scharf und lädt um ein Vielfaches schneller.
+	 */
+	const displayUrl = $derived.by(() => {
+		if (!url) return null;
+		if (url.includes('?') || /\.(mp4|mov|webm)$/i.test(url)) return url;
+		return `${url}?w=1600`;
+	});
+
 	function handleWindowKeydown(e: KeyboardEvent) {
 		if (url !== null && e.key === 'Escape') {
 			onClose();
@@ -37,7 +48,7 @@
 		</button>
 		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 		<img
-			src={url}
+			src={displayUrl}
 			alt={alt}
 			class="relative z-[10051] m-auto max-h-[min(92vh,920px)] max-w-[min(96vw,1200px)] cursor-default rounded-lg object-contain shadow-2xl"
 			onclick={(e) => e.stopPropagation()}

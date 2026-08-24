@@ -337,7 +337,8 @@ export default function ChallengeDetail() {
 									</Pressable>
 								) : (
 									<ZoomableImage
-										uri={mediaUrl(challenge.images[viewer].url) ?? ''}
+										/* Vollansicht in 1600 px — Videos bleiben unberührt. */
+										uri={mediaUrl(challenge.images[viewer].url, 1600) ?? ''}
 										onSingleTap={() => setViewer(null)}
 									/>
 								)

@@ -58,24 +58,43 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
-		const ext = magic.ext;
+		/**
+		 * Bilder werden beim Ablegen normalisiert:
+		 *  - HEIC/HEIF zeigt kein Browser an → WebP.
+		 *  - Alles über 2560 px wird auf 2560 px gebracht. Handyfotos kommen
+		 *    heute mit 4000–8000 px und 4–8 MB an; für die Vollansicht
+		 *    (max. 1600 px) ist das um ein Vielfaches zu viel — es kostet nur
+		 *    Platz, Backup-Zeit und Bandbreite.
+		 * Kleinere Bilder bleiben unverändert liegen.
+		 */
+		const MAX_EDGE = 2560;
+		let toWrite = buffer;
+		let converted = false;
+		try {
+			const meta = await sharp(buffer).metadata();
+			const tooBig = Math.max(meta.width ?? 0, meta.height ?? 0) > MAX_EDGE;
+			const isHeic = magic.mime === 'image/heic' || magic.mime === 'image/heif';
+			if (isHeic || tooBig) {
+				toWrite = await sharp(buffer)
+					.rotate()
+					.resize(MAX_EDGE, MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
+					.webp({ quality: 86 })
+					.toBuffer();
+				converted = true;
+			}
+		} catch (e) {
+			console.error('Bildaufbereitung fehlgeschlagen', e);
+			return json({ error: 'Bild konnte nicht verarbeitet werden.' }, { status: 400 });
+		}
+
+		// Endung muss zum Inhalt passen: Wurde umgewandelt, ist es WebP —
+		// sonst liefert der Server später den falschen MIME-Typ aus.
+		const ext = converted ? 'webp' : magic.ext;
 		// Zufallsanteil im Namen: Ohne ihn liessen sich Bilder fremder Spots
 		// erraten (`<spotId>-<zeitstempel>`), obwohl /uploads ohne Login
 		// erreichbar sein MUSS — die App lädt Bilder ohne Sitzung.
 		const filename = `${spotId}-${Date.now()}-${randomBytes(6).toString('hex')}.${ext}`;
 		const filepath = join(uploadDir, filename);
-
-		// HEIC/HEIF zeigt kein Browser an → in WebP umwandeln. Alles andere
-		// bleibt wie hochgeladen (Original-Qualität für die Lightbox).
-		let toWrite = buffer;
-		if (magic.mime === 'image/heic' || magic.mime === 'image/heif') {
-			try {
-				toWrite = await sharp(buffer).rotate().webp({ quality: 86 }).toBuffer();
-			} catch (e) {
-				console.error('HEIC-Umwandlung fehlgeschlagen', e);
-				return json({ error: 'Bild konnte nicht verarbeitet werden.' }, { status: 400 });
-			}
-		}
 
 		try {
 			writeFileSync(filepath, toWrite, { mode: 0o664 });

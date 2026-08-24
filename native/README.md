@@ -147,9 +147,12 @@ in den Einstellungen still ausgeblendet.
 ## Screens & Struktur
 
 ```
-src/app/(tabs)/        Finder · Spots · Start (Mitte, erhöht) · Stats · Mehr
-src/app/               map, trips, challenges, challenge/[id], spot/[id],
-                       spot-new, profile, activity, settings, admin, login
+src/app/(tabs)/        Finder · Spots · Start (Mitte, erhöht) · Arena · Mehr
+src/app/map.tsx        exportiert <SpotsMap/> — im Spots-Tab als zweite
+                       Ansicht (Umschalter Liste/Karte) und als eigener
+                       Bildschirm /map für Links aus Benachrichtigungen
+src/app/               trips, challenge/[id], spot/[id], spot-new, profile,
+                       activity (hängt an der Glocke), settings, admin, login
 src/lib/api.ts         kompletter API-Client (Bearer-JWT, Upload-Feld „image")
 src/lib/store.ts       useData(key, fetcher): Cache + Refresh bei Fokus
 src/lib/theme.ts       alle 8 Portal-Themes; Textfarben über fg + textAlpha

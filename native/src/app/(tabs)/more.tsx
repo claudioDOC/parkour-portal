@@ -19,12 +19,15 @@ import {
 } from '../../lib/apkUpdate';
 import { useAuth } from '../_layout';
 
+/**
+ * Bewusst kurz gehalten. Nicht mehr hier:
+ *  - „Karte" — sitzt als zweite Ansicht im Spots-Tab, wo man Spots sucht.
+ *  - „Aktivität" — hängt an der Glocke oben rechts, auf jedem Bildschirm.
+ */
 const MENU = [
-	{ route: '/stats', icon: 'stats-chart-outline', label: 'Statistik', hint: 'Hall of Fame, Monate, Solo' },
+	{ route: '/stats', icon: 'stats-chart-outline', label: 'Statistik', hint: 'Hall of Fame, Monate, Extra-Einheiten' },
 	{ route: '/trips', icon: 'car-outline', label: 'Trips', hint: 'Ausflüge & Abstimmungen' },
-	{ route: '/map', icon: 'map-outline', label: 'Karte', hint: 'Alle Spots mit Pins' },
 	{ route: '/profile/me', icon: 'person-outline', label: 'Profil & Mitglieder', hint: 'Dein Profil, alle Leute' },
-	{ route: '/activity', icon: 'notifications-outline', label: 'Aktivität', hint: 'Was zuletzt passiert ist' },
 	{ route: '/settings', icon: 'settings-outline', label: 'Einstellungen', hint: 'Profilbild, Design, Passwort' }
 ] as const;
 

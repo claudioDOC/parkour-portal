@@ -5,6 +5,7 @@ import { spotChallenges, spotChallengeImages } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
+import sharp from 'sharp';
 import { join } from 'node:path';
 import { logAudit } from '$lib/server/audit';
 import { getUploadWriteDir } from '$lib/server/uploads';
@@ -101,14 +102,41 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'Upload-Ordner nicht anlegbar' }, { status: 500 });
 		}
 
-		const ext = magic.ext;
+		/**
+		 * Wie bei Spot-Bildern: Fotos über 2560 px werden verkleinert und als
+		 * WebP abgelegt (die Vollansicht zeigt höchstens 1600 px). Videos
+		 * bleiben unangetastet — die rechnet der Server nicht neu.
+		 */
+		const MAX_EDGE = 2560;
+		let toWrite = buffer;
+		let converted = false;
+		if (!magic.isVideo) {
+			try {
+				const meta = await sharp(buffer).metadata();
+				// HEIC kommt hier gar nicht an (nur jpg/png/webp erlaubt),
+				// darum reicht die Grössenprüfung.
+				if (Math.max(meta.width ?? 0, meta.height ?? 0) > MAX_EDGE) {
+					toWrite = await sharp(buffer)
+						.rotate()
+						.resize(MAX_EDGE, MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
+						.webp({ quality: 86 })
+						.toBuffer();
+					converted = true;
+				}
+			} catch (e) {
+				console.error('Bildaufbereitung fehlgeschlagen', e);
+				return json({ error: 'Bild konnte nicht verarbeitet werden.' }, { status: 400 });
+			}
+		}
+
+		const ext = converted ? 'webp' : magic.ext;
 		// Zufallsanteil wie bei Spot-Bildern — /uploads ist ohne Login lesbar,
 		// die Namen sollen sich nicht erraten lassen.
 		const filename = `ch${challengeId}-${Date.now()}-${randomBytes(6).toString('hex')}.${ext}`;
 		const filepath = join(uploadDir, filename);
 
 		try {
-			writeFileSync(filepath, buffer, { mode: 0o664 });
+			writeFileSync(filepath, toWrite, { mode: 0o664 });
 		} catch (e) {
 			console.error('challenge image write failed', e);
 			return json({ error: 'Speichern fehlgeschlagen' }, { status: 500 });

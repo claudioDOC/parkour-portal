@@ -120,6 +120,30 @@ android/            Alte TWA-Hülle (durch native/ abgelöst)
 
 **Regel vor jeder Änderung am Server:** zuerst Datenbank und Code sichern (`backups/`).
 
+### Automatische Sicherung
+
+`scripts/backup.sh` läuft täglich um 04:00 über den systemd-Timer
+`parkour-backup.timer` (`Persistent=true` — nach einem Ausfall wird nachgeholt):
+
+- Datenbank via `sqlite3 .backup` (WAL-sicher, eine simple Dateikopie kann
+  mitten in einer Transaktion erwischt werden), Integritätsprüfung, gzip,
+  14 Tage Aufbewahrung → `backups/db/`
+- Bilder werden nach `backups/uploads/` gespiegelt — ohne Löschabgleich,
+  damit versehentlich gelöschte Fotos dort erhalten bleiben
+
+Die Unit-Dateien liegen als Kopie in `docs/systemd/`.
+Prüfen: `systemctl list-timers parkour-backup.timer`,
+von Hand auslösen: `sudo systemctl start parkour-backup.service`.
+
+### Bilder
+
+Hochgeladene Fotos werden beim Ablegen auf höchstens 2560 px Kantenlänge
+gebracht (Handykameras liefern 4000–8000 px und 4–8 MB). Ausgeliefert wird
+über `?w=120|240|480|960|1600`, gerechnete Fassungen liegen als WebP im
+Zwischenspeicher — die Vollansicht nimmt 1600 px, nicht das Original.
+`scripts/shrink-uploads.mjs` zieht denselben Schnitt einmalig über den
+Bestand (`--apply` schreibt, ohne den Schalter wird nur gerechnet).
+
 ## Setup
 
 ### Voraussetzungen
