@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import ViewSwitch from '$lib/components/ViewSwitch.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -47,6 +48,13 @@
 <div class="space-y-6">
 	<PageHeader kicker="Raum Thun – Bern" title="Spots" sub="{data.spots.length} Spots zum Ziehen">
 		{#snippet actions()}
+			<ViewSwitch
+				current={'/spots'}
+				items={[
+					{ href: '/spots', label: 'Liste', icon: 'list' },
+					{ href: '/map', label: 'Karte', icon: 'map' }
+				]}
+			/>
 			<a
 				href="/spots/suggest"
 				class="inline-block shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover"

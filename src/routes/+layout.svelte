@@ -227,7 +227,6 @@ let mobileMoreOpen = $state(false);
 	const navMore: { href: string; label: string; icon: NavIcon }[] = [
 		{ href: '/trips', label: 'Trips', icon: 'trip' },
 		{ href: '/challenges', label: 'Challenges', icon: 'challenge' },
-		{ href: '/map', label: 'Map', icon: 'map' },
 		{ href: '/statistik', label: 'Statistik', icon: 'stats' },
 		{ href: '/profil', label: 'Profil', icon: 'user' },
 		{ href: '/settings', label: 'Einstellungen', icon: 'settings' }
@@ -323,7 +322,6 @@ let mobileMoreOpen = $state(false);
 						{ href: '/profil', label: 'Profil', icon: 'user' as const },
 						{ href: '/challenges', label: 'Challenges', icon: 'challenge' as const },
 						{ href: '/trips', label: 'Trips', icon: 'trip' as const },
-						{ href: '/map', label: 'Map', icon: 'map' as const },
 						{ href: '/statistik', label: 'Statistik', icon: 'stats' as const },
 						{ href: '/settings', label: 'Settings', icon: 'settings' as const }
 					] as item (item.href)}

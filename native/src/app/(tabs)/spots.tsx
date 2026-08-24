@@ -14,7 +14,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../../lib/theme';
 import { textAlpha } from '../../lib/tokens';
 import { useTheme, useThemedStyles } from '../../lib/themeContext';
-import { TopBar, Screen, ErrorCard, EmptyState, SectionTitle, Sheet, Button } from '../../lib/ui';
+import { TopBar, Screen, ErrorCard, EmptyState, SectionTitle, Sheet, Button, Segmented } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { SpotsMap } from '../map';
 import { getSpots, mediaUrl, type SpotListItem } from '../../lib/api';
@@ -86,20 +86,16 @@ export default function Spots() {
 				title="Spots"
 				right={
 					<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-						{/* Liste und Karte sind zwei Sichten auf dasselbe — darum
-						    hier ein Umschalter statt eines eigenen Menüpunkts. */}
-						<Pressable
-							onPress={() => setView(view === 'liste' ? 'karte' : 'liste')}
-							hitSlop={8}
-							style={({ pressed }) => [styles.viewBtn, pressed && { opacity: 0.7 }]}
-						>
-							<Ionicons
-								name={view === 'liste' ? 'map-outline' : 'list-outline'}
-								size={17}
-								color={colors.fg + textAlpha.secondary}
-							/>
-							<Text style={styles.viewBtnText}>{view === 'liste' ? 'Karte' : 'Liste'}</Text>
-						</Pressable>
+						{/* Liste und Karte sind zwei Sichten auf dasselbe — der
+						    Schieber zeigt dabei mit, wo man gerade steht. */}
+						<Segmented
+							value={view}
+							onChange={setView}
+							options={[
+								{ key: 'liste', label: 'Liste', icon: 'list-outline' },
+								{ key: 'karte', label: 'Karte', icon: 'map-outline' }
+							]}
+						/>
 						<Pressable
 							onPress={() => router.push('/spot-new')}
 							hitSlop={8}
@@ -298,21 +294,6 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-	viewBtn: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 5,
-		paddingHorizontal: 10,
-		paddingVertical: 6,
-		borderRadius: 999,
-		backgroundColor: colors.hover
-	},
-	viewBtnText: {
-		color: colors.fg + textAlpha.secondary,
-		fontFamily: fonts.sansSemi,
-		fontSize: 12,
-		lineHeight: 16
-	},
 	addBtn: {
 		width: 40,
 		height: 40,

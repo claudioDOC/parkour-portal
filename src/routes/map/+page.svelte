@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ViewSwitch from '$lib/components/ViewSwitch.svelte';
 	import type { PageData } from './$types';
 	import { onDestroy, onMount } from 'svelte';
 	import { browser } from '$app/environment';
@@ -209,7 +210,14 @@
 <div class="space-y-4">
 	<div class="flex items-end justify-between gap-3 flex-wrap">
 		<div>
-			<a href="/spots" class="btn-link btn-link-ghost text-sm">← Zu den Spots</a>
+			<!-- Derselbe Schieber wie auf der Spots-Seite und im App-Tab. -->
+			<ViewSwitch
+				current="/map"
+				items={[
+					{ href: '/spots', label: 'Liste', icon: 'list' },
+					{ href: '/map', label: 'Karte', icon: 'map' }
+				]}
+			/>
 			<h1 class="mt-2 text-2xl font-bold text-text-primary">Spot-Karte</h1>
 		</div>
 		<div class="flex gap-1 rounded-lg border border-border bg-bg-secondary p-1">

@@ -144,6 +144,74 @@ export function AppHeader() {
 const ScrollLockContext = createContext<(enabled: boolean) => void>(() => {});
 export const useScrollLock = () => useContext(ScrollLockContext);
 
+/**
+ * Zwei- oder dreifacher Umschalter im Stil eines Schiebereglers.
+ * Für Ansichten desselben Inhalts (Liste ⇄ Karte) — ein Knopf, der seine
+ * Beschriftung wechselt, lässt nicht erkennen, wo man gerade steht.
+ */
+export function Segmented<T extends string>({
+	value,
+	options,
+	onChange
+}: {
+	value: T;
+	options: { key: T; label: string; icon?: keyof typeof Ionicons.glyphMap }[];
+	onChange: (key: T) => void;
+}) {
+	const { colors } = useTheme();
+	return (
+		<View
+			style={{
+				flexDirection: 'row',
+				backgroundColor: colors.hover,
+				borderRadius: 999,
+				padding: 3
+			}}
+		>
+			{options.map((o) => {
+				const active = o.key === value;
+				return (
+					<Pressable
+						key={o.key}
+						onPress={() => onChange(o.key)}
+						hitSlop={6}
+						style={({ pressed }) => [
+							{
+								flexDirection: 'row',
+								alignItems: 'center',
+								gap: 4,
+								paddingHorizontal: 10,
+								paddingVertical: 5,
+								borderRadius: 999,
+								backgroundColor: active ? colors.accent : 'transparent'
+							},
+							pressed && { opacity: 0.75 }
+						]}
+					>
+						{o.icon ? (
+							<Ionicons
+								name={o.icon}
+								size={14}
+								color={active ? colors.onAccent : colors.fg + textAlpha.muted}
+							/>
+						) : null}
+						<Text
+							style={{
+								fontFamily: fonts.sansSemi,
+								fontSize: 12,
+								lineHeight: 16,
+								color: active ? colors.onAccent : colors.fg + textAlpha.secondary
+							}}
+						>
+							{o.label}
+						</Text>
+					</Pressable>
+				);
+			})}
+		</View>
+	);
+}
+
 export function Screen({
 	children,
 	refreshing,
@@ -176,7 +244,10 @@ export function Screen({
 					style={{
 						flex: 1,
 						paddingHorizontal: 20,
-						paddingTop: header ? 18 : insets.top + 16
+						paddingTop: header ? 18 : insets.top + 16,
+						// Gleicher Abstand wie in der scrollenden Fassung — ohne ihn
+						// kleben Suchfeld und Filterzeile aneinander.
+						gap: 12
 					}}
 				>
 					<ScrollLockContext.Provider value={setScrollEnabled}>
