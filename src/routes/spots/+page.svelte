@@ -115,7 +115,7 @@
 					<a href="/spots/{spot.id}" class="bg-bg-card rounded-xl border border-border hover:border-accent/50 transition-colors block overflow-hidden group">
 						{#if spot.thumbnail}
 							<div class="h-36 overflow-hidden">
-								<img src={`${spot.thumbnail}?w=480`} alt={spot.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+								<img src={`${spot.thumbnail}?w=480`} alt={spot.name} class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
 							</div>
 						{/if}
 						<div class="p-5">
@@ -153,6 +153,13 @@
 			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 				{#each filteredMicroSpots as spot}
 					<a href="/spots/{spot.id}" class="bg-bg-card rounded-xl border border-border/80 hover:border-accent/40 transition-colors block overflow-hidden group">
+						<!-- Microspots haben Bilder wie alle anderen auch (13 von 17) —
+						     sie fehlten hier schlicht, in der App waren sie immer da. -->
+						{#if spot.thumbnail}
+							<div class="h-36 overflow-hidden">
+								<img src={`${spot.thumbnail}?w=480`} alt={spot.name} class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+							</div>
+						{/if}
 						<div class="p-5">
 							<div class="flex items-start justify-between gap-2">
 								<div class="min-w-0">
