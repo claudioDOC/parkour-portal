@@ -90,7 +90,7 @@ Die native App spricht mit dem Server über die JSON-API (`/api/v1/…`, Bearer-
 - **Web-Push** (VAPID) für Browser und PWA
 - **Firebase/FCM** für die native App ab 1.4 — weckt sie auch geschlossen; Dienstkonto liegt ausserhalb des Repos (`backups/firebase/`)
 - **ntfy** als Google-freie Option (geheimes Thema pro Person, Server per `NTFY_BASE` wechselbar)
-- Auslöser u. a.: Training-Erinnerung, Zusage-Erinnerung, Spot fix (16:15), Spot-Voting eröffnet, neuer Spot, Challenge angelegt/geschafft, Trips, Trainings-Absage, Admin-Broadcast — pro Person einzeln abschaltbar
+- Auslöser u. a.: Training-Erinnerung, Zusage-Erinnerung, Spot fix (16:15), Spot-Voting eröffnet, neuer Spot, Challenge angelegt/geschafft, Trips, Trainings-Absage, **„X ist am Spot"** (beim ersten Standort-Teilen, einmal pro Person und Training, nur von zwei Stunden vor bis eine Stunde nach dem Training), Admin-Broadcast — pro Person einzeln abschaltbar
 
 ## Tech Stack
 

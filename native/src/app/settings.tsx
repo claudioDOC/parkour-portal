@@ -77,7 +77,12 @@ const PUSH_PREFS: { key: string; title: string; hint: string }[] = [
 	{ key: 'challenges', title: 'Neue Challenges', hint: 'Wenn jemand eine Challenge erstellt.' },
 	{ key: 'trips', title: 'Trips', hint: 'Neue Trips und offene Terminabstimmungen.' },
 	{ key: 'spotVoting', title: 'Spot-Voting eröffnet', hint: 'Erster Spot-Vorschlag fürs Training.' },
-	{ key: 'spots', title: 'Neue Spots', hint: 'Wenn jemand einen neuen Spot anlegt.' }
+	{ key: 'spots', title: 'Neue Spots', hint: 'Wenn jemand einen neuen Spot anlegt.' },
+	{
+		key: 'atSpot',
+		title: 'Wer am Spot ist',
+		hint: 'Am Trainingstag, wenn jemand „Bin da" antippt — einmal pro Person.'
+	}
 ];
 
 export default function Settings() {

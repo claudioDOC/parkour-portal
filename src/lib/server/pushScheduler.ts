@@ -72,7 +72,7 @@ function addDaysYmd(ymd: string, days: number): string {
 }
 
 /** true, wenn für (Session, Art) noch nichts verschickt wurde — und markiert es. */
-function claimReminder(sessionId: number, kind: string): boolean {
+export function claimReminder(sessionId: number, kind: string): boolean {
 	const existing = db
 		.select({ id: pushReminderLog.id })
 		.from(pushReminderLog)
@@ -93,7 +93,12 @@ function formatTime(session: { timeStart: string; timeEnd: string }): string {
 }
 
 /** Wer laut Trainingsseite mitzieht — gleiche Helfer, damit die Logik nicht auseinanderläuft. */
-export function attendingUserIds(sessionId: number, dayOfWeek: string): number[] {
+export function attendingUserIds(
+	sessionId: number,
+	dayOfWeek: string,
+	/** Zusatztrainings zählen nur ausdrückliche Zusagen. */
+	requireRsvp = false
+): number[] {
 	const allUsers = db
 		.select({
 			id: users.id,
@@ -145,7 +150,9 @@ export function attendingUserIds(sessionId: number, dayOfWeek: string): number[]
 		overrideIds
 	);
 
-	return filterAttendingUsers(allUsers, effectiveAbsent, hiddenIds, rsvpIds).map((u) => u.id);
+	return filterAttendingUsers(allUsers, effectiveAbsent, hiddenIds, rsvpIds, requireRsvp).map(
+		(u) => u.id
+	);
 }
 
 async function runEveningReminder(now: Date): Promise<void> {
