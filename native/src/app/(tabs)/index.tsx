@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, ScrollView, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -46,6 +46,17 @@ import { Linking } from 'react-native';
 
 /** So viele Trainings stehen ausführlich da; der Rest kommt in die Kurzliste. */
 const DETAILED_SESSIONS = 3;
+
+/**
+ * Verlauf über dem Spot-Foto. React Native 0.86 zeichnet Verläufe selbst
+ * (`experimental_backgroundImage`), ein Zusatzmodul und damit eine neue
+ * App-Datei braucht es dafür nicht. Im Web-Export versteht dieselbe
+ * Schreibweise `backgroundImage` — darum beide Schlüssel.
+ */
+function fadeStyle(card: string) {
+	const gradient = `linear-gradient(to bottom, ${card}00 0%, ${card}40 20%, ${card}d9 52%, ${card} 78%)`;
+	return { experimental_backgroundImage: gradient, backgroundImage: gradient } as ViewStyle;
+}
 
 /** „Heute", „Morgen", sonst „in N Tagen" — wie auf der Website. */
 function countdownLabel(dateStr: string, calendarToday: string): string {
@@ -335,13 +346,18 @@ export default function Dashboard() {
 						    Gleichmässig statt mit Abdunklung unten — eine harte
 						    Kante mitten in der Karte fällt mehr auf als das Bild. */}
 						{sessionIndex === 0 && s.spotThumbnail ? (
-							<Image
-								source={{ uri: mediaUrl(s.spotThumbnail, 960) ?? undefined }}
-								style={[StyleSheet.absoluteFill, { opacity: 0.16 }]}
-								contentFit="cover"
-								transition={250}
-								pointerEvents="none"
-							/>
+							<View style={StyleSheet.absoluteFill} pointerEvents="none">
+								<Image
+									source={{ uri: mediaUrl(s.spotThumbnail, 960) ?? undefined }}
+									style={[StyleSheet.absoluteFill, { opacity: 0.3 }]}
+									contentFit="cover"
+									transition={250}
+								/>
+								{/* Verlauf nach unten: oben sieht man den Spot, unten geht
+								    das Bild in die Kartenfläche über — dort stehen Namen
+								    und Knöpfe. */}
+								<View style={[StyleSheet.absoluteFill, fadeStyle(colors.card)]} />
+							</View>
 						) : null}
 						{sessionIndex === 0 ? (
 							<View style={styles.band}>
