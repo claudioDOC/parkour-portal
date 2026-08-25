@@ -343,8 +343,19 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 			}
 		}
 
+		/**
+		 * Welcher Spot steht für dieses Training? Feste Setzung schlägt alles,
+		 * danach der Gewinner des geschlossenen Votings, dann der
+		 * Wetter-Vorschlag — und solange noch abgestimmt wird, der Spot mit
+		 * den meisten Stimmen. Das Bild dieses Spots liegt in der App hinter
+		 * der Trainingskarte, wie im Portal.
+		 */
 		const effectiveSpotId =
-			session.overrideSpotId ?? winnerSpot?.spotId ?? autoSpot?.spotId ?? null;
+			session.overrideSpotId ??
+			winnerSpot?.spotId ??
+			autoSpot?.spotId ??
+			spotVotes[0]?.spotId ??
+			null;
 
 		return {
 			...session,

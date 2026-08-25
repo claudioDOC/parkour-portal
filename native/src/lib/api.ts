@@ -27,9 +27,10 @@ export const isVideoUrl = (url: string | null | undefined) =>
  */
 export function mediaUrl(path: string | null | undefined, width?: 120 | 240 | 480 | 960 | 1600) {
 	if (!path) return null;
-	const base = path.startsWith('http')
-		? path
-		: `${BASE_URL || 'https://matetraining.duckdns.org'}${path}`;
+	// BASE_URL ist im Web-Export bewusst leer (gleiche Herkunft). Das
+	// frühere `|| 'https://matetraining…'` hat genau diesen Fall
+	// überschrieben — in der Vorschau lud dann kein einziges Bild.
+	const base = path.startsWith('http') ? path : `${BASE_URL}${path}`;
 	if (!width || isVideoUrl(path)) return base;
 	return `${base}${base.includes('?') ? '&' : '?'}w=${width}`;
 }

@@ -330,16 +330,18 @@ export default function Dashboard() {
 							: null;
 				return (
 					<Card key={s.id} style={styles.sessionCard}>
-						{s.spotThumbnail ? (
-							<View>
-								<Image
-									source={{ uri: mediaUrl(s.spotThumbnail, 960) ?? undefined }}
-									style={styles.hero}
-									contentFit="cover"
-									transition={200}
-								/>
-								<View style={styles.heroFade} />
-							</View>
+						{/* Nur beim nächsten Training: das Foto des gesetzten oder
+						    meistgewählten Spots liegt sehr leise hinter der Karte.
+						    Gleichmässig statt mit Abdunklung unten — eine harte
+						    Kante mitten in der Karte fällt mehr auf als das Bild. */}
+						{sessionIndex === 0 && s.spotThumbnail ? (
+							<Image
+								source={{ uri: mediaUrl(s.spotThumbnail, 960) ?? undefined }}
+								style={[StyleSheet.absoluteFill, { opacity: 0.16 }]}
+								contentFit="cover"
+								transition={250}
+								pointerEvents="none"
+							/>
 						) : null}
 						{sessionIndex === 0 ? (
 							<View style={styles.band}>
@@ -1070,16 +1072,6 @@ const makeStyles = (colors: ThemeColors) =>
 		},
 		tripTitle: { color: colors.fg + textAlpha.primary, fontSize: 16, lineHeight: 22, fontFamily: fonts.sansBold, marginTop: 4 },
 		sessionCard: { padding: 0, overflow: 'hidden' },
-		hero: { width: '100%', height: 160, backgroundColor: colors.hover },
-		heroFade: {
-			position: 'absolute',
-			left: 0,
-			right: 0,
-			bottom: 0,
-			height: 56,
-			backgroundColor: colors.card,
-			opacity: 0.55
-		},
 		band: {
 			flexDirection: 'row',
 			alignItems: 'center',
