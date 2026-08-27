@@ -108,6 +108,15 @@ export async function login(username: string, password: string): Promise<Me> {
 }
 
 export async function logout(): Promise<void> {
+	// Erst dem Server sagen, dass dieses Token nicht mehr gilt — seit dem
+	// Sicherheitsaudit entwertet er es dort dauerhaft. Nur lokal löschen
+	// würde bedeuten: Wer das Token abgegriffen hat, kann es weiter
+	// benutzen. Scheitert der Aufruf (offline), wird trotzdem abgemeldet.
+	try {
+		await post('/api/auth/logout', {});
+	} catch {
+		/* Abmelden darf nie hängen bleiben */
+	}
 	await setToken(null);
 }
 
