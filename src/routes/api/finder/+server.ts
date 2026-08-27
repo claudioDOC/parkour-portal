@@ -86,7 +86,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	if (techList.length > 0) {
-		const techOrs = techList.map((t) => sql`${spots.techniques} LIKE ${'%' + t + '%'}`);
+		/**
+		 * `%` und `_` sind in LIKE Platzhalter. Wer als Technik `%` schickt,
+		 * bekam damit ein Muster, das auf ALLES passt — der Filter war
+		 * wirkungslos. Darum maskieren und mit ESCAPE arbeiten.
+		 */
+		const escapeLike = (v: string) => v.replace(/([\\%_])/g, '\\$1');
+		const techOrs = techList.map(
+			(t) => sql`${spots.techniques} LIKE ${'%' + escapeLike(t) + '%'} ESCAPE '\\'`
+		);
 		conditions.push(techOrs.length === 1 ? techOrs[0]! : or(...techOrs)!);
 	}
 

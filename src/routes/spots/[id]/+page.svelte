@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { escapeHtml } from '$lib/escapeHtml';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { onDestroy, onMount } from 'svelte';
 	import type { PageData } from './$types';
@@ -553,7 +554,9 @@
 			parkingCounter = 0;
 			for (const marker of data.mapMarkers) {
 				const m = L.marker([marker.lat, marker.lon], { icon: iconByKind(marker.kind) }).addTo(leafletMap);
-				m.bindPopup(`<strong>${marker.name}</strong><br/>${marker.city}`);
+				// Name und Ort stammen von Mitgliedern und landen per innerHTML
+				// in der Karte — ohne Maskierung wäre das eine XSS-Lücke.
+				m.bindPopup(`<strong>${escapeHtml(marker.name)}</strong><br/>${escapeHtml(marker.city)}`);
 				m.on('click', () => {
 					window.open(
 						`https://www.google.com/maps/dir/?api=1&destination=${marker.lat},${marker.lon}`,

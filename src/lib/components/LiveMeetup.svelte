@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { escapeHtml } from '$lib/escapeHtml';
 	/**
 	 * „Bin da" — Live-Standort am Spot: Wer teilt, sieht die anderen
 	 * Teilenden als Avatar-Pins auf einer Karte und findet die Gruppe.
@@ -88,16 +89,20 @@
 		}).addTo(map);
 		const bounds = L.latLngBounds([]);
 		for (const p of live.positions) {
+			// Auch der Marker selbst ist HTML: Bildpfad und Anfangsbuchstabe
+			// maskieren, sonst liesse sich über den Benutzernamen oder einen
+			// manipulierten Pfad Markup einschleusen.
 			const inner = p.avatar
-				? `<div class="live-avatar" style="background-image:url('${p.avatar}')"></div>`
-				: `<div class="live-avatar live-avatar-initial">${p.username.slice(0, 1).toUpperCase()}</div>`;
+				? `<div class="live-avatar" style="background-image:url('${escapeHtml(p.avatar)}')"></div>`
+				: `<div class="live-avatar live-avatar-initial">${escapeHtml(p.username.slice(0, 1).toUpperCase())}</div>`;
 			const icon = L.divIcon({
 				className: 'live-avatar-marker',
 				html: inner,
 				iconSize: [38, 38],
 				iconAnchor: [19, 19]
 			});
-			L.marker([p.latitude, p.longitude], { icon }).addTo(map).bindPopup(p.username);
+			// Benutzername maskieren: bindPopup setzt den Text als HTML ein.
+			L.marker([p.latitude, p.longitude], { icon }).addTo(map).bindPopup(escapeHtml(p.username));
 			bounds.extend([p.latitude, p.longitude]);
 		}
 		map.fitBounds(bounds.pad(0.3), { maxZoom: 17 });

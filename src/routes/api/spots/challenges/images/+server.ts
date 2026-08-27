@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { rateLimitImageUpload } from '$lib/server/rateLimitAuth';
 import { db } from '$lib/server/db';
 import { spotChallenges, spotChallengeImages } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -30,6 +31,15 @@ function canManageChallenge(
 export const POST: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
+
+	// Missbrauchsbremse: Bilder darf jede:r beitragen, aber nicht endlos.
+	const uploadLimit = rateLimitImageUpload(locals.user.id);
+	if (!uploadLimit.ok) {
+		return json(
+			{ error: `Zu viele Uploads. Bitte in ${uploadLimit.retryAfterSec} Sekunden erneut.` },
+			{ status: 429, headers: { 'Retry-After': String(uploadLimit.retryAfterSec) } }
+		);
+	}
 	if (!isSpotChallengesSchemaReady() || !isSpotChallengeImagesReady()) {
 		return json({ error: 'Challenge-Bilder: Schema nicht bereit (npm run db:migrate).' }, { status: 503 });
 	}

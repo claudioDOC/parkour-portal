@@ -3,13 +3,33 @@ import bcryptjs from 'bcryptjs';
 import { getUserCoreById } from '$lib/server/userCoreQuery';
 import type { Cookies } from '@sveltejs/kit';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'parkour-portal-secret-change-me';
+/**
+ * Kein Standard-Secret mehr: Mit einem im Quelltext stehenden Schlüssel
+ * kann jede:r gültige Tokens bauen — auch mit `role: "admin"`. Fehlt die
+ * Variable, verweigert der Server den Dienst, statt still unsicher zu
+ * laufen. Geprüft wird beim ersten Zugriff, damit der Build (der diese
+ * Datei nur bündelt) nicht daran scheitert.
+ */
+let cachedSecret: string | null = null;
+function jwtSecret(): string {
+	if (cachedSecret) return cachedSecret;
+	const secret = process.env.JWT_SECRET?.trim();
+	if (!secret || secret.length < 16) {
+		throw new Error(
+			'JWT_SECRET fehlt oder ist zu kurz (mind. 16 Zeichen). Ohne gesetztes Secret startet das Portal nicht.'
+		);
+	}
+	cachedSecret = secret;
+	return cachedSecret;
+}
 const COOKIE_NAME = 'session';
 
 export interface JwtPayload {
 	userId: number;
 	username: string;
 	role: 'admin' | 'spotmanager' | 'member';
+	/** Ablauf in Sekunden (von jsonwebtoken gesetzt). */
+	exp?: number;
 	/** Fehlt bei alten Tokens → wird wie 0 behandelt */
 	sessionVersion?: number;
 }
@@ -27,7 +47,7 @@ export function signSessionToken(user: {
 			role: user.role,
 			sessionVersion: user.sessionVersion
 		},
-		JWT_SECRET,
+		jwtSecret(),
 		{ expiresIn: '30d' }
 	);
 }
@@ -39,7 +59,7 @@ export function verifyBearerJwt(authHeader: string | null): JwtPayload | null {
 	const token = v.slice(7).trim();
 	if (!token) return null;
 	try {
-		return jwt.verify(token, JWT_SECRET) as JwtPayload;
+		return jwt.verify(token, jwtSecret()) as JwtPayload;
 	} catch {
 		return null;
 	}
@@ -76,7 +96,7 @@ export function getSession(cookies: Cookies): JwtPayload | null {
 	if (!token) return null;
 
 	try {
-		return jwt.verify(token, JWT_SECRET) as JwtPayload;
+		return jwt.verify(token, jwtSecret()) as JwtPayload;
 	} catch {
 		return null;
 	}
@@ -86,6 +106,16 @@ export function getSessionFromCookiesOrBearer(cookies: Cookies, request: Request
 	const fromBearer = verifyBearerJwt(request.headers.get('authorization'));
 	if (fromBearer) return fromBearer;
 	return getSession(cookies);
+}
+
+/** Rohes Token der aktuellen Anfrage — für das Entwerten beim Abmelden. */
+export function getRawToken(cookies: Cookies, request: Request): string | null {
+	const header = request.headers.get('authorization') ?? '';
+	if (header.toLowerCase().startsWith('bearer ')) {
+		const raw = header.slice(7).trim();
+		if (raw) return raw;
+	}
+	return cookies.get(COOKIE_NAME) ?? null;
 }
 
 export function clearSession(cookies: Cookies) {

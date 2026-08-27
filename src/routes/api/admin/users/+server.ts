@@ -10,7 +10,7 @@ import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady
 import { getUserCoreById } from '$lib/server/userCoreQuery';
 import { andWithUsersNotDeleted, whereUsersTrashed } from '$lib/server/usersWhere';
 import { purgeUserAccount } from '$lib/server/purgeUserAccount';
-import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
+import { checkPasswordPolicy } from '$lib/passwordPolicy';
 import { asNum } from '$lib/server/asSqlNumber';
 
 function assertAdmin(locals: App.Locals) {
@@ -119,11 +119,9 @@ export const PATCH: RequestHandler = async (event) => {
 	}
 
 	if (action === 'reset_password') {
-		if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
-			return json(
-				{ error: `Neues Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen haben` },
-				{ status: 400 }
-			);
+		const policy = checkPasswordPolicy(newPassword ?? '', user.username);
+		if (!policy.ok) {
+			return json({ error: policy.error }, { status: 400 });
 		}
 		const hash = await hashPassword(newPassword);
 		db.update(users)
@@ -151,7 +149,13 @@ export const PATCH: RequestHandler = async (event) => {
 		if (newRole !== 'admin' && newRole !== 'spotmanager' && newRole !== 'member') {
 			return json({ error: 'Ungültige Rolle' }, { status: 400 });
 		}
-		db.update(users).set({ role: newRole }).where(eq(users.id, userId)).run();
+		// Sitzungen des Betroffenen mit entwerten: Die Rolle wird zwar bei
+		// jeder Anfrage frisch aus der Datenbank gelesen, aber ein Wechsel
+		// ist ein guter Anlass, offene Tokens ohnehin ungültig zu machen.
+		db.update(users)
+			.set({ role: newRole, sessionVersion: sql`${users.sessionVersion} + 1` })
+			.where(eq(users.id, userId))
+			.run();
 		logAudit({
 			event,
 			action: 'admin.user.role_change',

@@ -5,7 +5,12 @@ import { users } from '$lib/server/db/schema';
 import { getUserCoreById } from '$lib/server/userCoreQuery';
 import { eq, sql } from 'drizzle-orm';
 import { clearSession, hashPassword, verifyPassword } from '$lib/server/auth';
-import { MIN_PASSWORD_LENGTH } from '$lib/passwordPolicy';
+import { checkPasswordPolicy } from '$lib/passwordPolicy';
+import {
+	clearPasswordChangeFailures,
+	getClientIp,
+	rateLimitPasswordChange
+} from '$lib/server/rateLimitAuth';
 import { logAudit } from '$lib/server/audit';
 import { jsonFromSqliteOrSchemaError } from '$lib/server/sqliteAdminErrors';
 
@@ -28,10 +33,26 @@ export const POST: RequestHandler = async (event) => {
 		return json({ error: 'Aktuelles und neues Passwort erforderlich' }, { status: 400 });
 	}
 
-	if (newPassword.length < MIN_PASSWORD_LENGTH) {
+	const policy = checkPasswordPolicy(newPassword, locals.user.username);
+	if (!policy.ok) {
+		return json({ error: policy.error }, { status: 400 });
+	}
+
+	// Auch hier wird ein Passwort geprüft — ohne Bremse liesse sich das
+	// aktuelle Passwort einer offenen Sitzung erraten.
+	const limitKey = `${locals.user.id}|${getClientIp(event)}`;
+	const limit = rateLimitPasswordChange(limitKey);
+	if (!limit.ok) {
+		logAudit({
+			event,
+			action: 'auth.password_change.blocked',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			detail: { retryAfterSec: limit.retryAfterSec }
+		});
 		return json(
-			{ error: `Neues Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen haben` },
-			{ status: 400 }
+			{ error: `Zu viele Versuche. Bitte in ${limit.retryAfterSec} Sekunden erneut.` },
+			{ status: 429, headers: { 'Retry-After': String(limit.retryAfterSec) } }
 		);
 	}
 
@@ -71,6 +92,7 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	clearSession(cookies);
+	clearPasswordChangeFailures(limitKey);
 
 	logAudit({
 		event,

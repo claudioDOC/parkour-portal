@@ -633,6 +633,20 @@ export const POST: RequestHandler = async (event) => {
 			.get();
 		if (!option) return json({ error: 'Datums-Vorschlag nicht gefunden' }, { status: 404 });
 
+		// Wer für den Trip abgesagt hat, stimmt nicht über dessen Termin ab.
+		// Unentschlossene dürfen weiterhin — genau darum geht es beim Voting.
+		const ownPart = db
+			.select({ transportMode: tripParticipants.transportMode })
+			.from(tripParticipants)
+			.where(and(eq(tripParticipants.tripId, tripId), eq(tripParticipants.userId, locals.user.id)))
+			.get();
+		if (ownPart?.transportMode === 'abgemeldet') {
+			return json(
+				{ error: 'Du hast für diesen Trip abgesagt — Terminwahl ist damit gegenstandslos.' },
+				{ status: 403 }
+			);
+		}
+
 		const existing = db
 			.select({ id: tripDateVotes.id })
 			.from(tripDateVotes)

@@ -144,6 +144,33 @@ Zwischenspeicher — die Vollansicht nimmt 1600 px, nicht das Original.
 `scripts/shrink-uploads.mjs` zieht denselben Schnitt einmalig über den
 Bestand (`--apply` schreibt, ohne den Schalter wird nur gerechnet).
 
+## Sicherheit
+
+Zwei externe Audits (Aug. 2026) haben je eine Runde Befunde geliefert; beide
+sind abgearbeitet. Was dabei gilt:
+
+- **`JWT_SECRET` ist Pflicht.** Ohne gesetzte Variable (mind. 16 Zeichen)
+  verweigert das Portal den Dienst — früher gab es einen Standardwert im
+  Quelltext, mit dem sich beliebige Sitzungen fälschen liessen.
+- **`TRUSTED_PROXY_IPS`** listet die Adresse des eigenen nginx. Nur von dort
+  wird `X-Forwarded-For` überhaupt beachtet, und dann zählt der letzte
+  Eintrag (den hängt nginx selbst an). Ohne diese Liste ist die Sperre gegen
+  Passwort-Raten mit erfundenen Adressen umgehbar.
+- **Rolle kommt bei jeder Anfrage aus der Datenbank**, nicht aus dem Token.
+  Eine Herabstufung wirkt damit sofort.
+- **Abmelden entwertet das Token** (Tabelle `revoked_tokens`, Migration
+  0029) — andere Geräte bleiben angemeldet. `logout-all` erhöht wie bisher
+  `session_version` und wirft alle Geräte raus.
+- **Sperren**: Login 5 Fehlversuche/Minute, Passwortwechsel 5/15 min,
+  Registrierung 10/h, Bild-Uploads 40/h je Person, Fehlerberichte 40/15 min.
+- **Passwörter**: mind. 10 Zeichen, keine bekannten Wörter, nicht der eigene
+  Name, nicht nur Ziffern (`src/lib/passwordPolicy.ts`).
+- **Push-Ziele** werden gegen eine Liste bekannter Dienste geprüft, damit der
+  Server nicht als Bote für interne Adressen missbraucht wird.
+- **Namen und Spot-Daten** werden vor jeder Ausgabe in Karten-Popups
+  maskiert (`src/lib/escapeHtml.ts`); Benutzernamen lassen bei der
+  Registrierung nur Buchstaben, Ziffern, Leerzeichen und `. _ -` zu.
+
 ## Setup
 
 ### Voraussetzungen

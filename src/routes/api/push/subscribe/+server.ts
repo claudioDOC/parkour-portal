@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { isAllowedPushEndpoint } from '$lib/server/pushEndpoint';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { pushSubscriptions } from '$lib/server/db/schema';
@@ -25,6 +26,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const auth = typeof body.keys?.auth === 'string' ? body.keys.auth : '';
 	if (!endpoint || !p256dh || !auth) throw error(400, 'Abo unvollständig');
 	if (endpoint.length > 2000) throw error(400, 'Endpoint zu lang');
+	if (!isAllowedPushEndpoint(endpoint)) {
+		throw error(400, 'Endpoint gehört zu keinem bekannten Push-Dienst');
+	}
 
 	const userAgent = request.headers.get('user-agent')?.slice(0, 300) ?? null;
 

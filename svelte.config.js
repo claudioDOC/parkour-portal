@@ -57,7 +57,9 @@ const config = {
 					'self',
 					'https://tiles.openfreemap.org',
 					'https://server.arcgisonline.com',
-					'https://nominatim.openstreetmap.org'
+					'https://nominatim.openstreetmap.org',
+					// Routen-Linie auf der Trip-Karte (OSRM-Demoserver).
+					'https://router.project-osrm.org'
 				],
 				'worker-src': ['self', 'blob:'],
 				'manifest-src': ['self'],

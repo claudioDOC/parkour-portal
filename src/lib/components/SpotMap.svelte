@@ -5,6 +5,7 @@
 	 * Seitenaufruf für „Karte" wäre ein Bruch mitten in derselben Aufgabe.
 	 */
 	import { onDestroy, onMount } from 'svelte';
+	import { escapeHtml } from '$lib/escapeHtml';
 	import { browser } from '$app/environment';
 	import type { buildSpotMapPayload } from '$lib/server/spotMapPayload';
 
@@ -81,14 +82,6 @@
 			},
 			{ enableHighAccuracy: true, timeout: 8000 }
 		);
-	}
-
-	function escapeHtml(s: string): string {
-		return s
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
-			.replace(/"/g, '&quot;');
 	}
 
 	/** Farbe nach Durchschnitt (Skala ca. 1–5); ohne Stimmen = neutral. */
@@ -173,7 +166,7 @@
 						? `<div style="margin-top:6px"><a href="/spots/${spot.id}#challenges" style="font-weight:600">${spot.challengeCount} Challenge${spot.challengeCount === 1 ? '' : 's'} ansehen →</a></div>`
 						: '';
 				const img = spot.thumbnail
-					? `<img src="${spot.thumbnail}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:6px" loading="lazy"/>`
+					? `<img src="${escapeHtml(spot.thumbnail)}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:6px" loading="lazy"/>`
 					: '';
 
 				m.bindPopup(

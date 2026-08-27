@@ -1,5 +1,6 @@
 import type { Handle, RequestEvent } from '@sveltejs/kit';
-import { clearSession, getSessionFromCookiesOrBearer } from '$lib/server/auth';
+import { clearSession, getRawToken, getSessionFromCookiesOrBearer } from '$lib/server/auth';
+import { isTokenRevoked } from '$lib/server/revokedTokens';
 import { redirect } from '@sveltejs/kit';
 import { parseAutoAbsentWeekdays } from '$lib/server/trainingAttendance';
 import { getSessionUserCheckRow } from '$lib/server/userCoreQuery';
@@ -103,7 +104,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	redirectHttpToHttpsIfNeeded(event);
 
-	const sessionJwt = getSessionFromCookiesOrBearer(event.cookies, event.request);
+	const rawToken = getRawToken(event.cookies, event.request);
+	// Abgemeldete Tokens gelten nicht mehr, auch wenn sie noch nicht
+	// abgelaufen sind.
+	const sessionJwt =
+		rawToken && isTokenRevoked(rawToken)
+			? null
+			: getSessionFromCookiesOrBearer(event.cookies, event.request);
 
 	if (sessionJwt) {
 		const row = getSessionUserCheckRow(sessionJwt.userId);
@@ -121,7 +128,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 			event.locals.user = {
 				id: sessionJwt.userId,
 				username: sessionJwt.username,
-				role: sessionJwt.role,
+				// Rolle IMMER aus der Datenbank: Im Token steht der Stand vom
+				// Anmelden. Wurde jemand zwischenzeitlich herabgestuft, behielte
+				// er sonst bis zum Ablauf (30 Tage) seine alten Rechte.
+				role: row.role,
 				trainingAttendance,
 				autoAbsentWeekdays,
 				uiTheme: row.uiTheme
@@ -169,6 +179,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 function setSecurityHeaders(event: RequestEvent, response: Response): void {
 	const h = response.headers;
 	h.set('X-Content-Type-Options', 'nosniff');
+	// Anmelde- und Kontoantworten enthalten Tokens bzw. persönliche Daten
+	// und dürfen nirgends zwischengespeichert werden — weder im Browser
+	// noch in einem Proxy dazwischen.
+	if (event.url.pathname.startsWith('/api/auth') || event.url.pathname.startsWith('/api/v1/auth')) {
+		h.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+		h.set('Pragma', 'no-cache');
+	}
 	h.set('X-Frame-Options', 'DENY');
 	h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	h.set(
@@ -190,7 +207,7 @@ function setSecurityHeaders(event: RequestEvent, response: Response): void {
 			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 			"font-src 'self' https://fonts.gstatic.com data:",
 			"img-src 'self' data: blob: https://server.arcgisonline.com https://tiles.openfreemap.org https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org",
-			"connect-src 'self' https://tiles.openfreemap.org https://server.arcgisonline.com https://nominatim.openstreetmap.org",
+			"connect-src 'self' https://tiles.openfreemap.org https://server.arcgisonline.com https://nominatim.openstreetmap.org https://router.project-osrm.org",
 			"worker-src 'self' blob:",
 			"manifest-src 'self'",
 			"upgrade-insecure-requests"

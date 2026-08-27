@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
@@ -34,14 +35,21 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 const existing = db.select().from(schema.users).all();
 if (existing.length === 0) {
-	const initialPw = 'admin123456';
+	/**
+	 * Zufälliges Startpasswort statt eines festen: Ein im Quelltext
+	 * stehendes Admin-Passwort ist auf jeder Installation dasselbe — und
+	 * bleibt es erfahrungsgemäss auch. Es wird einmal ausgegeben und
+	 * sollte nach dem ersten Login geändert werden.
+	 */
+	const initialPw = randomBytes(9).toString('base64url');
 	const hash = bcryptjs.hashSync(initialPw, 10);
 	db.insert(schema.users).values({
 		username: 'Claudio',
 		passwordHash: hash,
 		role: 'admin'
 	}).run();
-	console.log(`Admin-User erstellt: Claudio / ${initialPw} (mind. 10 Zeichen — bitte nach erstem Login ändern)`);
+	console.log(`Admin-User erstellt: Claudio / ${initialPw}`);
+	console.log('Dieses Passwort wird nur EINMAL angezeigt — bitte notieren und nach dem ersten Login ändern.');
 } else {
 	console.log('Datenbank hat bereits User, Seed übersprungen.');
 }

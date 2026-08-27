@@ -6,18 +6,57 @@ const loginFailureBuckets = new Map<string, Bucket>();
 const registerBuckets = new Map<string, Bucket>();
 /** Fehlerberichte der App — nimmt der Server bewusst ohne Login entgegen. */
 const clientLogBuckets = new Map<string, Bucket>();
+/** Falsche „aktuelles Passwort"-Eingaben beim Passwortwechsel. */
+const passwordChangeBuckets = new Map<string, Bucket>();
+/** Bild-Uploads pro Person. */
+const uploadBuckets = new Map<string, Bucket>();
 
 const LOGIN_FAIL_MAX = 5;
 const LOGIN_FAIL_WINDOW_MS = 60_000;
 
-/** Client-IP: bei Reverse-Proxy zuerst X-Forwarded-For (erster Hop). */
+/**
+ * Client-IP für Sperren und Audit-Log.
+ *
+ * Früher wurde blind der ERSTE Wert aus `X-Forwarded-For` genommen — den
+ * schreibt aber der Client selbst. Mit rotierenden Fantasie-IPs bekam jeder
+ * Anmeldeversuch einen frischen Zähler, die Sperre war wirkungslos und das
+ * Audit-Log liess sich mit erfundenen Adressen füllen.
+ *
+ * Jetzt gilt: Dem Header wird NUR geglaubt, wenn die Verbindung
+ * tatsächlich vom eigenen Reverse-Proxy kommt (`TRUSTED_PROXY_IPS`). Dann
+ * zählt der LETZTE Eintrag — den hängt nginx selbst an
+ * (`$proxy_add_x_forwarded_for`), alles davor stammt vom Client und ist
+ * damit wertlos. Kommt die Anfrage von woanders (etwa direkt auf Port
+ * 3000 im LAN), gilt die echte Verbindungsadresse.
+ */
+const TRUSTED_PROXIES = new Set(
+	(process.env.TRUSTED_PROXY_IPS ?? '')
+		.split(',')
+		.map((v) => v.trim())
+		.filter(Boolean)
+);
+
+function normalizeIp(ip: string): string {
+	// ::ffff:10.0.0.1 → 10.0.0.1
+	return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+}
+
 export function getClientIp(event: RequestEvent): string {
-	const xf = event.request.headers.get('x-forwarded-for');
-	if (xf) {
-		const first = xf.split(',')[0]?.trim();
-		if (first) return first;
+	let socketIp = 'unbekannt';
+	try {
+		socketIp = normalizeIp(event.getClientAddress());
+	} catch {
+		return 'unbekannt';
 	}
-	return event.getClientAddress();
+	if (!TRUSTED_PROXIES.has(socketIp)) return socketIp;
+
+	const xf = event.request.headers.get('x-forwarded-for');
+	if (!xf) return socketIp;
+	const parts = xf
+		.split(',')
+		.map((v) => normalizeIp(v.trim()))
+		.filter(Boolean);
+	return parts.at(-1) ?? socketIp;
 }
 
 function consume(
@@ -87,4 +126,32 @@ export function rateLimitAuthRegister(ip: string) {
  */
 export function rateLimitClientLog(ip: string) {
 	return consume(clientLogBuckets, ip, 40, 15 * 60_000);
+}
+
+/**
+ * Passwort ändern: Auch hier wird ein Passwort geprüft — ohne Bremse liess
+ * sich das aktuelle Passwort einer offenen Sitzung beliebig oft raten und
+ * der Account danach vollständig übernehmen. Gezählt wird pro Konto UND
+ * pro Adresse, damit weder ein fremdes Gerät noch eine fremde Leitung die
+ * Sperre umgeht.
+ */
+export function rateLimitPasswordChange(key: string) {
+	return consume(passwordChangeBuckets, key, 5, 15 * 60_000);
+}
+
+/** Nach erfolgreichem Wechsel den Zähler leeren. */
+export function clearPasswordChangeFailures(key: string) {
+	passwordChangeBuckets.delete(key);
+}
+
+/**
+ * Bild-Uploads je Person begrenzen.
+ *
+ * Jedes Mitglied darf Fotos zu jedem Spot beitragen — das ist in einer
+ * Gruppe, die gemeinsam Spots pflegt, ausdrücklich gewollt. Ohne Bremse
+ * liesse sich damit aber die Platte vollschreiben. 40 Bilder pro Stunde
+ * sind mehr, als eine Session je braucht.
+ */
+export function rateLimitImageUpload(userId: number) {
+	return consume(uploadBuckets, `u${userId}`, 40, 3_600_000);
 }

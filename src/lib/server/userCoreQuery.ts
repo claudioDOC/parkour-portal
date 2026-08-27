@@ -66,6 +66,8 @@ export function getUserCoreById(id: number): UserCoreAuthRow | undefined {
 export type SessionUserCheckRow = {
 	active: boolean;
 	deleted: boolean;
+	/** Massgeblich ist die Rolle aus der Datenbank, nicht die im Token. */
+	role: 'admin' | 'spotmanager' | 'member';
 	sessionVersion: number;
 	trainingAttendance: 'implicit' | 'opt_in';
 	autoAbsentWeekdays: string;
@@ -80,7 +82,7 @@ export function getSessionUserCheckRow(userId: number): SessionUserCheckRow | un
 	const schemaOk = isTrainingAttendanceSchemaReady();
 
 	let q =
-		`SELECT active` +
+		`SELECT active, role` +
 		(hasDel ? `, deleted` : `, 0 AS deleted`) +
 		(hasSv ? `, session_version` : `, 0 AS session_version`);
 	if (schemaOk) {
@@ -94,6 +96,7 @@ export function getSessionUserCheckRow(userId: number): SessionUserCheckRow | un
 	const row = sqliteDb.prepare(q).get(userId) as
 		| {
 				active: number;
+				role: string;
 				deleted: number;
 				session_version: number;
 				training_attendance?: string | null;
@@ -110,9 +113,13 @@ export function getSessionUserCheckRow(userId: number): SessionUserCheckRow | un
 	const rawTheme = hasUi ? row.ui_theme : null;
 	const uiTheme: UiThemeId = isUiThemeId(rawTheme) ? rawTheme : UI_THEME_DEFAULT;
 
+	const role: 'admin' | 'spotmanager' | 'member' =
+		row.role === 'admin' || row.role === 'spotmanager' ? row.role : 'member';
+
 	return {
 		active: Boolean(row.active),
 		deleted: Boolean(row.deleted),
+		role,
 		sessionVersion: Number(row.session_version ?? 0),
 		trainingAttendance: schemaOk ? attendance : 'implicit',
 		autoAbsentWeekdays: schemaOk ? (row.auto_absent_weekdays ?? '[]') : '[]',
