@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
+import { snapshotAbsences } from '$lib/server/absenceAudit';
 import {
 	trainingSessions,
 	trainingSpotVotes,
@@ -271,6 +272,7 @@ export const POST: RequestHandler = async (event) => {
 			if (!target) {
 				return json({ error: 'User nicht gefunden' }, { status: 404 });
 			}
+			let removedAbsences: ReturnType<typeof snapshotAbsences> = [];
 			if (type === 'remove_rsvp') {
 				db.delete(trainingSessionRsvp)
 					.where(and(eq(trainingSessionRsvp.sessionId, sessionId), eq(trainingSessionRsvp.userId, userId)))
@@ -278,6 +280,9 @@ export const POST: RequestHandler = async (event) => {
 			} else {
 				// Eine Zusage schliesst eine Abmeldung aus — sonst stünde die
 				// Person gleichzeitig in beiden Listen.
+				removedAbsences = snapshotAbsences(
+					and(eq(absences.sessionId, sessionId), eq(absences.userId, userId))!
+				);
 				db.delete(absences)
 					.where(and(eq(absences.sessionId, sessionId), eq(absences.userId, userId)))
 					.run();
@@ -296,7 +301,7 @@ export const POST: RequestHandler = async (event) => {
 				actorUserId: locals.user!.id,
 				actorUsername: locals.user!.username,
 				targetUserId: userId,
-				detail: { sessionId, date: session.date }
+				detail: { sessionId, date: session.date, removedAbsences }
 			});
 			return json({ success: true });
 		}
@@ -479,13 +484,15 @@ export const DELETE: RequestHandler = async (event) => {
 		}
 
 		if (type === 'remove_absence' && id) {
+			const removed = snapshotAbsences(eq(absences.id, id));
 			db.delete(absences).where(eq(absences.id, id)).run();
 			logAudit({
 				event,
 				action: 'admin.training.remove_absence',
 				actorUserId: locals.user!.id,
 				actorUsername: locals.user!.username,
-				detail: { absenceId: id }
+				targetUserId: removed[0]?.userId ?? null,
+				detail: { absenceId: id, removed }
 			});
 			return json({ success: true });
 		}

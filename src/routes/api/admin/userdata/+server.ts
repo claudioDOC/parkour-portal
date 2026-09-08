@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { votes, trainingSpotVotes, absences, spots, trainingSessions, users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
+import { snapshotAbsences } from '$lib/server/absenceAudit';
 
 function assertAdmin(locals: App.Locals) {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -92,13 +93,14 @@ export const DELETE: RequestHandler = async (event) => {
 	}
 
 	if (type === 'absence') {
+		const removed = snapshotAbsences(eq(absences.id, id));
 		db.delete(absences).where(eq(absences.id, id)).run();
 		logAudit({
 			event,
 			action: 'admin.userdata.delete',
 			actorUserId: locals.user!.id,
 			actorUsername: locals.user!.username,
-			detail: { type: 'absence', entryId: id }
+			detail: { type: 'absence', entryId: id, removed }
 		});
 		return json({ success: true });
 	}

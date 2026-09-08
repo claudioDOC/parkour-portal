@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
+import { snapshotAbsences } from '$lib/server/absenceAudit';
 import {
 	absences,
 	trainingSessions,
@@ -139,6 +140,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 		// Anmeldungen und Stimmen hängen daran — erst die, dann der Termin.
 		db.delete(trainingSpotVotes).where(eq(trainingSpotVotes.sessionId, target.id)).run();
+		const removedAbsences = snapshotAbsences(eq(absences.sessionId, target.id));
 		db.delete(absences).where(eq(absences.sessionId, target.id)).run();
 		db.delete(sessionGuests).where(eq(sessionGuests.sessionId, target.id)).run();
 		if (isTrainingAttendanceSchemaReady()) {
@@ -154,7 +156,7 @@ export const POST: RequestHandler = async (event) => {
 			action: 'training.extra.delete',
 			actorUserId: locals.user.id,
 			actorUsername: locals.user.username,
-			detail: { sessionId: target.id, date: target.date }
+			detail: { sessionId: target.id, date: target.date, removedAbsences }
 		});
 		return json({ success: true });
 	}
@@ -222,12 +224,20 @@ export const POST: RequestHandler = async (event) => {
 			action: 'training.absence',
 			actorUserId: locals.user.id,
 			actorUsername: locals.user.username,
-			detail: { sessionId, date: session.date, dayOfWeek: session.dayOfWeek }
+			detail: {
+				sessionId,
+				date: session.date,
+				dayOfWeek: session.dayOfWeek,
+				reason: reason?.trim() ? reason.trim() : 'Kann nicht'
+			}
 		});
 		return json({ success: true });
 	}
 
 	if (action === 'cancel_absence') {
+		const removed = snapshotAbsences(
+			and(eq(absences.userId, locals.user.id), eq(absences.sessionId, sessionId))!
+		);
 		db.delete(absences)
 			.where(and(eq(absences.userId, locals.user.id), eq(absences.sessionId, sessionId)))
 			.run();
@@ -237,7 +247,7 @@ export const POST: RequestHandler = async (event) => {
 			action: 'training.absence.cancel',
 			actorUserId: locals.user.id,
 			actorUsername: locals.user.username,
-			detail: { sessionId, date: session.date }
+			detail: { sessionId, date: session.date, removed }
 		});
 		return json({ success: true });
 	}
@@ -321,12 +331,16 @@ export const POST: RequestHandler = async (event) => {
 		const absent = db.select().from(absences)
 			.where(and(eq(absences.userId, locals.user.id), eq(absences.sessionId, sessionId)))
 			.get();
+		let removedAbsences: ReturnType<typeof snapshotAbsences> = [];
 		if (absent) {
 			// Beim Zusatztraining ist „Dabei!" die klarere Aussage — die frühere
 			// Abmeldung fällt damit weg, statt die Zusage zu blockieren.
 			if (!session.isExtra) {
 				return json({ error: 'Zuerst Abmeldung zurücknehmen' }, { status: 400 });
 			}
+			removedAbsences = snapshotAbsences(
+				and(eq(absences.userId, locals.user.id), eq(absences.sessionId, sessionId))!
+			);
 			db.delete(absences)
 				.where(and(eq(absences.userId, locals.user.id), eq(absences.sessionId, sessionId)))
 				.run();
@@ -348,7 +362,7 @@ export const POST: RequestHandler = async (event) => {
 			action: 'training.rsvp_yes',
 			actorUserId: locals.user.id,
 			actorUsername: locals.user.username,
-			detail: { sessionId, date: session.date }
+			detail: { sessionId, date: session.date, removedAbsences }
 		});
 		return json({ success: true });
 	}
@@ -480,6 +494,9 @@ export const DELETE: RequestHandler = async (event) => {
 
 	const session = db.select().from(trainingSessions).where(eq(trainingSessions.id, sessionId)).get();
 
+	const removed = snapshotAbsences(
+		and(eq(absences.userId, locals.user.id), eq(absences.sessionId, sessionId))!
+	);
 	db.delete(absences)
 		.where(and(eq(absences.userId, locals.user.id), eq(absences.sessionId, sessionId)))
 		.run();
@@ -489,7 +506,7 @@ export const DELETE: RequestHandler = async (event) => {
 		action: 'training.absence.cancel',
 		actorUserId: locals.user.id,
 		actorUsername: locals.user.username,
-		detail: { sessionId, date: session?.date, via: 'delete_endpoint' }
+		detail: { sessionId, date: session?.date, via: 'delete_endpoint', removed }
 	});
 
 	return json({ success: true });
