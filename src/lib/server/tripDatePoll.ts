@@ -131,13 +131,20 @@ export function answerDateOption(params: {
 
 /**
  * Zusage/Absage am Trip spiegelt sich in der Umfrage: „dabei" heisst Ja zum
- * geplanten Datum, „nicht dabei" heisst Nein zu allen. Nach der Fixierung
- * bleibt die Umfrage unangetastet.
+ * geplanten Datum, „nicht dabei" heisst Nein zu allen. „Dabei, wenn …"
+ * (bedingt) sagt bewusst nichts — die Bedingung ist meist ein anderes Datum,
+ * und das sagt die Person in der Umfrage selbst. Nach der Fixierung bleibt
+ * die Umfrage unangetastet.
  */
-export function mirrorParticipationIntoPoll(tripId: number, userId: number, joined: boolean): void {
+export function mirrorParticipationIntoPoll(
+	tripId: number,
+	userId: number,
+	answer: 'ja' | 'nein' | null
+): void {
+	if (answer === null) return;
 	const trip = db.select().from(tripPlans).where(eq(tripPlans.id, tripId)).get();
 	if (!trip || isTripLocked(trip)) return;
-	if (joined) {
+	if (answer === 'ja') {
 		const optionId = ensureOwnDateOption(tripId);
 		db.insert(tripDateAnswers)
 			.values({ tripId, dateOptionId: optionId, userId, answer: 'ja' })

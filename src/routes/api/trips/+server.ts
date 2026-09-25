@@ -377,7 +377,9 @@ export const POST: RequestHandler = async (event) => {
 			detail: { tripId, transportMode }
 		});
 		// „Dabei" ist ein Ja zum geplanten Datum — und vielleicht das dritte.
-		mirrorParticipationIntoPoll(tripId, locals.user.id, true);
+		// „Dabei, wenn …" lässt die Umfrage in Ruhe: Die Bedingung steht meist
+		// für ein anderes Datum, und das beantwortet die Person dort selbst.
+		mirrorParticipationIntoPoll(tripId, locals.user.id, transportMode === 'bedingt' ? null : 'ja');
 		const locked = evaluateTripLock(tripId, { force: false });
 		return json({ success: true, locked });
 	}
@@ -428,7 +430,7 @@ export const POST: RequestHandler = async (event) => {
 			} else {
 				db.insert(tripParticipants).values({ tripId, userId, ...values }).run();
 			}
-			mirrorParticipationIntoPoll(tripId, userId, status === 'dabei');
+			mirrorParticipationIntoPoll(tripId, userId, status === 'dabei' ? 'ja' : 'nein');
 			if (status === 'dabei') locked = evaluateTripLock(tripId, { force: false });
 		}
 		logAudit({
@@ -512,7 +514,7 @@ export const POST: RequestHandler = async (event) => {
 			actorUsername: locals.user.username,
 			detail: { tripId }
 		});
-		mirrorParticipationIntoPoll(tripId, locals.user.id, false);
+		mirrorParticipationIntoPoll(tripId, locals.user.id, 'nein');
 		return json({ success: true });
 	}
 
