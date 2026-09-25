@@ -51,20 +51,37 @@
 		penalty = null;
 	}
 
-	onMount(async () => {
+	let timer: ReturnType<typeof setInterval> | null = null;
+
+	async function load() {
+		if (penalty) return;
 		try {
 			const res = await fetch('/api/me/penalty', { credentials: 'include' });
 			if (!res.ok) return;
 			const data = (await res.json()) as { penalty: Penalty | null };
 			if (!data.penalty || data.penalty.phase !== 'warning' || seenThisSession(data.penalty.id)) return;
 			penalty = data.penalty;
-			const timer = setInterval(() => {
+			secondsLeft = WAIT_SECONDS;
+			timer = setInterval(() => {
 				secondsLeft = Math.max(0, secondsLeft - 1);
-				if (secondsLeft === 0) clearInterval(timer);
+				if (secondsLeft === 0 && timer) clearInterval(timer);
 			}, 1000);
 		} catch {
 			/* Hinweis ist Beiwerk */
 		}
+	}
+
+	onMount(() => {
+		void load();
+		// Tab lag offen, Strafe kam später: beim Zurückkehren nachsehen.
+		const onVisible = () => {
+			if (document.visibilityState === 'visible') void load();
+		};
+		document.addEventListener('visibilitychange', onVisible);
+		return () => {
+			document.removeEventListener('visibilitychange', onVisible);
+			if (timer) clearInterval(timer);
+		};
 	});
 </script>
 

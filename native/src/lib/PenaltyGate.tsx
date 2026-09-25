@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, View, Text, StyleSheet, Pressable } from 'react-native';
+import { AppState, Modal, View, Text, StyleSheet, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts } from './theme';
 import { getMyPenalty, type ActivePenalty } from './api';
@@ -28,13 +28,23 @@ export function PenaltyGate() {
 
 	useEffect(() => {
 		let alive = true;
-		void getMyPenalty()
-			.then((res) => {
-				if (alive && res.penalty && res.penalty.phase === 'warning') setPenalty(res.penalty);
-			})
-			.catch(() => undefined);
+		const load = () => {
+			void getMyPenalty()
+				.then((res) => {
+					if (alive && res.penalty && res.penalty.phase === 'warning') setPenalty(res.penalty);
+				})
+				.catch(() => undefined);
+		};
+		load();
+		// Die Strafe kann entstehen, während die App im Hintergrund liegt —
+		// dann kommt der Push, aber kein Kaltstart. Darum auch beim Zurückkehren
+		// prüfen; einmal weggeklickt bleibt sie bis zum nächsten Kaltstart weg.
+		const sub = AppState.addEventListener('change', (state) => {
+			if (state === 'active') load();
+		});
 		return () => {
 			alive = false;
+			sub.remove();
 		};
 	}, []);
 
