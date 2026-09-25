@@ -38,8 +38,10 @@ import {
 	adminTrashTrip,
 	geocode,
 	myTripStatus,
+	parseServerDatetime,
 	BASE_URL,
-	type Trip
+	type Trip,
+	type DateAnswer
 } from '../lib/api';
 
 function formatRange(start: string, end: string | null): string {
@@ -64,6 +66,43 @@ const JOIN_MODES = [
 ];
 
 /** Chip-Beschriftung pro Person — dieselben Worte wie die Web-Seite. */
+/** Frist (UTC vom Server) als lokales Datum, z. B. „Fr, 2. Okt.". */
+function formatDeadline(s: string | null): string {
+	const d = parseServerDatetime(s);
+	return d
+		? d.toLocaleDateString('de-CH', { weekday: 'short', day: 'numeric', month: 'short' })
+		: '–';
+}
+
+/** Heute + n Tage als JJJJ-MM-TT — Vorgabe für die Frist. */
+function plusDaysYmd(n: number): string {
+	const d = new Date();
+	d.setDate(d.getDate() + n);
+	const p = (x: number) => String(x).padStart(2, '0');
+	return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Status-Badge der Karte: fix seit … / Abstimmung bis … / Frist vorbei. */
+function pollBadge(trip: Trip): {
+	text: string;
+	icon: 'lock-closed-outline' | 'time-outline' | 'alert-circle-outline';
+} {
+	if (trip.poll.locked) {
+		const at = parseServerDatetime(trip.poll.lockedAt);
+		return {
+			icon: 'lock-closed-outline',
+			text: `Termin fix${at ? ` seit ${at.toLocaleDateString('de-CH', { day: 'numeric', month: 'short' })}` : ''}`
+		};
+	}
+	if (trip.poll.deadlinePassed) {
+		return {
+			icon: 'alert-circle-outline',
+			text: `Frist vorbei – ${trip.poll.leaderYes}/${trip.poll.minYes} Zusagen`
+		};
+	}
+	return { icon: 'time-outline', text: `Abstimmung bis ${formatDeadline(trip.poll.deadline)}` };
+}
+
 function memberLabel(m: Trip['memberStates'][number]): string {
 	if (m.status === 'pending') return 'Offen';
 	if (m.status === 'declined') return 'Nicht dabei';
@@ -81,7 +120,7 @@ export default function Trips() {
 	const [joinFor, setJoinFor] = useState<Trip | null>(null);
 	// Neuen Trip erstellen
 	const [createOpen, setCreateOpen] = useState(false);
-	const [form, setForm] = useState({ title: '', start: '', end: '', notes: '' });
+	const [form, setForm] = useState({ title: '', start: '', end: '', notes: '', deadline: '' });
 	// Termin-Alternative vorschlagen
 	const [dateFor, setDateFor] = useState<Trip | null>(null);
 	const [dateForm, setDateForm] = useState({ start: '', end: '', note: '' });
@@ -102,7 +141,10 @@ export default function Trips() {
 	const [destFor, setDestFor] = useState<Trip | null>(null);
 	// Trip-Eckdaten bearbeiten (Ersteller/Admin)
 	const [editFor, setEditFor] = useState<Trip | null>(null);
-	const [editTrip, setEditTrip] = useState({ title: '', start: '', end: '', notes: '' });
+	const [editTrip, setEditTrip] = useState({ title: '', start: '', end: '', notes: '', deadline: '' });
+	// Termin neu aufrollen (Ersteller/Admin): neue Frist wählen
+	const [unlockFor, setUnlockFor] = useState<Trip | null>(null);
+	const [unlockDeadline, setUnlockDeadline] = useState('');
 	// Angetippter Teilnehmer-Chip: zeigt dessen Notiz darunter an.
 	const [openNoteKey, setOpenNoteKey] = useState<string | null>(null);
 
@@ -156,9 +198,15 @@ export default function Trips() {
 			Alert.alert('Unvollständig', 'Titel plus Start/Ende im Format JJJJ-MM-TT.');
 			return;
 		}
+		if (form.deadline && !YMD.test(form.deadline)) {
+			Alert.alert('Unvollständig', 'Frist im Format JJJJ-MM-TT.');
+			return;
+		}
 		setCreateOpen(false);
-		await act(() => createTrip(form.title.trim(), form.start, form.end, form.notes.trim()));
-		setForm({ title: '', start: '', end: '', notes: '' });
+		await act(() =>
+			createTrip(form.title.trim(), form.start, form.end, form.notes.trim(), form.deadline || undefined)
+		);
+		setForm({ title: '', start: '', end: '', notes: '', deadline: '' });
 	};
 
 	const submitDateOption = async () => {
@@ -180,7 +228,10 @@ export default function Trips() {
 				title="Trips"
 				right={
 					<Pressable
-						onPress={() => setCreateOpen(true)}
+						onPress={() => {
+							setForm((f) => ({ ...f, deadline: f.deadline || plusDaysYmd(7) }));
+							setCreateOpen(true);
+						}}
 						hitSlop={8}
 						style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}
 					>
@@ -230,6 +281,20 @@ export default function Trips() {
 										</>
 									) : null}
 								</View>
+								{(() => {
+									const b = pollBadge(trip);
+									const tint = trip.poll.locked
+										? colors.success
+										: trip.poll.deadlinePassed
+											? colors.warning
+											: colors.accentBlue;
+									return (
+										<View style={[styles.badge, { borderColor: tint + '59', backgroundColor: tint + '14' }]}>
+											<Ionicons name={b.icon} size={12} color={tint} />
+											<Text style={[styles.badgeText, { color: tint }]}>{b.text}</Text>
+										</View>
+									);
+								})()}
 							</View>
 							<Pressable
 								onPress={() => shareTrip(trip)}
@@ -240,6 +305,24 @@ export default function Trips() {
 							</Pressable>
 						</View>
 
+						{trip.restricted ? (
+							/* Frist verschlafen: nur Datum — der Rest kommt mit der Zusage. */
+							<>
+								<Text style={styles.restrictedText}>
+									Du hast bis zur Frist nicht abgestimmt. Details siehst du, sobald du zusagst.
+								</Text>
+								<View style={styles.actions}>
+									<Button label="Ich bin dabei" small onPress={() => openJoin(trip)} />
+									<Button
+										label="Nicht dabei"
+										kind="ghost"
+										small
+										onPress={() => act(() => tripAction('decline_trip', trip.id))}
+									/>
+								</View>
+							</>
+						) : (
+						<>
 						{trip.notes ? <Text style={styles.notes}>{trip.notes}</Text> : null}
 
 						{/* Zählkacheln wie im Web: Dabei / Bedingt / Offen / Nicht dabei */}
@@ -310,73 +393,129 @@ export default function Trips() {
 								})()
 							: null}
 
-						{/* Termin-Alternativen mit Mehrheits-Fortschritt */}
+						{/* Terminumfrage: bei jedem Datum ja / notfalls / nein — fix ab minYes Ja */}
 						<View style={{ gap: 8 }}>
-							{trip.dateOptions.length > 0 ? (
-								<>
-									<Text style={styles.datesTitle}>
-										TERMIN-ALTERNATIVEN — {trip.votesNeeded} STIMMEN ERSETZEN DEN TERMIN
-									</Text>
-									{trip.dateOptions.map((opt) => {
-										const mine = trip.myVoteDateOptionId === opt.id;
-										const range = formatRange(opt.startDate, opt.endDate);
-										const label = opt.note ? `${range} · ${opt.note}` : range;
-										const subline = [
-											opt.proposedByName ? `von ${opt.proposedByName}` : null,
-											opt.sameAsPlanned ? 'wie Trip geplant' : null
-										]
-											.filter(Boolean)
-											.join(' · ');
-										return (
-											<Pressable
-												key={opt.id}
-												onPress={() =>
-													mine
-														? confirmWithdraw(
-																`Deine Stimme für ${range} wird entfernt.`,
-																() =>
-																	tripAction('remove_date_vote', trip.id, {
-																		dateOptionId: opt.id
-																	})
-															)
-														: act(() =>
-																tripAction('vote_date_option', trip.id, {
-																	dateOptionId: opt.id
-																})
-															)
-												}
-												style={({ pressed }) => [styles.dateRow, pressed && { opacity: 0.8 }]}
-											>
-												<View style={{ flex: 1, gap: 8 }}>
-													<View style={styles.dateHead}>
-														{mine ? (
-															<Ionicons name="checkmark-circle" size={15} color={colors.accentBlue} />
-														) : null}
-														<Text style={[styles.dateLabel, mine && { color: colors.accentBlue }]}>
-															{label}
-														</Text>
-														<Text style={styles.dateVotes}>
-															{opt.voteCount}/{trip.votesNeeded}
-														</Text>
-													</View>
-													<ProgressBar
-														percent={(opt.voteCount / Math.max(1, trip.votesNeeded)) * 100}
-														color={colors.accentBlue}
-													/>
-													{subline ? <Text style={styles.proposeText}>{subline}</Text> : null}
-												</View>
-											</Pressable>
-										);
-									})}
-								</>
+							<Text style={styles.datesTitle}>
+								{trip.poll.locked
+									? 'TERMINUMFRAGE — ABGESCHLOSSEN'
+									: `TERMINUMFRAGE · FIX AB ${trip.poll.minYes} JA`}
+							</Text>
+							{trip.poll.locked ? (
+								<Text style={styles.proposeText}>Termin steht – mitkommen oder nicht.</Text>
 							) : null}
-							<Pressable
-								onPress={() => setDateFor(trip)}
-								style={({ pressed }) => [styles.proposeRow, pressed && { opacity: 0.7 }]}
-							>
-								<Ionicons name="add-circle-outline" size={16} color={colors.textSecondary} />
-								<Text style={styles.proposeText}>Anderen Termin vorschlagen</Text>
-							</Pressable>
+							{trip.dateOptions.map((opt) => {
+								const range = formatRange(opt.startDate, opt.endDate);
+								const label = opt.note ? `${range} · ${opt.note}` : range;
+								const namesKey = `${trip.id}:names:${opt.id}`;
+								const answers: { value: DateAnswer; label: string; color: string }[] = [
+									{ value: 'ja', label: 'Ja', color: colors.success },
+									{ value: 'notfalls', label: 'Notfalls', color: colors.accent },
+									{ value: 'nein', label: 'Nein', color: colors.danger }
+								];
+								return (
+									<View key={opt.id} style={[styles.dateRow, opt.isLocked && { borderWidth: 1, borderColor: colors.success + '80' }]}>
+										<View style={styles.dateHead}>
+											{opt.isLocked ? (
+												<Ionicons name="checkmark-circle" size={15} color={colors.success} />
+											) : null}
+											<Text style={[styles.dateLabel, opt.isLocked && { color: colors.success }]}>
+												{label}
+												{opt.isLocked ? ' · fix' : ''}
+											</Text>
+											<Pressable
+												onPress={() => setOpenNoteKey(openNoteKey === namesKey ? null : namesKey)}
+												hitSlop={6}
+											>
+												<Text style={styles.dateVotes}>
+													<Text style={{ color: colors.success }}>{opt.yesCount}</Text>
+													{' · '}
+													<Text style={{ color: colors.accent }}>{opt.maybeCount}</Text>
+													{' · '}
+													<Text style={{ color: colors.danger }}>{opt.noCount}</Text>
+												</Text>
+											</Pressable>
+										</View>
+										<ProgressBar
+											percent={(opt.yesCount / Math.max(1, trip.poll.minYes)) * 100}
+											color={colors.success}
+										/>
+										{openNoteKey === namesKey ? (
+											<Text style={styles.namesText}>
+												{[
+													opt.yesNames.length ? `Ja: ${opt.yesNames.join(', ')}` : null,
+													opt.maybeNames.length ? `Notfalls: ${opt.maybeNames.join(', ')}` : null,
+													opt.noNames.length ? `Nein: ${opt.noNames.join(', ')}` : null
+												]
+													.filter(Boolean)
+													.join('\n') || 'Noch keine Antwort.'}
+											</Text>
+										) : null}
+										{!trip.poll.locked ? (
+											<View style={styles.answerRow}>
+												{answers.map((a) => {
+													const active = opt.myAnswer === a.value;
+													return (
+														<Pressable
+															key={a.value}
+															onPress={() =>
+																act(async () => {
+																	const res = await tripAction('answer_date_option', trip.id, {
+																		dateOptionId: opt.id,
+																		answer: a.value
+																	});
+																	if (res.locked) {
+																		Alert.alert(
+																			'Termin fix',
+																			`${formatRange(res.locked.startDate, res.locked.endDate)} – ${res.locked.yes} Zusagen.`
+																		);
+																	}
+																})
+															}
+															style={({ pressed }) => [
+																styles.answerBtn,
+																active && { backgroundColor: a.color + '26', borderColor: a.color },
+																pressed && { opacity: 0.7 }
+															]}
+														>
+															<Text style={[styles.answerBtnText, active && { color: a.color }]}>
+																{a.label}
+															</Text>
+														</Pressable>
+													);
+												})}
+											</View>
+										) : null}
+										{opt.proposedByName ? (
+											<Text style={styles.proposeText}>von {opt.proposedByName}</Text>
+										) : null}
+									</View>
+								);
+							})}
+							{!trip.poll.locked && trip.poll.silentMembers.length > 0 ? (
+								<Text style={styles.proposeText}>
+									Noch offen: {trip.poll.silentMembers.map((m) => m.username).join(', ')}
+								</Text>
+							) : null}
+							{!trip.poll.locked ? (
+								<Pressable
+									onPress={() => setDateFor(trip)}
+									style={({ pressed }) => [styles.proposeRow, pressed && { opacity: 0.7 }]}
+								>
+									<Ionicons name="add-circle-outline" size={16} color={colors.textSecondary} />
+									<Text style={styles.proposeText}>Anderen Termin vorschlagen</Text>
+								</Pressable>
+							) : trip.poll.canUnlock ? (
+								<Pressable
+									onPress={() => {
+										setUnlockFor(trip);
+										setUnlockDeadline(plusDaysYmd(7));
+									}}
+									style={({ pressed }) => [styles.proposeRow, pressed && { opacity: 0.7 }]}
+								>
+									<Ionicons name="refresh-outline" size={16} color={colors.textSecondary} />
+									<Text style={styles.proposeText}>Termin neu aufrollen</Text>
+								</Pressable>
+							) : null}
 						</View>
 
 						{/* Ziel-Vorschläge: wohin soll es gehen? Getrennte Abstimmung. */}
@@ -541,7 +680,8 @@ export default function Trips() {
 											title: trip.title,
 											start: trip.startDate,
 											end: trip.endDate ?? trip.startDate,
-											notes: trip.notes ?? ''
+											notes: trip.notes ?? '',
+											deadline: trip.voteDeadline ? trip.voteDeadline.slice(0, 10) : ''
 										});
 									}}
 									style={({ pressed }) => [styles.proposeRow, pressed && { opacity: 0.7 }]}
@@ -661,6 +801,8 @@ export default function Trips() {
 								</>
 							)}
 						</View>
+						</>
+						)}
 					</Card>
 				);
 			})}
@@ -882,6 +1024,12 @@ export default function Trips() {
 					value={editTrip.notes}
 					onChangeText={(v) => setEditTrip({ ...editTrip, notes: v })}
 				/>
+				<Text style={styles.fieldLabel}>Abstimmen bis (optional)</Text>
+				<DateField
+					value={editTrip.deadline}
+					onChange={(v) => setEditTrip({ ...editTrip, deadline: v })}
+					placeholder="Frist der Terminumfrage"
+				/>
 				<View style={styles.sheetActions}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setEditFor(null)} />
 					<Button
@@ -897,6 +1045,7 @@ export default function Trips() {
 							act(() =>
 								tripAction('edit_trip', trip.id, {
 									title: editTrip.title.trim(),
+									...(editTrip.deadline ? { voteDeadline: editTrip.deadline } : {}),
 									startDate: editTrip.start,
 									endDate: editTrip.end,
 									notes: editTrip.notes.trim()
@@ -976,9 +1125,52 @@ export default function Trips() {
 					value={form.notes}
 					onChangeText={(v) => setForm({ ...form, notes: v })}
 				/>
+				<Text style={styles.fieldLabel}>Abstimmen bis</Text>
+				<DateField
+					value={form.deadline}
+					onChange={(v) => setForm({ ...form, deadline: v })}
+					max={form.start || undefined}
+					placeholder="Frist der Terminumfrage"
+				/>
+				<Text style={styles.proposeText}>
+					Bis dahin sagt jede Person bei jedem Datum ja, notfalls oder nein. Ab drei Ja ist der
+					Termin fix. Wer schweigt, sieht danach nur noch das Datum.
+				</Text>
 				<View style={styles.sheetActions}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setCreateOpen(false)} />
 					<Button label="Erstellen" onPress={submitCreate} />
+				</View>
+			</Sheet>
+
+			{/* Termin neu aufrollen: Fixierung weg, neue Frist */}
+			<Sheet
+				visible={unlockFor !== null}
+				onClose={() => setUnlockFor(null)}
+				title={`Termin neu aufrollen — ${unlockFor?.title ?? ''}`}
+			>
+				<Text style={styles.proposeText}>
+					Die Fixierung wird aufgehoben, alle stimmen neu ab. Ab drei Ja ist der Termin wieder
+					fix, spätestens mit der neuen Frist.
+				</Text>
+				<Text style={styles.fieldLabel}>Abstimmen bis</Text>
+				<DateField value={unlockDeadline} onChange={setUnlockDeadline} placeholder="Neue Frist" />
+				<View style={styles.sheetActions}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setUnlockFor(null)} />
+					<Button
+						label="Neu aufrollen"
+						onPress={() => {
+							const trip = unlockFor;
+							if (!trip) return;
+							if (unlockDeadline && !YMD.test(unlockDeadline)) {
+								Alert.alert('Unvollständig', 'Frist im Format JJJJ-MM-TT.');
+								return;
+							}
+							setUnlockFor(null);
+							act(() =>
+								tripAction('unlock_trip', trip.id, unlockDeadline ? { voteDeadline: unlockDeadline } : {})
+							);
+						}}
+					/>
 				</View>
 			</Sheet>
 
@@ -1105,6 +1297,38 @@ const makeStyles = (colors: ThemeColors) =>
 		fontFamily: fonts.sans,
 		flex: 1
 	},
+	badge: {
+		alignSelf: 'flex-start',
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 4,
+		borderWidth: 1,
+		borderRadius: 999,
+		paddingHorizontal: 8,
+		paddingVertical: 3,
+		marginTop: 2
+	},
+	badgeText: { fontSize: 11, lineHeight: 14, fontFamily: fonts.sansSemi },
+	restrictedText: {
+		color: colors.fg + textAlpha.secondary,
+		fontSize: 13,
+		lineHeight: 19,
+		backgroundColor: colors.bgSecondary,
+		borderRadius: 12,
+		padding: 12
+	},
+	answerRow: { flexDirection: 'row', gap: 6 },
+	answerBtn: {
+		flex: 1,
+		alignItems: 'center',
+		paddingVertical: 6,
+		borderRadius: 8,
+		borderWidth: 1,
+		borderColor: colors.fg + '1f',
+		backgroundColor: colors.fg + '08'
+	},
+	answerBtnText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansSemi },
+	namesText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 17 },
 	datesTitle: { color: colors.fg + textAlpha.secondary, fontFamily: fonts.displayMedium, fontSize: 12, lineHeight: 16, letterSpacing: 1.5 },
 	dateRow: { backgroundColor: colors.bgSecondary, borderRadius: 12, padding: 12 },
 	dateHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },

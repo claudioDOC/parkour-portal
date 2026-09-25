@@ -79,7 +79,10 @@ Authentifizierung standardmäßig wie oben (Cookie oder Bearer).
 - `POST /api/training` — Aktionen (Abwesenheit, Votes, …), siehe Request-Body in `src/routes/api/training/+server.ts`
 - `GET /api/training/watch` — SSE/Watch (falls genutzt)
 - `GET /api/finder` — Spot-Finder (Query-Parameter wie Web-UI)
-- `GET` / `POST` `/api/trips` — Trips
+- `GET` / `POST` `/api/trips` — Trips. Terminumfrage: `answer_date_option` {tripId, dateOptionId, answer: ja|notfalls|nein} (fixiert ab drei Ja und liefert dann `locked`), `unlock_trip` {tripId, voteDeadline?} (Ersteller/Admin), `create_trip`/`edit_trip` mit `voteDeadline` (JJJJ-MM-TT). Alt: `vote_date_option` = Ja, `remove_date_vote`.
+- `GET` `/api/me/penalty` — laufende Strafrunde der angemeldeten Person (`{ penalty: null | {…, phase: 'warning'|'wrongSpot'} }`)
+- `GET` `/api/calendar-url` — Kalender-Abo-Link inklusive Schlüssel (für die App)
+- `POST` `/api/admin/scheduler` — Erinnerungs-Scheduler sofort laufen lassen (Admin)
 
 ### Öffentlich (API-Key)
 

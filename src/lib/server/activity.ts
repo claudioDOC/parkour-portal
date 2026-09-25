@@ -16,6 +16,8 @@ export type ActivityKind =
 	| 'training.cancelled'
 	| 'training.spot_fixed'
 	| 'training.extra'
+	| 'training.no_show'
+	| 'trip.date_fixed'
 	| 'solo.logged';
 
 export function recordEvent(params: {

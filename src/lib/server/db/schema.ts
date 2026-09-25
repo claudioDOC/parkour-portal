@@ -237,6 +237,17 @@ export const tripPlans = sqliteTable('trip_plans', {
 	/** Soft-Delete: Papierkorb. */
 	deleted: integer('deleted', { mode: 'boolean' }).notNull().default(false),
 	deletedAt: text('deleted_at'),
+	/**
+	 * Terminumfrage: Bis wann muss abgestimmt sein (UTC, 'YYYY-MM-DD HH:MM:SS').
+	 * Danach entscheidet der Server; wer bis dahin schweigt, sieht nur noch
+	 * das Datum, bis er zusagt.
+	 */
+	voteDeadline: text('vote_deadline'),
+	/** Gesetzt, sobald der Termin fix ist — ab drei „Ja" oder mit der Frist. */
+	dateLockedAt: text('date_locked_at'),
+	lockedDateOptionId: integer('locked_date_option_id'),
+	/** Der Scheduler hat die abgelaufene Frist verarbeitet (einmalig). */
+	deadlineHandledAt: text('deadline_handled_at'),
 	createdBy: integer('created_by').notNull().references(() => users.id),
 	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
@@ -349,6 +360,60 @@ export const tripDateVotes = sqliteTable(
 		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 	},
 	(t) => [uniqueIndex('trip_date_votes_trip_user').on(t.tripId, t.userId)]
+);
+
+/**
+ * Terminumfrage: Jede Person antwortet bei JEDEM Datum — ja / notfalls /
+ * nein. Löst die alte Einzelstimme (trip_date_votes) ab, die bei zwei
+ * gleich starken Daten regelmässig im Patt endete.
+ */
+export const tripDateAnswers = sqliteTable(
+	'trip_date_answers',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		tripId: integer('trip_id')
+			.notNull()
+			.references(() => tripPlans.id),
+		dateOptionId: integer('date_option_id')
+			.notNull()
+			.references(() => tripDateOptions.id),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		answer: text('answer', { enum: ['ja', 'notfalls', 'nein'] }).notNull(),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+		updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [
+		uniqueIndex('trip_date_answers_option_user').on(t.dateOptionId, t.userId),
+		index('trip_date_answers_trip_idx').on(t.tripId)
+	]
+);
+
+/**
+ * Strafrunde für stilles Fernbleiben: Warnhinweis, „Wer zieht" nur als
+ * Fragezeichen und beim Straf-Training ein falscher, naher Spot. Entsteht
+ * automatisch mit dem Admin-Eintrag „nicht erschienen", läuft mit dem Ende
+ * des Straf-Trainings aus.
+ */
+export const noShowPenalties = sqliteTable(
+	'no_show_penalties',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		missedSessionId: integer('missed_session_id')
+			.notNull()
+			.references(() => trainingSessions.id),
+		penaltySessionId: integer('penalty_session_id')
+			.notNull()
+			.references(() => trainingSessions.id),
+		absenceId: integer('absence_id'),
+		createdBy: integer('created_by'),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(t) => [index('no_show_penalties_user_idx').on(t.userId)]
 );
 
 /**

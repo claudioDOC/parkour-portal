@@ -24,7 +24,6 @@ import { useData } from '../../lib/store';
 import { DateField } from '../../lib/DateField';
 import {
 	getTraining,
-	getPendingTrip,
 	getStats,
 	logSolo,
 	removeSolo,
@@ -80,6 +79,13 @@ function metaDate(ymd: string): string {
 	});
 }
 
+/** Kurzes Datum bzw. Zeitraum für die Trip-Zeile („3.–17. Apr."). */
+function formatTripRange(start: string, end: string): string {
+	const fmt = (ymd: string) =>
+		new Date(`${ymd}T12:00:00`).toLocaleDateString('de-CH', { day: 'numeric', month: 'short' });
+	return start === end ? fmt(start) : `${fmt(start)} – ${fmt(end)}`;
+}
+
 export default function Dashboard() {
 	const { me } = useAuth();
 	const { colors } = useTheme();
@@ -87,7 +93,6 @@ export default function Dashboard() {
 	const router = useRouter();
 
 	const training = useData('training', getTraining);
-	const pending = useData('trip-pending', getPendingTrip);
 	const stats = useData('stats', getStats);
 
 	const [absenceFor, setAbsenceFor] = useState<TrainingSession | null>(null);
@@ -145,7 +150,6 @@ export default function Dashboard() {
 	const data = training.data;
 	const myStreak =
 		stats.data?.stats.leaderboard.find((r) => r.userId === me?.id)?.streakNoAbsence ?? 0;
-	const pendingTrip = pending.data?.trip ?? null;
 	const optIn = data?.viewerTrainingAttendance === 'opt_in';
 
 	const act = async (fn: () => Promise<unknown>) => {
@@ -278,6 +282,42 @@ export default function Dashboard() {
 
 			{training.error && !data ? <ErrorCard message={training.error} /> : null}
 
+			{/* Nächster Trip als schmale Zeile — kein weiterer Block, nur ein Hinweis
+			    mit dem Stand der Terminumfrage. Wer noch nicht abgestimmt hat, sieht
+			    das in Akzentfarbe. */}
+			{data?.nextTrip
+				? (() => {
+						const t = data.nextTrip;
+						const range = formatTripRange(t.startDate, t.endDate);
+						const fristYmd = t.deadline ? t.deadline.slice(0, 10) : null;
+						const needsVote = t.pollOpen && !t.hasResponded && !t.deadlinePassed;
+						const suffix = t.locked
+							? 'fix'
+							: needsVote && fristYmd
+								? `abstimmen bis ${formatTripRange(fristYmd, fristYmd)}`
+								: t.pollOpen
+									? `${t.leaderYes}/${t.minYes} Zusagen`
+									: `${t.joinedCount} dabei`;
+						return (
+							<Pressable
+								onPress={() => router.push('/trips')}
+								style={({ pressed }) => [styles.tripLine, pressed && { opacity: 0.7 }]}
+							>
+								<Ionicons
+									name="airplane-outline"
+									size={14}
+									color={needsVote ? colors.accent : colors.fg + textAlpha.secondary}
+								/>
+								<Text style={styles.tripLineText} numberOfLines={1}>
+									{`Trip · ${t.title} · ${range} · `}
+									<Text style={needsVote ? styles.tripLineHot : undefined}>{suffix}</Text>
+								</Text>
+								<Ionicons name="chevron-forward" size={14} color={colors.fg + textAlpha.muted} />
+							</Pressable>
+						);
+					})()
+				: null}
+
 			{!hasNativeExtras() ? (
 				<Pressable onPress={() => Linking.openURL('https://matetraining.duckdns.org/app')}>
 					{({ pressed }) => (
@@ -291,22 +331,6 @@ export default function Dashboard() {
 								</Text>
 							</View>
 							<Ionicons name="chevron-forward" size={20} color={colors.accent} />
-						</Card>
-					)}
-				</Pressable>
-			) : null}
-
-			{pendingTrip ? (
-				<Pressable onPress={() => router.push('/trips')}>
-					{({ pressed }) => (
-						<Card style={[styles.tripCard, pressed && { opacity: 0.85 }]}>
-							<View style={styles.rowBetween}>
-								<View style={{ flex: 1 }}>
-									<Text style={styles.tripKicker}>TRIP — DEINE ANTWORT FEHLT</Text>
-									<Text style={styles.tripTitle}>{pendingTrip.title}</Text>
-								</View>
-								<Ionicons name="chevron-forward" size={20} color={colors.accentBlue} />
-							</View>
 						</Card>
 					)}
 				</Pressable>
@@ -530,11 +554,12 @@ export default function Dashboard() {
 									</GroupLabel>
 									<View style={styles.chipWrap}>
 										{s.attending.map((a, i) => (
+											/* id < 0 = Fragezeichen der Strafrunde: kein Profil, kein Avatar */
 											<NameChip
 												key={a.id}
 												name={a.username}
-												avatar={a.avatar ?? null}
-												userId={a.id}
+												avatar={a.id < 0 ? null : (a.avatar ?? null)}
+												userId={a.id > 0 ? a.id : undefined}
 												index={i}
 											/>
 										))}
@@ -1080,6 +1105,23 @@ const makeStyles = (colors: ThemeColors) =>
 			paddingRight: 4
 		},
 		tripCard: { backgroundColor: colors.accentBlue + '14' },
+		tripLine: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			gap: 6,
+			paddingHorizontal: 10,
+			paddingVertical: 7,
+			borderRadius: 10,
+			backgroundColor: colors.fg + '0a'
+		},
+		tripLineText: {
+			flex: 1,
+			color: colors.fg + textAlpha.secondary,
+			fontFamily: fonts.sans,
+			fontSize: 12,
+			lineHeight: 16
+		},
+		tripLineHot: { color: colors.accent, fontFamily: fonts.sansSemi },
 		tripKicker: {
 			color: colors.accentBlue,
 			fontFamily: fonts.displayMedium,

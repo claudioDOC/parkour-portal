@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { and, asc, eq, gte } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { tripParticipants, tripPlans, users } from '$lib/server/db/schema';
+import { tripDateOptions, tripParticipants, tripPlans, users } from '$lib/server/db/schema';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 
 /** Nach so vielen Tagen wird eine Enthaltung erneut abgefragt. */
@@ -25,7 +25,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 			notes: tripPlans.notes,
 			destinationLabel: tripPlans.destinationLabel,
 			createdBy: tripPlans.createdBy,
-			createdAt: tripPlans.createdAt
+			createdAt: tripPlans.createdAt,
+			voteDeadline: tripPlans.voteDeadline,
+			dateLockedAt: tripPlans.dateLockedAt
 		})
 		.from(tripPlans)
 		.where(and(eq(tripPlans.deleted, false), gte(tripPlans.endDate, today)))
@@ -63,9 +65,18 @@ export const GET: RequestHandler = async ({ locals }) => {
 			.where(eq(tripParticipants.tripId, trip.id))
 			.all();
 
+		const optionCount = db
+			.select({ id: tripDateOptions.id })
+			.from(tripDateOptions)
+			.where(eq(tripDateOptions.tripId, trip.id))
+			.all().length;
+
 		return json({
 			trip: {
 				...trip,
+				/** Umfrage offen: mehrere Daten, noch nicht fix → in der App abstimmen statt nur Ja/Nein. */
+				pollOpen: !trip.dateLockedAt && optionCount > 1,
+				optionCount,
 				creatorName: creator?.username ?? null,
 				inCount: counts.filter((c) => c.transportMode !== 'abgemeldet' && c.transportMode !== 'enthalten').length,
 				outCount: counts.filter((c) => c.transportMode === 'abgemeldet').length

@@ -15,6 +15,8 @@ const KIND_ICONS: Record<string, string> = {
 	'training.cancelled': 'close-circle-outline',
 	'training.spot_fixed': 'location-outline',
 	'training.extra': 'add-circle-outline',
+	'training.no_show': 'warning-outline',
+	'trip.date_fixed': 'lock-closed-outline',
 	'trip.new': 'car-outline',
 	'trip.date.adopted': 'calendar-outline'
 };

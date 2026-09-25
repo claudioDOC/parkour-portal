@@ -12,4 +12,5 @@ CREATE TABLE IF NOT EXISTS revoked_tokens (
 	expires_at INTEGER NOT NULL,
 	created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS revoked_tokens_expires ON revoked_tokens (expires_at);

@@ -13,6 +13,7 @@
 	let createStartDate = $state('');
 	let createEndDate = $state('');
 	let createNotes = $state('');
+	let createDeadline = $state(defaultDeadlineYmd());
 	let createDestSearch = $state('');
 	let createDestBusy = $state(false);
 	let createDestHits = $state<{ lat: number; lon: number; displayName: string }[]>([]);
@@ -49,7 +50,7 @@
 	let sharedTripId = $state<number | null>(null);
 	// Trip-Eckdaten bearbeiten (Ersteller/Admin) — nutzt die edit_trip-Aktion.
 	let editTripId = $state<number | null>(null);
-	let editTrip = $state({ title: '', startDate: '', endDate: '', notes: '' });
+	let editTrip = $state({ title: '', startDate: '', endDate: '', notes: '', voteDeadline: '' });
 
 	function startTripEdit(trip: {
 		id: number;
@@ -57,13 +58,15 @@
 		startDate: string;
 		endDate: string;
 		notes: string | null;
+		voteDeadline?: string | null;
 	}) {
 		editTripId = editTripId === trip.id ? null : trip.id;
 		editTrip = {
 			title: trip.title,
 			startDate: trip.startDate,
 			endDate: trip.endDate,
-			notes: trip.notes ?? ''
+			notes: trip.notes ?? '',
+			voteDeadline: trip.voteDeadline ? deadlineYmd(trip.voteDeadline) : ''
 		};
 	}
 
@@ -76,7 +79,8 @@
 				title: editTrip.title.trim(),
 				startDate: editTrip.startDate,
 				endDate: editTrip.endDate,
-				notes: editTrip.notes.trim()
+				notes: editTrip.notes.trim(),
+				voteDeadline: editTrip.voteDeadline
 			});
 			editTripId = null;
 		} finally {
@@ -142,7 +146,8 @@
 				title: createTitle,
 				startDate: createStartDate,
 				endDate: createEndDate,
-				notes: createNotes
+				notes: createNotes,
+				voteDeadline: createDeadline
 			};
 			if (createPickedDest) {
 				payload.destinationLatitude = createPickedDest.lat;
@@ -307,22 +312,38 @@
 		}
 	}
 
-	async function voteDateOption(tripId: number, dateOptionId: number) {
+	/** Terminumfrage: ja / notfalls / nein je Datum. */
+	async function answerDate(tripId: number, dateOptionId: number, answer: 'ja' | 'notfalls' | 'nein') {
 		busyTripId = tripId;
 		try {
-			await post('vote_date_option', { tripId, dateOptionId });
+			await post('answer_date_option', { tripId, dateOptionId, answer });
 		} finally {
 			busyTripId = null;
 		}
 	}
-
-	async function removeDateVote(tripId: number) {
+	let unlockDeadline = $state<Record<number, string>>({});
+	let openNamesKey = $state<string | null>(null);
+	async function unlockTrip(tripId: number) {
+		if (!confirm('Termin wirklich neu aufrollen? Die Fixierung fällt weg und alle stimmen nochmals ab.')) return;
 		busyTripId = tripId;
 		try {
-			await post('remove_date_vote', { tripId });
+			await post('unlock_trip', { tripId, voteDeadline: unlockDeadline[tripId] ?? defaultDeadlineYmd() });
 		} finally {
 			busyTripId = null;
 		}
+	}
+	/** Server-Frist ('YYYY-MM-DD HH:MM:SS' UTC) lesbar. */
+	function formatDeadline(s: string | null): string {
+		if (!s) return '–';
+		return new Date(s.replace(' ', 'T') + 'Z').toLocaleDateString('de-CH', { weekday: 'short', day: 'numeric', month: 'short' });
+	}
+	function deadlineYmd(s: string): string {
+		const d = new Date(s.replace(' ', 'T') + 'Z');
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+	}
+	function defaultDeadlineYmd(): string {
+		const d = new Date(Date.now() + 7 * 86_400_000);
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 	}
 </script>
 
@@ -349,6 +370,10 @@
 			<input bind:value={createTitle} type="text" placeholder="Titel (z. B. Fontainebleau)" class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent" />
 			<input bind:value={createStartDate} type="date" class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent" />
 			<input bind:value={createEndDate} type="date" class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent" />
+			<label class="flex flex-col gap-1 text-xs text-text-muted sm:col-span-2">
+				<span>Abstimmen bis (danach entscheidet der Server, wer schweigt sieht nur noch das Datum)</span>
+				<input bind:value={createDeadline} type="date" class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent" />
+			</label>
 		</div>
 		<textarea bind:value={createNotes} rows="2" placeholder="Optional: Ablauf, Übernachtung..." class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent resize-none"></textarea>
 		<div class="rounded-lg border border-border bg-bg-secondary/60 p-3 space-y-2 text-sm">
@@ -444,9 +469,19 @@
 						>
 							{sharedTripId === trip.id ? 'Link kopiert ✓' : 'Link teilen'}
 						</button>
-						<div class="text-xs bg-bg-secondary border border-border rounded-lg px-3 py-2 text-text-secondary">
-							Trip fix · Teilnehmerplanung aktiv
-						</div>
+						{#if trip.poll.locked}
+							<div class="text-xs bg-success/10 border border-success/35 rounded-lg px-3 py-2 text-success font-semibold">
+								🔒 Termin fix
+							</div>
+						{:else if trip.poll.deadlinePassed}
+							<div class="text-xs bg-warning/10 border border-warning/35 rounded-lg px-3 py-2 text-warning font-semibold">
+								Frist vorbei · {trip.poll.leaderYes}/{trip.poll.minYes} Zusagen
+							</div>
+						{:else}
+							<div class="text-xs bg-sky-500/10 border border-sky-500/35 rounded-lg px-3 py-2 text-sky-400 font-semibold">
+								Abstimmen bis {formatDeadline(trip.poll.deadline)}
+							</div>
+						{/if}
 						{#if data.isAdmin}
 							<button
 								type="button"
@@ -483,6 +518,14 @@
 								class="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-sm text-text-primary"
 							/>
 						</div>
+						<label class="flex flex-col gap-1 text-xs text-text-muted">
+							<span>Abstimmen bis</span>
+							<input
+								type="date"
+								bind:value={editTrip.voteDeadline}
+								class="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-sm text-text-primary"
+							/>
+						</label>
 						<input
 							type="text"
 							bind:value={editTrip.notes}
@@ -500,6 +543,19 @@
 					</div>
 				{/if}
 
+				{#if trip.restricted}
+					<!-- Frist verschlafen: nur Datum — der Rest kommt mit der Zusage. -->
+					<div class="rounded-lg border border-warning/40 bg-warning/5 p-4 space-y-3">
+						<p class="text-sm font-semibold text-text-primary">Du hast bis zur Frist nicht abgestimmt.</p>
+						<p class="text-xs text-text-secondary">
+							Details, Teilnehmer und Ziel siehst du, sobald du zusagst. Der Termin gilt so oder so.
+						</p>
+						<div class="flex flex-wrap gap-2">
+							<button type="button" onclick={() => joinTrip(trip.id, 'dabei')} disabled={busyTripId === trip.id} class="bg-success/15 hover:bg-success/25 text-success px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">Ich bin dabei</button>
+							<button type="button" onclick={() => declineTrip(trip.id)} disabled={busyTripId === trip.id} class="bg-danger/15 hover:bg-danger/25 text-danger px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">Nicht dabei</button>
+						</div>
+					</div>
+				{:else}
 				<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
 					<div class="rounded-xl border border-success/35 bg-success/10 px-3 py-3 text-center shadow-sm">
 						<p class="text-2xl sm:text-3xl font-bold tabular-nums text-success leading-none">{trip.joinedCount}</p>
@@ -597,98 +653,129 @@
 					</div>
 
 					<div class="rounded-lg border border-sky-500/30 bg-sky-500/5 p-3 space-y-2">
-						<p class="text-xs uppercase tracking-wide text-sky-400">Zeitraum (Abstimmung)</p>
+						<div class="flex items-center justify-between gap-2 flex-wrap">
+							<p class="text-xs uppercase tracking-wide text-sky-400">Terminumfrage · fix ab {trip.poll.minYes} Ja</p>
+							{#if trip.poll.locked}
+								<span class="text-[11px] font-semibold text-success">🔒 Termin steht</span>
+							{:else if trip.poll.deadline}
+								<span class="text-[11px] {trip.poll.deadlinePassed ? 'text-warning' : 'text-sky-400/90'}">
+									{trip.poll.deadlinePassed ? 'Frist vorbei' : `Abstimmen bis ${formatDeadline(trip.poll.deadline)}`}
+								</span>
+							{/if}
+						</div>
 						<p class="text-[11px] text-text-muted">
-							Offiziell im Trip: <span class="text-text-secondary font-medium">{formatDateRange(trip.startDate, trip.endDate)}</span>
-							— hier alternative Daten vorschlagen und abstimmen (z. B. einen Tag später).
+							{#if trip.poll.locked}
+								Der Termin ist fix — mitkommen oder nicht. Neu aufrollen kann nur, wer den Trip angelegt hat, oder ein Admin.
+							{:else}
+								Sag bei <strong>jedem</strong> Datum, ob es geht. Sobald ein Datum {trip.poll.minYes} Ja hat, ist es fix.
+								Spätestens mit der Frist entscheidet die Mehrheit — wer bis dahin schweigt, sieht nur noch das Datum.
+							{/if}
 						</p>
-						{#if trip.votesNeeded > 0}
-							<p class="text-[11px] text-sky-400/90">
-								Ab <strong>{trip.votesNeeded}</strong> von {trip.eligibleVoters} Stimmen wird ein Vorschlag
-								automatisch zum neuen Trip-Termin.
-							</p>
-						{/if}
 						<div class="space-y-1.5">
 							{#each trip.dateOptions as opt}
-								<div class="flex items-start justify-between gap-3 rounded-lg border border-border bg-bg-card px-3 py-2 text-xs">
-									<div class="min-w-0 flex-1">
-										<p class="text-text-primary font-medium">
-											{formatDateRange(opt.startDate, opt.endDate)}
-										</p>
-										<p class="text-text-muted mt-1">
-											{opt.voteCount} Stimmen · {opt.proposedByName}
-											{#if opt.sameAsPlanned}
-												<span class="text-sky-400/90"> · wie Trip geplant</span>
-											{:else if trip.votesNeeded > 0 && opt.voteCount < trip.votesNeeded}
-												<span> · noch {trip.votesNeeded - opt.voteCount} bis zur Mehrheit</span>
+								{@const namesKey = `${trip.id}:${opt.id}`}
+								<div class="rounded-lg border {opt.isLocked ? 'border-success/50 bg-success/5' : 'border-border bg-bg-card'} px-3 py-2 text-xs space-y-1.5">
+									<div class="flex items-start justify-between gap-3">
+										<div class="min-w-0 flex-1">
+											<p class="text-text-primary font-medium">
+												{formatDateRange(opt.startDate, opt.endDate)}
+												{#if opt.isLocked}<span class="text-success"> · fix ✓</span>{/if}
+												{#if opt.note}<span class="text-text-secondary font-normal"> · {opt.note}</span>{/if}
+											</p>
+											<button
+												type="button"
+												onclick={() => (openNamesKey = openNamesKey === namesKey ? null : namesKey)}
+												class="mt-0.5 cursor-pointer text-text-muted hover:text-text-secondary"
+												title="Wer hat was gesagt?"
+											>
+												<span class="text-success">{opt.yesCount} Ja</span> ·
+												<span class="text-accent">{opt.maybeCount} Notfalls</span> ·
+												<span class="text-danger">{opt.noCount} Nein</span>
+												<span class="opacity-70"> {openNamesKey === namesKey ? '▴' : '▾'}</span>
+											</button>
+											{#if openNamesKey === namesKey}
+												<div class="mt-1 space-y-0.5 text-[11px] text-text-secondary">
+													<p><span class="text-success">Ja:</span> {opt.yesNames.join(', ') || '–'}</p>
+													<p><span class="text-accent">Notfalls:</span> {opt.maybeNames.join(', ') || '–'}</p>
+													<p><span class="text-danger">Nein:</span> {opt.noNames.join(', ') || '–'}</p>
+												</div>
 											{/if}
-										</p>
-										{#if trip.votesNeeded > 0 && !opt.sameAsPlanned}
-											<div class="mt-1.5 h-1.5 w-full max-w-[12rem] overflow-hidden rounded-full bg-bg-hover" aria-hidden="true">
-												<div
-													class="h-full rounded-full bg-sky-400 transition-[width] duration-500"
-													style="width: {Math.min(100, Math.round((opt.voteCount / trip.votesNeeded) * 100))}%"
-												></div>
+										</div>
+										{#if !trip.poll.locked}
+											<div class="flex shrink-0 gap-1">
+												<button type="button" onclick={() => answerDate(trip.id, opt.id, 'ja')} disabled={busyTripId === trip.id} class="cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold disabled:opacity-50 {opt.myAnswer === 'ja' ? 'bg-success text-[#0c0c0e]' : 'bg-bg-hover text-text-secondary hover:text-success'}">Ja</button>
+												<button type="button" onclick={() => answerDate(trip.id, opt.id, 'notfalls')} disabled={busyTripId === trip.id} class="cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold disabled:opacity-50 {opt.myAnswer === 'notfalls' ? 'bg-accent text-[#0c0c0e]' : 'bg-bg-hover text-text-secondary hover:text-accent'}">Notfalls</button>
+												<button type="button" onclick={() => answerDate(trip.id, opt.id, 'nein')} disabled={busyTripId === trip.id} class="cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold disabled:opacity-50 {opt.myAnswer === 'nein' ? 'bg-danger text-white' : 'bg-bg-hover text-text-secondary hover:text-danger'}">Nein</button>
 											</div>
 										{/if}
-										{#if opt.note}
-											<p class="text-text-secondary mt-1 whitespace-pre-wrap break-words">{opt.note}</p>
-										{/if}
 									</div>
-									{#if trip.myVoteDateOptionId === opt.id}
-										<button
-											type="button"
-											onclick={() => removeDateVote(trip.id)}
-											disabled={busyTripId === trip.id}
-											class="shrink-0 px-2.5 py-1 rounded-md bg-sky-500 text-[#0c0c0e] text-[11px] font-medium disabled:opacity-50"
-										>
-											Zurückziehen
-										</button>
-									{:else}
-										<button
-											type="button"
-											onclick={() => voteDateOption(trip.id, opt.id)}
-											disabled={busyTripId === trip.id}
-											class="shrink-0 px-2.5 py-1 rounded-md bg-bg-hover text-text-secondary hover:text-text-primary text-[11px] font-medium disabled:opacity-50"
-										>
-											Voten
-										</button>
+									{#if !trip.poll.locked}
+										<div class="h-1.5 w-full max-w-[14rem] overflow-hidden rounded-full bg-bg-hover" aria-hidden="true">
+											<div class="h-full rounded-full bg-success transition-[width] duration-500" style="width: {Math.min(100, Math.round((opt.yesCount / trip.poll.minYes) * 100))}%"></div>
+										</div>
 									{/if}
 								</div>
 							{/each}
 							{#if trip.dateOptions.length === 0}
-								<p class="text-text-muted text-xs">Noch kein alternativer Zeitraum.</p>
+								<p class="text-text-muted text-xs">Noch kein Datum zur Wahl.</p>
 							{/if}
 						</div>
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+						{#if !trip.poll.locked && trip.poll.silentMembers.length > 0}
+							<p class="text-[11px] text-text-muted">
+								Noch offen: {trip.poll.silentMembers.map((m) => m.username).join(', ')}
+							</p>
+						{/if}
+						{#if trip.poll.locked}
+							{#if trip.poll.canUnlock}
+								<div class="flex flex-wrap items-center gap-2 pt-1">
+									<input
+										type="date"
+										value={unlockDeadline[trip.id] ?? defaultDeadlineYmd()}
+										oninput={(e) => (unlockDeadline[trip.id] = (e.currentTarget as HTMLInputElement).value)}
+										class="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-xs text-text-primary"
+									/>
+									<button
+										type="button"
+										onclick={() => unlockTrip(trip.id)}
+										disabled={busyTripId === trip.id}
+										class="bg-warning/15 hover:bg-warning/25 text-warning px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+									>
+										Termin neu aufrollen
+									</button>
+									<span class="text-[11px] text-text-muted">mit neuer Frist</span>
+								</div>
+							{/if}
+						{:else}
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+								<input
+									type="date"
+									value={dateAltStart[trip.id] ?? ''}
+									oninput={(e) => (dateAltStart[trip.id] = (e.currentTarget as HTMLInputElement).value)}
+									class="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-xs text-text-primary"
+								/>
+								<input
+									type="date"
+									value={dateAltEnd[trip.id] ?? ''}
+									oninput={(e) => (dateAltEnd[trip.id] = (e.currentTarget as HTMLInputElement).value)}
+									class="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-xs text-text-primary"
+								/>
+							</div>
 							<input
-								type="date"
-								value={dateAltStart[trip.id] ?? ''}
-								oninput={(e) => (dateAltStart[trip.id] = (e.currentTarget as HTMLInputElement).value)}
-								class="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-xs text-text-primary"
+								type="text"
+								value={dateAltNote[trip.id] ?? ''}
+								oninput={(e) => (dateAltNote[trip.id] = (e.currentTarget as HTMLInputElement).value)}
+								placeholder="Kurznotiz (optional), z. B. „+1 Tag wegen Arbeit“"
+								class="w-full bg-bg-card border border-border rounded-lg px-2 py-1.5 text-xs text-text-primary"
 							/>
-							<input
-								type="date"
-								value={dateAltEnd[trip.id] ?? ''}
-								oninput={(e) => (dateAltEnd[trip.id] = (e.currentTarget as HTMLInputElement).value)}
-								class="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-xs text-text-primary"
-							/>
-						</div>
-						<input
-							type="text"
-							value={dateAltNote[trip.id] ?? ''}
-							oninput={(e) => (dateAltNote[trip.id] = (e.currentTarget as HTMLInputElement).value)}
-							placeholder="Kurznotiz (optional), z. B. „+1 Tag wegen Arbeit“"
-							class="w-full bg-bg-card border border-border rounded-lg px-2 py-1.5 text-xs text-text-primary"
-						/>
-						<button
-							type="button"
-							onclick={() => proposeDateOption(trip.id)}
-							disabled={busyTripId === trip.id || !(dateAltStart[trip.id] || '').trim() || !(dateAltEnd[trip.id] || '').trim()}
-							class="bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 w-full sm:w-auto"
-						>
-							Zeitraum als Vorschlag einreichen
-						</button>
+							<button
+								type="button"
+								onclick={() => proposeDateOption(trip.id)}
+								disabled={busyTripId === trip.id || !(dateAltStart[trip.id] || '').trim() || !(dateAltEnd[trip.id] || '').trim()}
+								class="bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 w-full sm:w-auto"
+							>
+								Weiteres Datum zur Wahl stellen
+							</button>
+						{/if}
 					</div>
 
 					<!-- Zielort zur Abstimmung — getrennt vom Ablauf, mit eigener Stimme. -->
@@ -814,6 +901,7 @@
 					currentUserId={data.user.id}
 					isAdmin={data.isAdmin}
 				/>
+				{/if}
 			</div>
 		{/each}
 

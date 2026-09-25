@@ -1857,7 +1857,8 @@
 											type="text"
 											value={adminAbsenceNote[session.id] ?? ''}
 											oninput={(e) => setAdminAbsenceNote(session.id, e.currentTarget.value)}
-											placeholder="Grund (optional)"
+											placeholder="Grund (optional) — leer = „nicht erschienen“ → Strafrunde"
+											title="Ohne Grund gilt der Eintrag als stilles Fernbleiben: Warnhinweis, Fragezeichen statt Namen und beim nächsten Training ein falscher Spot."
 											class="min-w-[8rem] flex-1 rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
 										/>
 										<button

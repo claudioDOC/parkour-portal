@@ -5,7 +5,18 @@
  * Doppelversand nach einem Neustart verhindert `push_reminder_log` — pro
  * (Session, Art) darf genau eine Erinnerung rausgehen.
  */
-import { and, eq, inArray, lte } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
+import { activePenaltiesForSession, wrongSpotFor } from '$lib/server/noShowPenalty';
+import {
+	MIN_YES,
+	evaluateTripLock,
+	formatRange,
+	parseDbDatetime,
+	rankTally,
+	silentMemberIds,
+	tallyTrip
+} from '$lib/server/tripDatePoll';
+import { tripPlans } from '$lib/server/db/schema';
 import { db } from './db';
 import {
 	absences,
@@ -317,6 +328,36 @@ async function runExtraRsvpReminder(now: Date): Promise<void> {
  * also 16:15), bekommen alle Mitziehenden den Gewinner-Spot gemeldet.
  * Ohne Votes gibt es nichts zu melden — dann wird still übersprungen.
  */
+/**
+ * Strafrunde: Die bestrafte Person bekommt statt des echten Spots den
+ * nächstgelegenen anderen gemeldet — und fällt aus der normalen Meldung.
+ * Gibt die ausgenommenen User-IDs zurück.
+ */
+async function sendWrongSpotToPenalized(
+	session: { id: number; timeStart: string },
+	realSpotId: number,
+	now: Date
+): Promise<number[]> {
+	const penalized = activePenaltiesForSession(session.id, now);
+	const excluded: number[] = [];
+	for (const p of penalized) {
+		excluded.push(p.userId);
+		const wrong = wrongSpotFor(realSpotId);
+		if (!wrong) continue;
+		await sendToUsersWithPref(
+			'spotFix',
+			{
+				title: 'Spot fix für heute',
+				body: `${wrong.name} (${wrong.city}) — Training ${session.timeStart} Uhr.`,
+				url: '/training',
+				tag: `spot-fix-${session.id}`
+			},
+			[p.userId]
+		);
+	}
+	return excluded;
+}
+
 async function runSpotFixNotification(now: Date): Promise<void> {
 	const today = todayYmdInAppTZ(now);
 	const nowMin = currentMinutesInAppTZ(now);
@@ -346,6 +387,7 @@ async function runSpotFixNotification(now: Date): Promise<void> {
 			if (!os) continue;
 			const candidates = attendingUserIds(session.id, session.dayOfWeek);
 			if (candidates.length === 0) continue;
+			const excludeUserIds = await sendWrongSpotToPenalized(session, session.overrideSpotId, now);
 			await sendToUsersWithPref(
 				'spotFix',
 				{
@@ -354,7 +396,8 @@ async function runSpotFixNotification(now: Date): Promise<void> {
 					url: '/training',
 					tag: `spot-fix-${session.id}`
 				},
-				candidates
+				candidates,
+				{ excludeUserIds }
 			);
 			continue;
 		}
@@ -370,9 +413,9 @@ async function runSpotFixNotification(now: Date): Promise<void> {
 		if (!claimReminder(session.id, 'spot')) continue;
 
 		// Gewinner: meiste Stimmen; bei Gleichstand alphabetisch zuerst.
-		const tally = new Map<number, { name: string; city: string; count: number }>();
+		const tally = new Map<number, { spotId: number; name: string; city: string; count: number }>();
 		for (const v of votes) {
-			const e = tally.get(v.spotId) ?? { name: v.name, city: v.city, count: 0 };
+			const e = tally.get(v.spotId) ?? { spotId: v.spotId, name: v.name, city: v.city, count: 0 };
 			e.count += 1;
 			tally.set(v.spotId, e);
 		}
@@ -388,6 +431,9 @@ async function runSpotFixNotification(now: Date): Promise<void> {
 
 		const candidates = attendingUserIds(session.id, session.dayOfWeek);
 		if (candidates.length === 0) continue;
+		// Bei Gleichstand gibt es keinen echten Spot — also auch keinen falschen.
+		const excludeUserIds =
+			tied.length > 1 ? [] : await sendWrongSpotToPenalized(session, winner.spotId, now);
 		await sendToUsersWithPref(
 			'spotFix',
 			{
@@ -396,8 +442,72 @@ async function runSpotFixNotification(now: Date): Promise<void> {
 				url: '/training',
 				tag: `spot-fix-${session.id}`
 			},
-			candidates
+			candidates,
+			{ excludeUserIds }
 		);
+	}
+}
+
+/**
+ * Trip-Terminumfrage: 48 Stunden vor der Frist die Stummen erinnern; mit
+ * Ablauf entscheiden (fix ab MIN_YES „Ja", sonst bleibt der Trip offen).
+ * Reminder-Log: Trips laufen mit negativer ID, damit sie sich nicht mit
+ * Trainings-Sessions in die Quere kommen.
+ */
+async function runTripDeadlines(now: Date): Promise<void> {
+	const today = todayYmdInAppTZ(now);
+	const open = db
+		.select({
+			id: tripPlans.id,
+			title: tripPlans.title,
+			voteDeadline: tripPlans.voteDeadline,
+			deadlineHandledAt: tripPlans.deadlineHandledAt
+		})
+		.from(tripPlans)
+		.where(and(eq(tripPlans.deleted, false), isNull(tripPlans.dateLockedAt), gte(tripPlans.endDate, today)))
+		.all();
+	for (const trip of open) {
+		const deadline = parseDbDatetime(trip.voteDeadline);
+		if (!deadline) continue;
+		const msLeft = deadline.getTime() - now.getTime();
+		const fristText = formatRange(trip.voteDeadline!.slice(0, 10), trip.voteDeadline!.slice(0, 10));
+
+		if (msLeft > 0 && msLeft <= 48 * 60 * 60 * 1000) {
+			if (!claimReminder(-trip.id, 'trip-deadline-48h')) continue;
+			const silent = silentMemberIds(trip.id);
+			if (silent.length === 0) continue;
+			await sendToUsersWithPref(
+				'trips',
+				{
+					title: `Trip „${trip.title}": Abstimmung läuft ab`,
+					body: `Bis ${fristText} sagen, welche Daten für dich gehen — sonst siehst du nur noch das Datum.`,
+					url: `/trips?trip=${trip.id}`,
+					tag: `trip-deadline-${trip.id}`
+				},
+				silent
+			);
+			continue;
+		}
+
+		if (msLeft <= 0 && !trip.deadlineHandledAt) {
+			db.update(tripPlans)
+				.set({ deadlineHandledAt: sql`(datetime('now'))` })
+				.where(and(eq(tripPlans.id, trip.id), isNull(tripPlans.deadlineHandledAt)))
+				.run();
+			const locked = evaluateTripLock(trip.id, { force: true });
+			if (locked) continue; // Fixierung meldet sich selbst
+			const leader = rankTally(tallyTrip(trip.id))[0];
+			const yes = leader?.yes ?? 0;
+			await sendToUsersWithPref('trips', {
+				title: `Trip „${trip.title}": Frist vorbei`,
+				body:
+					yes > 0
+						? `Erst ${yes} von ${MIN_YES} Zusagen für ${formatRange(leader.startDate, leader.endDate)}. Der Trip bleibt offen und wird fix, sobald die dritte kommt.`
+						: `Noch keine Zusage. Der Trip bleibt offen und wird fix, sobald ${MIN_YES} Leute Ja sagen.`,
+				url: `/trips?trip=${trip.id}`,
+				tag: `trip-deadline-${trip.id}`
+			});
+		}
 	}
 }
 
@@ -408,6 +518,7 @@ async function tick(): Promise<void> {
 		await runSpotFixNotification(now);
 		await runRsvpReminder(now);
 		await runExtraRsvpReminder(now);
+		await runTripDeadlines(now);
 		cleanupOldReminderLog();
 	} catch (err) {
 		console.error('[push] Erinnerungslauf fehlgeschlagen:', err);

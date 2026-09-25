@@ -751,7 +751,12 @@
 								</p>
 								<div class="flex flex-wrap gap-1.5">
 									{#each session.attending as user}
-										<a href="/profil/{user.id}" class="bg-success/10 text-success text-xs px-2.5 py-1 rounded-full transition-colors hover:bg-success/20">{user.username}</a>
+										{#if user.id < 0}
+											<!-- Strafrunde: Namen sind für diese Person Fragezeichen. -->
+											<span class="bg-success/10 text-success text-xs px-2.5 py-1 rounded-full">?</span>
+										{:else}
+											<a href="/profil/{user.id}" class="bg-success/10 text-success text-xs px-2.5 py-1 rounded-full transition-colors hover:bg-success/20">{user.username}</a>
+										{/if}
 									{/each}
 									{#each session.guests || [] as guest}
 										<span class="bg-amber-500/10 text-amber-400 text-xs px-2.5 py-1 rounded-full">{guest.name}</span>

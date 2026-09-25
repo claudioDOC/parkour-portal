@@ -2,6 +2,9 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { snapshotAbsences } from '$lib/server/absenceAudit';
+import { activePenaltyFor, createNoShowPenalty } from '$lib/server/noShowPenalty';
+import { noShowPenalties } from '$lib/server/db/schema';
+import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 import {
 	trainingSessions,
 	trainingSpotVotes,
@@ -210,6 +213,42 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		/** Nachträgliche Abmeldung (z. B. nicht erschienen) — zählt in der Statistik wie eine normale Abmeldung */
+		/** Strafrunde von Hand (z. B. Nachtrag) oder Gnade. */
+		if (type === 'no_show_penalty' && sessionId && Number.isFinite(userId) && userId > 0) {
+			const penaltySessionId = Number(body?.penaltySessionId) || null;
+			const result = createNoShowPenalty({
+				userId,
+				missedSessionId: sessionId,
+				createdBy: locals.user!.id,
+				penaltySessionId
+			});
+			logAudit({
+				event,
+				action: 'admin.training.no_show_penalty',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				targetUserId: userId,
+				detail: { sessionId, created: result.created, penaltyDate: result.penalty?.penalty.date ?? null }
+			});
+			if (!result.penalty) {
+				return json({ error: 'Kein kommendes Training gefunden, an dem die Strafe laufen könnte' }, { status: 400 });
+			}
+			return json({ success: true, created: result.created, penalty: result.penalty });
+		}
+		if (type === 'remove_penalty' && Number.isFinite(userId) && userId > 0) {
+			const active = activePenaltyFor(userId);
+			if (active) db.delete(noShowPenalties).where(eq(noShowPenalties.id, active.id)).run();
+			logAudit({
+				event,
+				action: 'admin.training.remove_penalty',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				targetUserId: userId,
+				detail: { removed: Boolean(active) }
+			});
+			return json({ success: true, removed: Boolean(active) });
+		}
+
 		if (type === 'add_absence' && sessionId && Number.isFinite(userId) && userId > 0) {
 			const session = db.select().from(trainingSessions).where(eq(trainingSessions.id, sessionId)).get();
 			if (!session) {
@@ -234,21 +273,36 @@ export const POST: RequestHandler = async (event) => {
 			const reason =
 				reasonRaw ||
 				'Nicht erschienen (Admin)';
-			db.insert(absences).values({ sessionId, userId, reason }).run();
+			const inserted = db
+				.insert(absences)
+				.values({ sessionId, userId, reason })
+				.returning({ id: absences.id })
+				.get();
 			if (isTrainingAttendanceSchemaReady()) {
 				db.delete(trainingSessionRsvp)
 					.where(and(eq(trainingSessionRsvp.sessionId, sessionId), eq(trainingSessionRsvp.userId, userId)))
 					.run();
 			}
+			// Stilles Fernbleiben („nicht erschienen", ohne eigenen Grund) an
+			// einem Training, das schon läuft oder vorbei ist → Strafrunde.
+			const isNoShow = /^nicht erschienen/i.test(reason) && session.date <= todayYmdInAppTZ();
+			const penalty = isNoShow
+				? createNoShowPenalty({
+						userId,
+						missedSessionId: sessionId,
+						absenceId: inserted.id,
+						createdBy: locals.user!.id
+					})
+				: null;
 			logAudit({
 				event,
 				action: 'admin.training.add_absence',
 				actorUserId: locals.user!.id,
 				actorUsername: locals.user!.username,
 				targetUserId: userId,
-				detail: { sessionId, reason }
+				detail: { sessionId, reason, penalty: penalty?.created ? penalty.penalty?.penalty.date : null }
 			});
-			return json({ success: true });
+			return json({ success: true, penalty: penalty?.penalty ?? null });
 		}
 
 		/**

@@ -19,7 +19,7 @@ import {
 	getPushConfig,
 	savePushPrefs,
 	sendPushTest,
-	BASE_URL
+	getCalendarUrl
 } from '../lib/api';
 import { setupPush } from '../lib/pushSetup';
 import { Linking } from 'react-native';
@@ -572,11 +572,21 @@ export default function Settings() {
 					icon="calendar-outline"
 					label="Kalender abonnieren"
 					hint="Trainings und Trips im Handy-Kalender"
-					onPress={() =>
-						Share.share({
-							message: `${BASE_URL || 'https://matetraining.duckdns.org'}/calendar.ics`
-						}).catch(() => {})
-					}
+					onPress={() => {
+						// Der Link braucht den Schlüssel — ohne ihn antwortet das Abo mit
+						// „Unauthorized". Darum vom Server holen statt fest verdrahten.
+						void getCalendarUrl()
+							.then(({ calendarUrl }) => {
+								if (!calendarUrl) {
+									Alert.alert('Kein Kalender-Schlüssel gesetzt');
+									return;
+								}
+								return Share.share({ message: calendarUrl });
+							})
+							.catch((e) =>
+								Alert.alert('Fehler', e instanceof Error ? e.message : 'Link nicht verfügbar')
+							);
+					}}
 				/>
 			</Card>
 

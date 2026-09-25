@@ -1,4 +1,6 @@
 import { db } from '$lib/server/db';
+import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noShowPenalty';
+import { nextTripSummary } from '$lib/server/tripDatePoll';
 import {
 	trainingSessions,
 	absences,
@@ -38,6 +40,9 @@ export type TrainingViewer = {
  * GET /api/v1/training gemeinsam genutzt, damit App und Web nie auseinanderlaufen.
  */
 export async function buildTrainingPagePayload(user: TrainingViewer) {
+	// Strafrunde der betrachtenden Person: Fragezeichen statt Namen und
+	// beim Straf-Training ein falscher Spot (siehe noShowPenalty.ts).
+	const viewerPenalty = user ? activePenaltyFor(user.id) : null;
 	const viewerAttendance = user?.trainingAttendance ?? null;
 	const today = todayYmdInAppTZ();
 
@@ -350,12 +355,27 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 		 * den meisten Stimmen. Das Bild dieses Spots liegt in der App hinter
 		 * der Trainingskarte, wie im Portal.
 		 */
-		const effectiveSpotId =
+		let effectiveSpotId =
 			session.overrideSpotId ??
 			winnerSpot?.spotId ??
 			autoSpot?.spotId ??
 			spotVotes[0]?.spotId ??
 			null;
+
+		const penalized = Boolean(viewerPenalty && viewerPenalty.penalty.id === session.id);
+		if (penalized && user) attending = maskAttending(attending, user.id);
+		// Falscher Spot erst, wenn der echte fix ist — während des Votings
+		// stünde sonst oben ein anderer Name als in der Stimmenliste.
+		if (penalized && viewerPenalty?.phase === 'wrongSpot' && (votingClosed || overrideSpot)) {
+			const realId = session.overrideSpotId ?? winnerSpot?.spotId ?? autoSpot?.spotId ?? null;
+			const wrong = realId ? wrongSpotFor(realId) : null;
+			if (wrong) {
+				if (overrideSpot) overrideSpot = { spotId: wrong.spotId, name: wrong.name, city: wrong.city };
+				if (winnerSpot) winnerSpot = { ...winnerSpot, spotId: wrong.spotId, name: wrong.name, city: wrong.city };
+				if (autoSpot) autoSpot = { spotId: wrong.spotId, name: wrong.name, city: wrong.city };
+				effectiveSpotId = wrong.spotId;
+			}
+		}
 
 		return {
 			...session,
@@ -403,6 +423,8 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 	}
 
 	return {
+		penalty: viewerPenalty,
+		nextTrip: user ? nextTripSummary(user.id, today) : null,
 		// Wer schaut zu — die Seite braucht das fürs Löschrecht bei
 		// Zusatztrainings (Ersteller oder Admin).
 		viewer: user ? { id: user.id, role: user.role ?? 'member' } : null,

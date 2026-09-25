@@ -27,11 +27,14 @@ import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 import { getTrainingWindowForecast } from '$lib/server/trainingForecast';
 import { ensureUpcomingTrainingSessions } from '$lib/server/ensureUpcomingTrainingSessions';
 import { computeTrainingStats } from '$lib/server/stats';
+import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noShowPenalty';
+import { nextTripSummary } from '$lib/server/tripDatePoll';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const today = todayYmdInAppTZ();
 
 	ensureUpcomingTrainingSessions();
+	const viewerPenalty = locals.user ? activePenaltyFor(locals.user.id) : null;
 
 	const nextTrainings = db.select().from(trainingSessions)
 		.where(gte(trainingSessions.date, today))
@@ -177,6 +180,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 			}
 		}
 
+		// Strafrunde: Fragezeichen statt Namen; falscher Spot, sobald der echte fix ist.
+		const penalized = Boolean(viewerPenalty && viewerPenalty.penalty.id === session.id);
+		if (penalized && locals.user) attending = maskAttending(attending, locals.user.id);
+		if (penalized && viewerPenalty?.phase === 'wrongSpot' && effectiveVote) {
+			const start = new Date(`${session.date}T${session.timeStart}:00`).getTime();
+			const spotFixed = Boolean(session.overrideSpotId) || Date.now() > start - 2 * 60 * 60 * 1000;
+			const wrong = spotFixed ? wrongSpotFor(effectiveVote.spotId) : null;
+			if (wrong) {
+				effectiveVote = {
+					...effectiveVote,
+					spotId: wrong.spotId,
+					spotName: wrong.name,
+					spotCity: wrong.city
+				} as typeof topVote;
+			}
+		}
+
 		// Bild des führenden Spots — Hintergrund fürs Dashboard-Hero.
 		let topVoteThumbnail: string | null = null;
 		if (effectiveVote) {
@@ -265,6 +285,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		nextTrainings: trainingsWithDetails,
+		penalty: viewerPenalty,
+		nextTrip: locals.user ? nextTripSummary(locals.user.id, today) : null,
 		trainingForecast,
 		topSpots,
 		myStreak,

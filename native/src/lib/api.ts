@@ -174,9 +174,46 @@ export type TrainingSession = {
 	autoSpot: { name: string; city: string; spotId: number } | null;
 };
 
+/**
+ * Strafrunde nach stillem Fernbleiben: warning = Hinweis beim Öffnen und
+ * Fragezeichen statt Namen; wrongSpot = beim Straf-Training zeigt der
+ * Server einen falschen, nahen Spot (das merkt der Client nicht).
+ */
+export type ActivePenalty = {
+	id: number;
+	userId: number;
+	missed: { id: number; date: string; dayOfWeek: string };
+	penalty: { id: number; date: string; dayOfWeek: string; timeStart: string; timeEnd: string };
+	phase: 'warning' | 'wrongSpot';
+};
+
+export const getMyPenalty = () => get<{ penalty: ActivePenalty | null }>('/api/me/penalty');
+
+/** Kalender-Abo-Link inklusive Schlüssel — ohne den antwortet das Abo mit 401. */
+export const getCalendarUrl = () => get<{ calendarUrl: string | null }>('/api/calendar-url');
+
+/** Der nächste Trip in einer Zeile — Startseite. */
+export type NextTripSummary = {
+	id: number;
+	title: string;
+	startDate: string;
+	endDate: string;
+	locked: boolean;
+	/** UTC 'YYYY-MM-DD HH:MM:SS' */
+	deadline: string | null;
+	deadlinePassed: boolean;
+	hasResponded: boolean;
+	pollOpen: boolean;
+	leaderYes: number;
+	minYes: number;
+	joinedCount: number;
+};
+
 export type TrainingPayload = {
 	/** Wer schaut zu — fürs Löschrecht bei Zusatztrainings. */
 	viewer?: { id: number; role: string } | null;
+	penalty: ActivePenalty | null;
+	nextTrip: NextTripSummary | null;
 	sessions: TrainingSession[];
 	allSpots: { id: number; name: string; city: string }[];
 	trainingForecast: { summaryLine?: string; isWet?: boolean; temperatureInWindow?: number | null } | null;
@@ -780,15 +817,49 @@ export const getArena = () => get<ArenaPayload>('/api/v1/challenges');
 
 // --- Trips ---
 
+export type DateAnswer = 'ja' | 'notfalls' | 'nein';
+
 export type TripDateOption = {
 	id: number;
 	startDate: string;
 	endDate: string | null;
 	note: string | null;
 	proposedByName?: string;
+	/** = yesCount (für ältere Stände). */
 	voteCount: number;
 	sameAsPlanned?: boolean;
+	yesCount: number;
+	maybeCount: number;
+	noCount: number;
+	yesNames: string[];
+	maybeNames: string[];
+	noNames: string[];
+	myAnswer: DateAnswer | null;
+	/** Dieses Datum ist der fixierte Termin. */
+	isLocked: boolean;
 };
+
+/** Stand der Terminumfrage eines Trips. */
+export type TripPoll = {
+	minYes: number;
+	deadline: string | null;
+	deadlinePassed: boolean;
+	locked: boolean;
+	lockedAt: string | null;
+	lockedOptionId: number | null;
+	leaderOptionId: number | null;
+	leaderYes: number;
+	silentMembers: { userId: number; username: string }[];
+	hasResponded: boolean;
+	canUnlock: boolean;
+};
+
+/** Server-Zeitstempel (UTC, 'YYYY-MM-DD HH:MM:SS') als Date. */
+export function parseServerDatetime(s: string | null | undefined): Date | null {
+	if (!s) return null;
+	const d = new Date(s.replace(' ', 'T') + 'Z');
+	return Number.isNaN(d.getTime()) ? null : d;
+}
 
 export type Trip = {
 	id: number;
@@ -828,6 +899,12 @@ export type Trip = {
 	destinationLatitude: number | null;
 	destinationLongitude: number | null;
 	createdBy: number;
+	voteDeadline: string | null;
+	dateLockedAt: string | null;
+	lockedDateOptionId: number | null;
+	/** Frist verpasst und nichts gesagt: nur Titel und Datum sichtbar. */
+	restricted: boolean;
+	poll: TripPoll;
 	myVoteDestinationId: number | null;
 	/** Eigene Stimme bei den Ziel-Vorschlägen. */
 	myVotePlaceId?: number | null;
@@ -897,19 +974,48 @@ export const getPendingExtra = () =>
 	get<{ session: PendingExtra | null }>('/api/training/pending-extra');
 
 export const getPendingTrip = () =>
-	get<{ trip: { id: number; title: string; startDate: string; creatorName: string | null; inCount: number } | null }>(
-		'/api/trips/pending'
-	);
+	get<{
+		trip: {
+			id: number;
+			title: string;
+			startDate: string;
+			creatorName: string | null;
+			inCount: number;
+			/** Mehrere Daten zur Wahl, noch nicht fix → Umfrage statt nur Ja/Nein. */
+			pollOpen: boolean;
+			optionCount: number;
+			voteDeadline: string | null;
+		} | null;
+	}>('/api/trips/pending');
 
 export const tripAction = (action: string, tripId: number, extra: object = {}) =>
-	post<{ success?: boolean; adopted?: boolean }>('/api/trips', { action, tripId, ...extra });
+	post<{
+		success?: boolean;
+		adopted?: boolean;
+		/** Gesetzt, wenn dieser Schritt den Termin fixiert hat. */
+		locked?: { startDate: string; endDate: string; yes: number } | null;
+	}>('/api/trips', { action, tripId, ...extra });
 
 /** Admin: Trip in den Papierkorb (gleicher Weg wie die Web-Seite). */
 export const adminTrashTrip = (tripId: number) =>
 	patch<{ success?: boolean }>('/api/admin/trips', { tripId, action: 'trash' });
 
-export const createTrip = (title: string, startDate: string, endDate: string, notes: string) =>
-	post<{ success?: boolean }>('/api/trips', { action: 'create_trip', title, startDate, endDate, notes });
+export const createTrip = (
+	title: string,
+	startDate: string,
+	endDate: string,
+	notes: string,
+	/** Frist der Terminumfrage (JJJJ-MM-TT); ohne Angabe nimmt der Server +7 Tage. */
+	voteDeadline?: string
+) =>
+	post<{ success?: boolean }>('/api/trips', {
+		action: 'create_trip',
+		title,
+		startDate,
+		endDate,
+		notes,
+		...(voteDeadline ? { voteDeadline } : {})
+	});
 
 export const proposeDateOption = (tripId: number, startDate: string, endDate: string, note: string) =>
 	post<{ success?: boolean }>('/api/trips', {

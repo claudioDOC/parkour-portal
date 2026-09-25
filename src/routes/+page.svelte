@@ -22,6 +22,16 @@
 		if (days === 1) return 'Morgen';
 		return `in ${days} Tagen`;
 	}
+
+	function formatTripRange(start: string, end: string): string {
+		const fmt = (d: string) =>
+			new Date(`${d}T12:00:00`).toLocaleDateString('de-CH', { day: 'numeric', month: 'short' });
+		return start === end ? fmt(start) : `${fmt(start)} – ${fmt(end)}`;
+	}
+	function formatDeadline(s: string | null): string {
+		if (!s) return '–';
+		return new Date(s.replace(' ', 'T') + 'Z').toLocaleDateString('de-CH', { weekday: 'short', day: 'numeric', month: 'short' });
+	}
 </script>
 
 <div class="space-y-10">
@@ -53,6 +63,36 @@
 			</div>
 		</div>
 	</header>
+
+	{#if data.nextTrip}
+		<!-- Nächster Trip als eine Zeile — kein weiterer Block, nur ein Hinweis,
+		     der auffällt, solange die Terminumfrage eine Antwort braucht. -->
+		{@const t = data.nextTrip}
+		{@const needsVote = t.pollOpen && !t.hasResponded && !t.deadlinePassed}
+		<a
+			href="/trips?trip={t.id}"
+			class="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors {needsVote
+				? 'border-accent/50 bg-accent/10 text-text-primary hover:bg-accent/15'
+				: 'border-border bg-bg-card/60 text-text-secondary hover:bg-bg-hover'}"
+		>
+			<span aria-hidden="true">✈️</span>
+			<span class="min-w-0 flex-1 truncate">
+				<span class="font-semibold text-text-primary">{t.title}</span>
+				<span class="text-text-muted"> · {formatTripRange(t.startDate, t.endDate)}</span>
+			</span>
+			<span class="shrink-0 text-xs font-semibold {needsVote ? 'text-accent' : 'text-text-muted'}">
+				{#if t.locked}
+					Termin fix
+				{:else if needsVote}
+					Abstimmen bis {formatDeadline(t.deadline)}
+				{:else if t.pollOpen}
+					{t.leaderYes}/{t.minYes} Zusagen
+				{:else}
+					{t.joinedCount} dabei
+				{/if}
+			</span>
+		</a>
+	{/if}
 
 	<section class="space-y-4">
 		<div class="flex items-center gap-3">
@@ -139,7 +179,11 @@
 									</p>
 									<div class="flex flex-wrap gap-1.5">
 										{#each session.attending as user}
-											<a href="/profil/{user.id}" class="pointer-events-auto relative z-20 bg-success/10 text-success text-xs px-2.5 py-1 rounded-full transition-colors hover:bg-success/20">{user.username}</a>
+											{#if user.id < 0}
+												<span class="relative z-20 bg-success/10 text-success text-xs px-2.5 py-1 rounded-full">?</span>
+											{:else}
+												<a href="/profil/{user.id}" class="pointer-events-auto relative z-20 bg-success/10 text-success text-xs px-2.5 py-1 rounded-full transition-colors hover:bg-success/20">{user.username}</a>
+											{/if}
 										{/each}
 										{#each session.guests || [] as guest}
 											<span class="bg-amber-500/10 text-amber-400 text-xs px-2.5 py-1 rounded-full">{guest.name}</span>

@@ -75,6 +75,10 @@ Admins können pro Termin **Gäste** erfassen (Name ohne Login). Die erscheinen 
 
 ---
 
+### 4.5 Nicht abgemeldet? Die Strafrunde
+
+Wer ohne Abmeldung fehlt und vom Admin als „nicht erschienen“ eingetragen wird, bekommt bis zum nächsten Training eine kleine Strafe: Beim Öffnen erscheint ein roter Hinweis, der sich erst nach 20 Sekunden wegklicken lässt. Bei „Wer zieht“ siehst du nur Fragezeichen. Und beim nächsten Training wird dir ein **falscher Spot** angezeigt – ein naher, damit du noch rüberkommst. Danach ist alles wieder normal. Also: lieber fünf Sekunden abmelden.
+
 ## 5. Spots
 
 ### 5.1 Liste (`/spots`)
@@ -161,6 +165,15 @@ Unter **Admin** in der Navigation.
 8. [ ] (Admins) **Admin** durchgehen: Einladung für neue Mitglieder erstellen  
 
 ---
+
+## 12. Trips planen (`/trips`)
+
+- Beim Anlegen gibst du Titel, Datum und eine **Frist** an (Standard: eine Woche). Weitere Daten kann jede:r zur Wahl stellen.
+- In der **Terminumfrage** sagst du bei **jedem** Datum *Ja*, *Notfalls* oder *Nein* – nicht nur bei deinem Lieblingsdatum.
+- Sobald ein Datum **drei Ja** hat, ist der Termin fix. Wer Ja gesagt hat, ist automatisch dabei. Spätestens mit der Frist entscheidet das Portal.
+- **Wer bis zur Frist nichts sagt, sieht nur noch das Datum.** Details, Ziel und Teilnehmer gibt es erst mit der Zusage.
+- Nach der Fixierung: mitkommen oder nicht. Neu aufrollen kann nur, wer den Trip angelegt hat, oder ein Admin.
+- Der nächste Trip steht als Zeile oben auf der Startseite; solange deine Antwort fehlt, ist sie hervorgehoben.
 
 ## Fragen oder Probleme?
 

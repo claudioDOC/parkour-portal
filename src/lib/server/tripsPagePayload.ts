@@ -5,13 +5,14 @@ import {
 	tripDestinations,
 	tripDestinationVotes,
 	tripDateOptions,
-	tripDateVotes,
+	tripDateAnswers,
 	tripStopovers,
 	users
 } from '$lib/server/db/schema';
 import { asc, and, eq, gte, sql } from 'drizzle-orm';
 import { usersNotDeletedCondition } from '$lib/server/usersWhere';
 import { tripPlansHasSoftDeleteColumns } from '$lib/server/tripPlansTableColumns';
+import { MIN_YES, isRestrictedView, parseDbDatetime, rankTally, type DateAnswer } from '$lib/server/tripDatePoll';
 
 /** Viewer für den Trips-Payload — Web und API v1 nutzen dasselbe. */
 export type TripsViewer = { id: number; role?: string | null };
@@ -43,6 +44,9 @@ export function buildTripsPagePayload(user: TripsViewer) {
 			seatsPerCar: tripPlans.seatsPerCar,
 			createdBy: tripPlans.createdBy,
 			createdAt: tripPlans.createdAt,
+			voteDeadline: tripPlans.voteDeadline,
+			dateLockedAt: tripPlans.dateLockedAt,
+			lockedDateOptionId: tripPlans.lockedDateOptionId,
 			deleted: hasTripTrash ? tripPlans.deleted : sql<boolean>`0`.as('deleted')
 		})
 		.from(tripPlans)
@@ -145,41 +149,74 @@ export function buildTripsPagePayload(user: TripsViewer) {
 			.orderBy(asc(tripDateOptions.createdAt))
 			.all();
 
-		const dateVotesRaw = db
+		// Terminumfrage: je Datum ja / notfalls / nein, mit Namen.
+		const answersRaw = db
 			.select({
-				id: tripDateVotes.id,
-				dateOptionId: tripDateVotes.dateOptionId,
-				userId: tripDateVotes.userId
+				dateOptionId: tripDateAnswers.dateOptionId,
+				userId: tripDateAnswers.userId,
+				username: users.username,
+				answer: tripDateAnswers.answer
 			})
-			.from(tripDateVotes)
-			.where(eq(tripDateVotes.tripId, plan.id))
+			.from(tripDateAnswers)
+			.innerJoin(users, eq(tripDateAnswers.userId, users.id))
+			.where(and(eq(tripDateAnswers.tripId, plan.id), usersNotDeletedCondition()))
 			.all();
-
-		const voteCountByDateOption = new Map<number, number>();
-		for (const v of dateVotesRaw) {
-			voteCountByDateOption.set(v.dateOptionId, (voteCountByDateOption.get(v.dateOptionId) || 0) + 1);
-		}
-		// Stimmberechtigt: alle Teilnehmer ausser abgemeldet/enthalten.
-		// Über 50 % davon ersetzen den Trip-Termin (siehe API).
-		const eligibleVoters = participants.filter(
-			(p) => p.transportMode !== 'abgemeldet' && p.transportMode !== 'enthalten'
-		).length;
-		const votesNeeded = eligibleVoters > 0 ? Math.floor(eligibleVoters / 2) + 1 : 0;
-
-		const dateOptionsWithVotes = dateOptionsRaw
-			.map((d) => ({
+		const dateOptionsWithVotes = dateOptionsRaw.map((d) => {
+			const mine = answersRaw.filter((a) => a.dateOptionId === d.id);
+			const names = (kind: DateAnswer) =>
+				mine.filter((a) => a.answer === kind).map((a) => a.username).sort((a, b) => a.localeCompare(b, 'de'));
+			const yesNames = names('ja');
+			const maybeNames = names('notfalls');
+			const noNames = names('nein');
+			const my = mine.find((a) => a.userId === user!.id);
+			return {
 				...d,
-				voteCount: voteCountByDateOption.get(d.id) || 0,
-				sameAsPlanned: d.startDate === plan.startDate && d.endDate === plan.endDate
+				/** Alte Clients lesen `voteCount` — entspricht den Ja-Stimmen. */
+				voteCount: yesNames.length,
+				yesCount: yesNames.length,
+				maybeCount: maybeNames.length,
+				noCount: noNames.length,
+				yesNames,
+				maybeNames,
+				noNames,
+				myAnswer: (my?.answer ?? null) as DateAnswer | null,
+				sameAsPlanned: d.startDate === plan.startDate && d.endDate === plan.endDate,
+				isLocked: plan.lockedDateOptionId === d.id
+			};
+		});
+		const ranked = rankTally(
+			dateOptionsWithVotes.map((d) => ({
+				optionId: d.id,
+				startDate: d.startDate,
+				endDate: d.endDate,
+				yes: d.yesCount,
+				maybe: d.maybeCount,
+				no: d.noCount
 			}))
-			.sort((a, b) => b.voteCount - a.voteCount || a.startDate.localeCompare(b.startDate));
+		);
+		const rankIndex = new Map(ranked.map((r, i) => [r.optionId, i]));
+		dateOptionsWithVotes.sort((a, b) => (rankIndex.get(a.id) ?? 0) - (rankIndex.get(b.id) ?? 0));
+		const leader = ranked[0] ?? null;
+		const dateLocked = Boolean(plan.dateLockedAt);
+		const deadlineDate = parseDbDatetime(plan.voteDeadline);
+		const deadlinePassed = deadlineDate ? Date.now() >= deadlineDate.getTime() : false;
+		// Alte Felder für ältere Clients — Mehrheit gibt es nicht mehr, die
+		// Hürde heisst jetzt MIN_YES.
+		const eligibleVoters = activeUsers.length;
+		const votesNeeded = MIN_YES;
+		const answeredUserIds = new Set(answersRaw.map((a) => a.userId));
+		const respondedIds = new Set<number>(answeredUserIds);
+		for (const p of participants) if (p.transportMode !== 'enthalten') respondedIds.add(p.userId);
+		const silentMembers = activeUsers
+			.filter((u) => !respondedIds.has(u.id))
+			.map((u) => ({ userId: u.id, username: u.username }));
+		const restricted = isRestrictedView(plan, user!.id);
 
 		const myParticipation = participants.find((p) => p.userId === user!.id) || null;
 		const myVotes = votesRaw.filter((v) => v.userId === user!.id);
 		const planIds = new Set(destinations.filter((d) => (d.kind ?? 'plan') !== 'ziel').map((d) => d.id));
 		const myPlanVote = myVotes.find((v) => planIds.has(v.destinationId)) || null;
 		const myPlaceVote = myVotes.find((v) => !planIds.has(v.destinationId)) || null;
-		const myDateVote = dateVotesRaw.find((v) => v.userId === user!.id) || null;
 		const participantByUser = new Map(participants.map((p) => [p.userId, p]));
 		const memberStates = activeUsers.map((u) => {
 			const row = participantByUser.get(u.id);
@@ -235,7 +272,22 @@ export function buildTripsPagePayload(user: TripsViewer) {
 			myParticipation,
 			myVoteDestinationId: myPlanVote?.destinationId ?? null,
 			myVotePlaceId: myPlaceVote?.destinationId ?? null,
-			myVoteDateOptionId: myDateVote?.dateOptionId ?? null,
+			/** Alte Clients: die eigene Ja-Stimme auf dem bestplatzierten Datum. */
+			myVoteDateOptionId: dateOptionsWithVotes.find((d) => d.myAnswer === 'ja')?.id ?? null,
+			poll: {
+				minYes: MIN_YES,
+				deadline: plan.voteDeadline,
+				deadlinePassed,
+				locked: dateLocked,
+				lockedAt: plan.dateLockedAt,
+				lockedOptionId: plan.lockedDateOptionId,
+				leaderOptionId: leader?.optionId ?? null,
+				leaderYes: leader?.yes ?? 0,
+				silentMembers,
+				hasResponded: respondedIds.has(user!.id),
+				canUnlock: user?.role === 'admin' || plan.createdBy === user!.id
+			},
+			restricted,
 			joinedCount,
 			conditionalCount,
 			abstainedCount,
@@ -244,8 +296,32 @@ export function buildTripsPagePayload(user: TripsViewer) {
 		};
 	});
 
+	// Wer die Frist verschlafen hat, sieht nur Titel und Datum — der Rest
+	// kommt mit der Zusage. Zähler bleiben, damit die Karte nicht leer wirkt.
+	const visibleTrips = plansWithDetails.map((t) => {
+		if (!t.restricted) return t;
+		return {
+			...t,
+			notes: null,
+			destinationLatitude: null,
+			destinationLongitude: null,
+			destinationLabel: null,
+			participants: [],
+			memberStates: [],
+			destinations: [],
+			placeOptions: [],
+			dateOptions: [],
+			stopovers: [],
+			myParticipation: null,
+			myVoteDestinationId: null,
+			myVotePlaceId: null,
+			myVoteDateOptionId: null,
+			poll: { ...t.poll, silentMembers: [] }
+		};
+	});
+
 	return {
-		trips: plansWithDetails,
+		trips: visibleTrips,
 		activeUsers,
 		user: { id: user.id },
 		isAdmin: user?.role === 'admin'

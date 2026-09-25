@@ -42,6 +42,7 @@ import {
 } from '../lib/bootGuard';
 import { clearDataCache } from '../lib/store';
 import { DecisionGate } from '../lib/DecisionGate';
+import { PenaltyGate } from '../lib/PenaltyGate';
 import { ActivityProvider } from '../lib/activity';
 import { Splash } from '../lib/Splash';
 
@@ -411,6 +412,8 @@ export default function RootLayout() {
 				{/* Offene Entscheidungen (Zusatztraining, Trip) beim Start abfragen —
 				    nur angemeldet, sonst gibt es nichts zu antworten. */}
 				{me ? <DecisionGate onDecided={() => clearDataCache()} /> : null}
+				{/* Strafrunde: 20-Sekunden-Hinweis nach stillem Fernbleiben. */}
+				{me ? <PenaltyGate /> : null}
 				{installing !== null ? <InstallOverlay percent={installing} colors={colors} /> : null}
 			</ActivityProvider>
 			</ThemeProvider>

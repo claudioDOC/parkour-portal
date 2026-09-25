@@ -24,6 +24,10 @@
 		destinationLabel: string | null;
 		creatorName: string | null;
 		inCount: number;
+		/** Terminumfrage mit mehreren Daten, noch nicht fix. */
+		pollOpen?: boolean;
+		optionCount?: number;
+		voteDeadline?: string | null;
 		outCount: number;
 	};
 
@@ -135,6 +139,20 @@
 				</p>
 			{/if}
 
+			{#if trip.pollOpen}
+				<!-- Mehrere Daten zur Wahl: Ja/Nein allein reicht nicht, die Umfrage
+				     will bei jedem Datum eine Antwort. -->
+				<a
+					href="/trips?trip={trip.id}"
+					onclick={() => (trip = null)}
+					class="mt-4 block rounded-lg border border-accent/40 bg-accent/10 px-3 py-2.5 text-center text-sm font-semibold text-accent transition-colors hover:bg-accent/20"
+				>
+					Terminumfrage öffnen ({trip.optionCount} Daten zur Wahl)
+				</a>
+				<p class="mt-1 text-center text-[11px] text-text-muted">
+					Sag bei jedem Datum, ob es für dich geht — fix ab drei „Ja".
+				</p>
+			{/if}
 			<p class="mt-4 text-sm font-medium text-text-primary">Bist du dabei?</p>
 
 			{#if errorMsg}

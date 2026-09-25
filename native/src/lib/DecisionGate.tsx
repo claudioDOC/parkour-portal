@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import { fonts, type ThemeColors } from './theme';
 import { textAlpha } from './tokens';
 import { useTheme, useThemedStyles } from './themeContext';
@@ -31,6 +32,10 @@ type PendingTrip = {
 	startDate: string;
 	creatorName: string | null;
 	inCount: number;
+	/** Mehrere Daten zur Wahl — dann gehört die Antwort in die Umfrage. */
+	pollOpen?: boolean;
+	optionCount?: number;
+	voteDeadline?: string | null;
 };
 
 async function isSnoozed(key: string): Promise<boolean> {
@@ -66,6 +71,7 @@ function prettyDate(d: string): string {
 export function DecisionGate({ onDecided }: { onDecided?: () => void }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
+	const router = useRouter();
 	const [extra, setExtra] = useState<PendingExtra | null>(null);
 	const [trip, setTrip] = useState<PendingTrip | null>(null);
 	const [reason, setReason] = useState('');
@@ -190,6 +196,22 @@ export function DecisionGate({ onDecided }: { onDecided?: () => void }) {
 					{trip.creatorName ? ` · von ${trip.creatorName}` : ''}
 				</Text>
 				<Text style={styles.meta}>{trip.inCount} dabei</Text>
+				{trip.pollOpen ? (
+					<>
+						<Text style={styles.question}>
+							Mehrere Daten stehen zur Wahl – sag bei jedem, ob es geht.
+						</Text>
+						<Button
+							label="Terminumfrage öffnen"
+							disabled={busy}
+							onPress={() => {
+								void snooze(`trip-${trip.id}`);
+								setTrip(null);
+								router.push('/trips');
+							}}
+						/>
+					</>
+				) : null}
 				<Text style={styles.question}>Bist du dabei?</Text>
 				{errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
 				{busy ? <ActivityIndicator color={colors.accent} /> : null}

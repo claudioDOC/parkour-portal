@@ -8,12 +8,25 @@ import {
 	tripDestinations,
 	tripDestinationVotes,
 	tripDateOptions,
-	tripDateVotes,
+	tripDateAnswers,
 	tripStopovers
 } from '$lib/server/db/schema';
 import { logAudit } from '$lib/server/audit';
 import { recordEvent } from '$lib/server/activity';
 import { sendToUsersWithPref } from '$lib/server/push';
+import {
+	DATE_ANSWERS,
+	answerDateOption,
+	deadlineFromYmd,
+	defaultDeadline,
+	ensureOwnDateOption,
+	evaluateTripLock,
+	formatRange,
+	isTripLocked,
+	mirrorParticipationIntoPoll,
+	unlockTrip,
+	type DateAnswer
+} from '$lib/server/tripDatePoll';
 
 function parseCoord(v: unknown): number | null {
 	if (v === null || v === undefined || v === '') return null;
@@ -21,78 +34,6 @@ function parseCoord(v: unknown): number | null {
 	return Number.isFinite(n) ? n : null;
 }
 
-
-/**
- * Terminabstimmung: Erreicht ein Vorschlag mehr als 50 % der stimmberechtigten
- * Teilnehmer (alle ausser abgemeldet/enthalten), wird er zum neuen Trip-Termin.
- * Der bisherige Termin wandert als Option zurück in die Liste, damit man
- * zurückwechseln kann. Gibt den übernommenen Vorschlag zurück, sonst null.
- */
-function applyDateOptionIfMajority(tripId: number): { startDate: string; endDate: string } | null {
-	const trip = db.select().from(tripPlans).where(eq(tripPlans.id, tripId)).get();
-	if (!trip) return null;
-
-	const eligible = db
-		.select({ transportMode: tripParticipants.transportMode })
-		.from(tripParticipants)
-		.where(eq(tripParticipants.tripId, tripId))
-		.all()
-		.filter((p) => p.transportMode !== 'abgemeldet' && p.transportMode !== 'enthalten').length;
-	if (eligible === 0) return null;
-
-	const votes = db
-		.select({ dateOptionId: tripDateVotes.dateOptionId })
-		.from(tripDateVotes)
-		.where(eq(tripDateVotes.tripId, tripId))
-		.all();
-	const tally = new Map<number, number>();
-	for (const v of votes) tally.set(v.dateOptionId, (tally.get(v.dateOptionId) ?? 0) + 1);
-
-	for (const [optionId, count] of tally) {
-		if (count * 2 <= eligible) continue; // echte Mehrheit verlangt
-		const option = db
-			.select()
-			.from(tripDateOptions)
-			.where(and(eq(tripDateOptions.id, optionId), eq(tripDateOptions.tripId, tripId)))
-			.get();
-		if (!option) continue;
-		if (option.startDate === trip.startDate && option.endDate === trip.endDate) continue;
-
-		db.update(tripPlans)
-			.set({ startDate: option.startDate, endDate: option.endDate })
-			.where(eq(tripPlans.id, tripId))
-			.run();
-
-		// Alten Termin als Option erhalten, neuen aus der Liste nehmen —
-		// sonst stimmt man über den bereits gültigen Termin ab.
-		db.delete(tripDateVotes).where(eq(tripDateVotes.tripId, tripId)).run();
-		db.delete(tripDateOptions).where(eq(tripDateOptions.id, optionId)).run();
-		const oldStillListed = db
-			.select({ id: tripDateOptions.id })
-			.from(tripDateOptions)
-			.where(
-				and(
-					eq(tripDateOptions.tripId, tripId),
-					eq(tripDateOptions.startDate, trip.startDate),
-					eq(tripDateOptions.endDate, trip.endDate)
-				)
-			)
-			.get();
-		if (!oldStillListed) {
-			db.insert(tripDateOptions)
-				.values({
-					tripId,
-					startDate: trip.startDate,
-					endDate: trip.endDate,
-					note: 'Vorheriger Termin',
-					proposedBy: trip.createdBy
-				})
-				.run();
-		}
-		return { startDate: option.startDate, endDate: option.endDate };
-	}
-	return null;
-}
 
 export const POST: RequestHandler = async (event) => {
 	const { locals, request } = event;
@@ -111,6 +52,15 @@ export const POST: RequestHandler = async (event) => {
 		}
 		if (endDate < startDate) {
 			return json({ error: 'Enddatum darf nicht vor Startdatum liegen' }, { status: 400 });
+		}
+		// Frist der Terminumfrage: Formulardatum, sonst eine Woche ab jetzt.
+		const deadlineRaw = String(body?.voteDeadline || '').trim();
+		const voteDeadline = deadlineRaw ? deadlineFromYmd(deadlineRaw) : defaultDeadline();
+		if (!voteDeadline) {
+			return json({ error: 'Frist im Format JJJJ-MM-TT angeben' }, { status: 400 });
+		}
+		if (voteDeadline.slice(0, 10) > startDate) {
+			return json({ error: 'Die Frist muss vor dem Trip liegen' }, { status: 400 });
 		}
 		const destLat = parseCoord(body?.destinationLatitude);
 		const destLon = parseCoord(body?.destinationLongitude);
@@ -141,10 +91,17 @@ export const POST: RequestHandler = async (event) => {
 				transportMode: 'auto',
 				carCount: 0,
 				seatsPerCar: 0,
+				voteDeadline,
 				createdBy: locals.user.id
 			})
 			.returning({ id: tripPlans.id })
 			.get();
+		// Das geplante Datum ist die erste Option der Umfrage; wer den Trip
+		// anlegt, sagt dazu Ja.
+		const ownOptionId = ensureOwnDateOption(created.id);
+		db.insert(tripDateAnswers)
+			.values({ tripId: created.id, dateOptionId: ownOptionId, userId: locals.user.id, answer: 'ja' })
+			.run();
 
 		logAudit({
 			event,
@@ -157,7 +114,7 @@ export const POST: RequestHandler = async (event) => {
 			'trips',
 			{
 				title: `Neuer Trip: ${title}`,
-				body: `${startDate} – ${endDate}. Bist du dabei?`,
+				body: `${formatRange(startDate, endDate)}. Abstimmen bis ${formatRange(voteDeadline.slice(0, 10), voteDeadline.slice(0, 10))} — sonst ohne dich.`,
 				url: '/trips',
 				tag: `trip-new-${created.id}`
 			},
@@ -201,10 +158,24 @@ export const POST: RequestHandler = async (event) => {
 		if (endDate < startDate) {
 			return json({ error: 'Enddatum darf nicht vor Startdatum liegen' }, { status: 400 });
 		}
+		const deadlineRaw = String(body?.voteDeadline || '').trim();
+		const voteDeadline = deadlineRaw ? deadlineFromYmd(deadlineRaw) : undefined;
+		if (deadlineRaw && !voteDeadline) {
+			return json({ error: 'Frist im Format JJJJ-MM-TT angeben' }, { status: 400 });
+		}
 		db.update(tripPlans)
-			.set({ title, startDate, endDate, notes: notes || null })
+			.set({
+				title,
+				startDate,
+				endDate,
+				notes: notes || null,
+				...(voteDeadline ? { voteDeadline, deadlineHandledAt: null } : {})
+			})
 			.where(eq(tripPlans.id, tripId))
 			.run();
+		// Neues Datum ohne Fixierung: als Option nachtragen, damit die Umfrage
+		// weiter alle Kandidaten zeigt.
+		if (!isTripLocked(trip)) ensureOwnDateOption(tripId);
 		logAudit({
 			event,
 			action: 'trip.edit',
@@ -403,7 +374,10 @@ export const POST: RequestHandler = async (event) => {
 			actorUsername: locals.user.username,
 			detail: { tripId, transportMode }
 		});
-		return json({ success: true });
+		// „Dabei" ist ein Ja zum geplanten Datum — und vielleicht das dritte.
+		mirrorParticipationIntoPoll(tripId, locals.user.id, true);
+		const locked = evaluateTripLock(tripId, { force: false });
+		return json({ success: true, locked });
 	}
 
 	if (action === 'abstain_trip') {
@@ -476,6 +450,7 @@ export const POST: RequestHandler = async (event) => {
 			actorUsername: locals.user.username,
 			detail: { tripId }
 		});
+		mirrorParticipationIntoPoll(tripId, locals.user.id, false);
 		return json({ success: true });
 	}
 
@@ -583,6 +558,9 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	if (action === 'propose_date_option') {
+		if (isTripLocked(trip)) {
+			return json({ error: 'Der Termin ist fix — neue Daten nur nach „Termin neu aufrollen".' }, { status: 400 });
+		}
 		const startDate = String(body?.startDate || '').trim();
 		const endDate = String(body?.endDate || '').trim();
 		const noteRaw = String(body?.note || '').trim();
@@ -604,12 +582,8 @@ export const POST: RequestHandler = async (event) => {
 			})
 			.returning({ id: tripDateOptions.id })
 			.get();
-		db.insert(tripDateVotes)
-			.values({ tripId, dateOptionId: inserted.id, userId: locals.user.id })
-			.onConflictDoUpdate({
-				target: [tripDateVotes.tripId, tripDateVotes.userId],
-				set: { dateOptionId: inserted.id }
-			})
+		db.insert(tripDateAnswers)
+			.values({ tripId, dateOptionId: inserted.id, userId: locals.user.id, answer: 'ja' })
 			.run();
 		logAudit({
 			event,
@@ -621,127 +595,113 @@ export const POST: RequestHandler = async (event) => {
 		return json({ success: true });
 	}
 
-	if (action === 'vote_date_option') {
+	/**
+	 * Terminumfrage: ja / notfalls / nein je Datum. `vote_date_option` (Ja)
+	 * und `remove_date_vote` bleiben für ältere App-Versionen bestehen.
+	 */
+	if (action === 'answer_date_option' || action === 'vote_date_option' || action === 'remove_date_vote') {
 		const dateOptionId = Number(body?.dateOptionId);
 		if (!Number.isFinite(dateOptionId)) {
 			return json({ error: 'Datums-Option-ID erforderlich' }, { status: 400 });
 		}
-		const option = db
-			.select()
-			.from(tripDateOptions)
-			.where(and(eq(tripDateOptions.id, dateOptionId), eq(tripDateOptions.tripId, tripId)))
-			.get();
-		if (!option) return json({ error: 'Datums-Vorschlag nicht gefunden' }, { status: 404 });
-
-		// Wer für den Trip abgesagt hat, stimmt nicht über dessen Termin ab.
-		// Unentschlossene dürfen weiterhin — genau darum geht es beim Voting.
+		if (action === 'remove_date_vote') {
+			if (isTripLocked(trip)) {
+				return json({ error: 'Der Termin ist fix — die Umfrage ist geschlossen.' }, { status: 400 });
+			}
+			db.delete(tripDateAnswers)
+				.where(
+					and(
+						eq(tripDateAnswers.tripId, tripId),
+						eq(tripDateAnswers.dateOptionId, dateOptionId),
+						eq(tripDateAnswers.userId, locals.user.id)
+					)
+				)
+				.run();
+			logAudit({
+				event,
+				action: 'trip.date_option.vote.remove',
+				actorUserId: locals.user.id,
+				actorUsername: locals.user.username,
+				detail: { tripId, dateOptionId }
+			});
+			return json({ success: true });
+		}
+		const answerRaw = action === 'vote_date_option' ? 'ja' : String(body?.answer || '').trim();
+		if (!DATE_ANSWERS.includes(answerRaw as DateAnswer)) {
+			return json({ error: 'Antwort muss ja, notfalls oder nein sein' }, { status: 400 });
+		}
+		const answer = answerRaw as DateAnswer;
+		// Wer für den Trip abgesagt hat, stimmt nicht mehr über dessen Termin ab.
 		const ownPart = db
 			.select({ transportMode: tripParticipants.transportMode })
 			.from(tripParticipants)
 			.where(and(eq(tripParticipants.tripId, tripId), eq(tripParticipants.userId, locals.user.id)))
 			.get();
-		if (ownPart?.transportMode === 'abgemeldet') {
+		if (ownPart?.transportMode === 'abgemeldet' && answer !== 'nein') {
 			return json(
-				{ error: 'Du hast für diesen Trip abgesagt — Terminwahl ist damit gegenstandslos.' },
+				{ error: 'Du hast für diesen Trip abgesagt — erst wieder auf „offen" stellen.' },
 				{ status: 403 }
 			);
 		}
-
-		const existing = db
-			.select({ id: tripDateVotes.id })
-			.from(tripDateVotes)
-			.where(and(eq(tripDateVotes.tripId, tripId), eq(tripDateVotes.userId, locals.user.id)))
-			.get();
-		if (existing) {
-			db.update(tripDateVotes)
-				.set({ dateOptionId })
-				.where(eq(tripDateVotes.id, existing.id))
-				.run();
-		} else {
-			db.insert(tripDateVotes)
-				.values({ tripId, dateOptionId, userId: locals.user.id })
-				.run();
+		let locked;
+		try {
+			locked = answerDateOption({ tripId, dateOptionId, userId: locals.user.id, answer }).locked;
+		} catch (e) {
+			return json({ error: e instanceof Error ? e.message : 'Antwort fehlgeschlagen' }, { status: 400 });
 		}
 		logAudit({
 			event,
-			action: existing ? 'trip.date_option.vote.change' : 'trip.date_option.vote',
+			action: 'trip.date_option.answer',
 			actorUserId: locals.user.id,
 			actorUsername: locals.user.username,
-			detail: { tripId, dateOptionId }
+			detail: { tripId, dateOptionId, answer }
 		});
-
-		const adopted = applyDateOptionIfMajority(tripId);
-		if (adopted) {
-			const fmt = (d: string) =>
-				new Date(d + 'T12:00:00').toLocaleDateString('de-CH', { day: 'numeric', month: 'short' });
-			const range =
-				adopted.startDate === adopted.endDate
-					? fmt(adopted.startDate)
-					: `${fmt(adopted.startDate)} – ${fmt(adopted.endDate)}`;
+		if (locked) {
 			logAudit({
 				event,
-				action: 'trip.date.adopted',
+				action: 'trip.date.locked',
 				actorUserId: locals.user.id,
 				actorUsername: locals.user.username,
-				detail: { tripId, ...adopted }
+				detail: { tripId, startDate: locked.startDate, endDate: locked.endDate, yes: locked.yes }
 			});
-			recordEvent({
-				kind: 'trip.new',
-				actorUserId: null,
-				actorName: null,
-				title: `Neuer Termin: ${trip.title}`,
-				body: `${range} — Mehrheit hat entschieden.`,
-				url: `/trips?trip=${tripId}`
-			});
-			void sendToUsersWithPref('trips', {
-				title: `Trip-Termin geändert: ${trip.title}`,
-				body: `Neuer Termin: ${range}`,
-				url: `/trips?trip=${tripId}`,
-				tag: `trip-date-${tripId}`
-			}).catch(() => undefined);
-			return json({ success: true, adopted });
 		}
-		return json({ success: true });
+		return json({ success: true, locked });
 	}
 
-	if (action === 'remove_date_vote') {
-		const existingVote = db
-			.select({
-				id: tripDateVotes.id,
-				dateOptionId: tripDateVotes.dateOptionId
-			})
-			.from(tripDateVotes)
-			.where(and(eq(tripDateVotes.tripId, tripId), eq(tripDateVotes.userId, locals.user.id)))
-			.get();
-
-		db.delete(tripDateVotes)
-			.where(and(eq(tripDateVotes.tripId, tripId), eq(tripDateVotes.userId, locals.user.id)))
-			.run();
-
-		if (existingVote) {
-			const remaining = db
-				.select({ id: tripDateVotes.id })
-				.from(tripDateVotes)
-				.where(
-					and(
-						eq(tripDateVotes.tripId, tripId),
-						eq(tripDateVotes.dateOptionId, existingVote.dateOptionId)
-					)
-				)
-				.limit(1)
-				.get();
-			if (!remaining) {
-				db.delete(tripDateOptions).where(eq(tripDateOptions.id, existingVote.dateOptionId)).run();
-			}
+	/** Termin neu aufrollen — Ersteller oder Admin, mit neuer Frist. */
+	if (action === 'unlock_trip') {
+		const canEdit = trip.createdBy === locals.user.id || locals.user.role === 'admin';
+		if (!canEdit) {
+			return json({ error: 'Nur Trip-Ersteller oder Admin kann den Termin neu aufrollen' }, { status: 403 });
 		}
-
+		const deadlineRaw = String(body?.voteDeadline || '').trim();
+		const voteDeadline = deadlineRaw ? deadlineFromYmd(deadlineRaw) : defaultDeadline();
+		if (!voteDeadline) {
+			return json({ error: 'Frist im Format JJJJ-MM-TT angeben' }, { status: 400 });
+		}
+		unlockTrip(tripId, voteDeadline);
+		const fristText = formatRange(voteDeadline.slice(0, 10), voteDeadline.slice(0, 10));
 		logAudit({
 			event,
-			action: 'trip.date_option.vote.remove',
+			action: 'trip.date.unlock',
 			actorUserId: locals.user.id,
 			actorUsername: locals.user.username,
-			detail: { tripId }
+			detail: { tripId, voteDeadline }
 		});
+		recordEvent({
+			kind: 'trip.new',
+			actorUserId: locals.user.id,
+			actorName: locals.user.username,
+			title: `Termin neu aufgerollt: ${trip.title}`,
+			body: `Abstimmen bis ${fristText}.`,
+			url: `/trips?trip=${tripId}`
+		});
+		void sendToUsersWithPref('trips', {
+			title: `Termin neu aufgerollt: ${trip.title}`,
+			body: `${locals.user.username} hat die Terminumfrage wieder geöffnet — abstimmen bis ${fristText}.`,
+			url: `/trips?trip=${tripId}`,
+			tag: `trip-date-${tripId}`
+		}).catch(() => undefined);
 		return json({ success: true });
 	}
 
