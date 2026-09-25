@@ -83,6 +83,7 @@ Die native App spricht mit dem Server über die JSON-API (`/api/v1/…`, Bearer-
 - **Terminumfrage statt Einzelstimme**: Jede Person sagt bei **jedem** Datum *Ja / Notfalls / Nein* (`trip_date_answers`). Das geplante Datum ist immer die erste Option. Sobald ein Datum **drei Ja** hat, ist der Termin fix; wer Ja gesagt hat, ist damit angemeldet. Jeder Trip hat eine **Frist** (Standard: eine Woche): 48 h davor erinnert der Scheduler die Stummen, mit Ablauf entscheidet er — meiste Ja, dann meiste Notfalls, dann das frühere Datum; fehlen drei Ja, bleibt der Trip offen und fixiert sich mit der dritten. **Wer bis zur Frist nichts sagt, sieht nur noch Titel und Datum**, bis er zusagt. Nach der Fixierung kann nur der Ersteller oder ein Admin den Termin **neu aufrollen** (mit neuer Frist). Logik in `src/lib/server/tripDatePoll.ts`; die alte Einzelstimme (`vote_date_option`) wird als „Ja“ weiter angenommen.
 - Der nächste Trip steht als **eine Zeile** auf der Startseite (App und Web) — hervorgehoben, solange die eigene Antwort fehlt; der Start-Dialog verlinkt bei offener Umfrage direkt hinein.
 - Zusagen mit Transportmittel (Mitfahrt, Auto, Motorrad, Zug, unentschlossen)
+- **Admin setzt Teilnehmer selbst** (dabei / nicht dabei / offen) — im Web per Auswahl unter der Teilnehmerliste, in der App per langem Druck auf den Namens-Chip. Aktion `admin_set_participant`; „dabei“ zählt als Ja zum geplanten Datum und kann die Fixierung auslösen.
 
 ### Native Android-App
 - Alle Funktionen der Website als echte native App (Tabs: Finder · Spots · Start · Arena · Mehr)

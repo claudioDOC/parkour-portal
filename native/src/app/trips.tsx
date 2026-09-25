@@ -369,6 +369,47 @@ export default function Trips() {
 										onPress={() =>
 											m.note ? setOpenNoteKey(openNoteKey === key ? null : key) : undefined
 										}
+										/* Admin: lange drücken setzt die Person selbst — Chat-Zusagen
+										   landen so im Portal, ohne dass die Person selbst klickt. */
+										onLongPress={
+											data?.isAdmin
+												? () =>
+														Alert.alert(`${m.username} setzen`, 'Als Admin eintragen:', [
+															{
+																text: 'Dabei',
+																onPress: () =>
+																	act(() =>
+																		tripAction('admin_set_participant', trip.id, {
+																			userId: m.userId,
+																			status: 'dabei'
+																		})
+																	)
+															},
+															{
+																text: 'Nicht dabei',
+																onPress: () =>
+																	act(() =>
+																		tripAction('admin_set_participant', trip.id, {
+																			userId: m.userId,
+																			status: 'abgemeldet'
+																		})
+																	)
+															},
+															{
+																text: 'Auf offen',
+																onPress: () =>
+																	act(() =>
+																		tripAction('admin_set_participant', trip.id, {
+																			userId: m.userId,
+																			status: 'offen'
+																		})
+																	)
+															},
+															{ text: 'Abbrechen', style: 'cancel' }
+														])
+												: undefined
+										}
+										delayLongPress={350}
 										style={[styles.memberChip, { borderColor: tint + '40' }]}
 									>
 										<Avatar username={m.username} avatar={m.avatar} size={20} />
@@ -380,6 +421,9 @@ export default function Trips() {
 								);
 							})}
 						</View>
+						{data?.isAdmin ? (
+							<Text style={styles.proposeText}>Admin: Chip lange drücken, um jemanden zu setzen</Text>
+						) : null}
 						{openNoteKey?.startsWith(`${trip.id}:`)
 							? (() => {
 									const m = trip.memberStates.find(

@@ -9,8 +9,10 @@ import {
 	tripDestinationVotes,
 	tripDateOptions,
 	tripDateAnswers,
-	tripStopovers
+	tripStopovers,
+	users
 } from '$lib/server/db/schema';
+import { usersNotDeletedCondition } from '$lib/server/usersWhere';
 import { logAudit } from '$lib/server/audit';
 import { recordEvent } from '$lib/server/activity';
 import { sendToUsersWithPref } from '$lib/server/push';
@@ -377,6 +379,66 @@ export const POST: RequestHandler = async (event) => {
 		// „Dabei" ist ein Ja zum geplanten Datum — und vielleicht das dritte.
 		mirrorParticipationIntoPoll(tripId, locals.user.id, true);
 		const locked = evaluateTripLock(tripId, { force: false });
+		return json({ success: true, locked });
+	}
+
+	/**
+	 * Admin trägt jemanden ein oder aus — etwa wenn die Person es im Chat
+	 * gesagt hat, aber nicht ins Portal kommt. 'offen' löscht Zeile und
+	 * Umfrage-Antworten, als hätte die Person nie geantwortet.
+	 */
+	if (action === 'admin_set_participant') {
+		if (locals.user.role !== 'admin') {
+			return json({ error: 'Nur Admin kann Teilnehmer setzen' }, { status: 403 });
+		}
+		const userId = Number(body?.userId);
+		const status = String(body?.status || '');
+		if (!Number.isFinite(userId) || !['dabei', 'abgemeldet', 'offen'].includes(status)) {
+			return json({ error: 'userId und status (dabei | abgemeldet | offen) erforderlich' }, { status: 400 });
+		}
+		const target = db
+			.select({ id: users.id, username: users.username })
+			.from(users)
+			.where(and(eq(users.id, userId), usersNotDeletedCondition()))
+			.get();
+		if (!target) return json({ error: 'User nicht gefunden' }, { status: 404 });
+		const existing = db
+			.select({ id: tripParticipants.id })
+			.from(tripParticipants)
+			.where(and(eq(tripParticipants.tripId, tripId), eq(tripParticipants.userId, userId)))
+			.get();
+		let locked = null;
+		if (status === 'offen') {
+			db.delete(tripParticipants)
+				.where(and(eq(tripParticipants.tripId, tripId), eq(tripParticipants.userId, userId)))
+				.run();
+			db.delete(tripDateAnswers)
+				.where(and(eq(tripDateAnswers.tripId, tripId), eq(tripDateAnswers.userId, userId)))
+				.run();
+		} else {
+			const values = {
+				transportMode: status,
+				decidedAt: sql`(datetime('now'))`,
+				vehicleFrom: null,
+				hasCar: false,
+				seatsOffered: 0
+			};
+			if (existing) {
+				db.update(tripParticipants).set(values).where(eq(tripParticipants.id, existing.id)).run();
+			} else {
+				db.insert(tripParticipants).values({ tripId, userId, ...values }).run();
+			}
+			mirrorParticipationIntoPoll(tripId, userId, status === 'dabei');
+			if (status === 'dabei') locked = evaluateTripLock(tripId, { force: false });
+		}
+		logAudit({
+			event,
+			action: 'trip.admin.set_participant',
+			actorUserId: locals.user.id,
+			actorUsername: locals.user.username,
+			targetUserId: userId,
+			detail: { tripId, status, username: target.username }
+		});
 		return json({ success: true, locked });
 	}
 

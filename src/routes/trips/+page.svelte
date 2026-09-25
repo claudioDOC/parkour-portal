@@ -322,6 +322,18 @@
 		}
 	}
 	let unlockDeadline = $state<Record<number, string>>({});
+	/** Admin: Teilnehmer direkt setzen (dabei / nicht dabei / offen). */
+	let adminTripPick = $state<Record<number, string>>({});
+	async function adminSetParticipant(tripId: number, status: 'dabei' | 'abgemeldet' | 'offen') {
+		const userId = Number(adminTripPick[tripId]);
+		if (!userId) return;
+		busyTripId = tripId;
+		try {
+			await post('admin_set_participant', { tripId, userId, status });
+		} finally {
+			busyTripId = null;
+		}
+	}
 	let openNamesKey = $state<string | null>(null);
 	async function unlockTrip(tripId: number) {
 		if (!confirm('Termin wirklich neu aufrollen? Die Fixierung fällt weg und alle stimmen nochmals ab.')) return;
@@ -630,6 +642,26 @@
 								</div>
 							{/each}
 						</div>
+						{#if data.isAdmin}
+							<!-- Admin setzt Leute selbst — wer im Chat zugesagt hat, muss nicht
+							     erst ins Portal. -->
+							<div class="flex flex-wrap items-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1.5">
+								<span class="text-[11px] text-text-muted">Admin:</span>
+								<select
+									value={adminTripPick[trip.id] ?? ''}
+									onchange={(e) => (adminTripPick[trip.id] = (e.currentTarget as HTMLSelectElement).value)}
+									class="bg-bg-card border border-border rounded-md px-2 py-1 text-xs text-text-primary"
+								>
+									<option value="">Person wählen …</option>
+									{#each trip.memberStates as m}
+										<option value={String(m.userId)}>{m.username}</option>
+									{/each}
+								</select>
+								<button type="button" onclick={() => adminSetParticipant(trip.id, 'dabei')} disabled={busyTripId === trip.id || !adminTripPick[trip.id]} class="bg-success/15 hover:bg-success/25 text-success px-2 py-1 rounded-md text-[11px] font-medium disabled:opacity-50">Dabei</button>
+								<button type="button" onclick={() => adminSetParticipant(trip.id, 'abgemeldet')} disabled={busyTripId === trip.id || !adminTripPick[trip.id]} class="bg-danger/15 hover:bg-danger/25 text-danger px-2 py-1 rounded-md text-[11px] font-medium disabled:opacity-50">Nicht dabei</button>
+								<button type="button" onclick={() => adminSetParticipant(trip.id, 'offen')} disabled={busyTripId === trip.id || !adminTripPick[trip.id]} class="bg-bg-hover hover:bg-bg-secondary text-text-secondary px-2 py-1 rounded-md text-[11px] font-medium disabled:opacity-50">Auf offen</button>
+							</div>
+						{/if}
 						<input
 							type="text"
 							value={joinNote[trip.id] ?? (trip.myParticipation?.note || '')}
