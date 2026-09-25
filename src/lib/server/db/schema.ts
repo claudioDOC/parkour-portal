@@ -410,6 +410,8 @@ export const noShowPenalties = sqliteTable(
 			.notNull()
 			.references(() => trainingSessions.id),
 		absenceId: integer('absence_id'),
+		/** 1 = Warnung + Fragezeichen · 2 = zusätzlich falscher Spot; wechselt sich ab. */
+		stage: integer('stage').notNull().default(1),
 		createdBy: integer('created_by'),
 		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 	},

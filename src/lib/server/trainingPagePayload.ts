@@ -366,7 +366,7 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 		if (penalized && user) attending = maskAttending(attending, user.id);
 		// Falscher Spot erst, wenn der echte fix ist — während des Votings
 		// stünde sonst oben ein anderer Name als in der Stimmenliste.
-		if (penalized && viewerPenalty?.phase === 'wrongSpot' && (votingClosed || overrideSpot)) {
+		if (penalized && viewerPenalty?.stage === 2 && viewerPenalty.phase === 'wrongSpot' && (votingClosed || overrideSpot)) {
 			const realId = session.overrideSpotId ?? winnerSpot?.spotId ?? autoSpot?.spotId ?? null;
 			const wrong = realId ? wrongSpotFor(realId) : null;
 			if (wrong) {

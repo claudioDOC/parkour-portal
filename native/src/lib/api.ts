@@ -185,6 +185,8 @@ export type ActivePenalty = {
 	missed: { id: number; date: string; dayOfWeek: string };
 	penalty: { id: number; date: string; dayOfWeek: string; timeStart: string; timeEnd: string };
 	phase: 'warning' | 'wrongSpot';
+	/** 1 = Fragezeichen · 2 = zusätzlich falscher Spot (die Warnung verrät das nicht) */
+	stage: 1 | 2;
 };
 
 export const getMyPenalty = () => get<{ penalty: ActivePenalty | null }>('/api/me/penalty');

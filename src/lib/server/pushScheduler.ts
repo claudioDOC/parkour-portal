@@ -338,7 +338,8 @@ async function sendWrongSpotToPenalized(
 	realSpotId: number,
 	now: Date
 ): Promise<number[]> {
-	const penalized = activePenaltiesForSession(session.id, now);
+	// Nur Stufe 2 bekommt den falschen Spot; Stufe 1 die normale Meldung.
+	const penalized = activePenaltiesForSession(session.id, now).filter((p) => p.stage === 2);
 	const excluded: number[] = [];
 	for (const p of penalized) {
 		excluded.push(p.userId);

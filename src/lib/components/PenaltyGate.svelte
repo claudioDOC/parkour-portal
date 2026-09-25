@@ -5,8 +5,9 @@
 	 * Erscheint bei jedem Öffnen (einmal pro Browser-Sitzung), bis das
 	 * nächste Training beginnt — und lässt sich erst nach 20 Sekunden
 	 * wegklicken. Bewusst unbequem: Wer sich nicht abmeldet, soll es einmal
-	 * richtig merken. Die eigentliche Pointe (falscher Spot) folgt beim
-	 * nächsten Training, siehe noShowPenalty.ts.
+	 * richtig merken. Der Text ist auf jeder Stufe derselbe und droht nur vage
+	 * „weitere Konsequenzen" an — ob der falsche Spot kommt, verrät er nicht
+	 * (siehe noShowPenalty.ts).
 	 */
 	import { onMount } from 'svelte';
 	import { tapFeedback } from '$lib/haptics';
@@ -108,7 +109,7 @@
 			</p>
 			<p class="mt-3 text-sm leading-relaxed text-red-200">
 				Bis <strong>{prettyDate(penalty.penalty.date)}</strong> siehst du bei „Wer zieht" nur Fragezeichen.
-				Und beim nächsten Training wird dir ein <strong>falscher Spot</strong> angezeigt. Viel Glück.
+				Beim nächsten Mal drohen <strong>weitere Konsequenzen</strong>.
 			</p>
 			<p class="mt-3 text-xs text-red-300/80">
 				Nächstes Mal: einfach abmelden. Dauert fünf Sekunden.

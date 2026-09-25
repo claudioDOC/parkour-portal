@@ -8,8 +8,9 @@ import { getMyPenalty, type ActivePenalty } from './api';
  * Strafrunde: Wer ohne Abmeldung gefehlt hat, sieht bei jedem Kaltstart
  * diesen Hinweis — 20 Sekunden lang ohne Ausweg. Bewusst kein Snooze und
  * kein gespeicherter Zustand: Die Strafe soll nerven, bis das nächste
- * Training beginnt (Phase „warning"); danach übernimmt der falsche Spot,
- * und der Hinweis verschwindet, damit der Witz nicht verraten wird.
+ * Training beginnt (Phase „warning"). Der Text ist auf jeder Stufe derselbe
+ * und droht nur vage „weitere Konsequenzen" an — ob der falsche Spot kommt
+ * (Stufe 2), verrät er nicht.
  */
 const HOLD_SECONDS = 20;
 
@@ -67,8 +68,8 @@ export function PenaltyGate() {
 					abgemeldet.
 				</Text>
 				<Text style={styles.body}>
-					Bis {prettyDate(penalty.penalty.date)} siehst du bei „Wer zieht" nur Fragezeichen – und
-					beim nächsten Training wird dir ein falscher Spot angezeigt.
+					Bis {prettyDate(penalty.penalty.date)} siehst du bei „Wer zieht" nur Fragezeichen. Beim
+					nächsten Mal drohen weitere Konsequenzen.
 				</Text>
 				<Text style={styles.hint}>Nächstes Mal: abmelden. Dauert zehn Sekunden.</Text>
 				<Pressable

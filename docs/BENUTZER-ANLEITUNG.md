@@ -77,7 +77,7 @@ Admins können pro Termin **Gäste** erfassen (Name ohne Login). Die erscheinen 
 
 ### 4.5 Nicht abgemeldet? Die Strafrunde
 
-Wer ohne Abmeldung fehlt und vom Admin als „nicht erschienen“ eingetragen wird, bekommt bis zum nächsten Training eine kleine Strafe: Beim Öffnen erscheint ein roter Hinweis, der sich erst nach 20 Sekunden wegklicken lässt. Bei „Wer zieht“ siehst du nur Fragezeichen. Und beim nächsten Training wird dir ein **falscher Spot** angezeigt – ein naher, damit du noch rüberkommst. Danach ist alles wieder normal. Also: lieber fünf Sekunden abmelden.
+Wer ohne Abmeldung fehlt und vom Admin als „nicht erschienen“ eingetragen wird, bekommt bis zum nächsten Training eine kleine Strafe: Beim Öffnen erscheint ein roter Hinweis, der sich erst nach 20 Sekunden wegklicken lässt, und bei „Wer zieht“ siehst du nur Fragezeichen. Beim zweiten Mal kommt etwas dazu, das der Hinweis nicht verrät. Danach fängt es wieder von vorn an. Also: lieber fünf Sekunden abmelden.
 
 ## 5. Spots
 

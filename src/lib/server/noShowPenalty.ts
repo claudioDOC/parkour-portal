@@ -5,14 +5,18 @@
  * sondern spielerisch — und automatisch, sobald ein Admin „nicht
  * erschienen" einträgt:
  *
- *  1. Warnhinweis beim Öffnen (20 Sekunden nicht wegklickbar), bis das
- *     nächste Training beginnt.
- *  2. „Wer zieht" zeigt bis dahin nur Fragezeichen.
- *  3. Beim nächsten Training sieht die Person einen falschen Spot — den
- *     nächstgelegenen anderen, damit sie spontan noch rüberkommen kann.
+ *  1. Warnhinweis beim Öffnen (20 Sekunden nicht wegklickbar), bis der Spot
+ *     fürs nächste Training fix ist.
+ *  2. „Wer zieht" zeigt bis nach dem Training nur Fragezeichen.
+ *  3. Nur auf Stufe 2: Beim nächsten Training sieht die Person einen
+ *     falschen Spot — den nächstgelegenen anderen, damit sie spontan noch
+ *     rüberkommen kann. Die Warnung verrät das nicht, sie droht nur vage
+ *     „weitere Konsequenzen" an.
  *
- * Die Strafe endet mit dem Straf-Training von selbst. Pro Person läuft
- * höchstens eine; ein weiteres Fernbleiben währenddessen stapelt nichts.
+ * Die Stufen wechseln sich ab (1, 2, 1, 2 …), gezählt über alle bisherigen
+ * Strafen der Person, ohne Verfallsdatum. Die Strafe endet mit dem
+ * Straf-Training von selbst. Pro Person läuft höchstens eine; ein weiteres
+ * Fernbleiben währenddessen stapelt nichts.
  */
 import { and, asc, eq, gt } from 'drizzle-orm';
 import { db } from '$lib/server/db';
@@ -34,6 +38,8 @@ export type PenaltyPhase = 'warning' | 'wrongSpot';
 export type ActivePenalty = {
 	id: number;
 	userId: number;
+	/** 1 = Fragezeichen · 2 = Fragezeichen + falscher Spot */
+	stage: 1 | 2;
 	missed: { id: number; date: string; dayOfWeek: string };
 	penalty: { id: number; date: string; dayOfWeek: string; timeStart: string; timeEnd: string };
 	/** warning: bis der Spot fürs Straf-Training fix ist · wrongSpot: ab dann bis Trainingsende */
@@ -103,6 +109,7 @@ export function activePenaltyFor(userId: number, now = new Date()): ActivePenalt
 		return {
 			id: row.id,
 			userId,
+			stage: row.stage === 2 ? 2 : 1,
 			missed: { id: missed.id, date: missed.date, dayOfWeek: missed.dayOfWeek },
 			penalty: {
 				id: penalty.id,
@@ -117,7 +124,7 @@ export function activePenaltyFor(userId: number, now = new Date()): ActivePenalt
 	return null;
 }
 
-/** Alle laufenden Strafen — für den Push-Scheduler (falscher Spot). */
+/** Alle laufenden Strafen zu einem Training — für den Push-Scheduler (falscher Spot ab Stufe 2). */
 export function activePenaltiesForSession(sessionId: number, now = new Date()): ActivePenalty[] {
 	const userIds = db
 		.select({ userId: noShowPenalties.userId })
@@ -167,12 +174,21 @@ export function createNoShowPenalty(params: {
 	}
 	if (!target) return { created: false, penalty: null };
 
+	// Stufe im Wechsel: erste Strafe 1, zweite 2, dritte wieder 1 …
+	const previous = db
+		.select({ id: noShowPenalties.id })
+		.from(noShowPenalties)
+		.where(eq(noShowPenalties.userId, params.userId))
+		.all().length;
+	const stage = previous % 2 === 0 ? 1 : 2;
+
 	db.insert(noShowPenalties)
 		.values({
 			userId: params.userId,
 			missedSessionId: missed.id,
 			penaltySessionId: target.id,
 			absenceId: params.absenceId ?? null,
+			stage,
 			createdBy: params.createdBy ?? null
 		})
 		.run();
@@ -186,12 +202,12 @@ export function createNoShowPenalty(params: {
 		actorUserId: params.userId,
 		actorName: name,
 		title: `${name} war am ${prettyDate(missed.date)} nicht da — ohne Abmeldung`,
-		body: `Strafrunde bis ${prettyDate(target.date)}: Fragezeichen statt Namen, und beim nächsten Training gibt's den falschen Spot.`,
+		body: `Strafrunde bis ${prettyDate(target.date)}: Fragezeichen statt Namen. Beim nächsten Mal wird's schlimmer.`,
 		url: '/training'
 	});
 	void sendToUsers([params.userId], {
 		title: 'Nicht abgemeldet!',
-		body: `Am ${prettyDate(missed.date)} warst du nicht da und hast dich nicht abgemeldet. Beim nächsten Training (${prettyDate(target.date)}) siehst du einen falschen Spot.`,
+		body: `Am ${prettyDate(missed.date)} warst du nicht da und hast dich nicht abgemeldet. Bis ${prettyDate(target.date)} siehst du bei „Wer zieht“ nur Fragezeichen. Beim nächsten Mal drohen weitere Konsequenzen.`,
 		url: '/training',
 		tag: `no-show-${missed.id}-${params.userId}`
 	}).catch(() => undefined);

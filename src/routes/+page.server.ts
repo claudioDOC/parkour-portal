@@ -183,7 +183,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		// Strafrunde: Fragezeichen statt Namen; falscher Spot, sobald der echte fix ist.
 		const penalized = Boolean(viewerPenalty && viewerPenalty.penalty.id === session.id);
 		if (penalized && locals.user) attending = maskAttending(attending, locals.user.id);
-		if (penalized && viewerPenalty?.phase === 'wrongSpot' && effectiveVote) {
+		if (penalized && viewerPenalty?.stage === 2 && viewerPenalty.phase === 'wrongSpot' && effectiveVote) {
 			const start = new Date(`${session.date}T${session.timeStart}:00`).getTime();
 			const spotFixed = Boolean(session.overrideSpotId) || Date.now() > start - 2 * 60 * 60 * 1000;
 			const wrong = spotFixed ? wrongSpotFor(effectiveVote.spotId) : null;

@@ -218,6 +218,13 @@
       "when": 1777000000009,
       "tag": "0031_trip_date_poll",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1777000000010,
+      "tag": "0032_no_show_penalty_stage",
+      "breakpoints": true
     }
   ]
 }
