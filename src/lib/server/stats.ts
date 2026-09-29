@@ -185,8 +185,16 @@ export function computeTrainingStats(): TrainingStatsPayload {
 	let totalPulled = 0;
 	for (const s of pastSessions) {
 		for (const u of members) {
-			if (isImplicitEffectiveAbsent(u, s, absencePairs, overridePairs)) totalAbsences++;
-			else totalPulled++;
+			const absent = isImplicitEffectiveAbsent(u, s, absencePairs, overridePairs);
+			if (absent) totalAbsences++;
+			// Effektiv dabei: Im Zusage-Modus zählt nur die ausdrückliche Zusage —
+			// sonst stünde jemand, der nie kommt und sich nie abmeldet, in jedem
+			// Training als anwesend und hebt den Schnitt um eine ganze Person.
+			const present =
+				u.trainingAttendance === 'opt_in'
+					? !absent && rsvpPairs.has(`${u.id}:${s.id}`)
+					: !absent;
+			if (present) totalPulled++;
 		}
 	}
 	const avgPulledPerSession =
