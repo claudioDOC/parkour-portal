@@ -372,10 +372,15 @@ async function runSpotFixNotification(now: Date): Promise<void> {
 	for (const session of sessions) {
 		if (session.cancelled) continue;
 		const startMin = parseTimeToMinutes(session.timeStart);
+		const endMin = parseTimeToMinutes(session.timeEnd);
 		if (startMin == null) continue;
-		const fixMin = startMin - 120; // Voting-Deadline, siehe isVotingOpenForSession
-		// Fenster: ab Voting-Schluss bis Trainingsbeginn (verpasst = zu spät)
-		if (nowMin < fixMin || nowMin >= startMin) continue;
+		// Fenster, in dem die „Spot fix"-Meldung rausgeht:
+		// fester Termin ab Voting-Schluss (Beginn − 2 h) bis Beginn; beim
+		// Zusatztraining ist bis Beginn noch offen (siehe votingDeadlineFor),
+		// darum erst ab Beginn bis Ende melden — vorher gäbe es keinen Sieger.
+		const openFrom = session.isExtra ? startMin : startMin - 120;
+		const openUntil = session.isExtra ? (endMin ?? startMin + 120) : startMin;
+		if (nowMin < openFrom || nowMin >= openUntil) continue;
 
 		// Admin-Spot gesetzt? Dann den melden statt des Voting-Ergebnisses.
 		if (session.overrideSpotId) {

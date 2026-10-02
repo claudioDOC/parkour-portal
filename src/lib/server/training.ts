@@ -2,12 +2,27 @@ import { db } from './db';
 import { trainingSessions } from './db/schema';
 import { gte, asc, eq } from 'drizzle-orm';
 
+/**
+ * Spot-Voting-Schluss. Beim festen Termin zwei Stunden vor Beginn — so steht
+ * der Spot rechtzeitig und der „Spot fix"-Push kann raus. Beim Zusatztraining
+ * aber gilt der Beginn selbst: Es wird oft spontan am selben Tag eingetragen,
+ * teils innerhalb dieser zwei Stunden — mit der festen Frist wäre das Voting
+ * dann von Anfang an zu und es gäbe nie einen Spot.
+ */
+export function votingDeadlineFor(session: {
+	date: string;
+	timeStart: string;
+	isExtra?: boolean | number | null;
+}): Date {
+	const trainingStart = new Date(`${session.date}T${session.timeStart}:00`);
+	if (session.isExtra) return trainingStart;
+	return new Date(trainingStart.getTime() - 2 * 60 * 60 * 1000);
+}
+
 export function isVotingOpenForSession(sessionId: number): boolean {
 	const session = db.select().from(trainingSessions).where(eq(trainingSessions.id, sessionId)).get();
 	if (!session) return false;
-	const trainingStart = new Date(`${session.date}T${session.timeStart}:00`);
-	const deadline = new Date(trainingStart.getTime() - 2 * 60 * 60 * 1000);
-	return new Date() < deadline;
+	return new Date() < votingDeadlineFor(session);
 }
 
 export function getNextOpenSessionId(): number | null {
@@ -15,7 +30,8 @@ export function getNextOpenSessionId(): number | null {
 	const upcoming = db.select({
 		id: trainingSessions.id,
 		date: trainingSessions.date,
-		timeStart: trainingSessions.timeStart
+		timeStart: trainingSessions.timeStart,
+		isExtra: trainingSessions.isExtra
 	})
 		.from(trainingSessions)
 		.where(gte(trainingSessions.date, today))
@@ -24,9 +40,7 @@ export function getNextOpenSessionId(): number | null {
 		.all();
 
 	for (const session of upcoming) {
-		const trainingStart = new Date(`${session.date}T${session.timeStart}:00`);
-		const deadline = new Date(trainingStart.getTime() - 2 * 60 * 60 * 1000);
-		if (new Date() < deadline) {
+		if (new Date() < votingDeadlineFor(session)) {
 			return session.id;
 		}
 	}

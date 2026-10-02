@@ -20,6 +20,7 @@ import {
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
 import { and, asc, eq, gte, sql } from 'drizzle-orm';
+import { votingDeadlineFor } from '$lib/server/training';
 
 type PublicStatusMode = 'today' | 'next';
 
@@ -200,8 +201,7 @@ export function getPublicTrainingStatus(mode: PublicStatusMode): PublicTrainingS
 			voters: (sv.voters || '').split(',').filter(Boolean)
 		}));
 
-	const trainingStart = new Date(`${picked.date}T${picked.timeStart}:00`);
-	const deadline = new Date(trainingStart.getTime() - 2 * 60 * 60 * 1000);
+	const deadline = votingDeadlineFor(picked);
 	const votingClosed = new Date() > deadline;
 
 	const topSpot = spotVotes[0]

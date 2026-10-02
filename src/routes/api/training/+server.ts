@@ -13,6 +13,7 @@ import {
 } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
+import { votingDeadlineFor } from '$lib/server/training';
 import { sendToUsersWithPref } from '$lib/server/push';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 import { todayYmdInAppTZ, germanWeekdayInAppTZ } from '$lib/server/calendarToday';
@@ -403,10 +404,12 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'Spot nicht gefunden' }, { status: 404 });
 		}
 
-		const trainingStart = new Date(`${session.date}T${session.timeStart}:00`);
-		const deadline = new Date(trainingStart.getTime() - 2 * 60 * 60 * 1000);
-		if (new Date() > deadline) {
-			return json({ error: 'Voting ist geschlossen (2h vor Training)' }, { status: 400 });
+		// Zusatztraining: offen bis Beginn; fester Termin: bis 2 h vorher.
+		if (new Date() > votingDeadlineFor(session)) {
+			const msg = session.isExtra
+				? 'Voting ist geschlossen (Training läuft bereits)'
+				: 'Voting ist geschlossen (2h vor Training)';
+			return json({ error: msg }, { status: 400 });
 		}
 
 		const existing = db.select().from(trainingSpotVotes)

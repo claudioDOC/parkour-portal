@@ -27,6 +27,7 @@ import { asNum } from '$lib/server/asSqlNumber';
 import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 import { ensureUpcomingTrainingSessions } from '$lib/server/ensureUpcomingTrainingSessions';
+import { votingDeadlineFor } from '$lib/server/training';
 
 /** Viewer für den Training-Payload — Web (user) und API v1 nutzen dasselbe. */
 export type TrainingViewer = {
@@ -291,8 +292,7 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 			if (uv) userVotedSpotId = uv.spotId;
 		}
 
-		const trainingStart = new Date(`${session.date}T${session.timeStart}:00`);
-		const deadline = new Date(trainingStart.getTime() - 2 * 60 * 60 * 1000);
+		const deadline = votingDeadlineFor(session);
 		const votingClosed = new Date() > deadline;
 
 		const fc = forecastBySessionKey.get(
