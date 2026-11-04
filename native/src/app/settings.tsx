@@ -82,6 +82,11 @@ const PUSH_PREFS: { key: string; title: string; hint: string }[] = [
 		key: 'atSpot',
 		title: 'Wer am Spot ist',
 		hint: 'Am Trainingstag, wenn jemand „Bin da" antippt — einmal pro Person.'
+	},
+	{
+		key: 'absenceReported',
+		title: 'Abmeldungen',
+		hint: 'Wenn sich jemand abmeldet — mit Name und Grund.'
 	}
 ];
 

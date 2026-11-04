@@ -232,6 +232,24 @@ export const POST: RequestHandler = async (event) => {
 				reason: reason?.trim() ? reason.trim() : 'Kann nicht'
 			}
 		});
+		// Die anderen erfahren, wer sich mit welchem Grund abgemeldet hat —
+		// abschaltbar über die Push-Option „Abmeldungen". Fehler nie an den
+		// Request weiterreichen.
+		{
+			const grund = reason?.trim() ? reason.trim() : 'Kann nicht';
+			const datum = `${session.dayOfWeek}, ${session.date}`;
+			void sendToUsersWithPref(
+				'absenceReported',
+				{
+					title: `${locals.user.username} ist nicht dabei`,
+					body: `${datum}: ${grund}`,
+					url: '/training',
+					tag: `absence-${sessionId}-${locals.user.id}`
+				},
+				undefined,
+				{ excludeUserIds: [locals.user.id] }
+			).catch(() => undefined);
+		}
 		return json({ success: true });
 	}
 

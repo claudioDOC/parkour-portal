@@ -20,6 +20,8 @@ export type PushPrefs = {
 	spots: boolean;
 	/** Jemand teilt am Trainingstag seinen Standort („Bin da"). */
 	atSpot: boolean;
+	/** Jemand meldet sich von einem Training ab (mit Name und Grund). */
+	absenceReported: boolean;
 };
 
 export const DEFAULT_PUSH_PREFS: PushPrefs = {
@@ -30,7 +32,8 @@ export const DEFAULT_PUSH_PREFS: PushPrefs = {
 	trips: true,
 	spotVoting: true,
 	spots: true,
-	atSpot: true
+	atSpot: true,
+	absenceReported: true
 };
 
 export const PUSH_PREF_LABELS: Record<keyof PushPrefs, { title: string; hint: string }> = {
@@ -65,6 +68,10 @@ export const PUSH_PREF_LABELS: Record<keyof PushPrefs, { title: string; hint: st
 	atSpot: {
 		title: 'Wer am Spot ist',
 		hint: 'Am Trainingstag, wenn jemand „Bin da" antippt — einmal pro Person und Training.'
+	},
+	absenceReported: {
+		title: 'Abmeldungen',
+		hint: 'Wenn sich jemand von einem Training abmeldet — mit Name und Grund.'
 	}
 };
 

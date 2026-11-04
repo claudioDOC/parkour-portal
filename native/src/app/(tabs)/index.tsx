@@ -103,6 +103,10 @@ export default function Dashboard() {
 	const [voteQuery, setVoteQuery] = useState('');
 	// Zusatztraining eintragen — wie auf der Website, offen für alle.
 	const [extraOpen, setExtraOpen] = useState(false);
+	// Solo-Schnelleintrag mit optionaler Notiz (wie beim Nachtrag/Website).
+	const [soloOpen, setSoloOpen] = useState(false);
+	const [soloNote, setSoloNote] = useState('');
+	const [soloBusy, setSoloBusy] = useState(false);
 	const [extraForm, setExtraForm] = useState({ date: '', start: '18:15', end: '20:15', note: '' });
 	const [extraBusy, setExtraBusy] = useState(false);
 	// Nur die nächsten drei ausführlich — der Rest steckt in einer
@@ -222,12 +226,17 @@ export default function Dashboard() {
 		}
 	};
 
-	const logSoloToday = async () => {
+	const submitSolo = async () => {
+		setSoloBusy(true);
 		try {
-			await logSolo();
+			await logSolo(soloNote.trim() || undefined);
+			setSoloOpen(false);
+			setSoloNote('');
 			await training.refresh();
 		} catch (e) {
 			Alert.alert('Fehler', e instanceof Error ? e.message : 'Eintragen fehlgeschlagen');
+		} finally {
+			setSoloBusy(false);
 		}
 	};
 
@@ -271,7 +280,7 @@ export default function Dashboard() {
 									<Text style={styles.soloUndo}>Rückgängig</Text>
 								</Pressable>
 							) : (
-								<Pressable onPress={logSoloToday} hitSlop={8}>
+								<Pressable onPress={() => { setSoloNote(''); setSoloOpen(true); }} hitSlop={8}>
 									<Text style={styles.soloAction}>Heute eintragen</Text>
 								</Pressable>
 							)}
@@ -955,6 +964,27 @@ export default function Dashboard() {
 						</View>
 					</>
 				)}
+			</Sheet>
+
+			{/* Solo-Training heute: optionale Notiz (was/wo) — wie der Nachtrag. */}
+			<Sheet visible={soloOpen} onClose={() => setSoloOpen(false)} title="Solo-Training heute">
+				<Text style={styles.meetHint}>
+					Eigenes Training ausserhalb der Gruppe. Zählt in die Extra-Einheiten,
+					nicht in „Gezogen %".
+				</Text>
+				<Input
+					placeholder="Notiz (optional) — z. B. wo oder was"
+					value={soloNote}
+					onChangeText={setSoloNote}
+				/>
+				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setSoloOpen(false)} />
+					<Button
+						label={soloBusy ? 'Wird eingetragen …' : 'Eintragen'}
+						onPress={submitSolo}
+						disabled={soloBusy}
+					/>
+				</View>
 			</Sheet>
 
 			{/* Zusatztraining: spontaner Termin neben Dienstag/Donnerstag */}

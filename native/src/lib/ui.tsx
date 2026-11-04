@@ -472,7 +472,6 @@ export function NameChip({
 	);
 }
 
-const AVATAR_COLORS = ['#47c5ff', '#47ffb3', '#ff9947', '#c58cff', '#ff7ab8', '#7adfff'];
 
 /** Avatar: Bild wenn vorhanden, sonst farbiger Initialen-Kreis. */
 export function Avatar({
@@ -487,33 +486,18 @@ export function Avatar({
 	index?: number;
 }) {
 	const { colors } = useTheme();
-	const color = AVATAR_COLORS[index % AVATAR_COLORS.length];
 	// Profilbilder erscheinen nirgends grösser als ~120 px — die kleine
-	// Fassung genügt und spart bei Listen ein Vielfaches an Daten.
-	const url = mediaUrl(avatar, 120);
-	if (url) {
-		return (
-			<Image
-				source={{ uri: url }}
-				style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.hover }}
-			/>
-		);
-	}
+	// Fassung genügt und spart bei Listen ein Vielfaches an Daten. Ohne
+	// eigenes Bild: generiertes Individual-Muster (Identicon) vom Server
+	// statt bloss der Initiale — expo-image rendert das SVG direkt.
+	const url =
+		mediaUrl(avatar, 120) ??
+		mediaUrl(`/api/avatar/${encodeURIComponent(username || '?')}`);
 	return (
-		<View
-			style={{
-				width: size,
-				height: size,
-				borderRadius: size / 2,
-				backgroundColor: color + '2b',
-				alignItems: 'center',
-				justifyContent: 'center'
-			}}
-		>
-			<Text style={{ color, fontSize: size * 0.4, fontFamily: fonts.sansBold }}>
-				{username.slice(0, 1).toUpperCase()}
-			</Text>
-		</View>
+		<Image
+			source={{ uri: url ?? undefined }}
+			style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.hover }}
+		/>
 	);
 }
 
