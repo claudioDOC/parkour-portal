@@ -49,7 +49,7 @@ export const POST: RequestHandler = async (event) => {
 	assertAdmin(locals);
 	if (!isPushConfigured()) throw error(503, 'Push ist auf dem Server nicht konfiguriert');
 
-	let body: { title?: unknown; body?: unknown; url?: unknown };
+	let body: { title?: unknown; body?: unknown; url?: unknown; userIds?: unknown };
 	try {
 		body = await request.json();
 	} catch {
@@ -61,12 +61,17 @@ export const POST: RequestHandler = async (event) => {
 	const url = typeof body.url === 'string' && body.url.startsWith('/') ? body.url : '/';
 	if (!title || !text) throw error(400, 'Titel und Text sind Pflicht');
 
-	const userIds = db
+	// Optional gezielt an einzelne Personen (z. B. „meld dich endlich ab"),
+	// sonst Broadcast an alle registrierten Geräte.
+	const targeted = Array.isArray(body.userIds)
+		? body.userIds.map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0)
+		: [];
+	const allSubscribed = db
 		.select({ userId: pushSubscriptions.userId })
 		.from(pushSubscriptions)
 		.all()
 		.map((r) => r.userId);
-	const unique = [...new Set(userIds)];
+	const unique = targeted.length > 0 ? [...new Set(targeted)] : [...new Set(allSubscribed)];
 
 	const sent = await sendToUsers(unique, {
 		title,
@@ -81,7 +86,7 @@ export const POST: RequestHandler = async (event) => {
 		action: 'admin.push.broadcast',
 		actorUserId: locals.user!.id,
 		actorUsername: locals.user!.username,
-		detail: { title, body: text, url, sent, userTargets: unique.length }
+		detail: { title, body: text, url, sent, userTargets: unique.length, targeted: targeted.length > 0 }
 	});
 
 	return json({ ok: true, sent, userTargets: unique.length });
