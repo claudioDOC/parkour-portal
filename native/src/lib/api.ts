@@ -547,6 +547,7 @@ export type AdminSession = {
 	timeStart: string;
 	timeEnd: string;
 	cancelled: boolean;
+	isExtra?: boolean;
 	absences: { id: number | null; userId: number; username: string; reason: string; virtual?: boolean }[];
 	attending: { id: number; username: string }[];
 	guests: { id: number; name: string }[];

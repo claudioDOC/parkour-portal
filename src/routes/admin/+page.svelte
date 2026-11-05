@@ -66,6 +66,7 @@
 		timeStart: string;
 		timeEnd: string;
 		cancelled?: boolean | number;
+		isExtra?: boolean | number;
 		overrideSpotId?: number | null;
 		absences: { id: number | null; userId: number; username: string; reason: string | null; virtual?: boolean }[];
 		attending: { id: number; username: string }[];
@@ -81,6 +82,8 @@
 	let guestName = $state<Record<number, string>>({});
 	/** Admin: User für nachträgliche Abmeldung pro Session (User-ID als String) */
 	let adminAbsencePick = $state<Record<number, string>>({});
+	/** Admin: Zusage (add_rsvp) für ein (Zusatz-)Training eintragen. */
+	let adminRsvpPick = $state<Record<number, string>>({});
 	let adminAbsenceNote = $state<Record<number, string>>({});
 
 	let spotList = $state<Spot[]>([]);
@@ -916,6 +919,39 @@
 		setTimeout(() => (trainingMessage = ''), 2500);
 	}
 
+	/** Allgemeiner POST auf /api/admin/training (für add_rsvp/remove_rsvp). */
+	async function postTraining(body: Record<string, unknown>) {
+		trainingMessage = '';
+		trainingError = '';
+		const res = await fetch('/api/admin/training', {
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body)
+		});
+		let data: Record<string, unknown> = {};
+		try {
+			data = await res.json();
+		} catch {
+			trainingError = `Antwort ungültig (${res.status})`;
+			return;
+		}
+		if (!res.ok) {
+			setTrainingErrorFromResponse(res, data);
+			return;
+		}
+		trainingMessage = 'Erfolgreich';
+		await loadTrainingSessions();
+		setTimeout(() => (trainingMessage = ''), 2000);
+	}
+
+	async function submitAdminRsvp(sessionId: number) {
+		const uid = Number(adminRsvpPick[sessionId]);
+		if (!Number.isFinite(uid) || uid <= 0) return;
+		await postTraining({ type: 'add_rsvp', sessionId: Number(sessionId), userId: uid });
+		adminRsvpPick = { ...adminRsvpPick, [sessionId]: '' };
+	}
+
 	async function addGuest(sessionId: number) {
 		const name = guestName[sessionId]?.trim();
 		if (!name) return;
@@ -1707,6 +1743,9 @@
 								{#if session.cancelled}
 									<span class="text-xs rounded-full bg-danger/15 px-2 py-0.5 font-semibold text-danger">Abgesagt</span>
 								{/if}
+								{#if session.isExtra}
+									<span class="text-xs rounded-full bg-accent-blue/15 px-2 py-0.5 font-semibold text-accent-blue">Zusatztraining</span>
+								{/if}
 								{#if !sessionPast}
 									<div class="ml-auto flex flex-wrap items-center gap-2">
 										{#if session.cancelled}
@@ -1802,8 +1841,10 @@
 									{#each session.attending as user}
 										<div class="flex items-center justify-between bg-bg-secondary rounded-lg px-3 py-2">
 											<span class="text-text-primary text-sm">{user.username}</span>
-											<button onclick={() => deleteTrainingEntry('hide_user', { userId: user.id, sessionId: session.id })}
-												class="text-text-muted hover:text-danger text-xs shrink-0 transition-colors cursor-pointer">Entfernen</button>
+											<button onclick={() => session.isExtra
+												? postTraining({ type: 'remove_rsvp', sessionId: session.id, userId: user.id })
+												: deleteTrainingEntry('hide_user', { userId: user.id, sessionId: session.id })}
+												class="text-text-muted hover:text-danger text-xs shrink-0 transition-colors cursor-pointer">{session.isExtra ? 'Abmelden' : 'Entfernen'}</button>
 										</div>
 									{/each}
 									{#each session.guests || [] as guest}
@@ -1831,6 +1872,41 @@
 										class="cursor-pointer rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50"
 									>+</button>
 								</div>
+
+								{#if session.isExtra}
+									<!-- Zusatztraining: Anwesenheit ist Zusage-basiert — Admin kann
+									     jemanden direkt anmelden (z. B. nach Zusage im Chat). -->
+									<div class="mt-4 rounded-lg border border-dashed border-accent-blue/30 bg-bg-secondary/40 p-3">
+										<p class="text-text-secondary text-xs font-semibold uppercase tracking-wide">
+											Zum Zusatztraining anmelden
+										</p>
+										<p class="text-text-muted text-xs mt-1 mb-2">
+											Trägt die Zusage für diese Person ein — sie steht dann unter „Zieht“.
+										</p>
+										<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+											<select
+												value={adminRsvpPick[session.id] ?? ''}
+												onchange={(e) => (adminRsvpPick = { ...adminRsvpPick, [session.id]: e.currentTarget.value })}
+												class="min-w-[10rem] flex-1 rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+											>
+												<option value="">User wählen …</option>
+												{#each userList as u}
+													{#if !session.attending.some((a) => a.id === u.id)}
+														<option value={String(u.id)}>{u.username}</option>
+													{/if}
+												{/each}
+											</select>
+											<button
+												type="button"
+												onclick={() => submitAdminRsvp(session.id)}
+												disabled={!adminRsvpPick[session.id]}
+												class="cursor-pointer rounded-lg bg-success/90 px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-success disabled:opacity-50"
+											>
+												Anmelden
+											</button>
+										</div>
+									</div>
+								{/if}
 
 								<div class="mt-4 rounded-lg border border-dashed border-accent/25 bg-bg-secondary/40 p-3">
 									<p class="text-text-secondary text-xs font-semibold uppercase tracking-wide">

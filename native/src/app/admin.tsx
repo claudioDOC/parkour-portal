@@ -122,6 +122,9 @@ export default function Admin() {
 	const [guestName, setGuestName] = useState('');
 	// Nachträglich abmelden: Session → Mitglied wählen + Grund
 	const [absentFor, setAbsentFor] = useState<number | null>(null);
+	// Admin meldet jemanden zum Zusatztraining an (Zusage, add_rsvp).
+	const [rsvpFor, setRsvpFor] = useState<number | null>(null);
+	const [rsvpUserId, setRsvpUserId] = useState<number | null>(null);
 	const [absentUserId, setAbsentUserId] = useState<number | null>(null);
 	const [absentReason, setAbsentReason] = useState('');
 	const [logFilter, setLogFilter] = useState('');
@@ -369,6 +372,7 @@ export default function Admin() {
 									</Text>
 								</View>
 								{sess.cancelled ? <Pill label="Abgesagt" color={colors.danger} /> : null}
+								{sess.isExtra ? <Pill label="Zusatz" color={colors.accentBlue} /> : null}
 							</View>
 
 							{sess.guests.length > 0 ? (
@@ -395,20 +399,24 @@ export default function Admin() {
 											<Pressable
 												key={a.id}
 												onPress={() =>
-													Alert.alert('Aus „Zieht" entfernen?', a.username, [
-														{ text: 'Abbrechen', style: 'cancel' },
-														{
-															text: 'Entfernen',
-															style: 'destructive',
-															onPress: () =>
-																act(() =>
-																	adminSessionAction('hide_user', {
-																		sessionId: sess.id,
-																		userId: a.id
-																	})
-																)
-														}
-													])
+													Alert.alert(
+														sess.isExtra ? 'Abmelden?' : 'Aus „Zieht" entfernen?',
+														a.username,
+														[
+															{ text: 'Abbrechen', style: 'cancel' },
+															{
+																text: sess.isExtra ? 'Abmelden' : 'Entfernen',
+																style: 'destructive',
+																onPress: () =>
+																	act(() =>
+																		adminSessionAction(
+																			sess.isExtra ? 'remove_rsvp' : 'hide_user',
+																			{ sessionId: sess.id, userId: a.id }
+																		)
+																	)
+															}
+														]
+													)
 												}
 												style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}
 											>
@@ -466,6 +474,17 @@ export default function Admin() {
 									small
 									onPress={() => setGuestFor(sess.id)}
 								/>
+								{sess.isExtra ? (
+									<Button
+										label="Anmelden"
+										kind="ghost"
+										small
+										onPress={() => {
+											setRsvpFor(sess.id);
+											setRsvpUserId(null);
+										}}
+									/>
+								) : null}
 								<Button
 									label="Jemanden abmelden"
 									kind="ghost"
@@ -1055,6 +1074,54 @@ export default function Admin() {
 				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setPwOpen(false)} />
 					<Button label="Setzen" onPress={resetPassword} />
+				</View>
+			</Sheet>
+
+			<Sheet
+				visible={rsvpFor !== null}
+				onClose={() => setRsvpFor(null)}
+				title="Zum Zusatztraining anmelden"
+			>
+				<Text style={styles.muted}>Wen anmelden? (Zusage)</Text>
+				<View style={styles.chipRow}>
+					{(users.data?.users ?? [])
+						.filter((u) => u.active)
+						.map((u) => (
+							<Pressable
+								key={u.id}
+								onPress={() => setRsvpUserId(u.id)}
+								style={({ pressed }) => [
+									styles.chip,
+									rsvpUserId === u.id && {
+										backgroundColor: colors.success,
+										borderColor: colors.success
+									},
+									pressed && { opacity: 0.8 }
+								]}
+							>
+								<Text
+									style={[styles.chipText, rsvpUserId === u.id && { color: colors.onAccent }]}
+								>
+									{u.username}
+								</Text>
+							</Pressable>
+						))}
+				</View>
+				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setRsvpFor(null)} />
+					<Button
+						label="Anmelden"
+						onPress={() => {
+							if (!rsvpFor || !rsvpUserId) {
+								Alert.alert('Unvollständig', 'Bitte ein Mitglied auswählen.');
+								return;
+							}
+							const sid = rsvpFor;
+							const uid = rsvpUserId;
+							setRsvpFor(null);
+							act(() => adminSessionAction('add_rsvp', { sessionId: sid, userId: uid }));
+						}}
+					/>
 				</View>
 			</Sheet>
 

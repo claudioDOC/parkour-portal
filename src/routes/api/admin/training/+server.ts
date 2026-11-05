@@ -146,7 +146,13 @@ export const GET: RequestHandler = async ({ locals }) => {
 					.all()
 					.map((r) => r.userId)
 			);
-			attending = filterAttendingUsers(allUsers, effectiveAbsentIds, hiddenUserIds, rsvpUserIds);
+			attending = filterAttendingUsers(
+				allUsers,
+				effectiveAbsentIds,
+				hiddenUserIds,
+				rsvpUserIds,
+				Boolean(session.isExtra)
+			);
 			absencesForList = buildAbsenceListForSession(
 				allUsers,
 				sessionAbsences,

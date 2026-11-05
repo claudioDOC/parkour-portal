@@ -422,6 +422,20 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'Spot nicht gefunden' }, { status: 404 });
 		}
 
+		// Wer sich abgemeldet hat, stimmt nicht über den Spot ab — er ist ja
+		// nicht dabei. Erst Abmeldung zurücknehmen, dann voten.
+		const ownAbsence = db
+			.select({ id: absences.id })
+			.from(absences)
+			.where(and(eq(absences.userId, locals.user.id), eq(absences.sessionId, sessionId)))
+			.get();
+		if (ownAbsence) {
+			return json(
+				{ error: 'Du bist abgemeldet — nimm die Abmeldung zurück, dann kannst du voten.' },
+				{ status: 400 }
+			);
+		}
+
 		// Zusatztraining: offen bis Beginn; fester Termin: bis 2 h vorher.
 		if (new Date() > votingDeadlineFor(session)) {
 			const msg = session.isExtra
