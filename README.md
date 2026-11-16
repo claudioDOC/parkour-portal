@@ -68,6 +68,7 @@ Die native App spricht mit dem Server über die JSON-API (`/api/v1/…`, Bearer-
 - Passwort ändern in den Einstellungen
 
 ### Statistik
+- Zusage-Accounts, die nie zu- oder abgesagt haben, erscheinen nicht in der Rangliste (0 % ohne Teilnahme ist keine Aussage); mit der ersten Zusage oder Abmeldung tauchen sie von selbst auf
 - Übersicht Trainingsbeteiligung pro Mitglied (geschätzt, ab Registrierung; nutzt dieselben Regeln wie die Trainingsseite, inkl. Opt-in/Auto-Abmeldung wenn migriert)
 
 ### Admin-Bereich
@@ -81,7 +82,7 @@ Die native App spricht mit dem Server über die JSON-API (`/api/v1/…`, Bearer-
 - Wer hat was geschafft — Leaderboard und offene Quests pro Person
 
 ### Trips
-- Ausflüge planen: Terminumfrage, Ablauf-Optionen, Zielort-Abstimmung, Zwischenstopps (Ortssuche)
+- Ausflüge planen: Terminumfrage, Zielort-Abstimmung, Zwischenstopps (Ortssuche) — die frühere separate „Ablauf“-Abstimmung ist weg, Ablauf gehört in die Notizen (weniger Knöpfe, weniger Hin und Her)
 - **Terminumfrage statt Einzelstimme**: Jede Person sagt bei **jedem** Datum *Ja / Notfalls / Nein* (`trip_date_answers`). Das geplante Datum ist immer die erste Option. Sobald ein Datum **drei Ja** hat, ist der Termin fix; wer Ja gesagt hat, ist damit angemeldet. Jeder Trip hat eine **Frist** (Standard: eine Woche): 48 h davor erinnert der Scheduler die Stummen, mit Ablauf entscheidet er — meiste Ja, dann meiste Notfalls, dann das frühere Datum; fehlen drei Ja, bleibt der Trip offen und fixiert sich mit der dritten. **Wer bis zur Frist nichts sagt, sieht nur noch Titel und Datum**, bis er zusagt. Nach der Fixierung kann nur der Ersteller oder ein Admin den Termin **neu aufrollen** (mit neuer Frist). Logik in `src/lib/server/tripDatePoll.ts`; die alte Einzelstimme (`vote_date_option`) wird als „Ja“ weiter angenommen.
 - Der nächste Trip steht als **eine Zeile** auf der Startseite (App und Web) — hervorgehoben, solange die eigene Antwort fehlt; der Start-Dialog verlinkt bei offener Umfrage direkt hinein.
 - Zusagen mit Transportmittel (Mitfahrt, Auto, Motorrad, Zug, unentschlossen)

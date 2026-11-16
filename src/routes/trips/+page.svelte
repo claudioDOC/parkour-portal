@@ -20,7 +20,6 @@
 	let createPickedDest = $state<{ lat: number; lon: number; displayName: string } | null>(null);
 
 	let joinNote = $state<Record<number, string>>({});
-	let ablaufText = $state<Record<number, string>>({});
 	let placeText = $state<Record<number, string>>({});
 	let dateAltStart = $state<Record<number, string>>({});
 	let dateAltEnd = $state<Record<number, string>>({});
@@ -207,18 +206,6 @@
 		}
 	}
 
-	async function proposePlanOption(tripId: number) {
-		busyTripId = tripId;
-		try {
-			await post('propose_plan_option', {
-				tripId,
-				text: ablaufText[tripId] || ''
-			});
-			ablaufText[tripId] = '';
-		} finally {
-			busyTripId = null;
-		}
-	}
 
 	async function trashTripAsAdmin(tripId: number) {
 		if (!data.isAdmin) return;
@@ -237,14 +224,6 @@
 		}
 	}
 
-	async function votePlanOption(tripId: number, destinationId: number) {
-		busyTripId = tripId;
-		try {
-			await post('vote_plan_option', { tripId, destinationId });
-		} finally {
-			busyTripId = null;
-		}
-	}
 
 	async function proposePlace(tripId: number) {
 		const name = (placeText[tripId] || '').trim();
@@ -286,14 +265,6 @@
 		}
 	}
 
-	async function removePlanVote(tripId: number) {
-		busyTripId = tripId;
-		try {
-			await post('remove_plan_vote', { tripId });
-		} finally {
-			busyTripId = null;
-		}
-	}
 
 	async function proposeDateOption(tripId: number) {
 		busyTripId = tripId;
@@ -363,7 +334,7 @@
 	<PageHeader
 		kicker="Unterwegs"
 		title="Trips"
-		sub="Trip ist fix. Geplant wird: Wer kommt, Anreise, Abstimmung zu Zeitraum und Ablauf."
+		sub="Wer kommt, wann, wohin — Termin und Ziel per Abstimmung, der Rest in den Notizen."
 	/>
 
 	{#if actionError}
@@ -877,50 +848,6 @@
 						</button>
 					</div>
 
-					<div class="rounded-lg border border-accent/30 bg-accent/5 p-3 space-y-2">
-						<p class="text-xs uppercase tracking-wide text-accent">Ablauf (Abstimmung)</p>
-						<div class="space-y-1.5">
-							{#each trip.destinations as d}
-								<div class="flex items-start justify-between gap-3 rounded-lg border border-border bg-bg-card px-3 py-2 text-xs">
-									<div class="min-w-0 flex-1">
-										<p class="text-text-primary font-medium whitespace-pre-wrap break-words">{d.name}</p>
-										<p class="text-text-muted mt-1">{d.voteCount} Stimmen · Vorschlag: {d.proposedByName}</p>
-									</div>
-									{#if trip.myVoteDestinationId === d.id}
-										<button
-											type="button"
-											onclick={() => removePlanVote(trip.id)}
-											disabled={busyTripId === trip.id}
-											class="shrink-0 px-2.5 py-1 rounded-md bg-accent text-[#0c0c0e]"
-										>
-											Zurückziehen
-										</button>
-									{:else}
-										<button
-											type="button"
-											onclick={() => votePlanOption(trip.id, d.id)}
-											disabled={busyTripId === trip.id}
-											class="shrink-0 px-2.5 py-1 rounded-md bg-bg-hover text-text-secondary hover:text-text-primary"
-										>
-											Voten
-										</button>
-									{/if}
-								</div>
-							{/each}
-							{#if trip.destinations.length === 0}
-								<p class="text-text-muted text-xs">Noch kein Ablauf-Vorschlag.</p>
-							{/if}
-						</div>
-						<textarea
-							bind:value={ablaufText[trip.id]}
-							rows="4"
-							placeholder="Ablauf beschreiben (freier Text) — z. B. ganze Woche mit Trainer, erste Hälfte nur Gruppe, wer fährt mit wem …"
-							class="w-full bg-bg-card border border-border rounded-lg px-2 py-1.5 text-xs text-text-primary resize-y min-h-[5rem] focus:outline-none focus:border-accent"
-						></textarea>
-						<button type="button" onclick={() => proposePlanOption(trip.id)} disabled={busyTripId === trip.id || !(ablaufText[trip.id] || '').trim()} class="bg-accent/15 hover:bg-accent/25 text-accent px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
-							Als Vorschlag einreichen
-						</button>
-					</div>
 				</div>
 
 				<TripRouteMap

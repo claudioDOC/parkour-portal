@@ -25,9 +25,6 @@ import {
 	tripAction,
 	createTrip,
 	proposeDateOption,
-	proposePlanOption,
-	votePlanOption,
-	removePlanVote,
 	proposePlace,
 	votePlace,
 	removePlaceVote,
@@ -124,9 +121,7 @@ export default function Trips() {
 	// Termin-Alternative vorschlagen
 	const [dateFor, setDateFor] = useState<Trip | null>(null);
 	const [dateForm, setDateForm] = useState({ start: '', end: '', note: '' });
-	// Ablauf-Vorschlag (im Portal „Ablauf") und Zwischenstopps
-	const [planFor, setPlanFor] = useState<Trip | null>(null);
-	const [planText, setPlanText] = useState('');
+	// Zwischenstopps
 	// Ziel vorschlagen: Name plus optionale Ortssuche für die Koordinaten.
 	const [placeFor, setPlaceFor] = useState<Trip | null>(null);
 	const [placeQuery, setPlaceQuery] = useState('');
@@ -632,52 +627,6 @@ export default function Trips() {
 							</Pressable>
 						</View>
 
-						{/* Ablauf-Vorschläge — im Portal „Ablauf" */}
-						<View style={{ gap: 8 }}>
-							{trip.destinations?.length ? (
-								<>
-									<Text style={styles.datesTitle}>ABLAUF-VORSCHLÄGE</Text>
-									{trip.destinations.map((d) => {
-										const mine = trip.myVoteDestinationId === d.id;
-										return (
-											<Pressable
-												key={d.id}
-												onPress={() =>
-													mine
-														? confirmWithdraw(
-																'Dein Haken beim Ablauf-Vorschlag wird entfernt.',
-																() => removePlanVote(trip.id)
-															)
-														: act(() => votePlanOption(trip.id, d.id))
-												}
-												style={({ pressed }) => [styles.dateRow, pressed && { opacity: 0.8 }]}
-											>
-												<View style={{ flex: 1, gap: 4 }}>
-													<View style={styles.dateHead}>
-														{mine ? (
-															<Ionicons name="checkmark-circle" size={15} color={colors.accent} />
-														) : null}
-														<Text style={[styles.dateLabel, mine && { color: colors.accent }]}>
-															{d.name}
-														</Text>
-														<Text style={styles.dateVotes}>{d.voteCount}</Text>
-													</View>
-													<Text style={styles.proposeText}>von {d.proposedByName}</Text>
-												</View>
-											</Pressable>
-										);
-									})}
-								</>
-							) : null}
-							<Pressable
-								onPress={() => setPlanFor(trip)}
-								style={({ pressed }) => [styles.proposeRow, pressed && { opacity: 0.7 }]}
-							>
-								<Ionicons name="add-circle-outline" size={16} color={colors.fg + textAlpha.secondary} />
-								<Text style={styles.proposeText}>Ablauf vorschlagen</Text>
-							</Pressable>
-						</View>
-
 						{/* Zwischenstopps */}
 						<View style={{ gap: 8 }}>
 							{trip.stopovers?.length ? (
@@ -963,35 +912,6 @@ export default function Trips() {
 									pick?.lon ?? null
 								)
 							);
-						}}
-					/>
-				</View>
-			</Sheet>
-
-			{/* Ablauf vorschlagen (freier Text, wie das Web-Textfeld) */}
-			<Sheet
-				visible={planFor !== null}
-				onClose={() => setPlanFor(null)}
-				title={`Ablauf vorschlagen — ${planFor?.title ?? ''}`}
-			>
-				<Input
-					placeholder="Ablauf beschreiben — z. B. ganze Woche mit Trainer, wer fährt mit wem …"
-					multiline
-					value={planText}
-					onChangeText={setPlanText}
-					style={{ minHeight: 90 }}
-				/>
-				<View style={styles.sheetActions}>
-					<Button label="Abbrechen" kind="ghost" onPress={() => setPlanFor(null)} />
-					<Button
-						label="Vorschlagen"
-						onPress={() => {
-							const trip = planFor;
-							const text = planText.trim();
-							if (!trip || !text) return;
-							setPlanFor(null);
-							setPlanText('');
-							act(() => proposePlanOption(trip.id, text));
 						}}
 					/>
 				</View>
