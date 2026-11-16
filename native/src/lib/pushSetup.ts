@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { registerFcmDevice } from './api';
+import { report } from './report';
 
 /**
  * Firebase-Push der nativen App (ab APK 1.4):
@@ -43,7 +44,12 @@ export async function setupPush(onOpenUrl: (url: string) => void): Promise<void>
 		const granted = perm.granted
 			? true
 			: (await Notifications.requestPermissionsAsync()).granted;
-		if (!granted) return;
+		if (!granted) {
+			// Bisher still — dann fehlte im Admin jede Spur, warum jemand nie
+			// eine Benachrichtigung bekommt (Marius, November 2026).
+			void report('schritt', 'Push-Berechtigung verweigert — keine Benachrichtigungen');
+			return;
+		}
 
 		const device = await Notifications.getDevicePushTokenAsync();
 		const token = typeof device.data === 'string' ? device.data : '';
