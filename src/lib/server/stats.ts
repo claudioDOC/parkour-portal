@@ -237,6 +237,11 @@ export function computeTrainingStats(): TrainingStatsPayload {
 						(sid) => !absencePairs.has(`${u.id}:${sid}`) && rsvpPairs.has(`${u.id}:${sid}`)
 					).length
 				: eligible.length - abs;
+		// Zusage-Accounts, die nie zu- oder abgesagt haben, gehören nicht in die
+		// Rangliste: 0 % für jemanden, der schlicht nicht mitmacht, ist keine
+		// Aussage — und verzerrt die Hall of Fame. Sobald eine Zusage oder
+		// Abmeldung kommt, erscheint die Person von selbst.
+		if (u.trainingAttendance === 'opt_in' && implicitPresent === 0 && abs === 0) continue;
 		const showUpPercent =
 			eligible.length > 0 ? Math.round((implicitPresent / eligible.length) * 1000) / 10 : 0;
 
@@ -301,6 +306,8 @@ export function computeTrainingStats(): TrainingStatsPayload {
 								!absencePairs.has(`${u.id}:${s.id}`) && rsvpPairs.has(`${u.id}:${s.id}`)
 						).length
 					: eligible.length - abs;
+			// Gleiche Regel wie in der Gesamt-Rangliste: ohne jede Aktivität nicht listen.
+			if (u.trainingAttendance === 'opt_in' && implicitPresent === 0 && abs === 0) continue;
 			const showUpPercent =
 				eligible.length > 0 ? Math.round((implicitPresent / eligible.length) * 1000) / 10 : 0;
 			let streak = 0;
