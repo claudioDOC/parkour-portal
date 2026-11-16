@@ -40,6 +40,7 @@ import {
 import { NativeMap } from '../../lib/NativeMap';
 import { getLocation } from '../../lib/nativeModules';
 import { useAuth } from '../_layout';
+import { PushNudge } from '../../lib/PushNudge';
 import { hasNativeExtras } from '../../lib/nativeModules';
 import { Linking } from 'react-native';
 
@@ -294,6 +295,9 @@ export default function Dashboard() {
 			{/* Nächster Trip als schmale Zeile — kein weiterer Block, nur ein Hinweis
 			    mit dem Stand der Terminumfrage. Wer noch nicht abgestimmt hat, sieht
 			    das in Akzentfarbe. */}
+			{/* Benachrichtigungen aus? Schmaler Hinweis mit Weg in die Einstellungen. */}
+			<PushNudge />
+
 			{data?.nextTrip
 				? (() => {
 						const t = data.nextTrip;

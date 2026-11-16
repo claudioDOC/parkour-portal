@@ -88,3 +88,25 @@ export async function setupPush(onOpenUrl: (url: string) => void): Promise<void>
 		// Ältere APK ohne Firebase-Unterbau — still bleiben.
 	}
 }
+
+export type PushStatus = 'granted' | 'denied' | 'undetermined' | 'unsupported';
+
+/**
+ * Stand der Benachrichtigungs-Berechtigung, ohne etwas auszulösen — für den
+ * Hinweis auf der Startseite. `denied` heisst: der Nutzer hat abgelehnt und
+ * Android fragt nicht mehr; dann hilft nur der Weg in die Systemeinstellungen.
+ */
+export async function getPushStatus(): Promise<{ status: PushStatus; canAskAgain: boolean }> {
+	if (Platform.OS !== 'android') return { status: 'unsupported', canAskAgain: false };
+	try {
+		const Notifications: typeof import('expo-notifications') = require('expo-notifications');
+		const perm = await Notifications.getPermissionsAsync();
+		if (perm.granted) return { status: 'granted', canAskAgain: false };
+		return {
+			status: perm.status === 'undetermined' ? 'undetermined' : 'denied',
+			canAskAgain: perm.canAskAgain !== false
+		};
+	} catch {
+		return { status: 'unsupported', canAskAgain: false };
+	}
+}
