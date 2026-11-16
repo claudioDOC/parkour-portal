@@ -1,14 +1,18 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { auditLogs } from '$lib/server/db/schema';
+import { getClientIp } from '$lib/server/rateLimitAuth';
 
-export function clientIp(event: Pick<RequestEvent, 'getClientAddress' | 'request'>): string | null {
-	try {
-		return event.getClientAddress();
-	} catch {
-		const xff = event.request.headers.get('x-forwarded-for');
-		return xff?.split(',')[0]?.trim() ?? null;
-	}
+/**
+ * Echte Client-IP fürs Audit-Log. Nutzt dieselbe Regel wie der
+ * Login-Schutz: `X-Forwarded-For` zählt nur, wenn die Verbindung vom
+ * eigenen Proxy (`TRUSTED_PROXY_IPS`) kommt — dann der letzte, von nginx
+ * gesetzte Eintrag. Vorher stand hier stur die Socket-Adresse, also
+ * monatelang nur die IP des Proxys statt der Person.
+ */
+export function clientIp(event: RequestEvent): string | null {
+	const ip = getClientIp(event);
+	return ip === 'unbekannt' ? null : ip;
 }
 
 type LogParams = {
