@@ -20,12 +20,15 @@ export const GET: RequestHandler = async ({ locals }) => {
 	let userCount = 0;
 	let recent: { sessionId: number; kind: string; sentAt: string }[] = [];
 	try {
-		deviceCount = db.select({ c: sql<number>`COUNT(*)` }).from(pushSubscriptions).get()?.c ?? 0;
-		userCount =
-			db
-				.select({ c: sql<number>`COUNT(DISTINCT user_id)` })
-				.from(pushSubscriptions)
-				.get()?.c ?? 0;
+		// Web-Push-Abos plus App-Geräte (FCM) — sonst zeigt der Überblick nur
+		// die Browser-Nutzer und tut so, als hätte die halbe Gruppe kein Gerät.
+		const webDevices = db.select({ c: sql<number>`COUNT(*)` }).from(pushSubscriptions).get()?.c ?? 0;
+		const fcmDevices = db.select({ c: sql<number>`COUNT(*)` }).from(fcmTokens).get()?.c ?? 0;
+		deviceCount = Number(webDevices) + Number(fcmDevices);
+		userCount = new Set([
+			...db.select({ userId: pushSubscriptions.userId }).from(pushSubscriptions).all().map((r) => r.userId),
+			...db.select({ userId: fcmTokens.userId }).from(fcmTokens).all().map((r) => r.userId)
+		]).size;
 		recent = db
 			.select({
 				sessionId: pushReminderLog.sessionId,
