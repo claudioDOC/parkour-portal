@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { desc, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { pushReminderLog, pushSubscriptions } from '$lib/server/db/schema';
+import { fcmTokens, pushReminderLog, pushSubscriptions } from '$lib/server/db/schema';
 import { isPushConfigured, sendToUsers } from '$lib/server/push';
 import { logAudit } from '$lib/server/audit';
 
@@ -66,11 +66,13 @@ export const POST: RequestHandler = async (event) => {
 	const targeted = Array.isArray(body.userIds)
 		? body.userIds.map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0)
 		: [];
-	const allSubscribed = db
-		.select({ userId: pushSubscriptions.userId })
-		.from(pushSubscriptions)
-		.all()
-		.map((r) => r.userId);
+	// Alle mit irgendeinem Gerät: Web-Push UND App (FCM). Bisher zählten nur
+	// die Web-Push-Abos — der Broadcast übersprang damit still jeden, der nur
+	// die App nutzt (16.11.2026: 3 von 5 Empfängern).
+	const allSubscribed = [
+		...db.select({ userId: pushSubscriptions.userId }).from(pushSubscriptions).all(),
+		...db.select({ userId: fcmTokens.userId }).from(fcmTokens).all()
+	].map((r) => r.userId);
 	const unique = targeted.length > 0 ? [...new Set(targeted)] : [...new Set(allSubscribed)];
 
 	const sent = await sendToUsers(unique, {
