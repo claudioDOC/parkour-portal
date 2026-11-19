@@ -5,6 +5,28 @@
 	let { data }: { data: PageData } = $props();
 
 	const stats = data.stats;
+
+	/** Abmeldegründe-Verlauf: Filter nach Person und Textsuche im Grund. */
+	let absencePerson = $state('');
+	let absenceSearch = $state('');
+	const absencePeople = $derived(
+		[...new Set(stats.absenceHistory.map((r) => r.username))].sort((a, b) => a.localeCompare(b, 'de'))
+	);
+	const absenceRows = $derived(
+		stats.absenceHistory.filter((r) => {
+			if (absencePerson && r.username !== absencePerson) return false;
+			const q = absenceSearch.trim().toLowerCase();
+			return !q || r.reason.toLowerCase().includes(q);
+		})
+	);
+	function formatAbsenceDate(d: string): string {
+		return new Date(`${d}T12:00:00`).toLocaleDateString('de-CH', {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short',
+			year: '2-digit'
+		});
+	}
 	const myId = data.user?.id;
 	/**
 	 * Extra-Einheiten = Solo-Trainings + Teilnahmen an Zusatztrainings.
@@ -613,6 +635,82 @@
 								</tbody>
 							</table>
 						</div>
+					</div>
+				</div>
+			{/if}
+		</section>
+
+		<section>
+			<h3 class="text-lg font-semibold text-text-primary mb-1">Abmeldegründe</h3>
+			<p class="text-text-muted text-sm mb-4">
+				Was waren die Gründe? Alle ausdrücklichen Abmeldungen vergangener Trainings, neueste zuerst.
+			</p>
+
+			{#if stats.absenceHistory.length === 0}
+				<div class="bg-bg-card rounded-xl border border-border p-5 text-text-muted text-sm">
+					Noch keine Abmeldungen in vergangenen Trainings.
+				</div>
+			{:else}
+				<div class="bg-bg-card rounded-xl border border-border p-4 md:p-5 space-y-4">
+					<div class="flex flex-wrap items-center gap-3">
+						<label for="absence-person" class="text-text-secondary text-sm">Person</label>
+						<select
+							id="absence-person"
+							bind:value={absencePerson}
+							class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent"
+						>
+							<option value="">Alle</option>
+							{#each absencePeople as name}
+								<option value={name}>{name}</option>
+							{/each}
+						</select>
+						<input
+							type="search"
+							bind:value={absenceSearch}
+							placeholder="Im Grund suchen …"
+							class="flex-1 min-w-[10rem] bg-bg-secondary border border-border rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent"
+						/>
+						<span class="text-text-muted text-xs">{absenceRows.length} Einträge</span>
+					</div>
+
+					<div class="overflow-x-auto">
+						<table class="w-full text-sm">
+							<thead class="text-text-muted text-xs uppercase tracking-wide">
+								<tr class="border-b border-border">
+									<th class="px-3 py-2 text-left font-medium">Datum</th>
+									<th class="px-3 py-2 text-left font-medium">Wer</th>
+									<th class="px-3 py-2 text-left font-medium">Grund</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#if absenceRows.length === 0}
+									<tr><td colspan="3" class="px-3 py-4 text-text-muted">Nichts gefunden.</td></tr>
+								{:else}
+									{#each absenceRows as row (row.id)}
+										<tr class="border-b border-border/60 last:border-0">
+											<td class="px-3 py-2 whitespace-nowrap text-text-secondary">
+												{formatAbsenceDate(row.date)}
+												{#if row.isExtra}
+													<span class="ml-1 text-[10px] uppercase tracking-wide text-accent-blue">Zusatz</span>
+												{/if}
+												{#if row.cancelled}
+													<span class="ml-1 text-[10px] uppercase tracking-wide text-text-muted">abgesagt</span>
+												{/if}
+											</td>
+											<td class="px-3 py-2 whitespace-nowrap">
+												<a href="/profil/{row.userId}" class="text-text-primary hover:text-accent transition-colors">{row.username}</a>
+												{#if row.lateMinutes !== null}
+													<span class="ml-1 rounded-full bg-danger/15 px-1.5 py-0.5 text-[10px] font-semibold text-danger" title="Kurzfristige Abmeldung">
+														{row.lateMinutes} Min.
+													</span>
+												{/if}
+											</td>
+											<td class="px-3 py-2 text-text-secondary break-words">{row.reason}</td>
+										</tr>
+									{/each}
+								{/if}
+							</tbody>
+						</table>
 					</div>
 				</div>
 			{/if}

@@ -13,11 +13,12 @@ import {
 } from '$lib/server/db/schema';
 import { isImplicitEffectiveAbsent } from '$lib/server/trainingAttendance';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
-import { and, asc, eq, gte, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { asNum } from '$lib/server/asSqlNumber';
 import { andWithUsersNotDeleted } from '$lib/server/usersWhere';
 import { spotsTableHasDeletedColumn } from '$lib/server/spotsTableColumns';
 import { isSpotChallengesSchemaReady } from '$lib/server/spotChallengesSchemaReady';
+import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 
 /** Statistik startet bewusst erst ab April 2026 (März-Testdaten ausblenden). */
 const STATS_START_DATE = '2026-04-01';
@@ -72,7 +73,79 @@ export type TrainingStatsPayload = {
 		spotCity: string;
 		voteCount: number;
 	}[];
+	/** Verlauf aller ausdrücklichen Abmeldungen samt Grund, neueste zuerst. */
+	absenceHistory: AbsenceHistoryRow[];
 };
+
+export type AbsenceHistoryRow = {
+	id: number;
+	sessionId: number;
+	date: string;
+	dayOfWeek: string;
+	isExtra: boolean;
+	cancelled: boolean;
+	userId: number;
+	username: string;
+	avatar: string | null;
+	reason: string;
+	/** Minuten vor Beginn, wenn die Abmeldung kurzfristig war (sonst null). */
+	lateMinutes: number | null;
+};
+
+/**
+ * Abmelde-Verlauf: Was waren die Gründe? Nur ausdrückliche Einträge
+ * (Wochentags-Regeln haben keinen Text) an vergangenen Trainings — die
+ * Trainingsseite zeigt nur kommende Termine, darum ist das hier die
+ * einzige Stelle, an der man das nachlesen kann.
+ */
+function buildAbsenceHistory(limit = 300): AbsenceHistoryRow[] {
+	const rows = db
+		.select({
+			id: absences.id,
+			sessionId: absences.sessionId,
+			createdAt: absences.createdAt,
+			reason: absences.reason,
+			userId: users.id,
+			username: users.username,
+			avatar: users.avatar,
+			date: trainingSessions.date,
+			dayOfWeek: trainingSessions.dayOfWeek,
+			timeStart: trainingSessions.timeStart,
+			isExtra: trainingSessions.isExtra,
+			cancelled: trainingSessions.cancelled
+		})
+		.from(absences)
+		.innerJoin(users, eq(absences.userId, users.id))
+		.innerJoin(trainingSessions, eq(absences.sessionId, trainingSessions.id))
+		.where(andWithUsersNotDeleted(lt(trainingSessions.date, todayYmdInAppTZ())))
+		.orderBy(desc(trainingSessions.date), asc(users.username))
+		.limit(limit)
+		.all();
+
+	return rows.map((r) => {
+		// Wie kurzfristig war die Abmeldung? Aus Eintragszeit und Beginn.
+		let lateMinutes: number | null = null;
+		if (r.createdAt) {
+			const created = new Date(String(r.createdAt).replace(' ', 'T') + 'Z').getTime();
+			const start = new Date(`${r.date}T${r.timeStart}:00`).getTime();
+			const diff = Math.round((start - created) / 60000);
+			if (Number.isFinite(diff) && diff > 0 && diff < 120 && !r.isExtra) lateMinutes = diff;
+		}
+		return {
+			id: asNum(r.id),
+			sessionId: asNum(r.sessionId),
+			date: r.date,
+			dayOfWeek: r.dayOfWeek,
+			isExtra: Boolean(r.isExtra),
+			cancelled: Boolean(r.cancelled),
+			userId: asNum(r.userId),
+			username: r.username,
+			avatar: r.avatar ? `/uploads/${r.avatar}` : null,
+			reason: r.reason ?? 'Kann nicht',
+			lateMinutes
+		};
+	});
+}
 
 function userStartDate(createdAt: string | null | undefined): string {
 	if (!createdAt || typeof createdAt !== 'string') return '1970-01-01';
@@ -409,7 +482,8 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		monthly,
 		monthDetail,
 		leaderboard,
-		spotUsageEvents
+		spotUsageEvents,
+		absenceHistory: buildAbsenceHistory()
 	};
 }
 
@@ -669,7 +743,8 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 		monthly,
 		monthDetail,
 		leaderboard,
-		spotUsageEvents
+		spotUsageEvents,
+		absenceHistory: buildAbsenceHistory()
 	};
 }
 

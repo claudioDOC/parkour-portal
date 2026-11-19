@@ -69,6 +69,7 @@ Die native App spricht mit dem Server über die JSON-API (`/api/v1/…`, Bearer-
 - Passwort ändern in den Einstellungen
 
 ### Statistik
+- **Abmeldegründe-Verlauf**: Alle ausdrücklichen Abmeldungen vergangener Trainings mit Grund, neueste zuerst (Statistik-Seite und App) — filterbar nach Person, im Web zusätzlich Textsuche im Grund. Kurzfristige Abmeldungen tragen ein rotes „N Min.“, Zusatztrainings und abgesagte Termine sind gekennzeichnet. Die Trainingsseite zeigt nur kommende Termine; dies ist die Stelle zum Nachlesen.
 - Zusage-Accounts, die nie zu- oder abgesagt haben, erscheinen nicht in der Rangliste (0 % ohne Teilnahme ist keine Aussage); mit der ersten Zusage oder Abmeldung tauchen sie von selbst auf
 - Übersicht Trainingsbeteiligung pro Mitglied (geschätzt, ab Registrierung; nutzt dieselben Regeln wie die Trainingsseite, inkl. Opt-in/Auto-Abmeldung wenn migriert)
 
