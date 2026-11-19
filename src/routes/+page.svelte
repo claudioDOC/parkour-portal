@@ -182,7 +182,7 @@
 											{#if user.id < 0}
 												<span class="relative z-20 bg-success/10 text-success text-xs px-2.5 py-1 rounded-full">?</span>
 											{:else}
-												<a href="/profil/{user.id}" class="pointer-events-auto relative z-20 bg-success/10 text-success text-xs px-2.5 py-1 rounded-full transition-colors hover:bg-success/20">{user.username}</a>
+												<a href="/profil/{user.id}" class="pointer-events-auto relative z-20 text-xs px-2.5 py-1 rounded-full transition-colors {user.lateMarked ? 'bg-danger/15 text-danger ring-1 ring-danger/60' : 'bg-success/10 text-success hover:bg-success/20'}" title={user.lateMarked ? 'Hat sich letzte Woche kurzfristig abgemeldet' : ''}>{user.username}</a>
 											{/if}
 										{/each}
 										{#each session.guests || [] as guest}
@@ -199,7 +199,7 @@
 									</p>
 									<div class="flex flex-wrap gap-1.5">
 										{#each session.absences as absence}
-											<span class="bg-danger/10 text-danger text-xs px-2.5 py-1 rounded-full" title={absence.reason || ''}>
+											<span class="text-xs px-2.5 py-1 rounded-full {absence.lateMarked ? 'bg-danger/25 text-danger ring-1 ring-danger font-semibold' : 'bg-danger/10 text-danger'}" title={absence.lateMarked ? `Kurzfristig abgemeldet · ${absence.reason || ''}` : absence.reason || ''}>
 												{absence.username}{#if absence.reason} *{/if}
 											</span>
 										{/each}

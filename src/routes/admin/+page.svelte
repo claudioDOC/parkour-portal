@@ -68,8 +68,8 @@
 		cancelled?: boolean | number;
 		isExtra?: boolean | number;
 		overrideSpotId?: number | null;
-		absences: { id: number | null; userId: number; username: string; reason: string | null; virtual?: boolean }[];
-		attending: { id: number; username: string }[];
+		absences: { id: number | null; userId: number; username: string; reason: string | null; virtual?: boolean; lateMarked?: boolean }[];
+		attending: { id: number; username: string; lateMarked?: boolean }[];
 		spotVotes: { id: number; spotName: string; spotCity: string; username: string; userId: number }[];
 		guests: { id: number; sessionId: number; name: string }[];
 		hiddenUsers: { id: number; userId: number; username: string }[];
@@ -84,6 +84,26 @@
 	let adminAbsencePick = $state<Record<number, string>>({});
 	/** Admin: Zusage (add_rsvp) für ein (Zusatz-)Training eintragen. */
 	let adminRsvpPick = $state<Record<number, string>>({});
+	/** Trainingszeit ändern — Push an alle geht vom Server aus. */
+	let timePickSessionId = $state<number | null>(null);
+	let timeStartInput = $state('');
+	let timeEndInput = $state('');
+	let timeReason = $state('');
+	async function setTrainingTime(sessionId: number) {
+		await postTraining({
+			type: 'set_time',
+			sessionId,
+			timeStart: timeStartInput.trim(),
+			timeEnd: timeEndInput.trim(),
+			...(timeReason.trim() ? { reason: timeReason.trim() } : {})
+		});
+		timePickSessionId = null;
+		timeReason = '';
+	}
+	async function clearLateMark(userId: number, username: string) {
+		if (!confirm(`Rote Markierung von ${username} aufheben?`)) return;
+		await postTraining({ type: 'clear_late_mark', userId });
+	}
 	let adminAbsenceNote = $state<Record<number, string>>({});
 
 	let spotList = $state<Spot[]>([]);
@@ -1746,8 +1766,8 @@
 								{#if session.isExtra}
 									<span class="text-xs rounded-full bg-accent-blue/15 px-2 py-0.5 font-semibold text-accent-blue">Zusatztraining</span>
 								{/if}
-								{#if !sessionPast}
-									<div class="ml-auto flex flex-wrap items-center gap-2">
+								<div class="ml-auto flex flex-wrap items-center gap-2">
+									{#if !sessionPast}
 										{#if session.cancelled}
 											<button
 												onclick={() => cancelTraining(session.id, false)}
@@ -1774,7 +1794,19 @@
 												class="cursor-pointer rounded-lg border border-danger/30 px-3 py-1.5 text-xs font-semibold text-danger transition-colors hover:bg-danger/10"
 											>Training absagen…</button>
 										{/if}
-										{#if spotPickSessionId === session.id}
+										<!-- Zeit ändern: Push an alle geht vom Server aus -->
+										{#if timePickSessionId === session.id}
+											<input type="time" bind:value={timeStartInput} class="rounded-lg border border-border bg-bg-secondary px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:border-accent" />
+											<span class="text-xs text-text-muted">–</span>
+											<input type="time" bind:value={timeEndInput} class="rounded-lg border border-border bg-bg-secondary px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:border-accent" />
+											<input type="text" bind:value={timeReason} placeholder="Grund (optional, geht in den Push)" class="w-48 rounded-lg border border-border bg-bg-secondary px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:border-accent" />
+											<button onclick={() => setTrainingTime(session.id)} disabled={!timeStartInput || !timeEndInput} class="cursor-pointer rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hover disabled:opacity-50">Ändern + alle informieren</button>
+											<button onclick={() => { timePickSessionId = null; timeReason = ''; }} class="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted hover:text-text-primary">Abbrechen</button>
+										{:else}
+											<button onclick={() => { timePickSessionId = session.id; timeStartInput = session.timeStart; timeEndInput = session.timeEnd; timeReason = ''; }} class="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:bg-bg-hover">Zeit ändern…</button>
+										{/if}
+									{/if}
+									{#if spotPickSessionId === session.id}
 											<select
 												bind:value={spotPickValue}
 												class="min-w-[10rem] rounded-lg border border-border bg-bg-secondary px-2 py-1.5 text-xs text-text-primary focus:border-accent focus:outline-none"
@@ -1797,7 +1829,7 @@
 											<button
 												onclick={() => { spotPickSessionId = session.id; spotPickValue = String(session.overrideSpotId ?? ''); }}
 												class="cursor-pointer rounded-lg border border-accent/30 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/10"
-											>{session.overrideSpotId ? 'Spot ändern…' : 'Spot festlegen…'}</button>
+											>{session.overrideSpotId ? 'Spot ändern…' : sessionPast ? 'Spot nachträglich setzen…' : 'Spot festlegen…'}</button>
 											{#if session.overrideSpotId}
 												<button
 													onclick={() => setTrainingSpot(session.id, null)}
@@ -1805,8 +1837,7 @@
 												>Zurück zum Voting</button>
 											{/if}
 										{/if}
-									</div>
-								{/if}
+								</div>
 							</div>
 
 							{#if session.spotVotes.length > 0}
@@ -1840,7 +1871,12 @@
 								<div class="space-y-1">
 									{#each session.attending as user}
 										<div class="flex items-center justify-between bg-bg-secondary rounded-lg px-3 py-2">
-											<span class="text-text-primary text-sm">{user.username}</span>
+											<span class="text-sm {user.lateMarked ? 'text-danger font-semibold' : 'text-text-primary'}">
+												{user.username}
+												{#if user.lateMarked}
+													<button type="button" onclick={() => clearLateMark(user.id, user.username)} class="ml-2 text-[11px] text-text-muted hover:text-text-primary cursor-pointer" title="Kurzfristig abgemeldet — Markierung aufheben">rot · aufheben</button>
+												{/if}
+											</span>
 											<button onclick={() => session.isExtra
 												? postTraining({ type: 'remove_rsvp', sessionId: session.id, userId: user.id })
 												: deleteTrainingEntry('hide_user', { userId: user.id, sessionId: session.id })}
@@ -1958,7 +1994,10 @@
 										{#each session.absences as absence}
 											<div class="flex items-center justify-between bg-bg-secondary rounded-lg px-3 py-2">
 												<div class="text-sm">
-													<span class="text-text-primary">{absence.username}</span>
+													<span class={absence.lateMarked ? 'text-danger font-semibold' : 'text-text-primary'}>{absence.username}</span>
+													{#if absence.lateMarked}
+														<button type="button" onclick={() => clearLateMark(absence.userId, absence.username)} class="ml-1 text-[11px] text-text-muted hover:text-text-primary cursor-pointer" title="Kurzfristig abgemeldet — Markierung aufheben">rot · aufheben</button>
+													{/if}
 													{#if absence.reason}
 														<span class="text-text-muted text-xs ml-2">– {absence.reason}</span>
 													{/if}

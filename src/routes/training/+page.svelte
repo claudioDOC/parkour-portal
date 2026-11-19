@@ -253,7 +253,29 @@
 				body: JSON.stringify({ action, sessionId, ...extra })
 			});
 			if (!res.ok) {
-				const body = (await res.json().catch(() => ({}))) as { error?: string };
+				const body = (await res.json().catch(() => ({}))) as {
+					error?: string;
+					requiresLateConfirm?: boolean;
+					minutesBefore?: number;
+				};
+				// Kurzfristige Abmeldung (< 2 h vor Beginn): nur als Notfall, mit
+				// dreifacher Bestätigung — und der Name ist danach eine Woche rot.
+				if (res.status === 409 && body.requiresLateConfirm && action === 'absence' && !extra.lateConfirm) {
+					const min = body.minutesBefore ?? 0;
+					const steps = [
+						`Notfall-Abmeldung 1/3\n\nDas Training beginnt in ${min} Minuten. Abmelden geht jetzt nur noch als Notfall. Weiter?`,
+						'Notfall-Abmeldung 2/3\n\nBist du sicher? Die anderen rechnen mit dir — Spot und Planung stehen schon.',
+						'Notfall-Abmeldung 3/3\n\nDein Name ist danach eine Woche lang rot markiert. Trotzdem abmelden?'
+					];
+					loadingSession = null;
+					for (const text of steps) {
+						if (!confirm(text)) {
+							pushNotice('Abmeldung abgebrochen.', 'info');
+							return;
+						}
+					}
+					return postAction(action, sessionId, { ...extra, lateConfirm: 3 });
+				}
 				pushNotice(body.error || `Aktion fehlgeschlagen (${res.status})`, 'error');
 			}
 			// Auch nach Fehlern neu laden — der Server-Stand ist die Wahrheit.
@@ -755,7 +777,7 @@
 											<!-- Strafrunde: Namen sind für diese Person Fragezeichen. -->
 											<span class="bg-success/10 text-success text-xs px-2.5 py-1 rounded-full">?</span>
 										{:else}
-											<a href="/profil/{user.id}" class="bg-success/10 text-success text-xs px-2.5 py-1 rounded-full transition-colors hover:bg-success/20">{user.username}</a>
+											<a href="/profil/{user.id}" class="text-xs px-2.5 py-1 rounded-full transition-colors {user.lateMarked ? 'bg-danger/15 text-danger ring-1 ring-danger/60 hover:bg-danger/25' : 'bg-success/10 text-success hover:bg-success/20'}" title={user.lateMarked ? 'Hat sich letzte Woche kurzfristig abgemeldet' : ''}>{user.username}</a>
 										{/if}
 									{/each}
 									{#each session.guests || [] as guest}
@@ -777,8 +799,8 @@
 											{#if absence.reason}
 												<button
 													type="button"
-													class="bg-danger/10 text-danger text-xs px-2.5 py-1 rounded-full cursor-pointer"
-													title={absence.reason}
+													class="text-xs px-2.5 py-1 rounded-full cursor-pointer {absence.lateMarked ? 'bg-danger/25 text-danger ring-1 ring-danger font-semibold' : 'bg-danger/10 text-danger'}"
+													title={absence.lateMarked ? `Kurzfristig abgemeldet · ${absence.reason}` : absence.reason}
 													aria-expanded={openAbsenceReason === absenceKey}
 													onclick={() =>
 														(openAbsenceReason = openAbsenceReason === absenceKey ? null : absenceKey)}
@@ -791,7 +813,7 @@
 													</p>
 												{/if}
 											{:else}
-												<span class="bg-danger/10 text-danger text-xs px-2.5 py-1 rounded-full">{absence.username}</span>
+												<span class="text-xs px-2.5 py-1 rounded-full {absence.lateMarked ? 'bg-danger/25 text-danger ring-1 ring-danger font-semibold' : 'bg-danger/10 text-danger'}" title={absence.lateMarked ? 'Kurzfristig abgemeldet' : ''}>{absence.username}</span>
 											{/if}
 										</div>
 									{/each}
