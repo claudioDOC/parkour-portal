@@ -352,6 +352,27 @@ export function computeTrainingStats(): TrainingStatsPayload {
 	}
 
 	for (const s of pastSessions) {
+		// Vom Admin gesetzter Spot (auch nachträglich: „wir waren spontan woanders")
+		// schlägt das Voting — sonst zählt die Statistik einen Spot, an dem
+		// niemand war.
+		if (s.overrideSpotId) {
+			const os = db
+				.select({ id: spots.id, name: spots.name, city: spots.city })
+				.from(spots)
+				.where(eq(spots.id, s.overrideSpotId))
+				.get();
+			if (os) {
+				spotUsageEvents.push({
+					sessionId: s.id,
+					date: s.date,
+					spotId: os.id,
+					spotName: os.name,
+					spotCity: os.city,
+					voteCount: 0
+				});
+				continue;
+			}
+		}
 		const topSpot = db
 			.select({
 				spotId: trainingSpotVotes.spotId,
@@ -591,6 +612,27 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 	}
 
 	for (const s of pastSessions) {
+		// Vom Admin gesetzter Spot (auch nachträglich: „wir waren spontan woanders")
+		// schlägt das Voting — sonst zählt die Statistik einen Spot, an dem
+		// niemand war.
+		if (s.overrideSpotId) {
+			const os = db
+				.select({ id: spots.id, name: spots.name, city: spots.city })
+				.from(spots)
+				.where(eq(spots.id, s.overrideSpotId))
+				.get();
+			if (os) {
+				spotUsageEvents.push({
+					sessionId: s.id,
+					date: s.date,
+					spotId: os.id,
+					spotName: os.name,
+					spotCity: os.city,
+					voteCount: 0
+				});
+				continue;
+			}
+		}
 		const topSpot = db
 			.select({
 				spotId: trainingSpotVotes.spotId,

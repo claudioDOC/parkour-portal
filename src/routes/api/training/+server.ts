@@ -14,6 +14,7 @@ import {
 import { eq, and } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
 import { votingDeadlineFor } from '$lib/server/training';
+import { LATE_CONFIRMATIONS, isLateAbsence, minutesUntilStart, recordLateAbsence } from '$lib/server/lateAbsence';
 import { sendToUsersWithPref } from '$lib/server/push';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 import { todayYmdInAppTZ, germanWeekdayInAppTZ } from '$lib/server/calendarToday';
@@ -194,6 +195,24 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'Bereits als zieht nicht eingetragen' }, { status: 400 });
 		}
 
+		// Kurzfristig (< 2 h vor Beginn, fester Termin): nur als Notfall mit
+		// dreifacher Bestätigung — und der Name ist danach eine Woche rot.
+		// Zusatztrainings sind freiwillig und oft spontan, dort gilt das nicht.
+		const minutesBefore = minutesUntilStart(session);
+		const late = !session.isExtra && isLateAbsence(session);
+		const confirmations = Number(body?.lateConfirm ?? 0);
+		if (late && confirmations < LATE_CONFIRMATIONS) {
+			return json(
+				{
+					error: `Weniger als 2 Stunden vor dem Training. Abmelden geht nur noch als Notfall — mit ${LATE_CONFIRMATIONS}-facher Bestätigung, und dein Name ist danach eine Woche rot markiert.`,
+					requiresLateConfirm: true,
+					minutesBefore,
+					confirmationsNeeded: LATE_CONFIRMATIONS
+				},
+				{ status: 409 }
+			);
+		}
+
 		db.insert(absences).values({
 			userId: locals.user.id,
 			sessionId,
@@ -220,16 +239,18 @@ export const POST: RequestHandler = async (event) => {
 				.run();
 		}
 
+		if (late) recordLateAbsence(locals.user.id, sessionId, minutesBefore);
 		logAudit({
 			event,
-			action: 'training.absence',
+			action: late ? 'training.absence.late' : 'training.absence',
 			actorUserId: locals.user.id,
 			actorUsername: locals.user.username,
 			detail: {
 				sessionId,
 				date: session.date,
 				dayOfWeek: session.dayOfWeek,
-				reason: reason?.trim() ? reason.trim() : 'Kann nicht'
+				reason: reason?.trim() ? reason.trim() : 'Kann nicht',
+				...(late ? { minutesBefore } : {})
 			}
 		});
 		// Die anderen erfahren, wer sich mit welchem Grund abgemeldet hat —
@@ -241,8 +262,10 @@ export const POST: RequestHandler = async (event) => {
 			void sendToUsersWithPref(
 				'absenceReported',
 				{
-					title: `${locals.user.username} ist nicht dabei`,
-					body: `${datum}: ${grund}`,
+					title: late
+						? `${locals.user.username} ist nicht dabei — kurzfristig!`
+						: `${locals.user.username} ist nicht dabei`,
+					body: late ? `${datum} (${minutesBefore} Min. vorher): ${grund}` : `${datum}: ${grund}`,
 					url: '/training',
 					tag: `absence-${sessionId}-${locals.user.id}`
 				},

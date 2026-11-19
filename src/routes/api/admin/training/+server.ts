@@ -5,6 +5,7 @@ import { snapshotAbsences } from '$lib/server/absenceAudit';
 import { activePenaltyFor, createNoShowPenalty } from '$lib/server/noShowPenalty';
 import { noShowPenalties } from '$lib/server/db/schema';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
+import { clearLateMarks, lateMarkedUserIds } from '$lib/server/lateAbsence';
 import {
 	trainingSessions,
 	trainingSpotVotes,
@@ -86,6 +87,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 					autoAbsentWeekdays: [] as string[]
 				}));
 
+	const lateMarked = lateMarkedUserIds();
 	const result = sessions.map((session) => {
 		const sessionAbsences = db.select({
 			id: absences.id,
@@ -182,8 +184,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		return {
 			...session,
-			absences: absencesForList,
-			attending,
+			absences: absencesForList.map((a) => ({ ...a, lateMarked: lateMarked.has(a.userId) })),
+			attending: attending.map((u) => ({ ...u, lateMarked: lateMarked.has(u.id) })),
 			spotVotes,
 			guests,
 			hiddenUsers
@@ -241,6 +243,20 @@ export const POST: RequestHandler = async (event) => {
 			}
 			return json({ success: true, created: result.created, penalty: result.penalty });
 		}
+		/** Rote Markierung (kurzfristige Abmeldung) vorzeitig aufheben. */
+		if (type === 'clear_late_mark' && Number.isFinite(userId) && userId > 0) {
+			const removed = clearLateMarks(userId);
+			logAudit({
+				event,
+				action: 'admin.training.clear_late_mark',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				targetUserId: userId,
+				detail: { removed }
+			});
+			return json({ success: true, removed });
+		}
+
 		if (type === 'remove_penalty' && Number.isFinite(userId) && userId > 0) {
 			const active = activePenaltyFor(userId);
 			if (active) db.delete(noShowPenalties).where(eq(noShowPenalties.id, active.id)).run();
@@ -367,6 +383,64 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		/** Training absagen/aufheben — bei Absage geht ein Push an alle Mitziehenden. */
+		/**
+		 * Trainingszeit ändern (z. B. „heute 19–21 statt 18:15–20:15"). Geht an
+		 * ALLE mit Gerät — wer die Zeit nicht kennt, steht sonst vor leerem Spot.
+		 */
+		if (type === 'set_time' && sessionId) {
+			const session = db.select().from(trainingSessions).where(eq(trainingSessions.id, sessionId)).get();
+			if (!session) return json({ error: 'Training nicht gefunden' }, { status: 404 });
+			const timeStart = String(body.timeStart ?? '').trim();
+			const timeEnd = String(body.timeEnd ?? '').trim();
+			const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+			if (!HHMM.test(timeStart) || !HHMM.test(timeEnd)) {
+				return json({ error: 'Zeit im Format HH:MM angeben' }, { status: 400 });
+			}
+			if (timeEnd <= timeStart) return json({ error: 'Ende muss nach dem Beginn liegen' }, { status: 400 });
+			if (timeStart === session.timeStart && timeEnd === session.timeEnd) {
+				return json({ error: 'Das ist schon die aktuelle Zeit' }, { status: 400 });
+			}
+			const before = `${session.timeStart}–${session.timeEnd}`;
+			db.update(trainingSessions)
+				.set({ timeStart, timeEnd })
+				.where(eq(trainingSessions.id, sessionId))
+				.run();
+			logAudit({
+				event,
+				action: 'admin.training.set_time',
+				actorUserId: locals.user!.id,
+				actorUsername: locals.user!.username,
+				detail: { sessionId, date: session.date, from: before, to: `${timeStart}–${timeEnd}`, reason: reasonRaw || null }
+			});
+			const datum = new Date(`${session.date}T12:00:00`).toLocaleDateString('de-CH', { weekday: 'short', day: 'numeric', month: 'short' });
+			recordEvent({
+				kind: 'training.spot_fixed',
+				actorUserId: locals.user!.id,
+				actorName: locals.user!.username,
+				title: `Trainingszeit geändert — ${datum}`,
+				body: `Neu ${timeStart}–${timeEnd} Uhr (vorher ${before})${reasonRaw ? ` · ${reasonRaw}` : ''}`,
+				url: '/training'
+			});
+			const everyone = db
+				.select({ id: users.id })
+				.from(users)
+				.where(and(usersNotDeletedCondition(), eq(users.active, true)))
+				.all()
+				.map((u) => u.id);
+			let sent = 0;
+			try {
+				sent = await sendToUsers(everyone, {
+					title: `Trainingszeit geändert — ${datum}`,
+					body: `Neu ${timeStart}–${timeEnd} Uhr (vorher ${before}).${reasonRaw ? ` ${reasonRaw}` : ''}`,
+					url: '/training',
+					tag: `training-time-${sessionId}`
+				});
+			} catch {
+				/* Push darf die Änderung nicht blockieren */
+			}
+			return json({ success: true, sent });
+		}
+
 		if ((type === 'cancel_session' || type === 'uncancel_session') && sessionId) {
 			const session = db
 				.select()

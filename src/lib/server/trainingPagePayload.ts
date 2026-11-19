@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db';
 import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noShowPenalty';
 import { nextTripSummary } from '$lib/server/tripDatePoll';
+import { lateMarkedUserIds } from '$lib/server/lateAbsence';
 import {
 	trainingSessions,
 	absences,
@@ -44,6 +45,8 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 	// Strafrunde der betrachtenden Person: Fragezeichen statt Namen und
 	// beim Straf-Training ein falscher Spot (siehe noShowPenalty.ts).
 	const viewerPenalty = user ? activePenaltyFor(user.id) : null;
+	// Rote Namen: wer sich in der letzten Woche kurzfristig abgemeldet hat.
+	const lateMarked = lateMarkedUserIds();
 	const viewerAttendance = user?.trainingAttendance ?? null;
 	const today = todayYmdInAppTZ();
 
@@ -386,9 +389,9 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 					: null,
 			spotThumbnail: effectiveSpotId ? (spotThumbs.get(effectiveSpotId) ?? null) : null,
 			overrideSpot,
-			absences: absencesForList,
-			pendingResponders,
-			attending,
+			absences: absencesForList.map((a) => ({ ...a, lateMarked: lateMarked.has(a.userId) })),
+			pendingResponders: pendingResponders.map((p) => ({ ...p, lateMarked: lateMarked.has(p.id) })),
+			attending: attending.map((u) => ({ ...u, lateMarked: u.id > 0 && lateMarked.has(u.id) })),
 			guests,
 			userDbAbsent,
 			userVirtualAbsent,

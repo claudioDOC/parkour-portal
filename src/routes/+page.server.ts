@@ -29,12 +29,14 @@ import { ensureUpcomingTrainingSessions } from '$lib/server/ensureUpcomingTraini
 import { computeTrainingStats } from '$lib/server/stats';
 import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noShowPenalty';
 import { nextTripSummary } from '$lib/server/tripDatePoll';
+import { lateMarkedUserIds } from '$lib/server/lateAbsence';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const today = todayYmdInAppTZ();
 
 	ensureUpcomingTrainingSessions();
 	const viewerPenalty = locals.user ? activePenaltyFor(locals.user.id) : null;
+	const lateMarked = lateMarkedUserIds();
 
 	const nextTrainings = db.select().from(trainingSessions)
 		.where(gte(trainingSessions.date, today))
@@ -211,8 +213,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		return {
 			...session,
-			absences: absencesForList,
-			attending,
+			absences: absencesForList.map((a) => ({ ...a, lateMarked: lateMarked.has(a.userId) })),
+			attending: attending.map((u) => ({ ...u, lateMarked: u.id > 0 && lateMarked.has(u.id) })),
 			guests,
 			userEffectivelyAbsent,
 			topVote: effectiveVote

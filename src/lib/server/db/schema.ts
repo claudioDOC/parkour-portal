@@ -396,6 +396,27 @@ export const tripDateAnswers = sqliteTable(
  * automatisch mit dem Admin-Eintrag „nicht erschienen", läuft mit dem Ende
  * des Straf-Trainings aus.
  */
+/**
+ * Kurzfristige Abmeldung (< 2 h vor Beginn): nur als Notfall mit dreifacher
+ * Bestätigung — und der Name ist danach eine Woche lang rot markiert.
+ */
+export const lateAbsenceMarks = sqliteTable(
+	'late_absence_marks',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		sessionId: integer('session_id')
+			.notNull()
+			.references(() => trainingSessions.id),
+		minutesBefore: integer('minutes_before').notNull(),
+		createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+		expiresAt: text('expires_at').notNull()
+	},
+	(t) => [index('late_absence_marks_user_idx').on(t.userId, t.expiresAt)]
+);
+
 export const noShowPenalties = sqliteTable(
 	'no_show_penalties',
 	{
