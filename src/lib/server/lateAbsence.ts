@@ -1,14 +1,16 @@
 /**
- * Kurzfristige Abmeldung: weniger als LATE_WINDOW_MIN Minuten vor Beginn.
+ * Kurzfristige Abmeldung: nach dem Spot-Schluss (siehe votingDeadlineFor —
+ * zwei Stunden vor Beginn, spätestens 16:15) und bis zum Trainingsende.
  *
  * Erlaubt bleibt sie — als Notfall, mit dreifacher Bestätigung. Dafür ist
  * der Name danach MARK_DAYS Tage rot markiert. Ziel ist nicht die Strafe,
- * sondern dass man sich mindestens zwei Stunden vorher abmeldet, solange
- * Spot und Planung noch reagieren können.
+ * sondern dass man sich abmeldet, solange Spot und Planung noch reagieren
+ * können. Ab dem Moment, in dem der Spot steht, ist es zu spät.
  */
 import { and, eq, gt, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { lateAbsenceMarks } from '$lib/server/db/schema';
+import { votingDeadlineFor } from '$lib/server/training';
 
 export const LATE_WINDOW_MIN = 120;
 export const LATE_CONFIRMATIONS = 3;
@@ -20,10 +22,17 @@ export function minutesUntilStart(session: { date: string; timeStart: string }, 
 	return Math.round((start - now.getTime()) / 60000);
 }
 
-/** Kurzfristig = innerhalb des Fensters vor Beginn, aber noch vor dem Beginn. */
-export function isLateAbsence(session: { date: string; timeStart: string }, now = new Date()): boolean {
-	const m = minutesUntilStart(session, now);
-	return m > 0 && m < LATE_WINDOW_MIN;
+/**
+ * Kurzfristig = der Spot steht schon und das Training ist noch nicht vorbei.
+ * Gilt nicht für Zusatztrainings (dort ist das Voting bis zum Beginn offen).
+ */
+export function isLateAbsence(
+	session: { date: string; timeStart: string; timeEnd: string; isExtra?: boolean | number | null },
+	now = new Date()
+): boolean {
+	if (session.isExtra) return false;
+	const end = new Date(`${session.date}T${session.timeEnd}:00`);
+	return now > votingDeadlineFor(session) && now <= end;
 }
 
 export function recordLateAbsence(userId: number, sessionId: number, minutesBefore: number): void {

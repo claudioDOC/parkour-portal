@@ -23,6 +23,7 @@ import { db } from '$lib/server/db';
 import { noShowPenalties, spots, trainingSessions, users } from '$lib/server/db/schema';
 import { recordEvent } from '$lib/server/activity';
 import { sendToUsers } from '$lib/server/push';
+import { votingDeadlineFor } from '$lib/server/training';
 
 type SessionRow = {
 	id: number;
@@ -105,7 +106,8 @@ export function activePenaltyFor(userId: number, now = new Date()): ActivePenalt
 		}
 		// Eine Stunde nach Trainingsende ist die Runde vorbei.
 		if (now.getTime() > sessionEnd(penalty).getTime() + 60 * 60 * 1000) continue;
-		const spotFixAt = sessionStart(penalty).getTime() - 2 * 60 * 60 * 1000;
+		// Phasenwechsel genau dann, wenn der Spot steht (siehe votingDeadlineFor).
+		const spotFixAt = votingDeadlineFor(penalty).getTime();
 		return {
 			id: row.id,
 			userId,

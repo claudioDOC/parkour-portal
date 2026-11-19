@@ -422,12 +422,20 @@ export default function Stats() {
 														Zusatz
 													</Text>
 												) : null}
+												{row.byAdmin ? (
+													<Text
+														style={styles.absenceBadge}
+														accessibilityLabel="Vom Admin nachgetragen"
+													>
+														Admin
+													</Text>
+												) : null}
 												{row.lateMinutes !== null ? (
 													<Text
 														style={[styles.absenceBadge, { color: colors.danger }]}
-														accessibilityLabel={`Kurzfristig abgemeldet, ${row.lateMinutes} Minuten vorher`}
+														accessibilityLabel={`Zu spät abgemeldet, ${row.lateMinutes} Minuten nach Spot-Schluss`}
 													>
-														{row.lateMinutes} Min.
+														{row.lateMinutes} Min. zu spät
 													</Text>
 												) : null}
 												{row.cancelled ? (

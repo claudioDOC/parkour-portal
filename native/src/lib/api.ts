@@ -1074,8 +1074,10 @@ export type AbsenceHistoryRow = {
 	username: string;
 	avatar: string | null;
 	reason: string;
-	/** Minuten vor Beginn, wenn kurzfristig abgemeldet — sonst null. */
+	/** Minuten NACH dem Spot-Schluss, wenn zu spät abgemeldet — sonst null. */
 	lateMinutes: number | null;
+	/** Vom Admin nachgetragen statt selbst abgemeldet. */
+	byAdmin: boolean;
 };
 
 export type StatsPayload = {

@@ -199,12 +199,12 @@ export const POST: RequestHandler = async (event) => {
 		// dreifacher Bestätigung — und der Name ist danach eine Woche rot.
 		// Zusatztrainings sind freiwillig und oft spontan, dort gilt das nicht.
 		const minutesBefore = minutesUntilStart(session);
-		const late = !session.isExtra && isLateAbsence(session);
+		const late = isLateAbsence(session);
 		const confirmations = Number(body?.lateConfirm ?? 0);
 		if (late && confirmations < LATE_CONFIRMATIONS) {
 			return json(
 				{
-					error: `Weniger als 2 Stunden vor dem Training. Abmelden geht nur noch als Notfall — mit ${LATE_CONFIRMATIONS}-facher Bestätigung, und dein Name ist danach eine Woche rot markiert.`,
+					error: `Der Spot steht schon fest. Abmelden geht nur noch als Notfall — mit ${LATE_CONFIRMATIONS}-facher Bestätigung, und dein Name ist danach eine Woche rot markiert.`,
 					requiresLateConfirm: true,
 					minutesBefore,
 					confirmationsNeeded: LATE_CONFIRMATIONS
@@ -463,7 +463,7 @@ export const POST: RequestHandler = async (event) => {
 		if (new Date() > votingDeadlineFor(session)) {
 			const msg = session.isExtra
 				? 'Voting ist geschlossen (Training läuft bereits)'
-				: 'Voting ist geschlossen (2h vor Training)';
+				: 'Voting ist geschlossen — der Spot steht fest (spätestens 16:15).';
 			return json({ error: msg }, { status: 400 });
 		}
 

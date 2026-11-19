@@ -7,6 +7,7 @@
  */
 import { and, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { activePenaltiesForSession, wrongSpotFor } from '$lib/server/noShowPenalty';
+import { votingDeadlineFor } from '$lib/server/training';
 import {
 	MIN_YES,
 	evaluateTripLock,
@@ -378,7 +379,11 @@ async function runSpotFixNotification(now: Date): Promise<void> {
 		// fester Termin ab Voting-Schluss (Beginn − 2 h) bis Beginn; beim
 		// Zusatztraining ist bis Beginn noch offen (siehe votingDeadlineFor),
 		// darum erst ab Beginn bis Ende melden — vorher gäbe es keinen Sieger.
-		const openFrom = session.isExtra ? startMin : startMin - 120;
+		// Fester Termin: ab Voting-Schluss (Beginn − 2 h, spätestens 16:15).
+		const deadlineMin = parseTimeToMinutes(
+			`${String(votingDeadlineFor(session).getHours()).padStart(2, '0')}:${String(votingDeadlineFor(session).getMinutes()).padStart(2, '0')}`
+		);
+		const openFrom = session.isExtra ? startMin : (deadlineMin ?? startMin - 120);
 		const openUntil = session.isExtra ? (endMin ?? startMin + 120) : startMin;
 		if (nowMin < openFrom || nowMin >= openUntil) continue;
 

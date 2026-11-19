@@ -3,11 +3,23 @@ import { trainingSessions } from './db/schema';
 import { gte, asc, eq } from 'drizzle-orm';
 
 /**
- * Spot-Voting-Schluss. Beim festen Termin zwei Stunden vor Beginn — so steht
- * der Spot rechtzeitig und der „Spot fix"-Push kann raus. Beim Zusatztraining
- * aber gilt der Beginn selbst: Es wird oft spontan am selben Tag eingetragen,
- * teils innerhalb dieser zwei Stunden — mit der festen Frist wäre das Voting
- * dann von Anfang an zu und es gäbe nie einen Spot.
+ * Späteste Uhrzeit, zu der der Spot feststeht — abgeleitet vom Normaltermin
+ * 18:15 minus zwei Stunden.
+ */
+export const SPOT_FIX_LATEST = '16:15';
+
+/**
+ * Spot-Voting-Schluss beim festen Termin: der FRÜHERE von „zwei Stunden vor
+ * Beginn" und 16:15.
+ *
+ * Wird das Training nach hinten verschoben (19:00 statt 18:15), soll der Spot
+ * trotzdem um 16:15 stehen — sonst verschiebt sich mit der Zeit auch die
+ * Planung, und wer früher Schluss macht, weiss bis 17:00 nicht, wohin.
+ * Beginnt es früher als 18:15, gilt weiterhin Beginn minus zwei Stunden.
+ *
+ * Beim Zusatztraining gilt der Beginn selbst: Es wird oft spontan am selben
+ * Tag eingetragen, teils innerhalb dieser zwei Stunden — mit einer festen
+ * Frist wäre das Voting von Anfang an zu und es gäbe nie einen Spot.
  */
 export function votingDeadlineFor(session: {
 	date: string;
@@ -16,7 +28,9 @@ export function votingDeadlineFor(session: {
 }): Date {
 	const trainingStart = new Date(`${session.date}T${session.timeStart}:00`);
 	if (session.isExtra) return trainingStart;
-	return new Date(trainingStart.getTime() - 2 * 60 * 60 * 1000);
+	const twoHoursBefore = new Date(trainingStart.getTime() - 2 * 60 * 60 * 1000);
+	const standard = new Date(`${session.date}T${SPOT_FIX_LATEST}:00`);
+	return twoHoursBefore < standard ? twoHoursBefore : standard;
 }
 
 /**

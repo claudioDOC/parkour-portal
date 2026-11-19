@@ -699,9 +699,14 @@
 											</td>
 											<td class="px-3 py-2 whitespace-nowrap">
 												<a href="/profil/{row.userId}" class="text-text-primary hover:text-accent transition-colors">{row.username}</a>
+												{#if row.byAdmin}
+													<span class="ml-1 rounded-full bg-bg-hover px-1.5 py-0.5 text-[10px] font-semibold text-text-muted" title="Vom Admin nachgetragen — nicht selbst abgemeldet">
+														Admin
+													</span>
+												{/if}
 												{#if row.lateMinutes !== null}
-													<span class="ml-1 rounded-full bg-danger/15 px-1.5 py-0.5 text-[10px] font-semibold text-danger" title="Kurzfristige Abmeldung">
-														{row.lateMinutes} Min.
+													<span class="ml-1 rounded-full bg-danger/15 px-1.5 py-0.5 text-[10px] font-semibold text-danger" title="Abmeldung erst nach dem Spot-Schluss">
+														{row.lateMinutes} Min. zu spät
 													</span>
 												{/if}
 											</td>

@@ -11,6 +11,7 @@ import {
 	spotChallengeCompletions,
 	spotChallenges
 } from '$lib/server/db/schema';
+import { auditLogs } from '$lib/server/db/schema';
 import { isImplicitEffectiveAbsent } from '$lib/server/trainingAttendance';
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 import { and, asc, desc, eq, gte, lt, sql } from 'drizzle-orm';
@@ -19,6 +20,7 @@ import { andWithUsersNotDeleted } from '$lib/server/usersWhere';
 import { spotsTableHasDeletedColumn } from '$lib/server/spotsTableColumns';
 import { isSpotChallengesSchemaReady } from '$lib/server/spotChallengesSchemaReady';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
+import { votingDeadlineFor } from '$lib/server/training';
 
 /** Statistik startet bewusst erst ab April 2026 (März-Testdaten ausblenden). */
 const STATS_START_DATE = '2026-04-01';
@@ -88,8 +90,10 @@ export type AbsenceHistoryRow = {
 	username: string;
 	avatar: string | null;
 	reason: string;
-	/** Minuten vor Beginn, wenn die Abmeldung kurzfristig war (sonst null). */
+	/** Minuten NACH dem Spot-Schluss, wenn die Abmeldung zu spät kam (sonst null). */
 	lateMinutes: number | null;
+	/** Vom Admin nachgetragen („war nicht da") statt selbst abgemeldet. */
+	byAdmin: boolean;
 };
 
 /**
@@ -111,6 +115,7 @@ function buildAbsenceHistory(limit = 300): AbsenceHistoryRow[] {
 			date: trainingSessions.date,
 			dayOfWeek: trainingSessions.dayOfWeek,
 			timeStart: trainingSessions.timeStart,
+			timeEnd: trainingSessions.timeEnd,
 			isExtra: trainingSessions.isExtra,
 			cancelled: trainingSessions.cancelled
 		})
@@ -122,14 +127,41 @@ function buildAbsenceHistory(limit = 300): AbsenceHistoryRow[] {
 		.limit(limit)
 		.all();
 
+	// Wer hat den Eintrag gemacht? Die Tabelle `absences` hält das nicht fest,
+	// das Audit-Log aber schon. Nötig, weil ein Admin-Nachtrag („war nicht da",
+	// oft Tage später) sonst als „zu spät abgemeldet" gelesen würde — der
+	// Grundtext taugt nicht als Unterscheidung (es gab Nachträge wie „Hamburg").
+	const adminEntered = new Set<string>();
+	for (const a of db
+		.select({ targetUserId: auditLogs.targetUserId, detailJson: auditLogs.detailJson })
+		.from(auditLogs)
+		.where(eq(auditLogs.action, 'admin.training.add_absence'))
+		.all()) {
+		if (a.targetUserId == null || !a.detailJson) continue;
+		try {
+			const sid = (JSON.parse(a.detailJson) as { sessionId?: unknown }).sessionId;
+			if (typeof sid === 'number') adminEntered.add(`${a.targetUserId}:${sid}`);
+		} catch {
+			// Kaputtes JSON im Log darf die Statistik nicht kippen.
+		}
+	}
+
 	return rows.map((r) => {
-		// Wie kurzfristig war die Abmeldung? Aus Eintragszeit und Beginn.
+		// Zu spät = nach dem Spot-Schluss eingetragen (siehe votingDeadlineFor:
+		// zwei Stunden vor Beginn, spätestens 16:15) und vor Trainingsende.
+		const byAdmin = adminEntered.has(`${asNum(r.userId)}:${asNum(r.sessionId)}`);
 		let lateMinutes: number | null = null;
-		if (r.createdAt) {
+		if (r.createdAt && !r.isExtra && !byAdmin) {
 			const created = new Date(String(r.createdAt).replace(' ', 'T') + 'Z').getTime();
-			const start = new Date(`${r.date}T${r.timeStart}:00`).getTime();
-			const diff = Math.round((start - created) / 60000);
-			if (Number.isFinite(diff) && diff > 0 && diff < 120 && !r.isExtra) lateMinutes = diff;
+			const deadline = votingDeadlineFor({
+				date: r.date,
+				timeStart: r.timeStart,
+				isExtra: r.isExtra
+			}).getTime();
+			const end = new Date(`${r.date}T${r.timeEnd}:00`).getTime();
+			if (Number.isFinite(created) && created > deadline && created <= end) {
+				lateMinutes = Math.max(1, Math.round((created - deadline) / 60000));
+			}
 		}
 		return {
 			id: asNum(r.id),
@@ -142,7 +174,8 @@ function buildAbsenceHistory(limit = 300): AbsenceHistoryRow[] {
 			username: r.username,
 			avatar: r.avatar ? `/uploads/${r.avatar}` : null,
 			reason: r.reason ?? 'Kann nicht',
-			lateMinutes
+			lateMinutes,
+			byAdmin
 		};
 	});
 }
