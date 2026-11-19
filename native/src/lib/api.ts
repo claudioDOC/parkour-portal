@@ -1059,6 +1059,25 @@ export type StatsRow = {
 
 export type MonthRow = { key: string; label: string; sessionCount: number; absenceCount: number };
 
+/**
+ * Eine Abmeldung aus der Vergangenheit samt Grund. Nur ausdrückliche
+ * Einträge — Wochentags-Regeln haben keinen Text.
+ */
+export type AbsenceHistoryRow = {
+	id: number;
+	sessionId: number;
+	date: string;
+	dayOfWeek: string;
+	isExtra: boolean;
+	cancelled: boolean;
+	userId: number;
+	username: string;
+	avatar: string | null;
+	reason: string;
+	/** Minuten vor Beginn, wenn kurzfristig abgemeldet — sonst null. */
+	lateMinutes: number | null;
+};
+
 export type StatsPayload = {
 	stats: {
 		today: string;
@@ -1080,6 +1099,8 @@ export type StatsPayload = {
 			spotCity: string;
 			voteCount: number;
 		}[];
+		/** Abmeldegründe vergangener Trainings, neueste zuerst (max. 300). */
+		absenceHistory: AbsenceHistoryRow[];
 	};
 	solo: {
 		leaderboard: { userId: number; username: string; avatar?: string | null; total: number; last90: number }[];

@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { fonts, type ThemeColors } from '../lib/theme';
 import { textAlpha } from '../lib/tokens';
 import { useTheme, useThemedStyles } from '../lib/themeContext';
-import { Card, TopBar, Screen, SectionTitle, ErrorCard, ProgressBar, Stat, StatGrid, Avatar } from '../lib/ui';
+import { Card, TopBar, Screen, SectionTitle, ErrorCard, ProgressBar, Stat, StatGrid, Avatar, Button } from '../lib/ui';
 import { useData } from '../lib/store';
 import { getStats } from '../lib/api';
 import { useAuth } from './_layout';
@@ -97,6 +97,20 @@ export default function Stats() {
 			.map(([spotId, r]) => ({ spotId, ...r }))
 			.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 	})();
+
+	// Abmeldegründe: Die Trainingsseite zeigt nur kommende Termine — hier ist
+	// die einzige Stelle, an der man nachlesen kann, was die Gründe waren.
+	const absences = data?.stats.absenceHistory ?? [];
+	const absencePeople = [...new Set(absences.map((a) => a.username))].sort((a, b) =>
+		a.localeCompare(b, 'de')
+	);
+	const [absencePerson, setAbsencePerson] = useState<string | null>(null);
+	// Die Liste wird lang (bis 300 Einträge) — stückweise nachladen statt alles
+	// auf einmal zu rendern.
+	const [absenceLimit, setAbsenceLimit] = useState(30);
+	const absenceRows = absencePerson
+		? absences.filter((a) => a.username === absencePerson)
+		: absences;
 
 	return (
 		<Screen refreshing={refreshing} onRefresh={onRefresh}>
@@ -321,6 +335,122 @@ export default function Stats() {
 					</Card>
 				</>
 			) : null}
+
+			{data ? (
+				<>
+					<SectionTitle>Abmeldegründe</SectionTitle>
+					{absencePeople.length > 1 ? (
+						<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+							<View style={styles.monthChips}>
+								<Pressable
+									onPress={() => {
+										setAbsencePerson(null);
+										setAbsenceLimit(30);
+									}}
+									style={({ pressed }) => [
+										styles.monthChip,
+										absencePerson === null && {
+											backgroundColor: colors.accent,
+											borderColor: colors.accent
+										},
+										pressed && { opacity: 0.8 }
+									]}
+								>
+									<Text
+										style={[
+											styles.monthChipText,
+											absencePerson === null && { color: colors.onAccent }
+										]}
+									>
+										Alle
+									</Text>
+								</Pressable>
+								{absencePeople.map((name) => (
+									<Pressable
+										key={name}
+										onPress={() => {
+											setAbsencePerson(name);
+											setAbsenceLimit(30);
+										}}
+										style={({ pressed }) => [
+											styles.monthChip,
+											absencePerson === name && {
+												backgroundColor: colors.accent,
+												borderColor: colors.accent
+											},
+											pressed && { opacity: 0.8 }
+										]}
+									>
+										<Text
+											style={[
+												styles.monthChipText,
+												absencePerson === name && { color: colors.onAccent }
+											]}
+										>
+											{name}
+										</Text>
+									</Pressable>
+								))}
+							</View>
+						</ScrollView>
+					) : null}
+					<Card style={{ gap: 12 }}>
+						<Text style={styles.soloHint}>
+							Was waren die Gründe? Vergangene Trainings, neueste zuerst.
+						</Text>
+						{absenceRows.length === 0 ? (
+							<Text style={styles.sectionHint}>
+								Noch keine Abmeldungen in vergangenen Trainings.
+							</Text>
+						) : (
+							<>
+								{absenceRows.slice(0, absenceLimit).map((row) => (
+									<View key={row.id} style={styles.absenceRow}>
+										<Avatar username={row.username} avatar={row.avatar} size={24} />
+										<View style={{ flex: 1, gap: 2 }}>
+											<View style={styles.absenceHead}>
+												<Text style={styles.absenceName}>{row.username}</Text>
+												<Text style={styles.absenceDate}>
+													{new Date(`${row.date}T12:00:00`).toLocaleDateString('de-CH', {
+														weekday: 'short',
+														day: 'numeric',
+														month: 'short'
+													})}
+												</Text>
+												{row.isExtra ? (
+													<Text style={[styles.absenceBadge, { color: colors.accentBlue }]}>
+														Zusatz
+													</Text>
+												) : null}
+												{row.lateMinutes !== null ? (
+													<Text
+														style={[styles.absenceBadge, { color: colors.danger }]}
+														accessibilityLabel={`Kurzfristig abgemeldet, ${row.lateMinutes} Minuten vorher`}
+													>
+														{row.lateMinutes} Min.
+													</Text>
+												) : null}
+												{row.cancelled ? (
+													<Text style={styles.absenceBadge}>abgesagt</Text>
+												) : null}
+											</View>
+											<Text style={styles.absenceReason}>{row.reason}</Text>
+										</View>
+									</View>
+								))}
+								{absenceRows.length > absenceLimit ? (
+									<Button
+										label="Mehr anzeigen"
+										kind="ghost"
+										small
+										onPress={() => setAbsenceLimit((n) => n + 30)}
+									/>
+								) : null}
+							</>
+						)}
+					</Card>
+				</>
+			) : null}
 		</Screen>
 	);
 }
@@ -384,5 +514,32 @@ const makeStyles = (colors: ThemeColors) =>
 	soloMeta: { color: colors.fg + textAlpha.muted, fontSize: 12, lineHeight: 16 },
 	soloHint: { color: colors.fg + textAlpha.muted, fontSize: 11, lineHeight: 15, marginBottom: 2 },
 	recentRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	recentText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, flex: 1 }
+	recentText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16, flex: 1 },
+	absenceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+	absenceHead: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
+	absenceName: {
+		color: colors.fg + textAlpha.primary,
+		fontSize: 13,
+		lineHeight: 18,
+		fontFamily: fonts.sansSemi
+	},
+	absenceDate: {
+		color: colors.fg + textAlpha.muted,
+		fontSize: 11,
+		lineHeight: 15,
+		fontFamily: fonts.sans
+	},
+	absenceBadge: {
+		color: colors.fg + textAlpha.muted,
+		fontSize: 10,
+		lineHeight: 14,
+		fontFamily: fonts.sansBold,
+		textTransform: 'uppercase'
+	},
+	absenceReason: {
+		color: colors.fg + textAlpha.secondary,
+		fontSize: 12,
+		lineHeight: 17,
+		fontFamily: fonts.sans
+	}
 });
