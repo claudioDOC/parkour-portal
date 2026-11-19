@@ -6,6 +6,7 @@ import { activePenaltyFor, createNoShowPenalty } from '$lib/server/noShowPenalty
 import { noShowPenalties } from '$lib/server/db/schema';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 import { clearLateMarks, lateMarkedUserIds } from '$lib/server/lateAbsence';
+import { isSessionOver } from '$lib/server/training';
 import {
 	trainingSessions,
 	trainingSpotVotes,
@@ -413,6 +414,11 @@ export const POST: RequestHandler = async (event) => {
 				detail: { sessionId, date: session.date, from: before, to: `${timeStart}–${timeEnd}`, reason: reasonRaw || null }
 			});
 			const datum = new Date(`${session.date}T12:00:00`).toLocaleDateString('de-CH', { weekday: 'short', day: 'numeric', month: 'short' });
+			// Nachträgliche Korrektur an einem gelaufenen Training interessiert
+			// niemanden mehr — dann nur protokollieren, nicht melden.
+			if (isSessionOver(session)) {
+				return json({ success: true, sent: 0, notified: false });
+			}
 			recordEvent({
 				kind: 'training.spot_fixed',
 				actorUserId: locals.user!.id,
@@ -536,7 +542,11 @@ export const POST: RequestHandler = async (event) => {
 			});
 
 			let sent = 0;
-			if (spotId !== null && !session.cancelled) {
+			// Vergangenes Training: Der Spot wird nur für die Statistik
+			// nachgetragen („wir waren spontan woanders") — Push und
+			// Aktivitäts-Eintrag wären sinnlos, das Training ist durch.
+			const over = isSessionOver(session);
+			if (spotId !== null && !session.cancelled && !over) {
 				recordEvent({
 					kind: 'training.spot_fixed',
 					actorUserId: locals.user!.id,
@@ -554,7 +564,7 @@ export const POST: RequestHandler = async (event) => {
 					tag: `training-spot-${sessionId}`
 				});
 			}
-			return json({ success: true, sent });
+			return json({ success: true, sent, notified: sent > 0 });
 		}
 
 		return json({ error: 'Ungültige Aktion' }, { status: 400 });

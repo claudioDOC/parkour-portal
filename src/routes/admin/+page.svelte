@@ -1829,6 +1829,7 @@
 											<button
 												onclick={() => { spotPickSessionId = session.id; spotPickValue = String(session.overrideSpotId ?? ''); }}
 												class="cursor-pointer rounded-lg border border-accent/30 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/10"
+												title={sessionPast ? 'Nur für die Statistik — keine Benachrichtigung, das Training ist durch' : 'Setzt den Spot und informiert alle Mitziehenden'}
 											>{session.overrideSpotId ? 'Spot ändern…' : sessionPast ? 'Spot nachträglich setzen…' : 'Spot festlegen…'}</button>
 											{#if session.overrideSpotId}
 												<button

@@ -74,7 +74,7 @@ Die native App spricht mit dem Server über die JSON-API (`/api/v1/…`, Bearer-
 
 ### Admin-Bereich
 - **Trainingszeit ändern** (`set_time`, Web und App): neue Von-/Bis-Zeit plus optionaler Grund — Push an alle mit Gerät, Eintrag im Aktivitäts-Feed
-- **Spot nachträglich setzen** (`set_spot`, auch für vergangene Trainings): „wir waren spontan woanders“ — der gesetzte Spot schlägt in der Statistik das Voting
+- **Spot nachträglich setzen** (`set_spot`, auch für vergangene Trainings): „wir waren spontan woanders“ — der gesetzte Spot schlägt in der Statistik das Voting. Bei einem gelaufenen Training gibt es dabei **keine Benachrichtigung und keinen Feed-Eintrag** (reine Statistik-Korrektur); nur für kommende Trainings werden die Mitziehenden informiert. Gleiches gilt für `set_time`.
 - **User**: Passwort zurücksetzen, Rolle ändern, Trainingsmodus (wie alle / nur Zusage), Auto-Abmeldung Wochentage, deaktivieren/aktivieren, **Papierkorb** (User aus allen Listen nehmen) und im Papierkorb **wiederherstellen** oder **endgültig löschen** (inkl. eigener Spots, Bilder, Votes, Trainingsdaten; Migration `0004_user_deleted.sql`)
 - **Trainings**: kommende Termine, Gäste, Abwesenheiten, Spot-Votes, ausgeblendete User verwalten
 - **Spots**: Bearbeiten; **Papierkorb** mit Wiederherstellen (kein permanentes Spot-Löschen über die UI)

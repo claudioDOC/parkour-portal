@@ -19,6 +19,19 @@ export function votingDeadlineFor(session: {
 	return new Date(trainingStart.getTime() - 2 * 60 * 60 * 1000);
 }
 
+/**
+ * Ist das Training vorbei? Entscheidet, ob eine Änderung noch jemanden
+ * betrifft: Bei einem durchgeführten Training ist der nachträglich gesetzte
+ * Spot reine Statistik-Korrektur — darüber will niemand mehr eine
+ * Benachrichtigung bekommen.
+ */
+export function isSessionOver(
+	session: { date: string; timeEnd: string },
+	now = new Date()
+): boolean {
+	return now > new Date(`${session.date}T${session.timeEnd}:00`);
+}
+
 export function isVotingOpenForSession(sessionId: number): boolean {
 	const session = db.select().from(trainingSessions).where(eq(trainingSessions.id, sessionId)).get();
 	if (!session) return false;
