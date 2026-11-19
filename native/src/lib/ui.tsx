@@ -415,7 +415,8 @@ export function NameChip({
 	tone,
 	avatar,
 	userId,
-	index = 0
+	index = 0,
+	danger = false
 }: {
 	name: string;
 	tone?: string;
@@ -423,6 +424,8 @@ export function NameChip({
 	/** Gesetzt = Chip führt aufs Profil. */
 	userId?: number;
 	index?: number;
+	/** Roter Name: kurzfristig abgemeldet (Markierung eine Woche lang). */
+	danger?: boolean;
 }) {
 	const { colors } = useTheme();
 	const router = useRouter();
@@ -458,7 +461,16 @@ export function NameChip({
 					</Text>
 				</View>
 			)}
-			<Text style={{ ...T.body, color: colors.fg + textAlpha.primary }}>{name}</Text>
+			<Text
+				style={{
+					...T.body,
+					color: danger ? colors.danger : colors.fg + textAlpha.primary,
+					fontFamily: danger ? fonts.sansBold : T.body.fontFamily
+				}}
+				accessibilityHint={danger ? 'kurzfristig abgemeldet' : undefined}
+			>
+				{name}
+			</Text>
 		</View>
 	);
 	if (!userId) return body;

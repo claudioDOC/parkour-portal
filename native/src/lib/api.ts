@@ -52,9 +52,13 @@ export async function setToken(token: string | null): Promise<void> {
 
 export class ApiError extends Error {
 	status: number;
-	constructor(status: number, message: string) {
+	/** Geparster Fehler-Body — manche Antworten tragen mehr als nur `error`
+	 *  (z. B. `requiresLateConfirm` bei kurzfristiger Abmeldung). */
+	body?: unknown;
+	constructor(status: number, message: string, body?: unknown) {
 		super(message);
 		this.status = status;
+		this.body = body;
 	}
 }
 
@@ -70,13 +74,15 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 	});
 	if (!res.ok) {
 		let message = `Fehler ${res.status}`;
+		let body: unknown;
 		try {
-			const body = await res.json();
-			if (body?.error) message = body.error;
+			body = await res.json();
+			const err = (body as { error?: unknown } | null)?.error;
+			if (typeof err === 'string') message = err;
 		} catch {
 			// Fehlerbody optional
 		}
-		throw new ApiError(res.status, message);
+		throw new ApiError(res.status, message, body);
 	}
 	return res.json() as Promise<T>;
 }
@@ -146,7 +152,8 @@ export type TrainingSession = {
 	/** Erstes Bild des gewählten Spots — Kopfbild der Trainingskarte. */
 	spotThumbnail?: string | null;
 	overrideSpot: { spotId: number; name: string; city: string } | null;
-	attending: { id: number; username: string; avatar?: string | null }[];
+	/** lateMarked: hat sich in der letzten Woche kurzfristig (< 2 h) abgemeldet → Name rot. */
+	attending: { id: number; username: string; avatar?: string | null; lateMarked?: boolean }[];
 	absences: {
 		id: number | null;
 		userId: number;
@@ -154,10 +161,11 @@ export type TrainingSession = {
 		reason: string | null;
 		virtual?: boolean;
 		avatar?: string | null;
+		lateMarked?: boolean;
 	}[];
 	guests: { id: number; name: string }[];
 	/** Nur bei Zusatztrainings: wer weder zu- noch abgesagt hat. */
-	pendingResponders?: { id: number; username: string; avatar?: string | null }[];
+	pendingResponders?: { id: number; username: string; avatar?: string | null; lateMarked?: boolean }[];
 	userDbAbsent: boolean;
 	userVirtualAbsent: boolean;
 	userHasRsvp: boolean;
@@ -257,15 +265,16 @@ export const deleteExtraTraining = (sessionId: number) =>
 export const trainingAction = (
 	action: TrainingAction,
 	sessionId: number,
-	extra: { reason?: string; spotId?: number } = {}
+	/** lateConfirm: 3 = Notfall-Abmeldung < 2 h vor Beginn, dreifach bestätigt. */
+	extra: { reason?: string; spotId?: number; lateConfirm?: number } = {}
 ) => post<{ success?: boolean }>('/api/training', { action, sessionId, ...extra });
 
 /** Admin: Training absagen/reaktivieren, Spot festlegen (spotId null = zurück). */
 export const adminTraining = (
-	type: 'cancel_session' | 'uncancel_session' | 'set_spot',
+	type: 'cancel_session' | 'uncancel_session' | 'set_spot' | 'set_time',
 	sessionId: number,
-	extra: { spotId?: number | null; reason?: string } = {}
-) => post<{ success?: boolean }>('/api/admin/training', { type, sessionId, ...extra });
+	extra: { spotId?: number | null; reason?: string; timeStart?: string; timeEnd?: string } = {}
+) => post<{ success?: boolean; sent?: number }>('/api/admin/training', { type, sessionId, ...extra });
 
 // --- Solo-Training ---
 
@@ -548,8 +557,10 @@ export type AdminSession = {
 	timeEnd: string;
 	cancelled: boolean;
 	isExtra?: boolean;
-	absences: { id: number | null; userId: number; username: string; reason: string; virtual?: boolean }[];
-	attending: { id: number; username: string }[];
+	/** Vom Admin fest gesetzter Spot (auch nachträglich für die Statistik). */
+	overrideSpotId?: number | null;
+	absences: { id: number | null; userId: number; username: string; reason: string; virtual?: boolean; lateMarked?: boolean }[];
+	attending: { id: number; username: string; lateMarked?: boolean }[];
 	guests: { id: number; name: string }[];
 	hiddenUsers: { id: number; userId: number; username: string }[];
 };

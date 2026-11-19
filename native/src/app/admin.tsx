@@ -124,6 +124,12 @@ export default function Admin() {
 	const [absentFor, setAbsentFor] = useState<number | null>(null);
 	// Admin meldet jemanden zum Zusatztraining an (Zusage, add_rsvp).
 	const [rsvpFor, setRsvpFor] = useState<number | null>(null);
+	// Zeit ändern (Push an alle) und Spot fest setzen — auch nachträglich,
+	// damit die Statistik stimmt, wenn man spontan woanders war.
+	const [timeFor, setTimeFor] = useState<number | null>(null);
+	const [timeForm, setTimeForm] = useState({ start: '', end: '', reason: '' });
+	const [spotFor, setSpotFor] = useState<number | null>(null);
+	const [spotQuery, setSpotQuery] = useState('');
 	const [rsvpUserId, setRsvpUserId] = useState<number | null>(null);
 	const [absentUserId, setAbsentUserId] = useState<number | null>(null);
 	const [absentReason, setAbsentReason] = useState('');
@@ -162,6 +168,16 @@ export default function Admin() {
 			Alert.alert('Fehler', e instanceof Error ? e.message : 'Aktion fehlgeschlagen');
 		}
 	};
+	/** Rote Markierung (kurzfristige Abmeldung) vorzeitig aufheben. */
+	const askClearLateMark = (userId: number, username: string) =>
+		Alert.alert('Markierung aufheben?', `${username} ist wegen kurzfristiger Abmeldung rot markiert.`, [
+			{ text: 'Abbrechen', style: 'cancel' },
+			{
+				text: 'Aufheben',
+				onPress: () => act(() => adminSessionAction('clear_late_mark', { userId }))
+			}
+		]);
+
 
 	const resetPassword = async () => {
 		if (!userFor || newPw.length < 10) {
@@ -373,6 +389,12 @@ export default function Admin() {
 								</View>
 								{sess.cancelled ? <Pill label="Abgesagt" color={colors.danger} /> : null}
 								{sess.isExtra ? <Pill label="Zusatz" color={colors.accentBlue} /> : null}
+								{sess.overrideSpotId ? (
+									<Pill
+										label={`Spot: ${allSpots.data?.spots.find((sp) => sp.id === sess.overrideSpotId)?.name ?? 'fest'}`}
+										color={colors.accent}
+									/>
+								) : null}
 							</View>
 
 							{sess.guests.length > 0 ? (
@@ -418,9 +440,12 @@ export default function Admin() {
 														]
 													)
 												}
+												onLongPress={a.lateMarked ? () => askClearLateMark(a.id, a.username) : undefined}
 												style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}
 											>
-												<Text style={styles.chipText}>{a.username} ✕</Text>
+												<Text style={[styles.chipText, a.lateMarked && styles.chipTextDanger]}>
+													{a.username} ✕
+												</Text>
 											</Pressable>
 										))}
 									</View>
@@ -458,9 +483,14 @@ export default function Admin() {
 													onPress={() =>
 														act(() => adminSessionDelete('remove_absence', { id: a.id }))
 													}
+													onLongPress={
+														a.lateMarked ? () => askClearLateMark(a.userId, a.username) : undefined
+													}
 													style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}
 												>
-													<Text style={styles.chipText}>{a.username} ✕</Text>
+													<Text style={[styles.chipText, a.lateMarked && styles.chipTextDanger]}>
+														{a.username} ✕{a.lateMarked ? ' · kurzfristig' : ''}
+													</Text>
 												</Pressable>
 											))}
 									</View>
@@ -493,6 +523,24 @@ export default function Admin() {
 										setAbsentFor(sess.id);
 										setAbsentUserId(null);
 										setAbsentReason('');
+									}}
+								/>
+								<Button
+									label="Zeit ändern"
+									kind="ghost"
+									small
+									onPress={() => {
+										setTimeForm({ start: sess.timeStart, end: sess.timeEnd, reason: '' });
+										setTimeFor(sess.id);
+									}}
+								/>
+								<Button
+									label={sess.overrideSpotId ? 'Spot ändern' : 'Spot setzen'}
+									kind="ghost"
+									small
+									onPress={() => {
+										setSpotQuery('');
+										setSpotFor(sess.id);
 									}}
 								/>
 								<Button
@@ -1223,6 +1271,105 @@ export default function Admin() {
 					<Button label="Senden" onPress={sendBroadcast} />
 				</View>
 			</Sheet>
+
+			{/* Trainingszeit ändern — der Server schickt den Push an alle. */}
+			<Sheet visible={timeFor !== null} onClose={() => setTimeFor(null)} title="Trainingszeit ändern">
+				<Text style={styles.muted}>Alle mit Gerät bekommen sofort eine Benachrichtigung.</Text>
+				<View style={{ flexDirection: 'row', gap: 8 }}>
+					<View style={{ flex: 1 }}>
+						<Input
+							placeholder="Von (HH:MM)"
+							value={timeForm.start}
+							onChangeText={(v) => setTimeForm({ ...timeForm, start: v })}
+						/>
+					</View>
+					<View style={{ flex: 1 }}>
+						<Input
+							placeholder="Bis (HH:MM)"
+							value={timeForm.end}
+							onChangeText={(v) => setTimeForm({ ...timeForm, end: v })}
+						/>
+					</View>
+				</View>
+				<Input
+					placeholder="Grund (optional, geht in den Push)"
+					value={timeForm.reason}
+					onChangeText={(v) => setTimeForm({ ...timeForm, reason: v })}
+				/>
+				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+					<Button label="Abbrechen" kind="ghost" onPress={() => setTimeFor(null)} />
+					<Button
+						label="Ändern + alle informieren"
+						onPress={async () => {
+							const sid = timeFor;
+							if (!sid) return;
+							const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+							if (!HHMM.test(timeForm.start.trim()) || !HHMM.test(timeForm.end.trim())) {
+								Alert.alert('Zeit prüfen', 'Bitte im Format HH:MM, z. B. 19:00.');
+								return;
+							}
+							setTimeFor(null);
+							try {
+								const res = await adminSessionAction('set_time', {
+									sessionId: sid,
+									timeStart: timeForm.start.trim(),
+									timeEnd: timeForm.end.trim(),
+									...(timeForm.reason.trim() ? { reason: timeForm.reason.trim() } : {})
+								});
+								await sessions.refresh();
+								Alert.alert('Zeit geändert', `Push an ${res.sent ?? 0} Geräte.`);
+							} catch (e) {
+								Alert.alert('Fehler', e instanceof Error ? e.message : 'Ändern fehlgeschlagen');
+							}
+						}}
+					/>
+				</View>
+			</Sheet>
+
+			{/* Spot fest setzen — auch für vergangene Trainings (Statistik). */}
+			<Sheet visible={spotFor !== null} onClose={() => setSpotFor(null)} title="Spot setzen">
+				<Text style={styles.muted}>
+					Gilt vor dem Voting-Ergebnis. Nachträglich setzen korrigiert die Spot-Statistik.
+				</Text>
+				<Input placeholder="Spot suchen …" value={spotQuery} onChangeText={setSpotQuery} />
+				<View style={{ gap: 6 }}>
+					{(allSpots.data?.spots ?? [])
+						.filter((sp) => {
+							const q = spotQuery.trim().toLowerCase();
+							return !q || sp.name.toLowerCase().includes(q) || sp.city.toLowerCase().includes(q);
+						})
+						.slice(0, 12)
+						.map((sp) => (
+							<Pressable
+								key={sp.id}
+								onPress={() => {
+									const sid = spotFor;
+									if (!sid) return;
+									setSpotFor(null);
+									act(() => adminSessionAction('set_spot', { sessionId: sid, spotId: sp.id }));
+								}}
+								style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}
+							>
+								<Text style={styles.chipText}>
+									{sp.name} · {sp.city}
+								</Text>
+							</Pressable>
+						))}
+				</View>
+				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+					<Button
+						label="Zurück aufs Voting"
+						kind="ghost"
+						onPress={() => {
+							const sid = spotFor;
+							if (!sid) return;
+							setSpotFor(null);
+							act(() => adminSessionAction('set_spot', { sessionId: sid, spotId: null }));
+						}}
+					/>
+					<Button label="Schliessen" kind="ghost" onPress={() => setSpotFor(null)} />
+				</View>
+			</Sheet>
 		</Screen>
 	);
 }
@@ -1295,6 +1442,8 @@ const makeStyles = (colors: ThemeColors) =>
 			lineHeight: 16,
 			fontFamily: fonts.sansMedium
 		},
+		/** Rot = kurzfristig abgemeldet (eine Woche). */
+		chipTextDanger: { color: colors.danger, fontFamily: fonts.sansBold },
 		lineRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 },
 		lineValue: {
 			color: colors.fg + textAlpha.primary,

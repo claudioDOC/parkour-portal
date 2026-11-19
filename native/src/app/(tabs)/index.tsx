@@ -34,6 +34,7 @@ import {
 	getLivePositions,
 	shareLivePosition,
 	stopLivePosition,
+	ApiError,
 	type LivePosition,
 	type TrainingSession
 } from '../../lib/api';
@@ -177,10 +178,42 @@ export default function Dashboard() {
 			return;
 		}
 		const session = absenceFor;
+		const reason = absenceReason.trim();
 		setAbsenceFor(null);
-		await act(() => trainingAction('absence', session.id, { reason: absenceReason.trim() }));
-		setAbsenceReason('');
+		try {
+			await trainingAction('absence', session.id, { reason });
+			await training.refresh();
+			setAbsenceReason('');
+		} catch (e) {
+			// Weniger als 2 h vor Beginn: der Server verlangt eine dreifache
+			// Bestätigung — kurzfristig abmelden soll bewusst unbequem sein.
+			const body = e instanceof ApiError ? (e.body as { requiresLateConfirm?: boolean; minutesBefore?: number } | undefined) : undefined;
+			if (e instanceof ApiError && e.status === 409 && body?.requiresLateConfirm) {
+				const ok = await confirmLateAbsence(body.minutesBefore ?? 0);
+				if (!ok) return;
+				await act(() => trainingAction('absence', session.id, { reason, lateConfirm: 3 }));
+				setAbsenceReason('');
+				return;
+			}
+			Alert.alert('Fehler', e instanceof Error ? e.message : 'Abmelden fehlgeschlagen');
+		}
 	};
+
+	/** Drei Rückfragen hintereinander; jeder Abbruch beendet die Abmeldung. */
+	const confirmLateAbsence = (minutesBefore: number): Promise<boolean> =>
+		new Promise((resolve) => {
+			const text = `Weniger als 2 Stunden vor dem Training (${minutesBefore} Min.). Abmelden geht nur noch als Notfall. Dein Name ist danach eine Woche rot markiert.`;
+			const step = (n: number) =>
+				Alert.alert(`Notfall-Abmeldung ${n}/3`, text, [
+					{ text: 'Abbrechen', style: 'cancel', onPress: () => resolve(false) },
+					{
+						text: n === 3 ? 'Trotzdem abmelden' : 'Weiter',
+						style: n === 3 ? 'destructive' : 'default',
+						onPress: () => (n === 3 ? resolve(true) : step(n + 1))
+					}
+				]);
+			step(1);
+		});
 
 	const submitExtra = async () => {
 		const { date, start, end, note } = extraForm;
@@ -574,6 +607,7 @@ export default function Dashboard() {
 												avatar={a.id < 0 ? null : (a.avatar ?? null)}
 												userId={a.id > 0 ? a.id : undefined}
 												index={i}
+												danger={Boolean(a.lateMarked)}
 											/>
 										))}
 										{s.guests.map((g) => (
@@ -595,6 +629,7 @@ export default function Dashboard() {
 													tone={colors.danger}
 													userId={a.userId}
 													avatar={a.avatar ?? null}
+													danger={Boolean(a.lateMarked)}
 												/>
 												{a.reason ? (
 													<Text style={styles.absenceReason}>{a.reason}</Text>
@@ -616,6 +651,7 @@ export default function Dashboard() {
 														avatar={u.avatar ?? null}
 														userId={u.id}
 														index={i}
+														danger={Boolean(u.lateMarked)}
 													/>
 												))}
 											</View>
