@@ -65,27 +65,40 @@
 	</header>
 
 	{#if data.zugkraft}
-		<!-- Zugkraft: eine Zeile, ein Balken, ein Satz. Der Balken läuft fest von
-		     rot nach grün — die Füllung zeigt, wo die Gruppe gerade steht. Die
-		     Stufe hängt an Köpfen, nicht an Prozent: 3 von 6 sind eben nur „geht
-		     so". Details per Klick in der Statistik. -->
+		<!-- Zugkraft: Farbe pro Stufe (1 dunkelrot … 6 starkes Grün), dazu ein
+		     leuchtender Rahmen in derselben Farbe. Bei 6 flackert er wie Feuer,
+		     bei 1 und 2 pulsiert er als Alarm. Soll auffallen — genau das ist
+		     der Zweck. Details per Klick in der Statistik. -->
 		{@const z = data.zugkraft}
-		{@const good = z.level.key === 'grossartig' || z.level.key === 'super'}
-		{@const bad = z.level.key === 'schwach' || z.level.key === 'katastrophe'}
-		{@const toneText = good
-			? 'text-success'
-			: z.level.key === 'gut'
-				? 'text-success'
-				: z.level.key === 'ok'
-					? 'text-warning'
-					: 'text-danger'}
-		{@const glow = z.level.intensity === 2 ? (bad ? 'zug-glow-bad' : 'zug-glow-good') : 'zug-glow-calm'}
-		<a href="/statistik" class="block rounded-lg px-1 py-1 transition-colors hover:bg-bg-hover" aria-label="Zugkraft der Gruppe — Details in der Statistik">
+		{@const col =
+			z.level.key === 'grossartig'
+				? '#00e676'
+				: z.level.key === 'super'
+					? '#22c55e'
+					: z.level.key === 'gut'
+						? '#eab308'
+						: z.level.key === 'ok'
+							? '#f97316'
+							: z.level.key === 'schwach'
+								? '#ef4444'
+								: '#991b1b'}
+		{@const fx =
+			z.level.key === 'grossartig'
+				? 'zug-flame'
+				: z.level.intensity === 2
+					? 'zug-alarm'
+					: 'zug-steady'}
+		<a
+			href="/statistik"
+			class="zug-box {fx}"
+			style="--zug: {col}"
+			aria-label="Zugkraft der Gruppe — Details in der Statistik"
+		>
 			<div class="flex items-baseline gap-2 text-sm">
-				<span class="text-base {z.level.intensity === 2 ? 'zug-emoji' : ''}" aria-hidden="true">{z.level.emoji}</span>
-				<span class="font-semibold tabular-nums {toneText}">{z.avgAll}</span>
+				<span class="{z.level.intensity === 2 ? 'zug-emoji' : ''}" aria-hidden="true">{z.level.emoji}</span>
+				<span class="font-display text-xl font-semibold tabular-nums" style="color: {col}">{z.avgAll}</span>
 				<span class="text-xs text-text-muted">von {z.memberCount}</span>
-				<span class="text-text-secondary">· {z.level.label}</span>
+				<span class="font-semibold" style="color: {col}">· {z.level.label}</span>
 				{#if z.trend !== 0}
 					<span class="text-xs {z.trend > 0 ? 'text-success' : 'text-danger'}" title="Gegenüber den 14 Tagen davor">
 						{z.trend > 0 ? '↑' : '↓'}{Math.abs(z.trend)}
@@ -93,12 +106,10 @@
 				{/if}
 				<span class="ml-auto text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">Zugkraft</span>
 			</div>
-			<div class="zug-track mt-1.5 {glow}" aria-hidden="true">
-				<!-- Nicht erreichter Teil wird abgedeckt: so bleibt der Farbverlauf
-				     ortsfest und die Farbe sagt etwas über den Stand aus. -->
-				<div class="zug-rest" style="width: {100 - Math.max(z.percent, 2)}%"></div>
+			<div class="zug-track mt-2" aria-hidden="true">
+				<div class="zug-fill" style="width: {Math.max(z.percent, 3)}%; background-color: {col}"></div>
 			</div>
-			<p class="mt-1 text-xs text-text-muted">{z.level.blurb}</p>
+			<p class="mt-1.5 text-xs text-text-muted">{z.level.blurb}</p>
 		</a>
 	{/if}
 

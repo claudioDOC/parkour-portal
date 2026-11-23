@@ -106,7 +106,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 		return {
 			key: 'grossartig',
 			label: 'Grossartig',
-			emoji: '🏆',
+			emoji: '🔥🔥🔥',
 			blurb: 'Volle Hütte. Mehr geht nicht — so muss das sein.',
 			intensity: 2
 		};
@@ -130,7 +130,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 		return {
 			key: 'ok',
 			label: 'Geht so',
-			emoji: '👍',
+			emoji: '😬',
 			blurb: 'Drei am Spot. Reicht zum Trainieren, mehr wäre deutlich besser.',
 			intensity: 0
 		};
@@ -138,7 +138,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 		return {
 			key: 'schwach',
 			label: 'Sehr schwach',
-			emoji: '😬',
+			emoji: '😭',
 			blurb: 'Nur noch zwei. Jetzt bloss nicht auch noch abmelden.',
 			intensity: 2
 		};

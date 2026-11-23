@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { fonts, type ThemeColors } from './theme';
 import { textAlpha } from './tokens';
@@ -8,47 +8,36 @@ import { getMotion } from './prefs';
 import type { Zugkraft, ZugkraftLevelKey } from './api';
 
 /**
- * Zugkraft-Barometer auf der Startseite — absichtlich klein.
+ * Zugkraft-Barometer auf der Startseite.
  *
- * Eine Zeile Kopf, ein Balken, ein Satz. Die Stufe hängt an KÖPFEN, nicht
- * an Prozent: drei von sechs sind eben nur „geht so". Der Balken ist fest
- * von rot nach grün gefärbt, die Füllung zeigt den Stand — so sagt schon
- * die Farbe, wo die Gruppe steht. An den Extremen glüht er pulsierend.
+ * Die Stufe hängt an KÖPFEN: drei von sechs sind nur „geht so". Jede Stufe
+ * hat ihre Farbe (1 dunkelrot … 6 starkes Grün), und der Rahmen leuchtet in
+ * dieser Farbe. Bei sechs flackert er wie Feuer, bei eins und zwei pulsiert
+ * er als Alarm. Das soll auffallen — genau darum geht es.
  */
 
-/** Farbe für Zahl und Glühen — der Balken selbst trägt den Verlauf. */
-function colorFor(key: ZugkraftLevelKey, colors: ThemeColors): string {
-	switch (key) {
-		case 'grossartig':
-		case 'super':
-		case 'gut':
-			return colors.success;
-		case 'ok':
-			return colors.warning;
-		default:
-			return colors.danger;
-	}
-}
+/** Stufenfarbe. Bewusst feste Werte: Die Skala muss in jedem Farbschema gleich lesbar sein. */
+const LEVEL_COLOR: Record<ZugkraftLevelKey, string> = {
+	grossartig: '#00e676',
+	super: '#22c55e',
+	gut: '#eab308',
+	ok: '#f97316',
+	schwach: '#ef4444',
+	katastrophe: '#991b1b'
+};
 
-/**
- * Fester Verlauf rot → grün. RN 0.86 kann native Verläufe über
- * `experimental_backgroundImage`; `backgroundImage` ist der Web-Fallback
- * (Expo-Web-Export).
- */
-function gradientStyle(): ViewStyle {
-	const gradient =
-		'linear-gradient(90deg, #ef4444 0%, #f97316 25%, #eab308 45%, #84cc16 70%, #22c55e 100%)';
-	return { experimental_backgroundImage: gradient, backgroundImage: gradient } as ViewStyle;
-}
+/** Flackerfarben für den Feuer-Rahmen bei „Grossartig". */
+const FLAME = ['#00e676', '#eab308', '#f97316'];
 
 export function ZugkraftCard({ data }: { data: Zugkraft }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
 	const router = useRouter();
-	const tone = colorFor(data.level.key, colors);
-	const bad = data.level.key === 'schwach' || data.level.key === 'katastrophe';
-	// Nur die Extreme dürfen zappeln; „Bewegung reduzieren" schlägt alles.
-	const animate = data.level.intensity === 2 && getMotion();
+	const tone = LEVEL_COLOR[data.level.key] ?? colors.accent;
+	const flame = data.level.key === 'grossartig';
+	const alarm = data.level.key === 'schwach' || data.level.key === 'katastrophe';
+	// „Bewegung reduzieren" schlägt alles; der ruhige Schein bleibt trotzdem.
+	const animate = (flame || alarm) && getMotion();
 	const pulse = useRef(new Animated.Value(0)).current;
 
 	useEffect(() => {
@@ -56,7 +45,7 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 			pulse.setValue(0);
 			return;
 		}
-		const dur = bad ? 700 : 1100;
+		const dur = alarm ? 650 : 900;
 		const loop = Animated.loop(
 			Animated.sequence([
 				Animated.timing(pulse, {
@@ -75,78 +64,78 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 		);
 		loop.start();
 		return () => loop.stop();
-	}, [animate, bad, pulse]);
+	}, [animate, alarm, pulse]);
 
-	// Glühen über einen farbigen Halo hinter dem Balken: funktioniert auf
-	// Android zuverlässig, anders als Schatten.
+	// Der Rahmen ist der Blickfang: Farbe und Deckkraft wandern mit.
+	const borderColor = animate
+		? flame
+			? pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: FLAME })
+			: pulse.interpolate({ inputRange: [0, 1], outputRange: [tone + '88', tone] })
+		: tone + 'b0';
+	// Halo hinter der Karte ersetzt den Schatten — auf Android verlässlicher.
 	const haloOpacity = animate
-		? pulse.interpolate({ inputRange: [0, 1], outputRange: [0.18, 0.75] })
-		: 0.14;
-	const haloScale = animate
-		? pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] })
-		: 1;
-
-	const restPercent = Math.max(0, 100 - Math.max(data.percent, 2));
+		? pulse.interpolate({ inputRange: [0, 1], outputRange: alarm ? [0.12, 0.5] : [0.16, 0.42] })
+		: 0.12;
 
 	return (
-		<Pressable
-			onPress={() => router.push('/stats')}
-			style={({ pressed }) => [styles.wrap, pressed && { opacity: 0.7 }]}
-			accessibilityRole="button"
-			accessibilityLabel={`Zugkraft: im Schnitt ${data.avgAll} von ${data.memberCount} dabei, ${data.level.label}`}
-		>
-			<View style={styles.head}>
-				<Text style={styles.emoji}>{data.level.emoji}</Text>
-				<Text style={[styles.value, { color: tone }]}>{data.avgAll}</Text>
-				<Text style={styles.of}>von {data.memberCount}</Text>
-				<Text style={styles.label} numberOfLines={1}>
-					· {data.level.label}
-				</Text>
-				{data.trend !== 0 ? (
-					<Text style={[styles.trend, { color: data.trend > 0 ? colors.success : colors.danger }]}>
-						{data.trend > 0 ? '↑' : '↓'}
-						{Math.abs(data.trend)}
+		<View style={styles.outer}>
+			<Animated.View
+				pointerEvents="none"
+				style={[styles.halo, { backgroundColor: tone, opacity: haloOpacity }]}
+			/>
+			<Pressable
+				onPress={() => router.push('/stats')}
+				accessibilityRole="button"
+				accessibilityLabel={`Zugkraft: im Schnitt ${data.avgAll} von ${data.memberCount} dabei, ${data.level.label}`}
+				style={({ pressed }) => [pressed && { opacity: 0.8 }]}
+			>
+				<Animated.View style={[styles.box, { borderColor, backgroundColor: tone + '14' }]}>
+					<View style={styles.head}>
+						<Text style={styles.emoji}>{data.level.emoji}</Text>
+						<Text style={[styles.value, { color: tone }]}>{data.avgAll}</Text>
+						<Text style={styles.of}>von {data.memberCount}</Text>
+						<Text style={[styles.label, { color: tone }]} numberOfLines={1}>
+							· {data.level.label}
+						</Text>
+						{data.trend !== 0 ? (
+							<Text
+								style={[styles.trend, { color: data.trend > 0 ? colors.success : colors.danger }]}
+							>
+								{data.trend > 0 ? '↑' : '↓'}
+								{Math.abs(data.trend)}
+							</Text>
+						) : null}
+						<Text style={styles.kicker}>ZUGKRAFT</Text>
+					</View>
+
+					<View style={styles.track}>
+						<View
+							style={[
+								styles.fill,
+								{ backgroundColor: tone, width: `${Math.max(data.percent, 3)}%` }
+							]}
+						/>
+					</View>
+
+					<Text style={styles.blurb} numberOfLines={2}>
+						{data.level.blurb}
 					</Text>
-				) : null}
-				<Text style={styles.kicker}>ZUGKRAFT</Text>
-			</View>
-
-			<View style={styles.barBox}>
-				<Animated.View
-					pointerEvents="none"
-					style={[
-						styles.halo,
-						{ backgroundColor: tone, opacity: haloOpacity, transform: [{ scaleX: haloScale }] }
-					]}
-				/>
-				<View style={[styles.track, gradientStyle()]}>
-					{/* Was die Gruppe nicht erreicht, wird rechts abgedeckt —
-					    so bleibt der Verlauf ortsfest. */}
-					<View style={[styles.rest, { width: `${restPercent}%`, backgroundColor: colors.hover }]} />
-				</View>
-			</View>
-
-			<Text style={styles.blurb} numberOfLines={2}>
-				{data.level.blurb}
-			</Text>
-		</Pressable>
+				</Animated.View>
+			</Pressable>
+		</View>
 	);
 }
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-		wrap: { gap: 5, paddingVertical: 2 },
+		outer: { justifyContent: 'center' },
+		halo: { position: 'absolute', left: 6, right: 6, top: 4, bottom: 4, borderRadius: 18 },
+		box: { borderRadius: 14, borderWidth: 1.5, paddingHorizontal: 12, paddingVertical: 10, gap: 7 },
 		head: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
 		emoji: { fontSize: 15 },
-		value: { fontFamily: fonts.sansBold, fontSize: 16, lineHeight: 21 },
+		value: { fontFamily: fonts.sansBold, fontSize: 19, lineHeight: 24 },
 		of: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 11, lineHeight: 16 },
-		label: {
-			color: colors.fg + textAlpha.secondary,
-			fontFamily: fonts.sans,
-			fontSize: 13,
-			lineHeight: 18,
-			flexShrink: 1
-		},
+		label: { fontFamily: fonts.sansSemi, fontSize: 13, lineHeight: 18, flexShrink: 1 },
 		trend: { fontFamily: fonts.sansSemi, fontSize: 12, lineHeight: 16 },
 		kicker: {
 			marginLeft: 'auto',
@@ -156,9 +145,12 @@ const makeStyles = (colors: ThemeColors) =>
 			lineHeight: 16,
 			letterSpacing: 1.6
 		},
-		barBox: { justifyContent: 'center' },
-		halo: { position: 'absolute', left: 0, right: 0, height: 16, borderRadius: 999 },
-		track: { height: 10, borderRadius: 999, overflow: 'hidden', backgroundColor: colors.hover },
-		rest: { position: 'absolute', top: 0, bottom: 0, right: 0 },
+		track: {
+			height: 10,
+			borderRadius: 999,
+			overflow: 'hidden',
+			backgroundColor: colors.fg + '12'
+		},
+		fill: { height: '100%', borderRadius: 999 },
 		blurb: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 11, lineHeight: 15 }
 	});
