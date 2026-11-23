@@ -117,25 +117,32 @@ export default function Stats() {
 			<TopBar back kicker="Zahlen" title="Statistik" />
 			{error && !data ? <ErrorCard message={error} /> : null}
 
+			{/* Die Kacheln folgen dem Monatsfilter der Hall of Fame: „Gesamt" zeigt
+			    alles seit Beginn, ein Monat nur diesen Monat. Mitglieder bleiben
+			    die aktuelle Zahl. */}
 			{data ? (
 				<StatGrid>
 					<Stat
-						value={data.stats.group.pastSessionCount}
+						value={selectedMonth ? selectedMonth.sessionCount : data.stats.group.pastSessionCount}
 						label="Trainings"
 						tint={colors.accent}
-						hint="bisher durch"
+						hint={selectedMonth ? `im ${selectedMonth.label}` : 'bisher durch'}
 					/>
 					<Stat
-						value={data.stats.group.totalAbsences}
+						value={selectedMonth ? selectedMonth.absenceCount : data.stats.group.totalAbsences}
 						label="Abmeldungen"
 						tint={colors.warning}
-						hint="insgesamt gemeldet"
+						hint={selectedMonth ? `im ${selectedMonth.label}` : 'insgesamt gemeldet'}
 					/>
 					<Stat
-						value={data.stats.group.avgPulledPerSession}
+						value={
+							selectedMonth
+								? (selectedMonth.avgPulledPerSession ?? 0)
+								: data.stats.group.avgPulledPerSession
+						}
 						label="Ø pro Training"
 						tint={colors.text}
-						hint="im Schnitt dabei"
+						hint={selectedMonth ? `im ${selectedMonth.label}` : 'im Schnitt dabei'}
 					/>
 					<Stat
 						value={data.stats.group.memberCount}

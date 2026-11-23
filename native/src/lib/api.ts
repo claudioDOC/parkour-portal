@@ -1162,7 +1162,13 @@ export type StatsPayload = {
 		};
 		leaderboard: StatsRow[];
 		monthly: MonthRow[];
-		monthDetail: (MonthRow & { leaderboard: StatsRow[] })[];
+		monthDetail: (MonthRow & {
+			/** Personen „gezogen" im Monat über alle Trainings (gleiche Regel wie der Gesamtschnitt). */
+			pulledCount?: number;
+			/** Ø Personen pro Training im Monat. */
+			avgPulledPerSession?: number;
+			leaderboard: StatsRow[];
+		})[];
 		/** Je vergangenes Training der gewählte Spot — für die Spot-Auswertung. */
 		spotUsageEvents: {
 			sessionId: number;

@@ -136,7 +136,8 @@
 		if (monthViewMode === 'month') {
 			return {
 				sessions: selectedMonth?.sessionCount ?? 0,
-				absences: selectedMonth?.absenceCount ?? 0
+				absences: selectedMonth?.absenceCount ?? 0,
+				avg: selectedMonth?.avgPulledPerSession ?? 0
 			};
 		}
 		const filteredMonths =
@@ -149,11 +150,16 @@
 					});
 		let sessions = 0;
 		let absences = 0;
+		let pulled = 0;
 		for (const m of filteredMonths) {
 			sessions += m.sessionCount;
 			absences += m.absenceCount;
+			pulled += m.pulledCount;
 		}
-		return { sessions, absences };
+		// Ø über den ganzen Zeitraum: alle Gezogenen durch alle Trainings —
+		// nicht der Schnitt der Monatsschnitte (kurze Monate zählten sonst zu viel).
+		const avg = sessions > 0 ? Math.round((pulled / sessions) * 10) / 10 : 0;
+		return { sessions, absences, avg };
 	});
 	const filteredSpotEvents = $derived.by(() => {
 		const events = stats.spotUsageEvents;
@@ -460,7 +466,8 @@
 
 				{#if selectedMonthRows.length > 0}
 					<p class="text-text-secondary text-sm mb-3">
-						{selectedMonthSummary.sessions} Trainings · {selectedMonthSummary.absences} Abmeldungen erfasst
+						{selectedMonthSummary.sessions} Trainings · {selectedMonthSummary.absences} Abmeldungen erfasst ·
+						<strong class="text-text-primary font-semibold">Ø {selectedMonthSummary.avg} pro Training</strong>
 					</p>
 					<div class="rounded-xl border border-border overflow-hidden">
 						<div class="md:hidden divide-y divide-border bg-bg-card">

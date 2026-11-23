@@ -53,6 +53,10 @@ export type MonthLeaderboard = {
 	label: string;
 	sessionCount: number;
 	absenceCount: number;
+	/** Personen „gezogen" in diesem Monat, über alle Trainings zusammen — gleiche Regel wie der Gesamtschnitt. */
+	pulledCount: number;
+	/** Ø Personen pro Training in diesem Monat (wie group.avgPulledPerSession, nur für den Monat). */
+	avgPulledPerSession: number;
 	leaderboard: UserTrainingStats[];
 };
 
@@ -289,7 +293,11 @@ export function computeTrainingStats(): TrainingStatsPayload {
 	const pastSessionCount = pastSessions.length;
 	let totalAbsences = 0;
 	let totalPulled = 0;
+	// Gleiche Zählung je Monat — so ergibt der Monatsfilter denselben Schnitt
+	// wie „gesamt", nur auf den Monat beschränkt.
+	const pulledByMonth = new Map<string, number>();
 	for (const s of pastSessions) {
+		const mk = s.date.slice(0, 7);
 		for (const u of members) {
 			const absent = isImplicitEffectiveAbsent(u, s, absencePairs, overridePairs);
 			if (absent) totalAbsences++;
@@ -300,7 +308,10 @@ export function computeTrainingStats(): TrainingStatsPayload {
 				u.trainingAttendance === 'opt_in'
 					? !absent && rsvpPairs.has(`${u.id}:${s.id}`)
 					: !absent;
-			if (present) totalPulled++;
+			if (present) {
+				totalPulled++;
+				pulledByMonth.set(mk, (pulledByMonth.get(mk) ?? 0) + 1);
+			}
 		}
 	}
 	const avgPulledPerSession =
@@ -448,11 +459,14 @@ export function computeTrainingStats(): TrainingStatsPayload {
 		}
 
 		lb.sort((a, b) => b.showUpPercent - a.showUpPercent || b.implicitPresent - a.implicitPresent);
+		const monthPulled = pulledByMonth.get(key) ?? 0;
 		monthDetail.push({
 			key,
 			label: formatMonthLabel(key),
 			sessionCount: sc,
 			absenceCount: monthAbs,
+			pulledCount: monthPulled,
+			avgPulledPerSession: sc > 0 ? Math.round((monthPulled / sc) * 10) / 10 : 0,
 			leaderboard: lb
 		});
 	}
@@ -709,11 +723,19 @@ function computeTrainingStatsLegacy(): TrainingStatsPayload {
 		}
 
 		lb.sort((a, b) => b.showUpPercent - a.showUpPercent || b.implicitPresent - a.implicitPresent);
+		// Wie der Gesamtschnitt der Legacy-Rechnung: mögliche minus Abmeldungen.
+		const monthIds = new Set(sessionsInMonth.map((x) => x.id));
+		const monthPulled = Math.max(
+			0,
+			sc * members.length - allAbsences.filter((a) => monthIds.has(a.sessionId)).length
+		);
 		monthDetail.push({
 			key,
 			label: formatMonthLabel(key),
 			sessionCount: sc,
 			absenceCount: monthAbs,
+			pulledCount: monthPulled,
+			avgPulledPerSession: sc > 0 ? Math.round((monthPulled / sc) * 10) / 10 : 0,
 			leaderboard: lb
 		});
 	}
