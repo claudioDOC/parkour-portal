@@ -369,6 +369,16 @@ export default function Admin() {
 					))
 				: null}
 
+			{/* Vorschau aller Zug-O-Meter-Stufen — wie im Web unter /admin/zug-o-meter. */}
+			{tab === 'trainings' ? (
+				<Button
+					label="🔥 Zug-O-Meter-Vorschau — alle Stufen"
+					kind="ghost"
+					small
+					onPress={() => router.push('/zug-o-meter')}
+				/>
+			) : null}
+
 			{tab === 'trainings'
 				? orderSessions(sessions.data?.sessions ?? []).map((sess) => (
 						<Card key={sess.id} style={{ gap: 12 }}>

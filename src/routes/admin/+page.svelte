@@ -1659,6 +1659,9 @@
 
 	{#if activeTab === 'trainings'}
 		<div class="space-y-4">
+			<a href="/admin/zug-o-meter" class="inline-flex items-center gap-1 text-sm text-accent hover:underline">
+				🔥 Zug-O-Meter-Vorschau — alle Stufen ansehen →
+			</a>
 			{#if trainingError}
 				<div class="bg-danger/10 border border-danger/30 text-danger rounded-lg p-3 text-sm whitespace-pre-wrap">{trainingError}</div>
 			{/if}

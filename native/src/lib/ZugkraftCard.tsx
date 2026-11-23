@@ -50,7 +50,15 @@ function glowLayers(color: string, strong: boolean): BoxShadowValue[] {
 	];
 }
 
-export function ZugkraftCard({ data }: { data: Zugkraft }) {
+export function ZugkraftCard({
+	data,
+	preview = false
+}: {
+	/** Nur Prozent und Stufe zählen — so passt auch das Vorschau-Muster. */
+	data: Pick<Zugkraft, 'percent' | 'level'>;
+	/** Vorschau: kein Sprung in die Statistik. */
+	preview?: boolean;
+}) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
 	const router = useRouter();
@@ -125,17 +133,22 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 
 	return (
 		<Pressable
-			onPress={() => router.push('/stats')}
-			accessibilityRole="button"
+			onPress={preview ? undefined : () => router.push('/stats')}
+			disabled={preview}
+			accessibilityRole={preview ? 'summary' : 'button'}
 			accessibilityLabel={`Zug-O-Meter: ${data.level.label}. ${data.level.blurb}`}
 			style={({ pressed }) => [styles.box, pressed && { opacity: 0.7 }]}
 		>
-			{/* Titel links, Stand rechts — nur Emoji und Stufe, keine Kopfzahlen. */}
+			{/* Titel links, rechts Emoji · Stufe · Spruch in EINER Zeile. Auf
+			    schmalen Handys schrumpft die Schrift (adjustsFontSizeToFit —
+			    Android skaliert dabei alle Teilstücke gleichmässig), statt
+			    umzubrechen. */}
 			<View style={styles.head}>
 				<Text style={styles.kicker}>ZUG-O-METER</Text>
-				<Text style={styles.emoji}>{data.level.emoji}</Text>
-				<Text style={[styles.label, { color: tone }]} numberOfLines={1}>
-					{data.level.label}
+				<Text style={styles.right} numberOfLines={1} adjustsFontSizeToFit>
+					<Text style={styles.emoji}>{data.level.emoji} </Text>
+					<Text style={[styles.label, { color: tone }]}>{data.level.label}</Text>
+					<Text style={styles.blurb}>{` · ${data.level.blurb}`}</Text>
 				</Text>
 			</View>
 
@@ -152,9 +165,6 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 				</View>
 			</View>
 
-			<Text style={styles.blurb} numberOfLines={2}>
-				{data.level.blurb}
-			</Text>
 		</Pressable>
 	);
 }
@@ -170,9 +180,10 @@ const makeStyles = (colors: ThemeColors) =>
 			lineHeight: 16,
 			letterSpacing: 1.6
 		},
-		/* marginLeft auto schiebt Emoji + Stufe an den rechten Rand. */
-		emoji: { fontSize: 15, marginLeft: 'auto' },
-		label: { fontFamily: fonts.sansSemi, fontSize: 13, lineHeight: 18, flexShrink: 1 },
+		/* Nimmt den Rest der Zeile, Text rechtsbündig. */
+		right: { flex: 1, textAlign: 'right', fontSize: 13, lineHeight: 18 },
+		emoji: { fontSize: 14 },
+		label: { fontFamily: fonts.sansSemi, fontSize: 13 },
 		/* Höhe für den Schein lassen, damit er oben/unten nicht abgeschnitten wirkt. */
 		barBox: { justifyContent: 'center', paddingVertical: 6 },
 		glow: { position: 'absolute', left: 0, height: 10, borderRadius: 999 },
@@ -183,5 +194,5 @@ const makeStyles = (colors: ThemeColors) =>
 			backgroundColor: colors.fg + '12'
 		},
 		fill: { height: '100%', borderRadius: 999 },
-		blurb: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 11, lineHeight: 15 }
+		blurb: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 12 }
 	});

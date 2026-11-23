@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formatStimmen } from '$lib/formatStimmen';
 	import ExtraTrainingForm from '$lib/components/ExtraTrainingForm.svelte';
+	import ZugOMeter from '$lib/components/ZugOMeter.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -80,52 +81,7 @@
 	</header>
 
 	{#if data.zugkraft}
-		<!-- Zug-O-Meter: nur der Balken trägt Farbe und Glühen — der Block bleibt
-		     ruhig, sonst dominiert er das Dashboard. Bei sechs flackert der
-		     Balken wie Feuer, bei eins und zwei pulsiert er als Alarm. -->
-		{@const z = data.zugkraft}
-		{@const col =
-			z.level.key === 'grossartig'
-				? '#00e676'
-				: z.level.key === 'super'
-					? '#22c55e'
-					: z.level.key === 'gut'
-						? '#eab308'
-						: z.level.key === 'ok'
-							? '#f97316'
-							: z.level.key === 'schwach'
-								? '#ef4444'
-								: '#991b1b'}
-		{@const rgb =
-			z.level.key === 'grossartig'
-				? '0, 230, 118'
-				: z.level.key === 'super'
-					? '34, 197, 94'
-					: z.level.key === 'gut'
-						? '234, 179, 8'
-						: z.level.key === 'ok'
-							? '249, 115, 22'
-							: z.level.key === 'schwach'
-								? '239, 68, 68'
-								: '153, 27, 27'}
-		{@const fx =
-			z.level.key === 'grossartig'
-				? 'zug-flame'
-				: z.level.intensity === 2
-					? 'zug-alarm'
-					: 'zug-steady'}
-		<a href="/statistik" class="block rounded-lg px-1 py-1 transition-colors hover:bg-bg-hover" style="--zug-rgb: {rgb}" aria-label="Zug-O-Meter: {z.level.label} — Details in der Statistik">
-			<!-- Titel links, Stand rechts — nur Emoji und Stufe, keine Kopfzahlen. -->
-			<div class="flex items-center gap-2 text-sm">
-				<span class="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">Zug-O-Meter</span>
-				<span class="ml-auto {z.level.intensity === 2 ? 'zug-emoji' : ''}" aria-hidden="true">{z.level.emoji}</span>
-				<span class="font-semibold" style="color: {col}">{z.level.label}</span>
-			</div>
-			<div class="zug-track mt-1.5" aria-hidden="true">
-				<div class="zug-fill {fx}" style="width: {Math.max(z.percent, 3)}%; background-color: {col}"></div>
-			</div>
-			<p class="mt-1 text-xs text-text-muted">{z.level.blurb}</p>
-		</a>
+		<ZugOMeter z={data.zugkraft} />
 	{/if}
 
 	{#if data.nextTrip}

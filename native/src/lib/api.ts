@@ -335,6 +335,12 @@ export const adminTraining = (
 	extra: { spotId?: number | null; reason?: string; timeStart?: string; timeEnd?: string } = {}
 ) => post<{ success?: boolean; sent?: number }>('/api/admin/training', { type, sessionId, ...extra });
 
+/** Admin: alle sechs Zug-O-Meter-Stufen als Muster (⌀ 6 … 1 von 6). */
+export const getZugkraftPreview = () =>
+	request<{ levels: { avg: number; percent: number; level: ZugkraftLevel }[] }>(
+		'/api/admin/zugkraft-preview'
+	);
+
 // --- Solo-Training ---
 
 /** Solo eintragen — heute (Standard) oder bis 14 Tage zurück. */

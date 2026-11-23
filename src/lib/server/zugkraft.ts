@@ -333,6 +333,18 @@ export function computeZugkraft(now = new Date()): Zugkraft {
 	};
 }
 
+/**
+ * Alle sechs Stufen als Muster (⌀ 6 … 1 von 6) — für die Admin-Vorschau in
+ * Web und App. Gleiche Stufenlogik wie echt, damit die Vorschau nicht lügt.
+ */
+export function zugkraftPreview(): { avg: number; percent: number; level: ZugkraftLevel }[] {
+	return [6, 5, 4, 3, 2, 1].map((avg) => ({
+		avg,
+		percent: Math.round((avg / 6) * 100),
+		level: levelFor(avg, 6)
+	}));
+}
+
 /** Text für die Wochen-Benachrichtigung (Sonntagabend). */
 export function zugkraftPushText(z: Zugkraft): { title: string; body: string } {
 	// Keine Kopfzahlen im Text — Emoji, Stufe und Spruch sagen genug.
