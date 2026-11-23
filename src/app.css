@@ -336,11 +336,16 @@ header a,
    mitwandern, obwohl sie stehen bleiben. Es bleibt der sehr kurze
    Überblend-Effekt oben (vt-out/vt-in) — ruhig und kaum wahrnehmbar. */
 
-/* Zugkraft-Barometer: Farbe und Glühen stecken NUR im Balken — der Block
-   drumherum bleibt ruhig, sonst leuchtet das halbe Dashboard. Bei
-   „Grossartig" flackert die Füllung wie Feuer, bei den schlechten Stufen
-   pulsiert sie als Alarm. Die Regeln oben (data-motion='aus',
-   prefers-reduced-motion) schalten die Animationen ab. */
+/* Zugkraft-Barometer.
+   Farbe und Glühen stecken NUR im Balken. Der Schein liegt auf einer eigenen
+   Ebene (::after) über der Füllung; animiert wird nur deren Deckkraft. Das
+   ergibt ein echtes, weiches Ein- und Ausblenden — box-shadow selbst zu
+   animieren ruckelt und lässt sich nicht sauber überblenden.
+   Mehrere Lagen mit wachsendem Weichzeichner und fallender Deckkraft lassen
+   den Schein auslaufen, statt als heller Ring am Rand zu kleben.
+   Stufen: ruhiges Atmen (alle normalen Stufen), Alarm (1–2), Feuer (6).
+   Die Farbe kommt über --zug-rgb als reine Zahlen, damit rgba() daraus
+   Transparenz machen kann (color-mix wäre vom Browser abhängig). */
 .zug-track {
 	position: relative;
 	height: 0.625rem;
@@ -349,35 +354,117 @@ header a,
 	background-color: rgba(255, 255, 255, 0.07);
 }
 .zug-fill {
+	position: relative;
 	height: 100%;
 	border-radius: 999px;
 	transition: width 0.7s ease;
 }
-.zug-steady {
-	box-shadow: 0 0 12px 1px color-mix(in srgb, var(--zug) 75%, transparent);
+.zug-fill::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	pointer-events: none;
+	box-shadow:
+		0 0 4px 0 rgba(var(--zug-rgb), 0.55),
+		0 0 12px 3px rgba(var(--zug-rgb), 0.38),
+		0 0 24px 8px rgba(var(--zug-rgb), 0.2),
+		0 0 40px 14px rgba(var(--zug-rgb), 0.08);
+	opacity: 0.85;
 }
-@keyframes zug-alarm-kf {
-	0%, 100% { box-shadow: 0 0 8px 0 color-mix(in srgb, var(--zug) 55%, transparent); }
-	50% { box-shadow: 0 0 22px 4px color-mix(in srgb, var(--zug) 100%, transparent); }
+@keyframes zug-breathe {
+	0%,
+	100% {
+		opacity: 0.4;
+	}
+	50% {
+		opacity: 1;
+	}
 }
-@keyframes zug-flame-kf {
-	0%, 100% {
-		box-shadow: 0 0 12px 1px rgba(0, 230, 118, 0.85);
+/* Normale Stufen: langsames, ruhiges Atmen. */
+.zug-steady::after {
+	animation: zug-breathe 3.4s ease-in-out infinite;
+}
+/* Schlechte Stufen: kräftiger Schein, schneller Puls. */
+.zug-alarm::after {
+	box-shadow:
+		0 0 6px 1px rgba(var(--zug-rgb), 0.8),
+		0 0 16px 5px rgba(var(--zug-rgb), 0.55),
+		0 0 32px 12px rgba(var(--zug-rgb), 0.3),
+		0 0 52px 20px rgba(var(--zug-rgb), 0.12);
+	animation: zug-breathe 1.2s ease-in-out infinite;
+}
+/* Sechs von sechs: Füllung und Schein wandern durch Grün, Gelb und Orange. */
+@keyframes zug-flame-fill {
+	0%,
+	100% {
 		background-color: #00e676;
 	}
 	35% {
-		box-shadow: 0 0 24px 5px rgba(234, 179, 8, 0.95);
 		background-color: #eab308;
 	}
 	70% {
-		box-shadow: 0 0 20px 4px rgba(249, 115, 22, 0.9);
 		background-color: #f97316;
 	}
 }
-@keyframes zug-emoji {
-	0%, 100% { transform: scale(1); }
-	50% { transform: scale(1.22); }
+@keyframes zug-flame-glow {
+	0%,
+	100% {
+		opacity: 0.7;
+		box-shadow:
+			0 0 6px 1px rgba(0, 230, 118, 0.85),
+			0 0 18px 6px rgba(0, 230, 118, 0.5),
+			0 0 36px 14px rgba(0, 230, 118, 0.24),
+			0 0 60px 22px rgba(0, 230, 118, 0.1);
+	}
+	35% {
+		opacity: 1;
+		box-shadow:
+			0 0 8px 2px rgba(234, 179, 8, 0.95),
+			0 0 22px 8px rgba(234, 179, 8, 0.6),
+			0 0 42px 16px rgba(234, 179, 8, 0.3),
+			0 0 68px 26px rgba(234, 179, 8, 0.12);
+	}
+	70% {
+		opacity: 0.9;
+		box-shadow:
+			0 0 7px 2px rgba(249, 115, 22, 0.9),
+			0 0 20px 7px rgba(249, 115, 22, 0.55),
+			0 0 40px 15px rgba(249, 115, 22, 0.27),
+			0 0 64px 24px rgba(249, 115, 22, 0.11);
+	}
 }
-.zug-alarm { animation: zug-alarm-kf 1.3s ease-in-out infinite; }
-.zug-flame { animation: zug-flame-kf 1.8s ease-in-out infinite; }
-.zug-emoji { animation: zug-emoji 1.6s ease-in-out infinite; display: inline-block; }
+.zug-flame {
+	animation: zug-flame-fill 1.8s ease-in-out infinite;
+}
+.zug-flame::after {
+	animation: zug-flame-glow 1.8s ease-in-out infinite;
+}
+@keyframes zug-emoji {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.22);
+	}
+}
+.zug-emoji {
+	animation: zug-emoji 1.6s ease-in-out infinite;
+	display: inline-block;
+}
+/* Bewegung aus: wirklich anhalten statt (wie die globale Regel oben) bloss
+   auf 0,001 s zu beschleunigen — sonst friert der Schein auf einer
+   zufälligen Phase ein. Der ruhige Schein (opacity 0.85) bleibt sichtbar. */
+html[data-motion='aus'] .zug-fill,
+html[data-motion='aus'] .zug-fill::after,
+html[data-motion='aus'] .zug-emoji {
+	animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+	.zug-fill,
+	.zug-fill::after,
+	.zug-emoji {
+		animation: none !important;
+	}
+}

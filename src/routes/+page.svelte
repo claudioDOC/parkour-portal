@@ -64,12 +64,14 @@
 </script>
 
 <div class="space-y-10">
-	<header class="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-5">
+	<!-- Kopf als Zeile auf allen Breiten: Mit flex-col landete der Streak auf
+	     dem Handy unter dem Titel statt rechts daneben. -->
+	<header class="flex flex-row items-start gap-3 sm:gap-5">
 		<div
 			class="hidden h-14 w-1.5 shrink-0 rounded-sm bg-gradient-to-b from-accent via-accent-hot to-accent-hot/60 shadow-accent-bar-glow sm:block"
 			aria-hidden="true"
 		></div>
-		<div class="min-w-0 space-y-1">
+		<div class="min-w-0 flex-1 space-y-1">
 			<p class="font-display text-sm font-medium uppercase tracking-[0.35em] text-accent-hot">Übersicht</p>
 			<div class="space-y-2">
 				<h2 class="font-display text-4xl font-semibold uppercase tracking-[0.06em] text-text-primary md:text-5xl">
@@ -84,7 +86,7 @@
 		{#if data.myStreak >= 2}
 			<!-- Streak oben rechts: eigene Leistung, gehört nicht in den Titelblock. -->
 			<span
-				class="shrink-0 self-start rounded-full bg-accent-hot/15 px-2.5 py-1 text-xs font-semibold text-accent-hot sm:ml-auto"
+				class="ml-auto mt-1 shrink-0 self-start rounded-full bg-accent-hot/15 px-2.5 py-1 text-xs font-semibold text-accent-hot"
 				title="Trainings in Folge dabei"
 			>
 				🔥 {data.myStreak}er-Streak
@@ -109,13 +111,25 @@
 							: z.level.key === 'schwach'
 								? '#ef4444'
 								: '#991b1b'}
+		{@const rgb =
+			z.level.key === 'grossartig'
+				? '0, 230, 118'
+				: z.level.key === 'super'
+					? '34, 197, 94'
+					: z.level.key === 'gut'
+						? '234, 179, 8'
+						: z.level.key === 'ok'
+							? '249, 115, 22'
+							: z.level.key === 'schwach'
+								? '239, 68, 68'
+								: '153, 27, 27'}
 		{@const fx =
 			z.level.key === 'grossartig'
 				? 'zug-flame'
 				: z.level.intensity === 2
 					? 'zug-alarm'
 					: 'zug-steady'}
-		<a href="/statistik" class="block rounded-lg px-1 py-1 transition-colors hover:bg-bg-hover" style="--zug: {col}" aria-label="Zugkraft der Gruppe — Details in der Statistik">
+		<a href="/statistik" class="block rounded-lg px-1 py-1 transition-colors hover:bg-bg-hover" style="--zug-rgb: {rgb}" aria-label="Zugkraft der Gruppe — Details in der Statistik">
 			<div class="flex items-baseline gap-2 text-sm">
 				<span class="{z.level.intensity === 2 ? 'zug-emoji' : ''}" aria-hidden="true">{z.level.emoji}</span>
 				<span class="font-semibold tabular-nums" style="color: {col}">{z.avgAll}</span>
