@@ -82,7 +82,7 @@ function addDays(ymd: string, days: number): string {
 }
 
 function levelFor(percent: number): ZugkraftLevel {
-	if (percent >= 85)
+	if (percent >= 80)
 		return {
 			key: 'legendaer',
 			label: 'Legendär',
@@ -90,7 +90,7 @@ function levelFor(percent: number): ZugkraftLevel {
 			blurb: 'Die Gruppe brennt. Wer jetzt fehlt, verpasst die gute Phase.',
 			intensity: 2
 		};
-	if (percent >= 70)
+	if (percent >= 65)
 		return {
 			key: 'stark',
 			label: 'Stark',
@@ -98,7 +98,7 @@ function levelFor(percent: number): ZugkraftLevel {
 			blurb: 'Läuft. Haltet die Serie.',
 			intensity: 1
 		};
-	if (percent >= 55)
+	if (percent >= 50)
 		return {
 			key: 'solide',
 			label: 'Solide',
@@ -106,7 +106,7 @@ function levelFor(percent: number): ZugkraftLevel {
 			blurb: 'Geht in Ordnung — mit einer Zusage mehr wird es stark.',
 			intensity: 0
 		};
-	if (percent >= 40)
+	if (percent >= 35)
 		return {
 			key: 'wackelig',
 			label: 'Wackelig',
@@ -114,7 +114,7 @@ function levelFor(percent: number): ZugkraftLevel {
 			blurb: 'Dünn besetzt. Jetzt wäre ein schlechter Moment, sich abzumelden.',
 			intensity: 1
 		};
-	if (percent >= 25)
+	if (percent >= 20)
 		return {
 			key: 'schwach',
 			label: 'Schwach',
@@ -182,13 +182,10 @@ function loadContext(): Ctx {
 }
 
 /**
- * Wie viele ziehen mit — und wie viele könnten überhaupt?
- *
- * Eine stehende Wochentags-Abmeldung (etwa „Donnerstag nie") ist eine
- * bekannte Tatsache, kein Zeichen schwacher Zugkraft. Zählte sie gegen die
- * Gruppe, wäre der Donnerstag dauerhaft schlecht und die oberen Stufen
- * unerreichbar. Darum ist der Nenner je Training „wer an diesem Wochentag
- * überhaupt in Frage kommt".
+ * Wie viele ziehen mit? Nenner sind ALLE Mitglieder — auch wer eine stehende
+ * Wochentags-Abmeldung hat. Das ist bewusst hart: Ein Donnerstag, an dem zwei
+ * Leute grundsätzlich nie kommen, IST schwächer besetzt, und genau das soll
+ * die Zahl zeigen. Die Stufen sind dafür entsprechend angesetzt.
  */
 function attendingCount(
 	ctx: Ctx,
@@ -202,13 +199,7 @@ function attendingCount(
 	const rsvp = new Set(ctx.members.filter((u) => ctx.rsvpPairs.has(`${u.id}:${session.id}`)).map((u) => u.id));
 	const effectiveAbsent = computeEffectiveAbsentUserIds(ctx.members, session.dayOfWeek, dbAbsent, overrides);
 	const attending = ctx.members.filter((u) => isListedAsAttending(u, effectiveAbsent, hidden, rsvp, false)).length;
-	const available = ctx.members.filter((u) => {
-		if (hidden.has(u.id)) return false;
-		// Dauer-Abmeldung für diesen Wochentag, ohne Ausnahme für diesen Termin?
-		if (u.autoAbsentWeekdays.includes(session.dayOfWeek) && !overrides.has(u.id)) return false;
-		return true;
-	}).length;
-	return { attending, available };
+	return { attending, available: ctx.members.length };
 }
 
 function sessionsBetween(from: string, toExclusiveOrInclusive: string, inclusive: boolean) {

@@ -2,24 +2,21 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { fonts, type ThemeColors } from './theme';
-import { radius, space, textAlpha } from './tokens';
+import { textAlpha } from './tokens';
 import { useTheme, useThemedStyles } from './themeContext';
-import { ProgressBar } from './ui';
 import { getMotion } from './prefs';
 import type { Zugkraft, ZugkraftLevelKey } from './api';
 
 /**
- * Zugkraft-Barometer auf der Startseite.
+ * Zugkraft-Barometer auf der Startseite — absichtlich klein.
  *
- * Zeigt in einer Zahl, wie gut die Gruppe gerade zieht (letzte zwei Wochen
- * plus kommende Woche). Zweck ist nicht Statistik, sondern Druck in die
- * richtige Richtung: Wer sieht, dass es gerade dünn aussieht, soll sich
- * zweimal überlegen, ob er sich auch noch abmeldet. Darum eskaliert die
- * Darstellung — bei „legendär" und bei „schwach/Notstand" bewegt sich die
- * Karte, in der Mitte bleibt sie ruhig.
+ * Eine Zeile Kopf, ein farbiger Balken als Blickfang, ein Satz. Mehr würde
+ * das Dashboard zudecken; die Details stehen in der Statistik. Der Balken
+ * trägt den Effekt: in der guten Phase leuchtet er auf, im Notstand pocht
+ * er rot. Dazwischen bleibt alles ruhig.
  */
 
-/** Levelfarbe: eine Farbe trägt die ganze Karte, sonst wird es Kirmes. */
+/** Levelfarbe: eine Farbe trägt die Zeile, sonst wird es Kirmes. */
 function colorFor(key: ZugkraftLevelKey, colors: ThemeColors): string {
 	switch (key) {
 		case 'legendaer':
@@ -34,23 +31,14 @@ function colorFor(key: ZugkraftLevelKey, colors: ThemeColors): string {
 	}
 }
 
-function formatShortDate(ymd: string): string {
-	return new Date(`${ymd}T12:00:00`).toLocaleDateString('de-CH', {
-		weekday: 'short',
-		day: 'numeric',
-		month: 'short'
-	});
-}
-
 export function ZugkraftCard({ data }: { data: Zugkraft }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(makeStyles);
 	const router = useRouter();
 	const tone = colorFor(data.level.key, colors);
-	// Nur die Extreme dürfen zappeln; „Animationen aus" schlägt alles.
+	// Nur die Extreme dürfen zappeln; „Bewegung reduzieren" schlägt alles.
 	const animate = data.level.intensity === 2 && getMotion();
 	const good = data.level.key === 'legendaer';
-
 	const pulse = useRef(new Animated.Value(0)).current;
 
 	useEffect(() => {
@@ -58,21 +46,18 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 			pulse.setValue(0);
 			return;
 		}
-		// Gute Phase: ruhiges Atmen. Schlechte Phase: schnelleres, unruhiges
-		// Pochen — das soll im Augenwinkel stören.
-		const dauer = good ? 1400 : 900;
 		const loop = Animated.loop(
 			Animated.sequence([
 				Animated.timing(pulse, {
 					toValue: 1,
-					duration: dauer,
-					easing: Easing.inOut(Easing.ease),
+					duration: good ? 1100 : 750,
+					easing: Easing.inOut(Easing.quad),
 					useNativeDriver: false
 				}),
 				Animated.timing(pulse, {
 					toValue: 0,
-					duration: dauer,
-					easing: Easing.inOut(Easing.ease),
+					duration: good ? 1100 : 750,
+					easing: Easing.inOut(Easing.quad),
 					useNativeDriver: false
 				})
 			])
@@ -81,147 +66,69 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 		return () => loop.stop();
 	}, [animate, good, pulse]);
 
-	const emojiStyle = animate
-		? {
-				opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, good ? 0.55 : 0.4] }),
-				transform: [
-					{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, good ? 1.18 : 1.08] }) }
-				]
-			}
-		: null;
-	// Rahmen und Schleier pulsieren nur in der schlechten Phase.
-	const alarmStyle =
-		animate && !good
-			? {
-					borderColor: pulse.interpolate({
-						inputRange: [0, 1],
-						outputRange: [`${tone}40`, tone]
-					}),
-					backgroundColor: pulse.interpolate({
-						inputRange: [0, 1],
-						outputRange: [`${tone}14`, `${tone}2e`]
-					})
-				}
-			: null;
-
-	const trendText = data.trend > 0 ? `↑ ${data.trend}` : data.trend < 0 ? `↓ ${Math.abs(data.trend)}` : '→';
-	const trendColor =
-		data.trend > 0 ? colors.success : data.trend < 0 ? colors.danger : colors.fg + textAlpha.muted;
+	// Guter Fall: der Balken wird heller. Schlechter Fall: er pocht kräftig.
+	const barOpacity = animate ? pulse.interpolate({ inputRange: [0, 1], outputRange: good ? [0.75, 1] : [0.55, 1] }) : 1;
 
 	return (
-		<Pressable onPress={() => router.push('/stats')}>
-			{({ pressed }) => (
+		<Pressable
+			onPress={() => router.push('/stats')}
+			style={({ pressed }) => [styles.wrap, pressed && { opacity: 0.7 }]}
+			accessibilityRole="button"
+			accessibilityLabel={`Zugkraft ${data.percent} Prozent, ${data.level.label}`}
+		>
+			<View style={styles.head}>
+				<Text style={styles.emoji}>{data.level.emoji}</Text>
+				<Text style={[styles.percent, { color: tone }]}>{data.percent}%</Text>
+				<Text style={styles.label} numberOfLines={1}>
+					Zugkraft · {data.level.label}
+				</Text>
+				{data.trend !== 0 ? (
+					<Text style={[styles.trend, { color: data.trend > 0 ? colors.success : colors.danger }]}>
+						{data.trend > 0 ? '↑' : '↓'}
+						{Math.abs(data.trend)}
+					</Text>
+				) : null}
+				<Text style={styles.avg}>
+					⌀ {data.avgPast}/{data.memberCount}
+				</Text>
+			</View>
+
+			<View style={styles.track}>
 				<Animated.View
 					style={[
-						styles.box,
-						{ borderColor: `${tone}40`, backgroundColor: `${tone}14` },
-						alarmStyle,
-						pressed && { opacity: 0.85 }
+						styles.fill,
+						{
+							backgroundColor: tone,
+							opacity: barOpacity,
+							width: `${Math.max(data.percent, 2)}%`
+						}
 					]}
-				>
-					<View style={styles.head}>
-						<Animated.Text style={[styles.emoji, emojiStyle]}>{data.level.emoji}</Animated.Text>
-						<View style={{ flex: 1 }}>
-							<Text style={styles.kicker}>ZUGKRAFT</Text>
-							<View style={styles.valueRow}>
-								<Text style={[styles.percent, { color: tone }]}>{data.percent}%</Text>
-								<Text style={[styles.label, { color: tone }]}>{data.level.label}</Text>
-								<Text style={[styles.trend, { color: trendColor }]}>{trendText}</Text>
-							</View>
-						</View>
-						{/* Feuerwerk nur in der Spitzenphase — sonst nichts. */}
-						{animate && good ? (
-							<Animated.Text style={[styles.flames, emojiStyle]}>🔥🔥🔥</Animated.Text>
-						) : null}
-					</View>
+				/>
+			</View>
 
-					<ProgressBar percent={data.percent} color={tone} height={6} />
-
-					<Text style={styles.blurb}>{data.level.blurb}</Text>
-					<Text style={styles.context}>
-						{`Letzte 2 Wochen ⌀ ${data.avgPast} von ${data.memberCount} · kommende Woche ⌀ ${data.avgUpcoming}`}
-					</Text>
-
-					{data.sessions.length > 0 ? (
-						<View style={styles.list}>
-							{data.sessions.map((s) => (
-								<View key={s.sessionId} style={styles.row}>
-									<Text style={[styles.rowDate, s.isPast && styles.rowPast]} numberOfLines={1}>
-										{formatShortDate(s.date)}
-										{s.isPast ? '' : ' · geplant'}
-									</Text>
-									<View style={styles.rowBar}>
-										<ProgressBar
-											percent={s.percent}
-											color={s.isPast ? `${tone}99` : tone}
-											height={4}
-										/>
-									</View>
-									<Text style={[styles.rowCount, s.isPast && styles.rowPast]}>
-										{s.attending}/{s.total}
-									</Text>
-								</View>
-							))}
-						</View>
-					) : null}
-				</Animated.View>
-			)}
+			<Text style={styles.blurb} numberOfLines={2}>
+				{data.level.blurb}
+			</Text>
 		</Pressable>
 	);
 }
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-		box: {
-			borderRadius: radius.md,
-			borderWidth: 1,
-			paddingHorizontal: space.md,
-			paddingVertical: space.md,
-			gap: 10
-		},
-		head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-		emoji: { fontSize: 38, lineHeight: 44 },
-		flames: { fontSize: 15, lineHeight: 20 },
-		kicker: {
+		wrap: { gap: 5, paddingVertical: 2 },
+		head: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+		emoji: { fontSize: 15 },
+		percent: { fontFamily: fonts.sansBold, fontSize: 15, lineHeight: 20 },
+		label: { color: colors.fg + textAlpha.secondary, fontFamily: fonts.sans, fontSize: 13, lineHeight: 18 },
+		trend: { fontFamily: fonts.sansSemi, fontSize: 12, lineHeight: 16 },
+		avg: {
+			marginLeft: 'auto',
 			color: colors.fg + textAlpha.muted,
-			fontFamily: fonts.sansSemi,
-			fontSize: 11,
-			lineHeight: 14,
-			letterSpacing: 1.2
-		},
-		valueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-		percent: { fontFamily: fonts.displayMedium, fontSize: 40, lineHeight: 44 },
-		label: { fontFamily: fonts.sansBold, fontSize: 15, lineHeight: 20 },
-		trend: { fontFamily: fonts.sansSemi, fontSize: 13, lineHeight: 18 },
-		blurb: {
-			color: colors.fg + textAlpha.primary,
-			fontFamily: fonts.sansMedium,
-			fontSize: 13,
-			lineHeight: 18
-		},
-		context: {
-			color: colors.fg + textAlpha.secondary,
 			fontFamily: fonts.sans,
-			fontSize: 12,
+			fontSize: 11,
 			lineHeight: 16
 		},
-		list: { gap: 6, marginTop: 2 },
-		row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-		rowDate: {
-			width: 108,
-			color: colors.fg + textAlpha.secondary,
-			fontFamily: fonts.sans,
-			fontSize: 11,
-			lineHeight: 15
-		},
-		rowBar: { flex: 1 },
-		rowCount: {
-			minWidth: 34,
-			textAlign: 'right',
-			color: colors.fg + textAlpha.secondary,
-			fontFamily: fonts.sansSemi,
-			fontSize: 11,
-			lineHeight: 15
-		},
-		rowPast: { color: colors.fg + textAlpha.muted }
+		track: { height: 10, borderRadius: 999, backgroundColor: colors.fg + '14', overflow: 'hidden' },
+		fill: { height: '100%', borderRadius: 999 },
+		blurb: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 11, lineHeight: 15 }
 	});

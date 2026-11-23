@@ -336,21 +336,32 @@ header a,
    mitwandern, obwohl sie stehen bleiben. Es bleibt der sehr kurze
    Überblend-Effekt oben (vt-out/vt-in) — ruhig und kaum wahrnehmbar. */
 
-/* Zugkraft-Barometer: Die beiden Extremfälle sollen auffallen — gute Phase
-   pulsiert warm, Notstand pulsiert rot. Nur bei intensity 2 angehängt; die
-   Regeln oben (data-motion='aus', prefers-reduced-motion) schalten es aus. */
-@keyframes zug-glow {
-	0%, 100% { box-shadow: 0 0 0 0 rgba(255, 170, 60, 0); }
-	50% { box-shadow: 0 0 22px 2px rgba(255, 170, 60, 0.45); }
+/* Zugkraft-Barometer: Der Balken ist der Blickfang. In der guten Phase
+   wandert ein heller Schimmer darüber, im Notstand pocht er rot. Die Regeln
+   oben (data-motion='aus', prefers-reduced-motion) schalten beides ab. */
+@keyframes zug-shimmer {
+	0% { background-position: -140% 0; }
+	100% { background-position: 240% 0; }
 }
-@keyframes zug-alarm {
-	0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-	50% { box-shadow: 0 0 20px 2px rgba(239, 68, 68, 0.5); }
+@keyframes zug-bar-pulse {
+	0%, 100% { filter: brightness(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+	50% { filter: brightness(1.45); box-shadow: 0 0 14px 2px rgba(239, 68, 68, 0.65); }
 }
 @keyframes zug-emoji {
 	0%, 100% { transform: scale(1); }
 	50% { transform: scale(1.18); }
 }
-.zug-glow { animation: zug-glow 2.6s ease-in-out infinite; }
-.zug-alarm { animation: zug-alarm 1.8s ease-in-out infinite; }
+.zug-bar-glow {
+	position: relative;
+	background-image: linear-gradient(
+		100deg,
+		transparent 20%,
+		rgba(255, 255, 255, 0.75) 42%,
+		transparent 64%
+	);
+	background-size: 220% 100%;
+	background-repeat: no-repeat;
+	animation: zug-shimmer 2.2s linear infinite;
+}
+.zug-bar-alarm { animation: zug-bar-pulse 1.5s ease-in-out infinite; }
 .zug-emoji { animation: zug-emoji 2.2s ease-in-out infinite; display: inline-block; }
