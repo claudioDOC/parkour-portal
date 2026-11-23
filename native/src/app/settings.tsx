@@ -87,6 +87,11 @@ const PUSH_PREFS: { key: string; title: string; hint: string }[] = [
 		key: 'absenceReported',
 		title: 'Abmeldungen',
 		hint: 'Wenn sich jemand abmeldet — mit Name und Grund.'
+	},
+	{
+		key: 'zugkraft',
+		title: 'Zug-O-Meter-Wochenbericht',
+		hint: 'Sonntagabend: wie gut die Gruppe gerade zieht.'
 	}
 ];
 

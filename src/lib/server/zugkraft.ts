@@ -30,8 +30,11 @@ import {
 } from '$lib/server/trainingAttendance';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 
-/** Solange true, sehen nur Admins das Barometer (Probelauf). */
-export const ZUGKRAFT_ADMIN_ONLY = true;
+/**
+ * true = Probelauf: nur Admins sehen das Zug-O-Meter und bekommen den
+ * Wochenbericht. Seit 23.11.2026 für alle offen.
+ */
+export const ZUGKRAFT_ADMIN_ONLY = false;
 
 /**
  * Stufen nach dem Schnitt der Köpfe pro Training — angesetzt an der echten

@@ -105,7 +105,7 @@
 		{href}
 		class="zug-box block rounded-lg px-1 py-1 transition-colors hover:bg-bg-hover"
 		style="--zug-rgb: {c.rgb}"
-		aria-label="Zug-O-Meter: {z.level.label} — {z.level.blurb}. Details in der Statistik"
+		aria-label="Zug-O-Meter: {z.level.label} — {z.level.blurb.replace(/[.!?]+$/, '')}. Details in der Statistik"
 	>
 		{@render body()}
 	</a>
