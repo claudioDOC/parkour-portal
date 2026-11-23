@@ -11,7 +11,8 @@ import {
 	sessionHiddenUsers,
 	trainingSessionRsvp,
 	trainingSessionWeekdayOverride,
-	spotImages
+	spotImages,
+	soloTrainings
 } from '$lib/server/db/schema';
 import { eq, gte, asc, desc, sql, and } from 'drizzle-orm';
 import {
@@ -31,6 +32,12 @@ import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noSho
 import { nextTripSummary } from '$lib/server/tripDatePoll';
 import { lateMarkedUserIds } from '$lib/server/lateAbsence';
 import { ZUGKRAFT_ADMIN_ONLY, computeZugkraft } from '$lib/server/zugkraft';
+
+/** Tag in YYYY-MM-TT verschieben, ohne Zeitzonen-Überraschungen. */
+function addDaysYmdLocal(ymd: string, days: number): string {
+	const [y, m, d] = ymd.split('-').map(Number);
+	return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const today = todayYmdInAppTZ();
@@ -260,19 +267,41 @@ export const load: PageServerLoad = async ({ locals }) => {
 		};
 	});
 
-	// Wetter-Prognose fürs nächste Training — optional, Fehler sind egal.
-	let trainingForecast: Awaited<ReturnType<typeof getTrainingWindowForecast>> | null = null;
-	const firstUpcoming = nextTrainings[0];
-	if (firstUpcoming) {
+	/**
+	 * Wetter-Prognose je Training, aber nur für die kommenden sieben Tage:
+	 * Weiter voraus liefert Open-Meteo kaum Verlässliches, und eine Zeile
+	 * „Prognose: keine Daten" hilft niemandem — die wird weggelassen.
+	 */
+	const forecastHorizon = addDaysYmdLocal(today, 7);
+	const forecastBySession = new Map<number, Awaited<ReturnType<typeof getTrainingWindowForecast>>>();
+	for (const s of nextTrainings) {
+		if (s.date > forecastHorizon) continue;
 		try {
-			trainingForecast = await getTrainingWindowForecast({
-				date: firstUpcoming.date,
-				timeStart: firstUpcoming.timeStart,
-				timeEnd: firstUpcoming.timeEnd
+			const f = await getTrainingWindowForecast({
+				date: s.date,
+				timeStart: s.timeStart,
+				timeEnd: s.timeEnd
 			});
+			if (f && f.condition !== 'unsicher') forecastBySession.set(s.id, f);
 		} catch {
-			trainingForecast = null;
+			// Prognose ist Beiwerk — ein Ausfall darf das Dashboard nicht kippen.
 		}
+	}
+	const trainingForecast = nextTrainings[0] ? forecastBySession.get(nextTrainings[0].id) ?? null : null;
+
+	// Solo-Trainings des Viewers — fürs Eintragen-Widget unter den Trainings.
+	let mySolo: { todayLogged: boolean; countMonth: number } = { todayLogged: false, countMonth: 0 };
+	if (locals.user) {
+		const monthPrefix = today.slice(0, 7);
+		const rows = db
+			.select({ date: soloTrainings.date })
+			.from(soloTrainings)
+			.where(eq(soloTrainings.userId, locals.user.id))
+			.all();
+		mySolo = {
+			todayLogged: rows.some((r) => r.date === today),
+			countMonth: rows.filter((r) => r.date.startsWith(monthPrefix)).length
+		};
 	}
 
 	// Persönliche Streak für die Begrüssung — 🔥 motiviert.
@@ -287,7 +316,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	return {
-		nextTrainings: trainingsWithDetails,
+		nextTrainings: trainingsWithDetails.map((s) => ({
+			...s,
+			forecast: forecastBySession.get(s.id) ?? null
+		})),
+		mySolo,
 		// Zugkraft-Barometer: im Probelauf nur für Admins (ZUGKRAFT_ADMIN_ONLY).
 		zugkraft:
 			locals.user && (!ZUGKRAFT_ADMIN_ONLY || locals.user.role === 'admin')

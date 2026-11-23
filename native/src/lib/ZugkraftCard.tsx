@@ -11,9 +11,10 @@ import type { Zugkraft, ZugkraftLevelKey } from './api';
  * Zugkraft-Barometer auf der Startseite.
  *
  * Die Stufe hängt an KÖPFEN: drei von sechs sind nur „geht so". Jede Stufe
- * hat ihre Farbe (1 dunkelrot … 6 starkes Grün), und der Rahmen leuchtet in
- * dieser Farbe. Bei sechs flackert er wie Feuer, bei eins und zwei pulsiert
- * er als Alarm. Das soll auffallen — genau darum geht es.
+ * hat ihre Farbe (1 dunkelrot … 6 starkes Grün). Farbe und Leuchten stecken
+ * NUR im Balken — der Block drumherum bleibt ruhig, sonst leuchtet die halbe
+ * Startseite. Bei sechs flackert der Balken wie Feuer, bei eins und zwei
+ * pulsiert er als Alarm.
  */
 
 /** Stufenfarbe. Bewusst feste Werte: Die Skala muss in jedem Farbschema gleich lesbar sein. */
@@ -66,30 +67,24 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 		return () => loop.stop();
 	}, [animate, alarm, pulse]);
 
-	// Der Rahmen ist der Blickfang: Farbe und Deckkraft wandern mit.
-	const borderColor = animate
-		? flame
-			? pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: FLAME })
-			: pulse.interpolate({ inputRange: [0, 1], outputRange: [tone + '88', tone] })
-		: tone + 'b0';
-	// Halo hinter der Karte ersetzt den Schatten — auf Android verlässlicher.
+	// Die Füllung ist der Blickfang: Beim Feuer wandert die Farbe, beim Alarm
+	// die Helligkeit. Der Halo direkt hinter dem Balken macht das Glühen auch
+	// auf Android sichtbar (Schatten sind dort unzuverlässig).
+	const fillColor = animate && flame
+		? pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: FLAME })
+		: tone;
 	const haloOpacity = animate
-		? pulse.interpolate({ inputRange: [0, 1], outputRange: alarm ? [0.12, 0.5] : [0.16, 0.42] })
-		: 0.12;
+		? pulse.interpolate({ inputRange: [0, 1], outputRange: alarm ? [0.2, 0.75] : [0.25, 0.7] })
+		: 0.3;
 
 	return (
-		<View style={styles.outer}>
-			<Animated.View
-				pointerEvents="none"
-				style={[styles.halo, { backgroundColor: tone, opacity: haloOpacity }]}
-			/>
-			<Pressable
-				onPress={() => router.push('/stats')}
-				accessibilityRole="button"
-				accessibilityLabel={`Zugkraft: im Schnitt ${data.avgAll} von ${data.memberCount} dabei, ${data.level.label}`}
-				style={({ pressed }) => [pressed && { opacity: 0.8 }]}
-			>
-				<Animated.View style={[styles.box, { borderColor, backgroundColor: tone + '14' }]}>
+		<Pressable
+			onPress={() => router.push('/stats')}
+			accessibilityRole="button"
+			accessibilityLabel={`Zugkraft: im Schnitt ${data.avgAll} von ${data.memberCount} dabei, ${data.level.label}`}
+			style={({ pressed }) => [styles.box, pressed && { opacity: 0.7 }]}
+		>
+			<View>
 					<View style={styles.head}>
 						<Text style={styles.emoji}>{data.level.emoji}</Text>
 						<Text style={[styles.value, { color: tone }]}>{data.avgAll}</Text>
@@ -108,32 +103,40 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 						<Text style={styles.kicker}>ZUGKRAFT</Text>
 					</View>
 
-					<View style={styles.track}>
-						<View
+					<View style={styles.barBox}>
+						<Animated.View
+							pointerEvents="none"
 							style={[
-								styles.fill,
-								{ backgroundColor: tone, width: `${Math.max(data.percent, 3)}%` }
+								styles.halo,
+								{ backgroundColor: tone, opacity: haloOpacity, width: `${Math.max(data.percent, 3)}%` }
 							]}
 						/>
+						<View style={styles.track}>
+							<Animated.View
+								style={[
+									styles.fill,
+									{ backgroundColor: fillColor, width: `${Math.max(data.percent, 3)}%` }
+								]}
+							/>
+						</View>
 					</View>
 
 					<Text style={styles.blurb} numberOfLines={2}>
 						{data.level.blurb}
 					</Text>
-				</Animated.View>
-			</Pressable>
-		</View>
+			</View>
+		</Pressable>
 	);
 }
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
-		outer: { justifyContent: 'center' },
-		halo: { position: 'absolute', left: 6, right: 6, top: 4, bottom: 4, borderRadius: 18 },
-		box: { borderRadius: 14, borderWidth: 1.5, paddingHorizontal: 12, paddingVertical: 10, gap: 7 },
+		box: { gap: 6, paddingVertical: 2 },
+		barBox: { justifyContent: 'center' },
+		halo: { position: 'absolute', left: 0, height: 18, borderRadius: 999 },
 		head: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
 		emoji: { fontSize: 15 },
-		value: { fontFamily: fonts.sansBold, fontSize: 19, lineHeight: 24 },
+		value: { fontFamily: fonts.sansBold, fontSize: 16, lineHeight: 21 },
 		of: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 11, lineHeight: 16 },
 		label: { fontFamily: fonts.sansSemi, fontSize: 13, lineHeight: 18, flexShrink: 1 },
 		trend: { fontFamily: fonts.sansSemi, fontSize: 12, lineHeight: 16 },

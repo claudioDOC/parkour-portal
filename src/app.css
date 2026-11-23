@@ -336,60 +336,42 @@ header a,
    mitwandern, obwohl sie stehen bleiben. Es bleibt der sehr kurze
    Überblend-Effekt oben (vt-out/vt-in) — ruhig und kaum wahrnehmbar. */
 
-/* Zugkraft-Barometer: Der Rahmen leuchtet in der Stufenfarbe (--zug). Bei
-   „Grossartig" flackert er wie Feuer, bei den schlechten Stufen pulsiert er
-   als Alarm, dazwischen steht er ruhig. Soll auffallen — das ist der Zweck.
-   Die Regeln oben (data-motion='aus', prefers-reduced-motion) schalten die
-   Animationen ab; der ruhige Schein bleibt, weil er keine Bewegung ist. */
-.zug-box {
-	display: block;
-	border-radius: 0.75rem;
-	border: 1.5px solid color-mix(in srgb, var(--zug) 70%, transparent);
-	background-color: color-mix(in srgb, var(--zug) 9%, transparent);
-	padding: 0.75rem 0.875rem;
-	box-shadow:
-		0 0 14px color-mix(in srgb, var(--zug) 45%, transparent),
-		inset 0 0 18px color-mix(in srgb, var(--zug) 14%, transparent);
-	transition: box-shadow 0.4s ease;
-}
+/* Zugkraft-Barometer: Farbe und Glühen stecken NUR im Balken — der Block
+   drumherum bleibt ruhig, sonst leuchtet das halbe Dashboard. Bei
+   „Grossartig" flackert die Füllung wie Feuer, bei den schlechten Stufen
+   pulsiert sie als Alarm. Die Regeln oben (data-motion='aus',
+   prefers-reduced-motion) schalten die Animationen ab. */
 .zug-track {
 	position: relative;
 	height: 0.625rem;
 	width: 100%;
-	overflow: hidden;
 	border-radius: 999px;
 	background-color: rgba(255, 255, 255, 0.07);
 }
 .zug-fill {
 	height: 100%;
 	border-radius: 999px;
-	box-shadow: 0 0 12px color-mix(in srgb, var(--zug) 85%, transparent);
 	transition: width 0.7s ease;
 }
+.zug-steady {
+	box-shadow: 0 0 12px 1px color-mix(in srgb, var(--zug) 75%, transparent);
+}
 @keyframes zug-alarm-kf {
-	0%, 100% {
-		box-shadow:
-			0 0 10px color-mix(in srgb, var(--zug) 40%, transparent),
-			inset 0 0 14px color-mix(in srgb, var(--zug) 10%, transparent);
-	}
-	50% {
-		box-shadow:
-			0 0 30px 6px color-mix(in srgb, var(--zug) 95%, transparent),
-			inset 0 0 26px color-mix(in srgb, var(--zug) 30%, transparent);
-	}
+	0%, 100% { box-shadow: 0 0 8px 0 color-mix(in srgb, var(--zug) 55%, transparent); }
+	50% { box-shadow: 0 0 22px 4px color-mix(in srgb, var(--zug) 100%, transparent); }
 }
 @keyframes zug-flame-kf {
 	0%, 100% {
-		border-color: #00e676;
-		box-shadow: 0 0 16px 2px rgba(0, 230, 118, 0.7), inset 0 0 18px rgba(0, 230, 118, 0.2);
+		box-shadow: 0 0 12px 1px rgba(0, 230, 118, 0.85);
+		background-color: #00e676;
 	}
 	35% {
-		border-color: #eab308;
-		box-shadow: 0 0 30px 7px rgba(234, 179, 8, 0.85), inset 0 0 26px rgba(234, 179, 8, 0.28);
+		box-shadow: 0 0 24px 5px rgba(234, 179, 8, 0.95);
+		background-color: #eab308;
 	}
 	70% {
-		border-color: #f97316;
-		box-shadow: 0 0 26px 5px rgba(249, 115, 22, 0.8), inset 0 0 22px rgba(249, 115, 22, 0.24);
+		box-shadow: 0 0 20px 4px rgba(249, 115, 22, 0.9);
+		background-color: #f97316;
 	}
 }
 @keyframes zug-emoji {

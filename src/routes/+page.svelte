@@ -1,8 +1,37 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import { formatStimmen } from '$lib/formatStimmen';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+
+	/** Solo-Training für heute ein- bzw. austragen (eigene Wertung). */
+	let soloBusy = $state(false);
+	let soloMessage = $state('');
+	async function soloRequest(method: 'POST' | 'DELETE') {
+		soloBusy = true;
+		soloMessage = '';
+		try {
+			const res = await fetch('/api/solo', {
+				method,
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ date: data.calendarToday })
+			});
+			const body = (await res.json().catch(() => ({}))) as { error?: string };
+			if (!res.ok) {
+				soloMessage = body.error || 'Hat nicht geklappt';
+				return;
+			}
+			await invalidateAll();
+		} catch {
+			soloMessage = 'Keine Verbindung';
+		} finally {
+			soloBusy = false;
+			setTimeout(() => (soloMessage = ''), 4000);
+		}
+	}
+	const logSoloToday = () => soloRequest('POST');
+	const undoSoloToday = () => soloRequest('DELETE');
 
 	function formatDate(dateStr: string): string {
 		const d = new Date(dateStr + 'T00:00:00');
@@ -51,24 +80,22 @@
 					aria-hidden="true"
 				></div>
 			</div>
-			<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-				{#if data.myStreak >= 2}
-					<span
-						class="rounded-full bg-accent-hot/15 px-2.5 py-0.5 text-xs font-semibold text-accent-hot"
-						title="Trainings in Folge dabei"
-					>
-						🔥 {data.myStreak}er-Streak
-					</span>
-				{/if}
-			</div>
 		</div>
+		{#if data.myStreak >= 2}
+			<!-- Streak oben rechts: eigene Leistung, gehört nicht in den Titelblock. -->
+			<span
+				class="shrink-0 self-start rounded-full bg-accent-hot/15 px-2.5 py-1 text-xs font-semibold text-accent-hot sm:ml-auto"
+				title="Trainings in Folge dabei"
+			>
+				🔥 {data.myStreak}er-Streak
+			</span>
+		{/if}
 	</header>
 
 	{#if data.zugkraft}
-		<!-- Zugkraft: Farbe pro Stufe (1 dunkelrot … 6 starkes Grün), dazu ein
-		     leuchtender Rahmen in derselben Farbe. Bei 6 flackert er wie Feuer,
-		     bei 1 und 2 pulsiert er als Alarm. Soll auffallen — genau das ist
-		     der Zweck. Details per Klick in der Statistik. -->
+		<!-- Zugkraft: nur der Balken trägt Farbe und Glühen — der Block bleibt
+		     ruhig, sonst dominiert er das Dashboard. Bei sechs flackert der
+		     Balken wie Feuer, bei eins und zwei pulsiert er als Alarm. -->
 		{@const z = data.zugkraft}
 		{@const col =
 			z.level.key === 'grossartig'
@@ -88,17 +115,12 @@
 				: z.level.intensity === 2
 					? 'zug-alarm'
 					: 'zug-steady'}
-		<a
-			href="/statistik"
-			class="zug-box {fx}"
-			style="--zug: {col}"
-			aria-label="Zugkraft der Gruppe — Details in der Statistik"
-		>
+		<a href="/statistik" class="block rounded-lg px-1 py-1 transition-colors hover:bg-bg-hover" style="--zug: {col}" aria-label="Zugkraft der Gruppe — Details in der Statistik">
 			<div class="flex items-baseline gap-2 text-sm">
 				<span class="{z.level.intensity === 2 ? 'zug-emoji' : ''}" aria-hidden="true">{z.level.emoji}</span>
-				<span class="font-display text-xl font-semibold tabular-nums" style="color: {col}">{z.avgAll}</span>
+				<span class="font-semibold tabular-nums" style="color: {col}">{z.avgAll}</span>
 				<span class="text-xs text-text-muted">von {z.memberCount}</span>
-				<span class="font-semibold" style="color: {col}">· {z.level.label}</span>
+				<span class="text-text-secondary">· {z.level.label}</span>
 				{#if z.trend !== 0}
 					<span class="text-xs {z.trend > 0 ? 'text-success' : 'text-danger'}" title="Gegenüber den 14 Tagen davor">
 						{z.trend > 0 ? '↑' : '↓'}{Math.abs(z.trend)}
@@ -106,10 +128,10 @@
 				{/if}
 				<span class="ml-auto text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">Zugkraft</span>
 			</div>
-			<div class="zug-track mt-2" aria-hidden="true">
-				<div class="zug-fill" style="width: {Math.max(z.percent, 3)}%; background-color: {col}"></div>
+			<div class="zug-track mt-1.5" aria-hidden="true">
+				<div class="zug-fill {fx}" style="width: {Math.max(z.percent, 3)}%; background-color: {col}"></div>
 			</div>
-			<p class="mt-1.5 text-xs text-text-muted">{z.level.blurb}</p>
+			<p class="mt-1 text-xs text-text-muted">{z.level.blurb}</p>
 		</a>
 	{/if}
 
@@ -206,8 +228,10 @@
 								{/if}
 							</div>
 							<p class="text-text-secondary text-sm mt-1">{formatDate(session.date)} &middot; {session.timeStart} - {session.timeEnd}</p>
-							{#if i === 0 && data.trainingForecast}
-								<p class="text-text-muted text-sm mt-1">{data.trainingForecast.summaryLine}</p>
+							{#if session.forecast}
+								<!-- Prognose nur für Termine in den nächsten 7 Tagen, und nur
+								     wenn Open-Meteo wirklich Daten liefert. -->
+								<p class="text-text-muted text-sm mt-1">{session.forecast.summaryLine}</p>
 							{/if}
 							{#if session.topVote}
 								<p class="text-accent text-sm mt-2 font-medium">
@@ -279,6 +303,39 @@
 				<p class="text-text-muted text-center py-8">Keine kommenden Trainings</p>
 			{/if}
 		</div>
+		<!-- Solo-Training: gehört direkt unter die Trainings — es ist die
+		     Alternative, wenn die Gruppe nicht zieht. Eigene Wertung, fliesst
+		     nicht in „Gezogen %". -->
+		<div class="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-bg-card/60 px-3 py-2.5">
+			<span aria-hidden="true">⚡</span>
+			<p class="text-sm text-text-secondary">
+				Solo · <span class="tabular-nums text-text-primary">{data.mySolo.countMonth}</span> diesen Monat
+				{#if data.mySolo.todayLogged}<span class="text-success"> · heute ✓</span>{/if}
+			</p>
+			{#if soloMessage}
+				<span class="text-xs text-text-muted">{soloMessage}</span>
+			{/if}
+			{#if data.mySolo.todayLogged}
+				<button
+					type="button"
+					onclick={undoSoloToday}
+					disabled={soloBusy}
+					class="ml-auto cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
+				>
+					Rückgängig
+				</button>
+			{:else}
+				<button
+					type="button"
+					onclick={logSoloToday}
+					disabled={soloBusy}
+					class="ml-auto cursor-pointer rounded-lg bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25 disabled:opacity-50"
+				>
+					Heute eintragen
+				</button>
+			{/if}
+		</div>
+
 		<a
 			href="/training"
 			class="btn-link btn-link-secondary"
