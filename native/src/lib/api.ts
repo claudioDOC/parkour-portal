@@ -142,6 +142,13 @@ export type SpotVote = {
 	voterList: string[];
 };
 
+/** Wetter-Prognose, wie der Server sie liefert (Zeile beginnt mit „Prognose:"). */
+export type TrainingForecast = {
+	summaryLine?: string;
+	isWet?: boolean;
+	temperatureInWindow?: number | null;
+};
+
 export type TrainingSession = {
 	id: number;
 	date: string;
@@ -180,6 +187,8 @@ export type TrainingSession = {
 	note?: string | null;
 	winnerSpot: { name: string; city: string; spotId: number; votes: number } | null;
 	autoSpot: { name: string; city: string; spotId: number } | null;
+	/** Prognose für diesen Termin — nur kommende 7 Tage und nur mit echten Daten. */
+	forecast?: TrainingForecast | null;
 };
 
 /**
@@ -276,7 +285,7 @@ export type TrainingPayload = {
 	nextTrip: NextTripSummary | null;
 	sessions: TrainingSession[];
 	allSpots: { id: number; name: string; city: string }[];
-	trainingForecast: { summaryLine?: string; isWet?: boolean; temperatureInWindow?: number | null } | null;
+	trainingForecast: TrainingForecast | null;
 	viewerTrainingAttendance: string | null;
 	mySolo: { todayLogged: boolean; countMonth: number };
 	calendarToday: string;

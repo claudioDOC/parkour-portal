@@ -281,46 +281,14 @@ export default function Dashboard() {
 				plainTitle
 				kicker="Übersicht"
 				title="Start"
-				sub={
-					/* Wetter und Solo gehören direkt unter den Titel: Randnotizen,
-					   die keine eigene Zeile mitten auf der Seite brauchen. */
-					<View style={{ gap: 6, marginTop: 8 }}>
-						{myStreak >= 2 ? (
-							<View style={styles.streakChip}>
-								<Ionicons name="flame" size={15} color={colors.accent} />
-								<Text style={styles.streakText}>{myStreak}er-Streak</Text>
-							</View>
-						) : null}
-						{data?.trainingForecast?.summaryLine ? (
-							<View style={styles.metaRow}>
-								<Ionicons
-									name={data.trainingForecast.isWet ? 'rainy-outline' : 'partly-sunny-outline'}
-									size={13}
-									color={colors.fg + textAlpha.muted}
-								/>
-								{/* Serverzeile beginnt schon mit „Prognose:" */}
-								<Text style={styles.metaSmall} numberOfLines={1}>
-									{data.trainingForecast.summaryLine}
-								</Text>
-							</View>
-						) : null}
-						<View style={styles.metaRow}>
-							<Ionicons name="flash-outline" size={13} color={colors.accent} />
-							<Text style={styles.metaSmall}>
-								{`Solo · ${data?.mySolo.countMonth ?? 0} diesen Monat`}
-								{data?.mySolo.todayLogged ? ' · heute ✓' : ''}
-							</Text>
-							{data?.mySolo.todayLogged ? (
-								<Pressable onPress={undoSoloToday} hitSlop={8}>
-									<Text style={styles.soloUndo}>Rückgängig</Text>
-								</Pressable>
-							) : (
-								<Pressable onPress={() => { setSoloNote(''); setSoloOpen(true); }} hitSlop={8}>
-									<Text style={styles.soloAction}>Heute eintragen</Text>
-								</Pressable>
-							)}
+				right={
+					/* Streak oben rechts: eigene Leistung, gehört nicht unter den Titel. */
+					myStreak >= 2 ? (
+						<View style={styles.streakChip}>
+							<Ionicons name="flame" size={14} color={colors.accent} />
+							<Text style={styles.streakText}>{myStreak}er-Streak</Text>
 						</View>
-					</View>
+					) : undefined
 				}
 			/>
 
@@ -404,6 +372,32 @@ export default function Dashboard() {
 				</Pressable>
 			</View>
 
+			{/* Solo-Training: die Alternative, wenn die Gruppe nicht zieht —
+			    gehört darum direkt unter die Trainings-Überschrift. Eigene
+			    Wertung, fliesst nicht in „Gezogen %". */}
+			<View style={styles.soloRow}>
+				<Ionicons name="flash-outline" size={14} color={colors.accent} />
+				<Text style={styles.soloText}>
+					{`Solo · ${data?.mySolo.countMonth ?? 0} diesen Monat`}
+					{data?.mySolo.todayLogged ? ' · heute ✓' : ''}
+				</Text>
+				{data?.mySolo.todayLogged ? (
+					<Pressable onPress={undoSoloToday} hitSlop={8}>
+						<Text style={styles.soloUndo}>Rückgängig</Text>
+					</Pressable>
+				) : (
+					<Pressable
+						onPress={() => {
+							setSoloNote('');
+							setSoloOpen(true);
+						}}
+						hitSlop={8}
+					>
+						<Text style={styles.soloAction}>Heute eintragen</Text>
+					</Pressable>
+				)}
+			</View>
+
 			{(data?.sessions ?? []).slice(0, DETAILED_SESSIONS).map((s, sessionIndex) => {
 				const iAmIn = me ? s.attending.some((a) => a.id === me.id) : false;
 				const absent = s.userDbAbsent || s.userVirtualAbsent;
@@ -457,6 +451,20 @@ export default function Dashboard() {
 							<Text style={styles.metaLine}>
 								{metaDate(s.date)} · {s.timeStart} – {s.timeEnd}
 							</Text>
+							{s.forecast ? (
+								/* Prognose nur, wenn der Server für diesen Termin Daten hat
+								   (kommende 7 Tage) — die Zeile beginnt schon mit „Prognose:". */
+								<View style={styles.metaRow}>
+									<Ionicons
+										name={s.forecast.isWet ? 'rainy-outline' : 'partly-sunny-outline'}
+										size={13}
+										color={colors.fg + textAlpha.muted}
+									/>
+									<Text style={styles.metaSmall} numberOfLines={1}>
+										{s.forecast.summaryLine}
+									</Text>
+								</View>
+							) : null}
 							{s.isExtra ? (
 								<View style={styles.extraRow}>
 									<Text style={styles.extraNote} numberOfLines={2}>
@@ -1133,11 +1141,27 @@ const makeStyles = (colors: ThemeColors) =>
 			lineHeight: 14,
 			letterSpacing: 1.2
 		},
+		soloRow: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			gap: 6,
+			paddingHorizontal: 10,
+			paddingVertical: 7,
+			borderRadius: 10,
+			backgroundColor: colors.fg + '0a'
+		},
+		soloText: {
+			flex: 1,
+			color: colors.fg + textAlpha.secondary,
+			fontFamily: fonts.sans,
+			fontSize: 12,
+			lineHeight: 16
+		},
 		streakChip: {
 			flexDirection: 'row',
 			alignItems: 'center',
 			gap: 8,
-			alignSelf: 'flex-start',
+			alignSelf: 'center',
 			backgroundColor: colors.accent + '1a',
 			borderRadius: 999,
 			paddingHorizontal: 12,
