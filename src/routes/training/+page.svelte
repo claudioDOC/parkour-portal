@@ -4,6 +4,7 @@
 	import { formatStimmen } from '$lib/formatStimmen';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import LiveMeetup from '$lib/components/LiveMeetup.svelte';
+	import ExtraTrainingForm from '$lib/components/ExtraTrainingForm.svelte';
 	import { tapFeedback } from '$lib/haptics';
 	import type { PageData } from './$types';
 
@@ -13,13 +14,8 @@
 	let showReason = $state<number | null>(null);
 	let openAbsenceReason = $state<string | null>(null);
 	let showSpotPicker = $state<number | null>(null);
-	// Zusatztraining eintragen — offen für alle, wie Spots und Challenges.
+	// Zusatztraining (Gruppe oder Solo) — das Formular steckt in ExtraTrainingForm.
 	let extraOpen = $state(false);
-	let extraDate = $state('');
-	let extraStart = $state('18:15');
-	let extraEnd = $state('20:15');
-	let extraNote = $state('');
-	let extraBusy = $state(false);
 	// Nur die nächsten drei ausführlich; der Rest steckt in einer Kurzliste,
 	// sonst scrollt man an zwölf Karten vorbei.
 	const DETAILED_SESSIONS = 3;
@@ -150,94 +146,6 @@
 		)
 	);
 
-	/** Solo-Training eintragen (separate Statistik). */
-	let soloDate = $state('');
-	let soloNote = $state('');
-	let soloBusy = $state(false);
-	$effect(() => {
-		if (!soloDate) soloDate = data.calendarToday;
-	});
-
-	/** Versehentlich eingetragen? Der Eintrag des gewählten Tages fliegt raus. */
-	async function undoSolo() {
-		soloBusy = true;
-		try {
-			const res = await fetch('/api/solo', {
-				method: 'DELETE',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ date: soloDate })
-			});
-			const body = (await res.json().catch(() => ({}))) as { error?: string };
-			if (!res.ok) {
-				pushNotice(body.error || 'Rückgängig fehlgeschlagen', 'error');
-				return;
-			}
-			pushNotice('Solo-Eintrag entfernt.');
-			await invalidateAll();
-		} catch {
-			pushNotice('Keine Verbindung — nichts geändert.', 'error');
-		} finally {
-			soloBusy = false;
-		}
-	}
-
-	async function logSolo() {
-		soloBusy = true;
-		try {
-			const res = await fetch('/api/solo', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ date: soloDate, note: soloNote })
-			});
-			const body = (await res.json().catch(() => ({}))) as { error?: string };
-			if (!res.ok) {
-				pushNotice(body.error || `Eintragen fehlgeschlagen (${res.status})`, 'error');
-				return;
-			}
-			pushNotice('💪 Solo-Training eingetragen!');
-			soloNote = '';
-			await invalidateAll();
-		} catch {
-			pushNotice('Keine Verbindung — nicht gespeichert.', 'error');
-		} finally {
-			soloBusy = false;
-		}
-	}
-
-	async function createExtraTraining() {
-		if (!extraDate) {
-			pushNotice('Bitte ein Datum wählen.', 'error');
-			return;
-		}
-		extraBusy = true;
-		try {
-			const res = await fetch('/api/training', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					action: 'create_extra',
-					date: extraDate,
-					timeStart: extraStart,
-					timeEnd: extraEnd,
-					note: extraNote.trim()
-				})
-			});
-			const body = (await res.json().catch(() => ({}))) as { error?: string };
-			if (!res.ok) {
-				pushNotice(body.error || 'Konnte nicht angelegt werden.', 'error');
-				return;
-			}
-			pushNotice('Zusatztraining eingetragen — alle wurden benachrichtigt.');
-			extraOpen = false;
-			extraNote = '';
-			await invalidateAll();
-		} catch {
-			pushNotice('Keine Verbindung — nichts gespeichert.', 'error');
-		} finally {
-			extraBusy = false;
-		}
-	}
-
 	async function deleteExtraTraining(sessionId: number) {
 		if (!confirm('Zusatztraining wirklich entfernen?')) return;
 		await postAction('delete_extra', sessionId);
@@ -298,58 +206,6 @@
 		{/if}
 	</PageHeader>
 
-	<!-- Solo-Training: zählt in die eigene Solo-Statistik, nicht in „Gezogen %" -->
-	<details class="group rounded-xl border border-dashed border-accent-hot/30 bg-accent-hot/[0.04] overflow-hidden">
-		<summary class="flex cursor-pointer list-none items-center justify-between px-4 py-3 [&::-webkit-details-marker]:hidden">
-			<span class="text-sm font-semibold text-text-primary">
-				🏃 Solo gezogen? Trag's ein
-				{#if data.mySolo.countMonth > 0}
-					<span class="ml-1 text-xs font-medium text-accent-hot">({data.mySolo.countMonth}× diesen Monat)</span>
-				{/if}
-			</span>
-			<span class="text-text-muted transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
-		</summary>
-		<div class="border-t border-border/60 p-4">
-			<p class="mb-3 text-xs text-text-muted">
-				Alleine oder ausserhalb der Gruppenzeiten trainiert? Zählt in die separate
-				<a href="/statistik" class="text-accent hover:underline">Solo-Statistik</a> — nicht in „Gezogen %".
-			</p>
-			<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-				<input
-					type="date"
-					bind:value={soloDate}
-					max={data.calendarToday}
-					class="rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
-				/>
-				<input
-					type="text"
-					bind:value={soloNote}
-					maxlength="200"
-					placeholder="Optional: was/wo (z. B. Morgenrunde Flips)"
-					class="flex-1 rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
-				/>
-				<button
-					type="button"
-					onclick={logSolo}
-					disabled={soloBusy || (soloDate === data.calendarToday && data.mySolo.todayLogged)}
-					class="cursor-pointer rounded-lg bg-accent-hot/90 px-4 py-2 text-sm font-semibold text-[#0c0c0e] transition-colors hover:bg-accent-hot disabled:opacity-50"
-				>
-					{soloBusy ? '…' : data.mySolo.todayLogged && soloDate === data.calendarToday ? 'Heute schon drin ✓' : 'Eintragen'}
-				</button>
-				{#if data.mySolo.todayLogged && soloDate === data.calendarToday}
-					<button
-						type="button"
-						onclick={undoSolo}
-						disabled={soloBusy}
-						class="cursor-pointer rounded-lg bg-bg-hover px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-secondary disabled:opacity-50"
-					>
-						Rückgängig
-					</button>
-				{/if}
-			</div>
-		</div>
-	</details>
-
 	{#if liveNotices.length > 0}
 		<div class="fixed right-3 top-16 z-[72] w-[min(24rem,calc(100vw-1.5rem))] space-y-2 md:right-6 md:top-6">
 			{#each liveNotices as notice (notice.id)}
@@ -364,71 +220,28 @@
 		</div>
 	{/if}
 
-	<!-- Spontaner Zusatztermin: steht in derselben Liste wie die festen
-	     Trainings, mit Anmeldung, Spot-Voting und Kalender. -->
+	<!-- Zusatztraining eintragen: spontaner Gruppentermin ODER Solo — ein
+	     Formular für alles ausserhalb von Dienstag/Donnerstag (wie in der App). -->
 	<div class="mb-4 rounded-xl border border-border bg-bg-card p-4">
 		{#if !extraOpen}
 			<button
 				type="button"
-				onclick={() => {
-					extraOpen = true;
-					if (!extraDate) extraDate = data.calendarToday;
-				}}
+				onclick={() => (extraOpen = true)}
 				class="flex items-center gap-2 text-sm font-medium text-accent hover:text-accent-hover transition-colors"
 			>
 				<span class="text-lg leading-none">+</span> Zusatztraining eintragen
+				<span class="text-xs font-normal text-text-muted">· mit der Gruppe oder solo</span>
 			</button>
+			{#if data.mySolo.todayLogged}
+				<p class="mt-1 text-xs text-text-muted">Heute solo eingetragen ✓</p>
+			{/if}
 		{:else}
-			<div class="space-y-3">
-				<p class="text-text-primary text-sm font-semibold">Zusatztraining eintragen</p>
-				<p class="text-text-muted text-xs">
-					Für spontane Termine neben Dienstag und Donnerstag. Alle können sich
-					anmelden und den Spot wählen; die Statistik bleibt unberührt.
-				</p>
-				<div class="flex flex-wrap gap-2">
-					<input
-						type="date"
-						bind:value={extraDate}
-						min={data.calendarToday}
-						class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
-					/>
-					<input
-						type="time"
-						bind:value={extraStart}
-						class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
-					/>
-					<span class="self-center text-text-muted text-sm">bis</span>
-					<input
-						type="time"
-						bind:value={extraEnd}
-						class="bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
-					/>
-				</div>
-				<input
-					type="text"
-					bind:value={extraNote}
-					maxlength="200"
-					placeholder="Notiz (optional), z. B. „Skatepark, bringt Wasser mit“"
-					class="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
-				/>
-				<div class="flex gap-2">
-					<button
-						type="button"
-						onclick={createExtraTraining}
-						disabled={extraBusy}
-						class="bg-accent hover:bg-accent-hover text-black px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-					>
-						{extraBusy ? 'Wird eingetragen …' : 'Eintragen'}
-					</button>
-					<button
-						type="button"
-						onclick={() => (extraOpen = false)}
-						class="bg-bg-hover hover:bg-bg-secondary text-text-secondary px-4 py-2 rounded-lg text-sm font-medium"
-					>
-						Abbrechen
-					</button>
-				</div>
-			</div>
+			<ExtraTrainingForm
+				calendarToday={data.calendarToday}
+				mySolo={data.mySolo}
+				onClose={() => (extraOpen = false)}
+				onNotice={pushNotice}
+			/>
 		{/if}
 	</div>
 

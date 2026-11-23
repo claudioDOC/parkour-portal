@@ -337,7 +337,9 @@ export const adminTraining = (
 
 // --- Solo-Training ---
 
-export const logSolo = (note?: string) => post<{ success?: boolean }>('/api/solo', { note });
+/** Solo eintragen — heute (Standard) oder bis 14 Tage zurück. */
+export const logSolo = (note?: string, date?: string) =>
+	post<{ success?: boolean }>('/api/solo', { note, ...(date ? { date } : {}) });
 
 /** Solo-Eintrag eines Tages wieder entfernen (Standard: heute). */
 export const removeSolo = (date?: string) =>

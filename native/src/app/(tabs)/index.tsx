@@ -18,7 +18,8 @@ import {
 	Button,
 	Sheet,
 	Input,
-	SectionTitle
+	SectionTitle,
+	Segmented
 } from '../../lib/ui';
 import { useData } from '../../lib/store';
 import { DateField } from '../../lib/DateField';
@@ -89,6 +90,12 @@ function formatTripRange(start: string, end: string): string {
 	return start === end ? fmt(start) : `${fmt(start)} – ${fmt(end)}`;
 }
 
+/** JJJJ-MM-TT plus/minus Tage (UTC, ohne Zeitzonen-Sprung). */
+function addDaysYmd(ymd: string, days: number): string {
+	const [y, m, d] = ymd.split('-').map(Number);
+	return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
 export default function Dashboard() {
 	const { me } = useAuth();
 	const { colors } = useTheme();
@@ -106,14 +113,16 @@ export default function Dashboard() {
 	const [voteQuery, setVoteQuery] = useState('');
 	// Zusatztraining eintragen — wie auf der Website, offen für alle.
 	const [extraOpen, setExtraOpen] = useState(false);
-	// Solo-Schnelleintrag mit optionaler Notiz (wie beim Nachtrag/Website).
-	const [soloOpen, setSoloOpen] = useState(false);
+	// Das Zusatztraining-Sheet kennt zwei Arten: mit der Gruppe oder solo
+	// (wie das Formular auf der Website).
+	const [extraMode, setExtraMode] = useState<'gruppe' | 'solo'>('gruppe');
+	const [soloDate, setSoloDate] = useState('');
 	const [soloNote, setSoloNote] = useState('');
 	const [soloBusy, setSoloBusy] = useState(false);
 	const [extraForm, setExtraForm] = useState({ date: '', start: '18:15', end: '20:15', note: '' });
 	const [extraBusy, setExtraBusy] = useState(false);
 	// Nur die nächsten drei ausführlich — der Rest steckt in einer
-	// Kurzliste, sonst scrollt man ewig bis zum Solo-Eintrag.
+	// Kurzliste, sonst scrollt man ewig.
 	const [moreOpen, setMoreOpen] = useState(false);
 	// „Bin da": Standort teilen und die anderen am Spot finden.
 	const [meetOpen, setMeetOpen] = useState(false);
@@ -252,20 +261,24 @@ export default function Dashboard() {
 			}
 		]);
 
-	const undoSoloToday = async () => {
+	/** Versehentlich eingetragen? Der Solo-Eintrag des gewählten Tages fliegt raus. */
+	const undoSolo = async () => {
+		setSoloBusy(true);
 		try {
-			await removeSolo();
+			await removeSolo(soloDate || undefined);
 			await training.refresh();
 		} catch (e) {
 			Alert.alert('Fehler', e instanceof Error ? e.message : 'Rückgängig fehlgeschlagen');
+		} finally {
+			setSoloBusy(false);
 		}
 	};
 
 	const submitSolo = async () => {
 		setSoloBusy(true);
 		try {
-			await logSolo(soloNote.trim() || undefined);
-			setSoloOpen(false);
+			await logSolo(soloNote.trim() || undefined, soloDate || undefined);
+			setExtraOpen(false);
 			setSoloNote('');
 			await training.refresh();
 		} catch (e) {
@@ -274,6 +287,9 @@ export default function Dashboard() {
 			setSoloBusy(false);
 		}
 	};
+
+	// Heute schon solo eingetragen? Dann bietet das Sheet „Rückgängig" an.
+	const soloTodayDone = !!data?.mySolo.todayLogged && soloDate === data?.calendarToday;
 
 	return (
 		<Screen refreshing={training.refreshing} onRefresh={training.onRefresh}>
@@ -362,6 +378,7 @@ export default function Dashboard() {
 				<Pressable
 					onPress={() => {
 						setExtraForm((f) => ({ ...f, date: f.date || (data?.calendarToday ?? '') }));
+						setSoloDate((d) => d || (data?.calendarToday ?? ''));
 						setExtraOpen(true);
 					}}
 					hitSlop={8}
@@ -370,32 +387,6 @@ export default function Dashboard() {
 					<Ionicons name="add-circle-outline" size={16} color={colors.accentBlue} />
 					<Text style={styles.proposeSpotText}>Zusatztraining</Text>
 				</Pressable>
-			</View>
-
-			{/* Solo-Training: die Alternative, wenn die Gruppe nicht zieht —
-			    gehört darum direkt unter die Trainings-Überschrift. Eigene
-			    Wertung, fliesst nicht in „Gezogen %". */}
-			<View style={styles.soloRow}>
-				<Ionicons name="flash-outline" size={14} color={colors.accent} />
-				<Text style={styles.soloText}>
-					{`Solo · ${data?.mySolo.countMonth ?? 0} diesen Monat`}
-					{data?.mySolo.todayLogged ? ' · heute ✓' : ''}
-				</Text>
-				{data?.mySolo.todayLogged ? (
-					<Pressable onPress={undoSoloToday} hitSlop={8}>
-						<Text style={styles.soloUndo}>Rückgängig</Text>
-					</Pressable>
-				) : (
-					<Pressable
-						onPress={() => {
-							setSoloNote('');
-							setSoloOpen(true);
-						}}
-						hitSlop={8}
-					>
-						<Text style={styles.soloAction}>Heute eintragen</Text>
-					</Pressable>
-				)}
 			</View>
 
 			{(data?.sessions ?? []).slice(0, DETAILED_SESSIONS).map((s, sessionIndex) => {
@@ -1019,72 +1010,99 @@ export default function Dashboard() {
 				)}
 			</Sheet>
 
-			{/* Solo-Training heute: optionale Notiz (was/wo) — wie der Nachtrag. */}
-			<Sheet visible={soloOpen} onClose={() => setSoloOpen(false)} title="Solo-Training heute">
-				<Text style={styles.meetHint}>
-					Eigenes Training ausserhalb der Gruppe. Zählt in die Extra-Einheiten,
-					nicht in „Gezogen %".
-				</Text>
-				<Input
-					placeholder="Notiz (optional) — z. B. wo oder was"
-					value={soloNote}
-					onChangeText={setSoloNote}
-				/>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-					<Button label="Abbrechen" kind="ghost" onPress={() => setSoloOpen(false)} />
-					<Button
-						label={soloBusy ? 'Wird eingetragen …' : 'Eintragen'}
-						onPress={submitSolo}
-						disabled={soloBusy}
-					/>
-				</View>
-			</Sheet>
-
-			{/* Zusatztraining: spontaner Termin neben Dienstag/Donnerstag */}
+			{/* Zusatztraining: alles ausserhalb von Dienstag/Donnerstag — ein
+			    spontaner Gruppentermin oder ein eigenes Solo-Training. */}
 			<Sheet
 				visible={extraOpen}
 				onClose={() => setExtraOpen(false)}
 				title="Zusatztraining eintragen"
 			>
-				<Text style={styles.meetHint}>
-					Für spontane Termine. Alle können sich anmelden und den Spot wählen —
-					die Statistik bleibt unberührt.
-				</Text>
-				<DateField
-					value={extraForm.date}
-					onChange={(v) => setExtraForm({ ...extraForm, date: v })}
-					min={data?.calendarToday}
-					placeholder="Tag wählen"
-				/>
-				<View style={{ flexDirection: 'row', gap: 8 }}>
-					<View style={{ flex: 1 }}>
-						<Input
-							placeholder="Von (18:15)"
-							value={extraForm.start}
-							onChangeText={(v) => setExtraForm({ ...extraForm, start: v })}
-						/>
-					</View>
-					<View style={{ flex: 1 }}>
-						<Input
-							placeholder="Bis (20:15)"
-							value={extraForm.end}
-							onChangeText={(v) => setExtraForm({ ...extraForm, end: v })}
-						/>
-					</View>
-				</View>
-				<Input
-					placeholder="Notiz (optional)"
-					value={extraForm.note}
-					onChangeText={(v) => setExtraForm({ ...extraForm, note: v })}
-				/>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-					<Button label="Abbrechen" kind="ghost" onPress={() => setExtraOpen(false)} />
-					<Button
-						label={extraBusy ? 'Wird eingetragen …' : 'Eintragen'}
-						onPress={submitExtra}
-						disabled={extraBusy}
+				<View style={{ alignSelf: 'flex-start' }}>
+					<Segmented
+						value={extraMode}
+						onChange={setExtraMode}
+						options={[
+							{ key: 'gruppe', label: 'Mit der Gruppe', icon: 'people-outline' },
+							{ key: 'solo', label: 'Solo', icon: 'flash-outline' }
+						]}
 					/>
 				</View>
+				{extraMode === 'gruppe' ? (
+					<>
+						<Text style={styles.meetHint}>
+							Für spontane Termine. Alle werden benachrichtigt, können sich anmelden
+							und den Spot wählen — die Statistik bleibt unberührt.
+						</Text>
+						<DateField
+							value={extraForm.date}
+							onChange={(v) => setExtraForm({ ...extraForm, date: v })}
+							min={data?.calendarToday}
+							placeholder="Tag wählen"
+						/>
+						<View style={{ flexDirection: 'row', gap: 8 }}>
+							<View style={{ flex: 1 }}>
+								<Input
+									placeholder="Von (18:15)"
+									value={extraForm.start}
+									onChangeText={(v) => setExtraForm({ ...extraForm, start: v })}
+								/>
+							</View>
+							<View style={{ flex: 1 }}>
+								<Input
+									placeholder="Bis (20:15)"
+									value={extraForm.end}
+									onChangeText={(v) => setExtraForm({ ...extraForm, end: v })}
+								/>
+							</View>
+						</View>
+						<Input
+							placeholder="Notiz (optional)"
+							value={extraForm.note}
+							onChangeText={(v) => setExtraForm({ ...extraForm, note: v })}
+						/>
+						<View style={styles.sheetActions}>
+							<Button label="Abbrechen" kind="ghost" onPress={() => setExtraOpen(false)} />
+							<Button
+								label={extraBusy ? 'Wird eingetragen …' : 'Eintragen'}
+								onPress={submitExtra}
+								disabled={extraBusy}
+							/>
+						</View>
+					</>
+				) : (
+					<>
+						<Text style={styles.meetHint}>
+							Eigenes Training ausserhalb der Gruppe — heute oder bis 14 Tage zurück.
+							Zählt in die Extra-Einheiten, nicht in „Gezogen %".
+							{data?.mySolo.countMonth ? ` Diesen Monat: ${data.mySolo.countMonth}× solo.` : ''}
+						</Text>
+						<DateField
+							value={soloDate}
+							onChange={setSoloDate}
+							min={data?.calendarToday ? addDaysYmd(data.calendarToday, -14) : undefined}
+							max={data?.calendarToday}
+							placeholder="Tag wählen"
+						/>
+						<Input
+							placeholder="Notiz (optional) — z. B. wo oder was"
+							value={soloNote}
+							onChangeText={setSoloNote}
+						/>
+						<View style={styles.sheetActions}>
+							<Button label="Abbrechen" kind="ghost" onPress={() => setExtraOpen(false)} />
+							{soloTodayDone ? (
+								<Button label="Rückgängig" kind="ghost" onPress={undoSolo} disabled={soloBusy} />
+							) : null}
+							<Button
+								label={
+									soloBusy ? 'Wird eingetragen …' : soloTodayDone ? 'Heute schon drin ✓' : 'Eintragen'
+								}
+								onPress={submitSolo}
+								disabled={soloBusy || soloTodayDone}
+							/>
+						</View>
+					</>
+				)}
 			</Sheet>
 
 			{/* Spot-Voting: Vorschlag mit Suchfeld — wie auf der Website */}
@@ -1140,22 +1158,6 @@ const makeStyles = (colors: ThemeColors) =>
 			fontSize: 11,
 			lineHeight: 14,
 			letterSpacing: 1.2
-		},
-		soloRow: {
-			flexDirection: 'row',
-			alignItems: 'center',
-			gap: 6,
-			paddingHorizontal: 10,
-			paddingVertical: 7,
-			borderRadius: 10,
-			backgroundColor: colors.fg + '0a'
-		},
-		soloText: {
-			flex: 1,
-			color: colors.fg + textAlpha.secondary,
-			fontFamily: fonts.sans,
-			fontSize: 12,
-			lineHeight: 16
 		},
 		streakChip: {
 			flexDirection: 'row',
@@ -1328,7 +1330,6 @@ const makeStyles = (colors: ThemeColors) =>
 		voteBtnUndo: { color: colors.fg + textAlpha.muted, fontSize: 13, lineHeight: 18, fontFamily: fonts.sans },
 		voteCount: { color: colors.fg + textAlpha.secondary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
 		actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8 },
-		soloCard: { paddingVertical: 12 },
 		moreHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 		moreHeadText: {
 			color: colors.accentBlue,
@@ -1371,14 +1372,6 @@ const makeStyles = (colors: ThemeColors) =>
 			lineHeight: 18,
 			fontFamily: fonts.sans
 		},
-		soloAction: { color: colors.accent, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansSemi },
-		soloUndo: {
-			color: colors.fg + textAlpha.secondary,
-			fontSize: 13,
-			lineHeight: 18,
-			fontFamily: fonts.sans
-		},
-		soloTitle: { color: colors.fg + textAlpha.primary, fontSize: 14, lineHeight: 20, fontFamily: fonts.sansBold },
 		sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 		spotOption: {
 			flexDirection: 'row',

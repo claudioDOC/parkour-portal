@@ -1,37 +1,22 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
 	import { formatStimmen } from '$lib/formatStimmen';
+	import ExtraTrainingForm from '$lib/components/ExtraTrainingForm.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	/** Solo-Training für heute ein- bzw. austragen (eigene Wertung). */
-	let soloBusy = $state(false);
-	let soloMessage = $state('');
-	async function soloRequest(method: 'POST' | 'DELETE') {
-		soloBusy = true;
-		soloMessage = '';
-		try {
-			const res = await fetch('/api/solo', {
-				method,
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ date: data.calendarToday })
-			});
-			const body = (await res.json().catch(() => ({}))) as { error?: string };
-			if (!res.ok) {
-				soloMessage = body.error || 'Hat nicht geklappt';
-				return;
-			}
-			await invalidateAll();
-		} catch {
-			soloMessage = 'Keine Verbindung';
-		} finally {
-			soloBusy = false;
-			setTimeout(() => (soloMessage = ''), 4000);
-		}
+	/**
+	 * Zusatztraining eintragen — Gruppe oder Solo, wie der Knopf neben
+	 * „Nächste Trainings" in der App. Kurze Rückmeldung direkt darunter.
+	 */
+	let extraOpen = $state(false);
+	let notice = $state<{ text: string; kind: 'info' | 'error' } | null>(null);
+	let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+	function showNotice(text: string, kind: 'info' | 'error' = 'info') {
+		notice = { text, kind };
+		clearTimeout(noticeTimer);
+		noticeTimer = setTimeout(() => (notice = null), 5000);
 	}
-	const logSoloToday = () => soloRequest('POST');
-	const undoSoloToday = () => soloRequest('DELETE');
 
 	function formatDate(dateStr: string): string {
 		const d = new Date(dateStr + 'T00:00:00');
@@ -180,7 +165,29 @@
 				aria-hidden="true"
 			></span>
 			<h3 class="font-display text-xl font-medium uppercase tracking-[0.1em] text-text-primary">Nächste Trainings</h3>
+			<!-- Wie in der App: Zusatztraining (Gruppe oder Solo) direkt bei den Trainings. -->
+			<button
+				type="button"
+				onclick={() => (extraOpen = !extraOpen)}
+				aria-expanded={extraOpen}
+				class="ml-auto flex shrink-0 cursor-pointer items-center gap-1 text-sm font-medium text-accent-blue transition-opacity hover:opacity-75"
+			>
+				<span class="text-base leading-none" aria-hidden="true">⊕</span> Zusatztraining
+			</button>
 		</div>
+		{#if extraOpen}
+			<div class="rounded-xl border border-border bg-bg-card p-4">
+				<ExtraTrainingForm
+					calendarToday={data.calendarToday}
+					mySolo={data.mySolo}
+					onClose={() => (extraOpen = false)}
+					onNotice={showNotice}
+				/>
+			</div>
+		{/if}
+		{#if notice}
+			<p class="text-sm {notice.kind === 'error' ? 'text-danger' : 'text-success'}" role="status">{notice.text}</p>
+		{/if}
 		<div class="space-y-3">
 			{#each data.nextTrainings as session, i}
 				<div
@@ -311,39 +318,6 @@
 				<p class="text-text-muted text-center py-8">Keine kommenden Trainings</p>
 			{/if}
 		</div>
-		<!-- Solo-Training: gehört direkt unter die Trainings — es ist die
-		     Alternative, wenn die Gruppe nicht zieht. Eigene Wertung, fliesst
-		     nicht in „Gezogen %". -->
-		<div class="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-bg-card/60 px-3 py-2.5">
-			<span aria-hidden="true">⚡</span>
-			<p class="text-sm text-text-secondary">
-				Solo · <span class="tabular-nums text-text-primary">{data.mySolo.countMonth}</span> diesen Monat
-				{#if data.mySolo.todayLogged}<span class="text-success"> · heute ✓</span>{/if}
-			</p>
-			{#if soloMessage}
-				<span class="text-xs text-text-muted">{soloMessage}</span>
-			{/if}
-			{#if data.mySolo.todayLogged}
-				<button
-					type="button"
-					onclick={undoSoloToday}
-					disabled={soloBusy}
-					class="ml-auto cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
-				>
-					Rückgängig
-				</button>
-			{:else}
-				<button
-					type="button"
-					onclick={logSoloToday}
-					disabled={soloBusy}
-					class="ml-auto cursor-pointer rounded-lg bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25 disabled:opacity-50"
-				>
-					Heute eintragen
-				</button>
-			{/if}
-		</div>
-
 		<a
 			href="/training"
 			class="btn-link btn-link-secondary"
