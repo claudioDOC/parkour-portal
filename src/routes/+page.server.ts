@@ -31,7 +31,7 @@ import { computeTrainingStats } from '$lib/server/stats';
 import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noShowPenalty';
 import { nextTripSummary } from '$lib/server/tripDatePoll';
 import { lateMarkedUserIds } from '$lib/server/lateAbsence';
-import { computeZugkraft, zugkraftVisibleTo } from '$lib/server/zugkraft';
+import { zugkraftFor } from '$lib/server/zugkraft';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const today = todayYmdInAppTZ();
@@ -315,8 +315,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			forecast: forecastBySession.get(s.id) ?? null
 		})),
 		mySolo,
-		// Zug-O-Meter: wer es sieht, regelt zugkraftVisibleTo().
-		zugkraft: zugkraftVisibleTo(locals.user) ? computeZugkraft() : null,
+		// Zug-O-Meter: wer es sieht, regelt zugkraftVisibleTo(); bei einem
+		// Fehler fällt nur der Block weg.
+		zugkraft: zugkraftFor(locals.user),
 		penalty: viewerPenalty,
 		nextTrip: locals.user ? nextTripSummary(locals.user.id, today) : null,
 		trainingForecast,

@@ -2,7 +2,7 @@ import { db } from '$lib/server/db';
 import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noShowPenalty';
 import { nextTripSummary } from '$lib/server/tripDatePoll';
 import { lateMarkedUserIds } from '$lib/server/lateAbsence';
-import { computeZugkraft, zugkraftVisibleTo } from '$lib/server/zugkraft';
+import { zugkraftFor } from '$lib/server/zugkraft';
 import {
 	trainingSessions,
 	absences,
@@ -42,7 +42,11 @@ export type TrainingViewer = {
  * Kompletter Payload der Training-Seite. Von der Web-Seite und von
  * GET /api/v1/training gemeinsam genutzt, damit App und Web nie auseinanderlaufen.
  */
-export async function buildTrainingPagePayload(user: TrainingViewer) {
+export async function buildTrainingPagePayload(
+	user: TrainingViewer,
+	/** Zug-O-Meter mitrechnen — nur die App braucht es (ihre Startseite); die Web-Trainingsseite zeigt es nicht. */
+	opts: { includeZugkraft?: boolean } = {}
+) {
 	// Strafrunde der betrachtenden Person: Fragezeichen statt Namen und
 	// beim Straf-Training ein falscher Spot (siehe noShowPenalty.ts).
 	const viewerPenalty = user ? activePenaltyFor(user.id) : null;
@@ -445,7 +449,7 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 	return {
 		penalty: viewerPenalty,
 		nextTrip: user ? nextTripSummary(user.id, today) : null,
-		zugkraft: zugkraftVisibleTo(user) ? computeZugkraft() : null,
+		zugkraft: opts.includeZugkraft ? zugkraftFor(user) : null,
 		// Wer schaut zu — die Seite braucht das fürs Löschrecht bei
 		// Zusatztrainings (Ersteller oder Admin).
 		viewer: user ? { id: user.id, role: user.role ?? 'member' } : null,

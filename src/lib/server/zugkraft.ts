@@ -52,6 +52,23 @@ export function zugkraftVisibleTo(
 }
 
 /**
+ * Zug-O-Meter für die Anzeige: null, wenn die Person es nicht sieht — oder
+ * wenn die Rechnung scheitert. Dann fällt nur der Block weg, statt die ganze
+ * Startseite (Web) bzw. die Trainingsdaten (App) mitzureissen.
+ */
+export function zugkraftFor(
+	user: { role?: string | null; trainingAttendance?: string | null } | null | undefined
+): Zugkraft | null {
+	if (!zugkraftVisibleTo(user)) return null;
+	try {
+		return computeZugkraft();
+	} catch (err) {
+		console.error('[zugkraft] Berechnung fehlgeschlagen:', err);
+		return null;
+	}
+}
+
+/**
  * Stufen nach dem Schnitt der Köpfe pro Training — angesetzt an der echten
  * Gruppe, nicht an der Theorie: In 45 Trainings (Juni–Nov. 2026) waren nie
  * alle sechs da, fünf nur viermal, der Schnitt liegt bei gut drei. Über drei

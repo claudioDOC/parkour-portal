@@ -544,8 +544,10 @@ async function runZugkraftWeekly(now: Date): Promise<void> {
 	const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
 	const week = 1 + Math.round((d.getTime() - firstThursday.getTime()) / 604800000);
 	const kind = `zugkraft-${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-	if (!claimReminder(-1, kind)) return;
 
+	// Erst rechnen, dann die Woche als erledigt markieren: Scheitert die
+	// Rechnung, versucht es der nächste Lauf (alle 5 Minuten) wieder, statt
+	// den Bericht der ganzen Woche zu verlieren.
 	const z = computeZugkraft(now);
 	if (z.pastCount === 0 && z.upcomingCount === 0) return;
 	const text = zugkraftPushText(z);
@@ -561,6 +563,7 @@ async function runZugkraftWeekly(now: Date): Promise<void> {
 		.filter((u) => zugkraftVisibleTo(u))
 		.map((u) => u.id);
 	if (audience.length === 0) return;
+	if (!claimReminder(-1, kind)) return;
 	await sendToUsersWithPref('zugkraft', { ...text, url: '/', tag: kind }, audience);
 }
 
