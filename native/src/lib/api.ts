@@ -262,6 +262,8 @@ export type ZugkraftSession = {
 
 export type Zugkraft = {
 	percent: number;
+	/** Balkenfüllung 0–100 auf der Stufen-Skala (neuer Server; sonst percent). */
+	fill?: number;
 	level: ZugkraftLevel;
 	/** Prozentpunkte gegenüber den 14 Tagen davor; kann negativ sein. */
 	trend: number;
@@ -337,7 +339,9 @@ export const adminTraining = (
 
 /** Admin: alle sechs Zug-O-Meter-Stufen als Muster (⌀ 6 … 1 von 6). */
 export const getZugkraftPreview = () =>
-	request<{ levels: { avg: number; percent: number; level: ZugkraftLevel }[] }>(
+	request<{
+		levels: { key: string; range: string; avg: number; percent: number; fill: number; level: ZugkraftLevel }[];
+	}>(
 		'/api/admin/zugkraft-preview'
 	);
 

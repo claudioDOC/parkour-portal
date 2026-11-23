@@ -1,8 +1,9 @@
 /**
  * Zugkraft — Gruppen-Barometer fürs Dashboard.
  *
- * Misst, wie gut gerade gezogen wird: die letzten 14 Tage (was tatsächlich
- * war) plus die kommenden 7 Tage (was aktuell angesagt ist). Der Sinn ist
+ * Misst, wie gut gerade gezogen wird — über drei Kalenderwochen: letzte
+ * Woche, diese Woche und nächste Woche (Mo–So). Was schon war, zählt als
+ * Tatsache; was noch kommt, mit dem aktuellen Stand der An- und Abmeldungen. Der Sinn ist
  * nicht Statistik, sondern Druck in die richtige Richtung: Wer sieht, dass
  * die Gruppe gerade schwach zieht, soll sich zweimal überlegen, ob er sich
  * auch noch abmeldet.
@@ -32,8 +33,54 @@ import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 /** Solange true, sehen nur Admins das Barometer (Probelauf). */
 export const ZUGKRAFT_ADMIN_ONLY = true;
 
-export const PAST_DAYS = 14;
-export const FUTURE_DAYS = 7;
+/**
+ * Stufen nach dem Schnitt der Köpfe pro Training — angesetzt an der echten
+ * Gruppe, nicht an der Theorie: In 45 Trainings (Juni–Nov. 2026) waren nie
+ * alle sechs da, fünf nur viermal, der Schnitt liegt bei gut drei. Über drei
+ * Wochen gemittelt lag das beste Stück bei ⌀ 3,7. Mit „⌀ 6 = grossartig"
+ * hätte die Anzeige darum ewig auf „Geht so" geklebt.
+ *
+ * Jetzt: ⌀ 4 über drei Wochen ist grossartig (bisher nie erreicht, aber
+ * machbar), der Rekord von 3,7 ist super, der normale Schnitt (≈ 3) ist
+ * „geht so". Untere Grenze jeweils inklusive.
+ */
+export const LEVEL_MIN: Record<ZugkraftLevelKey, number> = {
+	grossartig: 4.0,
+	super: 3.6,
+	gut: 3.2,
+	ok: 2.8,
+	schwach: 2.3,
+	katastrophe: 0
+};
+/** Stufen von oben nach unten. */
+const LEVEL_ORDER: ZugkraftLevelKey[] = ['grossartig', 'super', 'gut', 'ok', 'schwach', 'katastrophe'];
+/** Ab diesem Schnitt ist der Balken ganz voll. */
+const FILL_FULL_AT = 4.8;
+
+/** Montag der Woche (JJJJ-MM-TT) — Wochen laufen Mo–So. */
+function mondayOf(ymd: string): string {
+	const [y, m, d] = ymd.split('-').map(Number);
+	const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 = Sonntag
+	return addDays(ymd, -((dow + 6) % 7));
+}
+
+/**
+ * Balkenfüllung 0–100 als Anzeige der Stufe: Jede Stufe bekommt ein gleich
+ * breites Sechstel, innerhalb wird anteilig gefüllt. So sieht man auch
+ * kleine Bewegungen — roh in Prozent der Mitglieder wäre „grossartig" nur
+ * ein zu zwei Dritteln voller Balken.
+ */
+export function fillFor(avg: number): number {
+	const bounds = [...LEVEL_ORDER].reverse().map((k) => LEVEL_MIN[k]); // katastrophe … grossartig
+	const tops = [...bounds.slice(1), FILL_FULL_AT];
+	for (let i = 0; i < bounds.length; i++) {
+		if (avg < tops[i] || i === bounds.length - 1) {
+			const within = Math.min(1, Math.max(0, (avg - bounds[i]) / (tops[i] - bounds[i])));
+			return Math.round(((i + within) / bounds.length) * 100);
+		}
+	}
+	return 100;
+}
 
 export type ZugkraftLevelKey =
 	| 'grossartig'
@@ -64,9 +111,12 @@ export type ZugkraftSession = {
 };
 
 export type Zugkraft = {
+	/** Anwesenheit in Prozent der Mitglieder (für den Trend). */
 	percent: number;
+	/** Balkenfüllung 0–100 — zeigt die Stufe, siehe fillFor(). */
+	fill: number;
 	level: ZugkraftLevel;
-	/** Prozentpunkte gegenüber den 14 Tagen davor (nur Vergangenheit, fairer Vergleich). */
+	/** Prozentpunkte gegenüber den drei Wochen davor (nur Vergangenheit, fairer Vergleich). */
 	trend: number;
 	memberCount: number;
 	pastCount: number;
@@ -90,19 +140,12 @@ function addDays(ymd: string, days: number): string {
 }
 
 /**
- * Stufe nach KÖPFEN, nicht nach Prozent.
- *
- * Entscheidend ist, wie viele am Spot stehen: Sechs ist grossartig, fünf
- * super, vier gut, drei geht so, zwei ist sehr schwach — und bei einem
- * trainiert faktisch niemand, weil allein keiner Lust hat. Prozent allein
- * würde täuschen: „50 %" klingt solide, sind aber bloss drei von sechs.
- *
- * `members` deckelt die Spitze: Ist die Gruppe kleiner, gilt „alle da"
- * trotzdem als grossartig.
+ * Stufe aus dem Schnitt der Köpfe (Grenzen in LEVEL_MIN). Ist die Gruppe
+ * klein und sind trotzdem alle da, gilt das immer als grossartig.
  */
 function levelFor(avg: number, members: number): ZugkraftLevel {
 	const alleDa = members > 0 && avg >= members - 0.25;
-	if (avg >= 5.5 || alleDa)
+	if (avg >= LEVEL_MIN.grossartig || alleDa)
 		return {
 			key: 'grossartig',
 			label: 'Grossartig',
@@ -110,7 +153,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			blurb: 'Maximaler Zug!!!',
 			intensity: 2
 		};
-	if (avg >= 4.5)
+	if (avg >= LEVEL_MIN.super)
 		return {
 			key: 'super',
 			label: 'Super',
@@ -118,7 +161,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			blurb: 'Zugmodus aktiviert!',
 			intensity: 1
 		};
-	if (avg >= 3.5)
+	if (avg >= LEVEL_MIN.gut)
 		return {
 			key: 'gut',
 			label: 'Gut',
@@ -126,7 +169,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			blurb: 'Der Zug kommt ins Rollen',
 			intensity: 0
 		};
-	if (avg >= 2.5)
+	if (avg >= LEVEL_MIN.ok)
 		return {
 			key: 'ok',
 			label: 'Geht so',
@@ -134,7 +177,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			blurb: 'Wo ist der Zug?',
 			intensity: 0
 		};
-	if (avg >= 1.5)
+	if (avg >= LEVEL_MIN.schwach)
 		return {
 			key: 'schwach',
 			label: 'Sehr schwach',
@@ -266,9 +309,14 @@ export function computeZugkraft(now = new Date()): Zugkraft {
 	const today = todayYmdInAppTZ(now);
 	const ctx = loadContext();
 
-	const past = sessionsBetween(addDays(today, -PAST_DAYS), today, false);
-	const upcoming = sessionsBetween(today, addDays(today, FUTURE_DAYS), true);
-	const previous = sessionsBetween(addDays(today, -2 * PAST_DAYS), addDays(today, -PAST_DAYS), false);
+	// Letzte, diese und nächste Woche (Mo–So) — immer drei volle Wochen,
+	// also normalerweise sechs Trainings, egal an welchem Tag man schaut.
+	const windowStart = addDays(mondayOf(today), -7);
+	const windowEnd = addDays(mondayOf(today), 13);
+	const past = sessionsBetween(windowStart, today, false);
+	const upcoming = sessionsBetween(today, windowEnd, true);
+	// Vergleich für den Trend: die drei Wochen davor.
+	const previous = sessionsBetween(addDays(windowStart, -21), windowStart, false);
 
 	// Wer im Zusage-Modus läuft und im ganzen Fenster nie geantwortet hat,
 	// gehört nicht in den Nenner: Sonst wäre 100 % unerreichbar und die
@@ -319,6 +367,7 @@ export function computeZugkraft(now = new Date()): Zugkraft {
 
 	return {
 		percent,
+		fill: fillFor(avgAll),
 		level,
 		trend,
 		memberCount: ctx.members.length,
@@ -333,16 +382,42 @@ export function computeZugkraft(now = new Date()): Zugkraft {
 	};
 }
 
+/** „3.6" → „3,6" */
+const de1 = (n: number) => n.toFixed(1).replace('.', ',');
+
 /**
- * Alle sechs Stufen als Muster (⌀ 6 … 1 von 6) — für die Admin-Vorschau in
- * Web und App. Gleiche Stufenlogik wie echt, damit die Vorschau nicht lügt.
+ * Alle sechs Stufen als Muster — für die Admin-Vorschau in Web und App.
+ * Gleiche Stufenlogik und Balkenfüllung wie echt, damit die Vorschau nicht
+ * lügt; `range` sagt, ab welchem Schnitt die Stufe gilt.
  */
-export function zugkraftPreview(): { avg: number; percent: number; level: ZugkraftLevel }[] {
-	return [6, 5, 4, 3, 2, 1].map((avg) => ({
-		avg,
-		percent: Math.round((avg / 6) * 100),
-		level: levelFor(avg, 6)
-	}));
+export function zugkraftPreview(): {
+	key: ZugkraftLevelKey;
+	range: string;
+	avg: number;
+	percent: number;
+	fill: number;
+	level: ZugkraftLevel;
+}[] {
+	return LEVEL_ORDER.map((key, i) => {
+		const min = LEVEL_MIN[key];
+		const above = i === 0 ? FILL_FULL_AT : LEVEL_MIN[LEVEL_ORDER[i - 1]];
+		// Musterwert: Mitte der Stufe (ganz unten etwas über null).
+		const avg = key === 'katastrophe' ? 1.8 : Math.round(((min + above) / 2) * 100) / 100;
+		const range =
+			key === 'grossartig'
+				? `ab ⌀ ${de1(min)}`
+				: key === 'katastrophe'
+					? `unter ⌀ ${de1(above)}`
+					: `⌀ ${de1(min)} – ${de1(above - 0.1)}`;
+		return {
+			key,
+			range,
+			avg,
+			percent: Math.round((avg / 6) * 100),
+			fill: fillFor(avg),
+			level: levelFor(avg, 6)
+		};
+	});
 }
 
 /** Text für die Wochen-Benachrichtigung (Sonntagabend). */

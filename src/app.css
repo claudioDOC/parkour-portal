@@ -343,7 +343,7 @@ header a,
    animieren ruckelt und lässt sich nicht sauber überblenden.
    Mehrere Lagen mit wachsendem Weichzeichner und fallender Deckkraft lassen
    den Schein auslaufen, statt als heller Ring am Rand zu kleben.
-   Stufen: ruhiges Atmen (alle normalen Stufen), Alarm (1–2), Feuer (6).
+   Stufen: ruhiges Atmen (normale Stufen), Alarm (zwei schlechteste), grüne Flammen (Grossartig).
    Die Farbe kommt über --zug-rgb als reine Zahlen, damit rgba() daraus
    Transparenz machen kann (color-mix wäre vom Browser abhängig). */
 .zug-track {
@@ -394,51 +394,63 @@ header a,
 		0 0 52px 20px rgba(var(--zug-rgb), 0.12);
 	animation: zug-breathe 1.2s ease-in-out infinite;
 }
-/* Sechs von sechs: Füllung und Schein wandern durch Grün, Gelb und Orange. */
-@keyframes zug-flame-fill {
-	0%,
-	100% {
-		background-color: #00e676;
-	}
-	35% {
-		background-color: #eab308;
-	}
-	70% {
-		background-color: #f97316;
-	}
+/* Grossartig: Balken bleibt grün, kräftiger grüner Schein — und grüne
+   Flammenzungen, die aus der Oberkante züngeln. Jede Zunge ist eine Hülle
+   (span, flackert per scaleY von unten) mit einer Tropfenform (::before:
+   Quadrat mit einer spitzen Ecke, um 45° gedreht, Spitze nach oben). */
+.zug-fire::after {
+	box-shadow:
+		0 0 6px 1px rgba(0, 230, 118, 0.9),
+		0 0 18px 6px rgba(0, 230, 118, 0.55),
+		0 0 36px 14px rgba(0, 230, 118, 0.28),
+		0 0 60px 22px rgba(0, 230, 118, 0.12);
+	animation: zug-breathe 1.8s ease-in-out infinite;
 }
-@keyframes zug-flame-glow {
-	0%,
-	100% {
-		opacity: 0.7;
-		box-shadow:
-			0 0 6px 1px rgba(0, 230, 118, 0.85),
-			0 0 18px 6px rgba(0, 230, 118, 0.5),
-			0 0 36px 14px rgba(0, 230, 118, 0.24),
-			0 0 60px 22px rgba(0, 230, 118, 0.1);
+.zug-flames {
+	position: absolute;
+	left: 0;
+	bottom: 45%;
+	height: 1.25rem;
+	pointer-events: none;
+}
+.zug-flames span {
+	position: absolute;
+	bottom: 0;
+	width: 0.6rem;
+	height: 0.6rem;
+	margin-left: -0.3rem;
+	transform-origin: 50% 100%;
+	transform: scaleY(calc(1.6 * var(--zug-h, 1)));
+	animation: zug-flicker var(--zug-d, 0.7s) ease-in-out var(--zug-o, 0s) infinite alternate;
+	filter: drop-shadow(0 0 3px rgba(0, 230, 118, 0.85));
+}
+.zug-flames span::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	border-radius: 0 50% 50% 50%;
+	transform: rotate(45deg);
+	background: radial-gradient(
+		circle at 68% 68%,
+		#eafff2 0%,
+		#9cf6c4 28%,
+		#00e676 62%,
+		rgba(0, 200, 83, 0.25) 100%
+	);
+}
+@keyframes zug-flicker {
+	0% {
+		transform: scaleY(calc(1.1 * var(--zug-h, 1))) scaleX(1.05) skewX(-5deg);
+		opacity: 0.75;
 	}
-	35% {
+	50% {
+		transform: scaleY(calc(2 * var(--zug-h, 1))) scaleX(0.85) skewX(3deg);
 		opacity: 1;
-		box-shadow:
-			0 0 8px 2px rgba(234, 179, 8, 0.95),
-			0 0 22px 8px rgba(234, 179, 8, 0.6),
-			0 0 42px 16px rgba(234, 179, 8, 0.3),
-			0 0 68px 26px rgba(234, 179, 8, 0.12);
 	}
-	70% {
-		opacity: 0.9;
-		box-shadow:
-			0 0 7px 2px rgba(249, 115, 22, 0.9),
-			0 0 20px 7px rgba(249, 115, 22, 0.55),
-			0 0 40px 15px rgba(249, 115, 22, 0.27),
-			0 0 64px 24px rgba(249, 115, 22, 0.11);
+	100% {
+		transform: scaleY(calc(1.5 * var(--zug-h, 1))) scaleX(0.95) skewX(6deg);
+		opacity: 0.85;
 	}
-}
-.zug-flame {
-	animation: zug-flame-fill 1.8s ease-in-out infinite;
-}
-.zug-flame::after {
-	animation: zug-flame-glow 1.8s ease-in-out infinite;
 }
 @keyframes zug-emoji {
 	0%,
@@ -458,12 +470,14 @@ header a,
    zufälligen Phase ein. Der ruhige Schein (opacity 0.85) bleibt sichtbar. */
 html[data-motion='aus'] .zug-fill,
 html[data-motion='aus'] .zug-fill::after,
+html[data-motion='aus'] .zug-flames span,
 html[data-motion='aus'] .zug-emoji {
 	animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
 	.zug-fill,
 	.zug-fill::after,
+	.zug-flames span,
 	.zug-emoji {
 		animation: none !important;
 	}

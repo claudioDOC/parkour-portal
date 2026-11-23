@@ -13,12 +13,12 @@
 		<h2 class="mt-1 text-2xl font-bold text-text-primary">Zug-O-Meter-Vorschau</h2>
 		<p class="text-sm text-text-muted">
 			Alle Stufen so, wie sie auf der Startseite erscheinen — mit echtem Glühen und Animation.
-			Die Zahl darüber ist nur hier sichtbar.
+			Gemessen wird über letzte, diese und nächste Woche; die Grenze darüber ist nur hier sichtbar.
 		</p>
 	</div>
-	{#each data.levels as l (l.avg)}
+	{#each data.levels as l (l.key)}
 		<div class="card-surface p-4">
-			<p class="mb-2 text-[11px] font-medium uppercase tracking-wider text-text-muted">⌀ {l.avg} von 6 im Training</p>
+			<p class="mb-2 text-[11px] font-medium uppercase tracking-wider text-text-muted">{l.range} pro Training</p>
 			<ZugOMeter z={l} href={null} />
 		</div>
 	{/each}

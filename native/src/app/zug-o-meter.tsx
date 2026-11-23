@@ -30,12 +30,13 @@ export default function ZugOMeterPreview() {
 			) : (
 				<>
 					<Text style={styles.hint}>
-						Alle Stufen so, wie sie auf der Startseite erscheinen. Die Zahl darüber ist nur hier sichtbar.
+						Alle Stufen so, wie sie auf der Startseite erscheinen. Gemessen wird über letzte, diese
+						und nächste Woche; die Grenze darüber ist nur hier sichtbar.
 					</Text>
 					{error && !data ? <ErrorCard message={error} /> : null}
 					{(data?.levels ?? []).map((l) => (
-						<Card key={l.avg} style={styles.card}>
-							<Text style={styles.caption}>{`⌀ ${l.avg} VON 6 IM TRAINING`}</Text>
+						<Card key={l.key} style={styles.card}>
+							<Text style={styles.caption}>{`${l.range} PRO TRAINING`.toUpperCase()}</Text>
 							<ZugkraftCard data={l} preview />
 						</Card>
 					))}
