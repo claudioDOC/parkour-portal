@@ -1,4 +1,4 @@
-import { useEffect, useState, createContext, useContext } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
 	Stack,
 	useRouter,
@@ -65,54 +65,74 @@ const AuthContext = createContext<AuthContextValue>({
 export const useAuth = () => useContext(AuthContext);
 
 /**
- * Updates vom eigenen Server: bei jedem App-Start und bei Rückkehr in den
- * Vordergrund wird matetraining.duckdns.org gefragt, ob ein neues Bundle
- * vorliegt. Wenn ja: laden und sofort neu starten — alle haben immer
- * dieselbe Version, ohne Store und ohne Zutun.
+ * Updates vom eigenen Server.
+ *
+ * Bei jedem Start und bei jeder Rückkehr in den Vordergrund fragt die App
+ * matetraining.duckdns.org, ob ein neues Bundle vorliegt, und lädt es im
+ * Hintergrund. Angewendet wird es NICHT mehr ungefragt: Liegt ein geladenes
+ * Update bereit, erscheint ein Hinweis mit „Jetzt neu starten".
+ *
+ * Massgeblich ist `useUpdates().isUpdatePending` — das ist true, sobald ein
+ * Bundle geladen ist, das noch nicht läuft, egal ob dieser JS-Abruf es
+ * geholt hat oder der native Abruf beim Start (app.json: checkAutomatically
+ * ON_LOAD). Der frühere Weg über `fetchUpdateAsync().isNew` hat genau den
+ * zweiten Fall übersehen; und beim Kaltstart wurde still neu gestartet,
+ * sodass ein Hinweis praktisch nie zu sehen war.
+ *
+ * „Später" fragt bei der nächsten Rückkehr in den Vordergrund wieder.
+ * Der Hinweis wartet, bis der Startbildschirm weg ist (`ready`).
  */
-/** Erst nach so langer Pause darf ein Update die App neu starten (20 min). */
-const RELOAD_AFTER_BACKGROUND_MS = 20 * 60 * 1000;
+function useSelfHostedUpdates(ready: boolean): void {
+	const { isUpdatePending } = Updates.useUpdates();
+	// Zählt jede Rückkehr in den Vordergrund — damit nach „Später" erneut gefragt wird.
+	const [foregrounds, setForegrounds] = useState(0);
+	const askedFor = useRef(-1);
 
-function useSelfHostedUpdates() {
 	useEffect(() => {
 		if (__DEV__) return;
 		let busy = false;
-		let leftAt = 0;
-
-		/**
-		 * `restartAllowed` ist der springende Punkt: Ein neu geladenes Update
-		 * startet die App neu — und wirft einen dabei auf die Startseite
-		 * zurück. Wer nur kurz in die Karten-App wechselt, um Koordinaten zu
-		 * holen, verliert so seinen Spot. Darum wird beim schnellen
-		 * Zurückwechseln nur GELADEN; angewendet wird es beim nächsten
-		 * regulären Start.
-		 */
-		const check = async (restartAllowed: boolean) => {
+		const check = async () => {
 			if (busy) return;
 			busy = true;
 			try {
 				const result = await Updates.checkForUpdateAsync();
-				if (result.isAvailable) {
-					await Updates.fetchUpdateAsync();
-					if (restartAllowed) await Updates.reloadAsync();
-				}
+				// Nur laden — angewendet wird erst auf Nachfrage.
+				if (result.isAvailable) await Updates.fetchUpdateAsync();
 			} catch {
 				// Offline oder Server nicht erreichbar — beim nächsten Mal wieder.
 			} finally {
 				busy = false;
 			}
 		};
-		check(true);
+		void check();
 		const sub = AppState.addEventListener('change', (state) => {
-			if (state !== 'active') {
-				leftAt = Date.now();
-				return;
-			}
-			const away = leftAt ? Date.now() - leftAt : Number.MAX_SAFE_INTEGER;
-			check(away > RELOAD_AFTER_BACKGROUND_MS);
+			if (state !== 'active') return;
+			setForegrounds((n) => n + 1);
+			void check();
 		});
 		return () => sub.remove();
 	}, []);
+
+	useEffect(() => {
+		if (__DEV__ || !ready || !isUpdatePending) return;
+		// Pro Vordergrund-Phase höchstens einmal fragen.
+		if (askedFor.current === foregrounds) return;
+		askedFor.current = foregrounds;
+		Alert.alert(
+			'Neue Version bereit',
+			'Ein Update für die App ist geladen. Jetzt neu starten, um es zu übernehmen?',
+			[
+				{ text: 'Später', style: 'cancel' },
+				{
+					text: 'Jetzt neu starten',
+					onPress: () => {
+						void Updates.reloadAsync().catch(() => undefined);
+					}
+				}
+			],
+			{ cancelable: true }
+		);
+	}, [ready, isUpdatePending, foregrounds]);
 }
 
 /** Vollbild-Hinweis während des APK-Downloads — sonst wirkt die App tot. */
@@ -215,7 +235,7 @@ export default function RootLayout() {
 		rememberRoute(pathname, Date.now()).catch(() => {});
 	}, [pathname, ready, me]);
 
-	useSelfHostedUpdates();
+	useSelfHostedUpdates(ready && splashDone);
 
 	useEffect(() => {
 		(async () => {
@@ -415,6 +435,7 @@ export default function RootLayout() {
 				{/* Strafrunde: 20-Sekunden-Hinweis nach stillem Fernbleiben. */}
 				{me ? <PenaltyGate /> : null}
 				{installing !== null ? <InstallOverlay percent={installing} colors={colors} /> : null}
+
 			</ActivityProvider>
 			</ThemeProvider>
 		</AuthContext.Provider>
