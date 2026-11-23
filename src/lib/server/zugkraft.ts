@@ -107,7 +107,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			key: 'grossartig',
 			label: 'Grossartig',
 			emoji: '🔥🔥🔥',
-			blurb: 'Volle Crew am Spot. So muss das!',
+			blurb: 'Maximaler Zug!!!',
 			intensity: 2
 		};
 	if (avg >= 4.5)
@@ -115,7 +115,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			key: 'super',
 			label: 'Super',
 			emoji: '🔥',
-			blurb: 'Die Crew brennt. Bleib dran — sei nicht der, der die Serie bricht.',
+			blurb: 'Zugmodus aktiviert!',
 			intensity: 1
 		};
 	if (avg >= 3.5)
@@ -123,7 +123,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			key: 'gut',
 			label: 'Gut',
 			emoji: '💪',
-			blurb: 'Gute Truppe am Start. Einer mehr, und es wird richtig stark.',
+			blurb: 'Der Zug kommt ins Rollen',
 			intensity: 0
 		};
 	if (avg >= 2.5)
@@ -131,7 +131,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			key: 'ok',
 			label: 'Geht so',
 			emoji: '😬',
-			blurb: 'Reicht zum Trainieren — aber da geht noch einiges.',
+			blurb: 'Wo ist der Zug?',
 			intensity: 0
 		};
 	if (avg >= 1.5)
@@ -139,14 +139,14 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			key: 'schwach',
 			label: 'Sehr schwach',
 			emoji: '😭',
-			blurb: 'Es wird dünn. Jetzt bloss nicht auch noch abmelden.',
+			blurb: 'Der Zug steht still.',
 			intensity: 2
 		};
 	return {
 		key: 'katastrophe',
 		label: 'Katastrophe',
 		emoji: '💀',
-		blurb: 'Allein trainiert keiner. Raff dich auf — sonst bleibt der Spot leer.',
+		blurb: 'Zugausfall!',
 		intensity: 2
 	};
 }
@@ -336,9 +336,10 @@ export function computeZugkraft(now = new Date()): Zugkraft {
 /** Text für die Wochen-Benachrichtigung (Sonntagabend). */
 export function zugkraftPushText(z: Zugkraft): { title: string; body: string } {
 	// Keine Kopfzahlen im Text — Emoji, Stufe und Spruch sagen genug.
-	const trendText = z.trend > 4 ? ' Tendenz: aufwärts 📈' : z.trend < -4 ? ' Tendenz: abwärts 📉' : '';
+	const trendText = z.trend > 4 ? 'Tendenz: aufwärts 📈' : z.trend < -4 ? 'Tendenz: abwärts 📉' : '';
 	return {
 		title: `${z.level.emoji} Zug-O-Meter: ${z.level.label}`,
-		body: `${z.level.blurb}${trendText}`
+		// Die Sprüche sind kurz und teils ohne Satzzeichen — darum mit Strich anhängen.
+		body: trendText ? `${z.level.blurb} — ${trendText}` : z.level.blurb
 	};
 }
