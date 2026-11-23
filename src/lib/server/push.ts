@@ -9,7 +9,7 @@ import webpush from 'web-push';
 import { createHmac, createSign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from './db';
 import { pushSubscriptions, fcmTokens, users } from './db/schema';
 import { parsePushPrefs, type PushPrefs } from '$lib/pushPrefs';
@@ -129,14 +129,19 @@ export function ntfyInfoForUser(userId: number): { base: string; topic: string; 
 
 async function deliverNtfy(userId: number, payload: PushPayload): Promise<boolean> {
 	try {
-		const res = await fetch(`${NTFY_BASE}/${ntfyTopicForUser(userId)}`, {
+		// Als JSON an die Wurzel-URL statt mit X-Title-Header: HTTP-Header
+		// dürfen nur Latin-1 enthalten — ein Emoji im Titel („😬 Zug-O-Meter")
+		// liess fetch vor dem Senden abbrechen, die Nachricht kam nie an.
+		const res = await fetch(NTFY_BASE, {
 			method: 'POST',
-			headers: {
-				'X-Title': payload.title,
-				'X-Click': `${PORTAL_ORIGIN}${payload.url ?? '/'}`,
-				...(payload.tag ? { 'X-Tags': payload.tag } : {})
-			},
-			body: payload.body
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				topic: ntfyTopicForUser(userId),
+				title: payload.title,
+				message: payload.body,
+				click: `${PORTAL_ORIGIN}${payload.url ?? '/'}`,
+				...(payload.tag ? { tags: [payload.tag] } : {})
+			})
 		});
 		return res.ok;
 	} catch {
@@ -278,6 +283,18 @@ async function deliverFcm(userIds: number[], payload: PushPayload): Promise<numb
 
 /** Schickt an alle Geräte der genannten User. Gibt die Zahl erfolgreicher Zustellungen zurück. */
 export async function sendToUsers(userIds: number[], payload: PushPayload): Promise<number> {
+	if (userIds.length === 0) return 0;
+	// Deaktivierte und gelöschte Accounts bekommen nichts: Sie können sich
+	// nicht anmelden und damit auch nichts abschalten.
+	const reachable = new Set(
+		db
+			.select({ id: users.id })
+			.from(users)
+			.where(and(inArray(users.id, userIds), eq(users.active, true), usersNotDeletedCondition()))
+			.all()
+			.map((r) => r.id)
+	);
+	userIds = userIds.filter((id) => reachable.has(id));
 	if (userIds.length === 0) return 0;
 
 	// Kanal 2: ntfy — unabhängig von der VAPID-Konfiguration.
