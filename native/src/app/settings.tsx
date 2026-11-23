@@ -436,11 +436,15 @@ export default function Settings() {
 			<SectionTitle>Benachrichtigungen</SectionTitle>
 			<Card style={{ gap: 12 }}>
 				{PUSH_PREFS.filter((p) => !(push.data?.hiddenPrefs ?? []).includes(p.key)).map((p) => {
-					const on = push.data?.prefs?.[p.key] !== false;
+					// Erst nach dem Laden bedienbar: Vorher (oder nach einem Fehler) ist
+					// der gespeicherte Stand unbekannt — ein Tippen würde sonst blind
+					// „aus" speichern, auch wenn es schon aus ist.
+					const loaded = !!push.data;
+					const on = loaded && push.data?.prefs?.[p.key] !== false;
 					return (
 						<Pressable
 							key={p.key}
-							disabled={pushBusy}
+							disabled={pushBusy || !loaded}
 							onPress={async () => {
 								setPushBusy(true);
 								try {
@@ -452,7 +456,11 @@ export default function Settings() {
 									setPushBusy(false);
 								}
 							}}
-							style={({ pressed }) => [styles.pushRow, pressed && { opacity: 0.7 }]}
+							style={({ pressed }) => [
+								styles.pushRow,
+								!loaded && { opacity: 0.45 },
+								pressed && { opacity: 0.7 }
+							]}
 						>
 							<View style={{ flex: 1 }}>
 								<Text style={styles.rowLabel}>{p.title}</Text>

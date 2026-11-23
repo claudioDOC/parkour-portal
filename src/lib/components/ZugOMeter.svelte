@@ -40,6 +40,10 @@
 	const fire = $derived(z.level.key === 'grossartig');
 	const fx = $derived(fire ? 'zug-fire' : z.level.intensity === 2 ? 'zug-alarm' : 'zug-steady');
 	const width = $derived(Math.max(z.fill ?? z.percent, 3));
+	/** Vorlesetext: Spruch behält sein „?" bzw. „!", ein Punkt kommt nur dazu, wenn keiner da ist. */
+	const spoken = $derived(
+		`Zug-O-Meter: ${z.level.label} — ${z.level.blurb}${/[.!?]$/.test(z.level.blurb) ? '' : '.'}`
+	);
 
 	/**
 	 * Feuer bei „Grossartig": ein flackerndes Glutband direkt über dem Balken
@@ -105,12 +109,12 @@
 		{href}
 		class="zug-box block rounded-lg px-1 py-1 transition-colors hover:bg-bg-hover"
 		style="--zug-rgb: {c.rgb}"
-		aria-label="Zug-O-Meter: {z.level.label} — {z.level.blurb.replace(/[.!?]+$/, '')}. Details in der Statistik"
+		aria-label="{spoken} Details in der Statistik"
 	>
 		{@render body()}
 	</a>
 {:else}
-	<div class="zug-box px-1 py-1" style="--zug-rgb: {c.rgb}" aria-label="Zug-O-Meter: {z.level.label} — {z.level.blurb}">
+	<div class="zug-box px-1 py-1" style="--zug-rgb: {c.rgb}" role="group" aria-label={spoken}>
 		{@render body()}
 	</div>
 {/if}
