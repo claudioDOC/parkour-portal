@@ -77,7 +77,7 @@ export const PUSH_PREF_LABELS: Record<keyof PushPrefs, { title: string; hint: st
 		hint: 'Wenn sich jemand von einem Training abmeldet — mit Name und Grund.'
 	},
 	zugkraft: {
-		title: 'Zugkraft-Wochenbericht',
+		title: 'Zug-O-Meter-Wochenbericht',
 		hint: 'Sonntagabend: wie gut die Gruppe gerade zieht.'
 	}
 };

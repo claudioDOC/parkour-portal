@@ -95,7 +95,7 @@
 	</header>
 
 	{#if data.zugkraft}
-		<!-- Zugkraft: nur der Balken trägt Farbe und Glühen — der Block bleibt
+		<!-- Zug-O-Meter: nur der Balken trägt Farbe und Glühen — der Block bleibt
 		     ruhig, sonst dominiert er das Dashboard. Bei sechs flackert der
 		     Balken wie Feuer, bei eins und zwei pulsiert er als Alarm. -->
 		{@const z = data.zugkraft}
@@ -129,18 +129,12 @@
 				: z.level.intensity === 2
 					? 'zug-alarm'
 					: 'zug-steady'}
-		<a href="/statistik" class="block rounded-lg px-1 py-1 transition-colors hover:bg-bg-hover" style="--zug-rgb: {rgb}" aria-label="Zugkraft der Gruppe — Details in der Statistik">
-			<div class="flex items-baseline gap-2 text-sm">
-				<span class="{z.level.intensity === 2 ? 'zug-emoji' : ''}" aria-hidden="true">{z.level.emoji}</span>
-				<span class="font-semibold tabular-nums" style="color: {col}">{z.avgAll}</span>
-				<span class="text-xs text-text-muted">von {z.memberCount}</span>
-				<span class="text-text-secondary">· {z.level.label}</span>
-				{#if z.trend !== 0}
-					<span class="text-xs {z.trend > 0 ? 'text-success' : 'text-danger'}" title="Gegenüber den 14 Tagen davor">
-						{z.trend > 0 ? '↑' : '↓'}{Math.abs(z.trend)}
-					</span>
-				{/if}
-				<span class="ml-auto text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">Zugkraft</span>
+		<a href="/statistik" class="block rounded-lg px-1 py-1 transition-colors hover:bg-bg-hover" style="--zug-rgb: {rgb}" aria-label="Zug-O-Meter: {z.level.label} — Details in der Statistik">
+			<!-- Titel links, Stand rechts — nur Emoji und Stufe, keine Kopfzahlen. -->
+			<div class="flex items-center gap-2 text-sm">
+				<span class="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">Zug-O-Meter</span>
+				<span class="ml-auto {z.level.intensity === 2 ? 'zug-emoji' : ''}" aria-hidden="true">{z.level.emoji}</span>
+				<span class="font-semibold" style="color: {col}">{z.level.label}</span>
 			</div>
 			<div class="zug-track mt-1.5" aria-hidden="true">
 				<div class="zug-fill {fx}" style="width: {Math.max(z.percent, 3)}%; background-color: {col}"></div>

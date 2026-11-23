@@ -8,7 +8,7 @@ import { getMotion } from './prefs';
 import type { Zugkraft, ZugkraftLevelKey } from './api';
 
 /**
- * Zugkraft-Barometer auf der Startseite.
+ * Zug-O-Meter auf der Startseite.
  *
  * Die Stufe hängt an KÖPFEN: drei von sechs sind nur „geht so". Jede Stufe
  * hat ihre Farbe (1 dunkelrot … 6 starkes Grün). Farbe und Leuchten stecken
@@ -127,23 +127,16 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 		<Pressable
 			onPress={() => router.push('/stats')}
 			accessibilityRole="button"
-			accessibilityLabel={`Zugkraft: im Schnitt ${data.avgAll} von ${data.memberCount} dabei, ${data.level.label}`}
+			accessibilityLabel={`Zug-O-Meter: ${data.level.label}. ${data.level.blurb}`}
 			style={({ pressed }) => [styles.box, pressed && { opacity: 0.7 }]}
 		>
+			{/* Titel links, Stand rechts — nur Emoji und Stufe, keine Kopfzahlen. */}
 			<View style={styles.head}>
+				<Text style={styles.kicker}>ZUG-O-METER</Text>
 				<Text style={styles.emoji}>{data.level.emoji}</Text>
-				<Text style={[styles.value, { color: tone }]}>{data.avgAll}</Text>
-				<Text style={styles.of}>von {data.memberCount}</Text>
 				<Text style={[styles.label, { color: tone }]} numberOfLines={1}>
-					· {data.level.label}
+					{data.level.label}
 				</Text>
-				{data.trend !== 0 ? (
-					<Text style={[styles.trend, { color: data.trend > 0 ? colors.success : colors.danger }]}>
-						{data.trend > 0 ? '↑' : '↓'}
-						{Math.abs(data.trend)}
-					</Text>
-				) : null}
-				<Text style={styles.kicker}>ZUGKRAFT</Text>
 			</View>
 
 			<View style={styles.barBox}>
@@ -169,20 +162,17 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
 		box: { gap: 6, paddingVertical: 2 },
-		head: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
-		emoji: { fontSize: 15 },
-		value: { fontFamily: fonts.sansBold, fontSize: 16, lineHeight: 21 },
-		of: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 11, lineHeight: 16 },
-		label: { fontFamily: fonts.sansSemi, fontSize: 13, lineHeight: 18, flexShrink: 1 },
-		trend: { fontFamily: fonts.sansSemi, fontSize: 12, lineHeight: 16 },
+		head: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 		kicker: {
-			marginLeft: 'auto',
 			color: colors.fg + textAlpha.muted,
 			fontFamily: fonts.sansSemi,
-			fontSize: 9,
+			fontSize: 10,
 			lineHeight: 16,
 			letterSpacing: 1.6
 		},
+		/* marginLeft auto schiebt Emoji + Stufe an den rechten Rand. */
+		emoji: { fontSize: 15, marginLeft: 'auto' },
+		label: { fontFamily: fonts.sansSemi, fontSize: 13, lineHeight: 18, flexShrink: 1 },
 		/* Höhe für den Schein lassen, damit er oben/unten nicht abgeschnitten wirkt. */
 		barBox: { justifyContent: 'center', paddingVertical: 6 },
 		glow: { position: 'absolute', left: 0, height: 10, borderRadius: 999 },

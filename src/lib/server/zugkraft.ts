@@ -107,7 +107,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			key: 'grossartig',
 			label: 'Grossartig',
 			emoji: '🔥🔥🔥',
-			blurb: 'Volle Hütte. Mehr geht nicht — so muss das sein.',
+			blurb: 'Volle Crew am Spot. So muss das!',
 			intensity: 2
 		};
 	if (avg >= 4.5)
@@ -115,7 +115,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			key: 'super',
 			label: 'Super',
 			emoji: '🔥',
-			blurb: 'Fünf am Start. Die Gruppe brennt gerade.',
+			blurb: 'Die Crew brennt. Bleib dran — sei nicht der, der die Serie bricht.',
 			intensity: 1
 		};
 	if (avg >= 3.5)
@@ -123,7 +123,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			key: 'gut',
 			label: 'Gut',
 			emoji: '💪',
-			blurb: 'Vier ziehen mit — gute Trainings. Haltet das.',
+			blurb: 'Gute Truppe am Start. Einer mehr, und es wird richtig stark.',
 			intensity: 0
 		};
 	if (avg >= 2.5)
@@ -131,7 +131,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			key: 'ok',
 			label: 'Geht so',
 			emoji: '😬',
-			blurb: 'Drei am Spot. Reicht zum Trainieren, mehr wäre deutlich besser.',
+			blurb: 'Reicht zum Trainieren — aber da geht noch einiges.',
 			intensity: 0
 		};
 	if (avg >= 1.5)
@@ -139,14 +139,14 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			key: 'schwach',
 			label: 'Sehr schwach',
 			emoji: '😭',
-			blurb: 'Nur noch zwei. Jetzt bloss nicht auch noch abmelden.',
+			blurb: 'Es wird dünn. Jetzt bloss nicht auch noch abmelden.',
 			intensity: 2
 		};
 	return {
 		key: 'katastrophe',
 		label: 'Katastrophe',
 		emoji: '💀',
-		blurb: 'Fast niemand zieht. Allein trainiert keiner — das stirbt gerade weg.',
+		blurb: 'Allein trainiert keiner. Raff dich auf — sonst bleibt der Spot leer.',
 		intensity: 2
 	};
 }
@@ -329,18 +329,16 @@ export function computeZugkraft(now = new Date()): Zugkraft {
 		avgAll: Math.round(avgAll * 10) / 10,
 		avgUpcoming,
 		sessions,
-		headline: `${level.emoji} Zugkraft: ⌀ ${Math.round(avgAll * 10) / 10} von ${ctx.members.length} — ${level.label}`
+		headline: `${level.emoji} Zug-O-Meter: ${level.label}`
 	};
 }
 
 /** Text für die Wochen-Benachrichtigung (Sonntagabend). */
 export function zugkraftPushText(z: Zugkraft): { title: string; body: string } {
-	const trendText =
-		z.trend > 4 ? ` (↑ ${z.trend} Punkte)` : z.trend < -4 ? ` (↓ ${Math.abs(z.trend)} Punkte)` : '';
+	// Keine Kopfzahlen im Text — Emoji, Stufe und Spruch sagen genug.
+	const trendText = z.trend > 4 ? ' Tendenz: aufwärts 📈' : z.trend < -4 ? ' Tendenz: abwärts 📉' : '';
 	return {
-		title: `${z.level.emoji} Zugkraft: ⌀ ${z.avgAll} von ${z.memberCount} — ${z.level.label}`,
-		body:
-			`Letzte 2 Wochen im Schnitt ${z.avgPast} dabei, kommende Woche ${z.avgUpcoming}${trendText}. ` +
-			z.level.blurb
+		title: `${z.level.emoji} Zug-O-Meter: ${z.level.label}`,
+		body: `${z.level.blurb}${trendText}`
 	};
 }
