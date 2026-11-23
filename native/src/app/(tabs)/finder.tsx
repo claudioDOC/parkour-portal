@@ -482,7 +482,7 @@ const makeStyles = (colors: ThemeColors) =>
 			lineHeight: 18,
 			fontFamily: fonts.sansMedium
 		},
-		navRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 4 },
+		navRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10, marginTop: 4 },
 		hint: { color: colors.accentBlue, fontFamily: fonts.sans, fontSize: 14, lineHeight: 20 },
 		head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
 		rank: {

@@ -1062,7 +1062,7 @@ const makeStyles = (colors: ThemeColors) =>
 		justifyContent: 'center',
 		marginTop: 8
 	},
-	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+	sheetActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 },
 	challengeVideo: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.hover },
 	mapPlaceholder: {
 		alignItems: 'center',

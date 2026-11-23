@@ -207,7 +207,7 @@ export default function Spots() {
 						/>
 					))}
 				</View>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10 }}>
 					<Button
 						label="Zurücksetzen"
 						kind="ghost"

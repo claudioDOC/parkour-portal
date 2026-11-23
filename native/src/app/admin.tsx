@@ -1094,7 +1094,7 @@ export default function Admin() {
 					value={absentReason}
 					onChangeText={setAbsentReason}
 				/>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10 }}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setAbsentFor(null)} />
 					<Button
 						label="Abmelden"
@@ -1129,7 +1129,7 @@ export default function Admin() {
 					value={newPw}
 					onChangeText={setNewPw}
 				/>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10 }}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setPwOpen(false)} />
 					<Button label="Setzen" onPress={resetPassword} />
 				</View>
@@ -1165,7 +1165,7 @@ export default function Admin() {
 							</Pressable>
 						))}
 				</View>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10 }}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setRsvpFor(null)} />
 					<Button
 						label="Anmelden"
@@ -1189,7 +1189,7 @@ export default function Admin() {
 				title="Gast hinzufügen"
 			>
 				<Input placeholder="Name des Gasts" value={guestName} onChangeText={setGuestName} />
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10 }}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setGuestFor(null)} />
 					<Button
 						label="Hinzufügen"
@@ -1237,7 +1237,7 @@ export default function Admin() {
 				<Text style={styles.muted}>Datum (leer = heute)</Text>
 				<DateField value={soloDate} onChange={setSoloDate} placeholder="Tag wählen" />
 				<Input placeholder="Notiz (optional)" value={soloNote} onChangeText={setSoloNote} />
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 }}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setSoloOpen(false)} />
 					<Button
 						label="Eintragen"
@@ -1276,7 +1276,7 @@ export default function Admin() {
 					value={pushForm.body}
 					onChangeText={(v) => setPushForm({ ...pushForm, body: v })}
 				/>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10 }}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setPushOpen(false)} />
 					<Button label="Senden" onPress={sendBroadcast} />
 				</View>
@@ -1306,7 +1306,7 @@ export default function Admin() {
 					value={timeForm.reason}
 					onChangeText={(v) => setTimeForm({ ...timeForm, reason: v })}
 				/>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10 }}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setTimeFor(null)} />
 					<Button
 						label="Ändern + alle informieren"
@@ -1366,7 +1366,7 @@ export default function Admin() {
 							</Pressable>
 						))}
 				</View>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10 }}>
 					<Button
 						label="Zurück aufs Voting"
 						kind="ghost"

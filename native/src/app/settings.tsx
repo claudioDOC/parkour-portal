@@ -636,7 +636,7 @@ export default function Settings() {
 					value={pw.confirm}
 					onChangeText={(v) => setPw({ ...pw, confirm: v })}
 				/>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10 }}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setPwOpen(false)} />
 					<Button label="Ändern" onPress={submitPassword} />
 				</View>

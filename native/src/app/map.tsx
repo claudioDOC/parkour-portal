@@ -331,7 +331,7 @@ const makeStyles = (colors: ThemeColors) =>
 		ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
 		ratingText: { color: colors.fg + textAlpha.secondary, fontSize: 13, lineHeight: 18, fontFamily: fonts.sansMedium },
 		trainingNote: { color: colors.warning, fontSize: 12, lineHeight: 16, fontFamily: fonts.sansSemi, marginTop: 2 },
-		sheetActions: { flexDirection: 'row', gap: 8 },
+		sheetActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 		actionBtn: {
 			flex: 1,
 			flexDirection: 'row',

@@ -316,7 +316,7 @@ export default function ChallengeDetail() {
 							value={form.description}
 							onChangeText={(v) => setForm({ ...form, description: v })}
 						/>
-						<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+						<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10 }}>
 							<Button label="Abbrechen" kind="ghost" onPress={() => setEditOpen(false)} />
 							<Button label="Speichern" onPress={saveEdit} />
 						</View>

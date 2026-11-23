@@ -844,7 +844,7 @@ export default function Trips() {
 					onChangeText={setPlaceQuery}
 					autoCapitalize="none"
 				/>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 }}>
 					<Button
 						label={placeBusy ? 'Sucht …' : 'Suchen'}
 						kind="ghost"
@@ -1301,7 +1301,7 @@ const makeStyles = (colors: ThemeColors) =>
 	proposeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
 	proposeText: { color: colors.fg + textAlpha.secondary, fontSize: 12, lineHeight: 16 },
 	actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-	sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+	sheetActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 },
 	modeRow: {
 		flexDirection: 'row',
 		alignItems: 'center',

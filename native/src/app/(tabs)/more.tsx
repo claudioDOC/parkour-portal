@@ -312,7 +312,7 @@ export default function More() {
 					value={pushForm.body}
 					onChangeText={(v) => setPushForm({ ...pushForm, body: v })}
 				/>
-				<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 }}>
 					<Button label="Abbrechen" kind="ghost" onPress={() => setPushOpen(false)} />
 					<Button label="Senden" onPress={sendBroadcast} />
 				</View>

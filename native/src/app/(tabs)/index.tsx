@@ -991,7 +991,7 @@ export default function Dashboard() {
 								? 'Nur du teilst gerade — die anderen erscheinen, sobald sie auch teilen.'
 								: `${live.positions.length} Personen am Start: ${live.positions.map((pos) => pos.username).join(', ')}`}
 						</Text>
-						<View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+						<View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 }}>
 							<Button
 								label="Nicht mehr teilen"
 								kind="ghost"
@@ -1372,7 +1372,7 @@ const makeStyles = (colors: ThemeColors) =>
 			lineHeight: 18,
 			fontFamily: fonts.sans
 		},
-		sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+		sheetActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 },
 		spotOption: {
 			flexDirection: 'row',
 			alignItems: 'center',
