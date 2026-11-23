@@ -5,6 +5,7 @@ import { db } from '$lib/server/db';
 import { pushSubscriptions, users, fcmTokens } from '$lib/server/db/schema';
 import { getVapidPublicKey, isPushConfigured } from '$lib/server/push';
 import { parsePushPrefs, sanitizePushPrefs, DEFAULT_PUSH_PREFS } from '$lib/pushPrefs';
+import { zugkraftVisibleTo } from '$lib/server/zugkraft';
 
 /** Grobe Gerätebeschreibung aus dem User-Agent — nur zur Wiedererkennung. */
 function describeDevice(ua: string | null): string {
@@ -84,6 +85,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 		enabled: isPushConfigured(),
 		publicKey: getVapidPublicKey(),
 		prefs: readPrefs(locals.user.id),
+		// Schalter, die für diese Person nichts bedeuten (Web und App blenden sie aus).
+		hiddenPrefs: zugkraftVisibleTo(locals.user) ? [] : ['zugkraft'],
 		devices,
 		appDevices
 	});

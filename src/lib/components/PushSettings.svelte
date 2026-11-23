@@ -17,6 +17,8 @@
 
 	let pushState = $state<State>('laden');
 	let prefs = $state<PushPrefs>({ ...DEFAULT_PUSH_PREFS });
+	/** Vom Server: Schalter, die für diese Person nichts bedeuten (z. B. Zug-O-Meter für Gäste). */
+	let hiddenPrefs = $state<string[]>([]);
 	let publicKey = $state('');
 	let devices = $state<{ id: number; label: string; since: string }[]>([]);
 	let busy = $state(false);
@@ -56,6 +58,7 @@
 			const data = await res.json();
 			publicKey = data.publicKey ?? '';
 			prefs = { ...DEFAULT_PUSH_PREFS, ...(data.prefs ?? {}) };
+			hiddenPrefs = Array.isArray(data.hiddenPrefs) ? data.hiddenPrefs : [];
 			devices = data.devices ?? [];
 			if (!data.enabled || !publicKey) {
 				pushState = 'nicht_konfiguriert';
@@ -360,7 +363,7 @@
 		{#if pushState === 'an'}
 			<div class="mt-5 space-y-2 border-t border-border pt-4">
 				<p class="text-text-secondary text-xs font-semibold uppercase tracking-wide">Wobei melden?</p>
-				{#each PUSH_PREF_KEYS as key (key)}
+				{#each PUSH_PREF_KEYS.filter((k) => !hiddenPrefs.includes(k)) as key (key)}
 					<label
 						class="flex cursor-pointer items-start gap-3 rounded-lg bg-bg-secondary px-3 py-2.5 transition-colors hover:bg-bg-hover"
 					>

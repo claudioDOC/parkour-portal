@@ -1271,6 +1271,8 @@ export const stopLivePosition = () =>
 export type PushConfig = {
 	enabled: boolean;
 	prefs: Record<string, boolean>;
+	/** Schalter, die für diese Person nichts bedeuten (z. B. Zug-O-Meter für Gäste). */
+	hiddenPrefs?: string[];
 	devices: { id: number; label: string; since: string }[];
 	appDevices: { id: number; tokenTail: string; since: string }[];
 };

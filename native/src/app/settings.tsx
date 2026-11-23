@@ -435,7 +435,7 @@ export default function Settings() {
 
 			<SectionTitle>Benachrichtigungen</SectionTitle>
 			<Card style={{ gap: 12 }}>
-				{PUSH_PREFS.map((p) => {
+				{PUSH_PREFS.filter((p) => !(push.data?.hiddenPrefs ?? []).includes(p.key)).map((p) => {
 					const on = push.data?.prefs?.[p.key] !== false;
 					return (
 						<Pressable

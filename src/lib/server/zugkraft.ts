@@ -37,6 +37,21 @@ import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 export const ZUGKRAFT_ADMIN_ONLY = false;
 
 /**
+ * Wer sieht das Zug-O-Meter (Startseite, Wochenbericht, Schalter in den
+ * Einstellungen)? Admins immer. „Nur Zusage"-Accounts (opt_in) nie — die
+ * sind eher Gäste und zählen im Meter selbst auch nicht mit. Alle anderen,
+ * solange kein Probelauf läuft.
+ */
+export function zugkraftVisibleTo(
+	user: { role?: string | null; trainingAttendance?: string | null } | null | undefined
+): boolean {
+	if (!user) return false;
+	if (user.role === 'admin') return true;
+	if (user.trainingAttendance === 'opt_in') return false;
+	return !ZUGKRAFT_ADMIN_ONLY;
+}
+
+/**
  * Stufen nach dem Schnitt der Köpfe pro Training — angesetzt an der echten
  * Gruppe, nicht an der Theorie: In 45 Trainings (Juni–Nov. 2026) waren nie
  * alle sechs da, fünf nur viermal, der Schnitt liegt bei gut drei. Über drei

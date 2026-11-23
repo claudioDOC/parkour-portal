@@ -8,7 +8,7 @@
 import { and, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { activePenaltiesForSession, wrongSpotFor } from '$lib/server/noShowPenalty';
 import { votingDeadlineFor } from '$lib/server/training';
-import { ZUGKRAFT_ADMIN_ONLY, computeZugkraft, zugkraftPushText } from '$lib/server/zugkraft';
+import { computeZugkraft, zugkraftPushText, zugkraftVisibleTo } from '$lib/server/zugkraft';
 import {
 	MIN_YES,
 	evaluateTripLock,
@@ -32,7 +32,7 @@ import {
 	users
 } from './db/schema';
 import { todayYmdInAppTZ } from './calendarToday';
-import { isPushConfigured, sendToUsers, sendToUsersWithPref } from './push';
+import { isPushConfigured, sendToUsersWithPref } from './push';
 import { usersNotDeletedCondition } from './usersWhere';
 import {
 	normalizeUserForAttendance,
@@ -550,19 +550,18 @@ async function runZugkraftWeekly(now: Date): Promise<void> {
 	if (z.pastCount === 0 && z.upcomingCount === 0) return;
 	const text = zugkraftPushText(z);
 
-	// Im Probelauf nur an Admins — sonst an alle, die es nicht abgeschaltet haben.
-	if (ZUGKRAFT_ADMIN_ONLY) {
-		const admins = db
-			.select({ id: users.id })
-			.from(users)
-			.where(and(usersNotDeletedCondition(), eq(users.role, 'admin')))
-			.all()
-			.map((u) => u.id);
-		if (admins.length === 0) return;
-		await sendToUsers(admins, { ...text, url: '/', tag: kind });
-		return;
-	}
-	await sendToUsersWithPref('zugkraft', { ...text, url: '/', tag: kind });
+	// Nur an alle, die das Zug-O-Meter auch sehen (zugkraftVisibleTo: keine
+	// „nur Zusage"-Gäste, im Probelauf nur Admins) und den Wochenbericht nicht
+	// abgeschaltet haben — der Schalter gilt auch im Probelauf.
+	const audience = db
+		.select({ id: users.id, role: users.role, trainingAttendance: users.trainingAttendance })
+		.from(users)
+		.where(and(usersNotDeletedCondition(), eq(users.active, true)))
+		.all()
+		.filter((u) => zugkraftVisibleTo(u))
+		.map((u) => u.id);
+	if (audience.length === 0) return;
+	await sendToUsersWithPref('zugkraft', { ...text, url: '/', tag: kind }, audience);
 }
 
 async function tick(): Promise<void> {
