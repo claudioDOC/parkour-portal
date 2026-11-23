@@ -22,6 +22,8 @@ export type PushPrefs = {
 	atSpot: boolean;
 	/** Jemand meldet sich von einem Training ab (mit Name und Grund). */
 	absenceReported: boolean;
+	/** Wochenbericht Zugkraft (Sonntagabend). */
+	zugkraft: boolean;
 };
 
 export const DEFAULT_PUSH_PREFS: PushPrefs = {
@@ -33,7 +35,8 @@ export const DEFAULT_PUSH_PREFS: PushPrefs = {
 	spotVoting: true,
 	spots: true,
 	atSpot: true,
-	absenceReported: true
+	absenceReported: true,
+	zugkraft: true
 };
 
 export const PUSH_PREF_LABELS: Record<keyof PushPrefs, { title: string; hint: string }> = {
@@ -72,6 +75,10 @@ export const PUSH_PREF_LABELS: Record<keyof PushPrefs, { title: string; hint: st
 	absenceReported: {
 		title: 'Abmeldungen',
 		hint: 'Wenn sich jemand von einem Training abmeldet — mit Name und Grund.'
+	},
+	zugkraft: {
+		title: 'Zugkraft-Wochenbericht',
+		hint: 'Sonntagabend: wie gut die Gruppe gerade zieht.'
 	}
 };
 

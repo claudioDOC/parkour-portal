@@ -64,6 +64,81 @@
 		</div>
 	</header>
 
+	{#if data.zugkraft}
+		<!-- Zugkraft: wie gut die Gruppe gerade zieht. Bewusst prominent und mit
+		     Effekt an den Rändern — in schwachen Phasen soll die Zahl davon
+		     abhalten, sich auch noch abzumelden. Probelauf: nur für Admins. -->
+		{@const z = data.zugkraft}
+		{@const tone =
+			z.level.key === 'legendaer' || z.level.key === 'stark'
+				? { text: 'text-success', bg: 'bg-success/10', ring: 'ring-success/40', bar: 'bg-success' }
+				: z.level.key === 'solide'
+					? { text: 'text-accent', bg: 'bg-accent/10', ring: 'ring-accent/40', bar: 'bg-accent' }
+					: z.level.key === 'wackelig'
+						? { text: 'text-warning', bg: 'bg-warning/10', ring: 'ring-warning/40', bar: 'bg-warning' }
+						: { text: 'text-danger', bg: 'bg-danger/10', ring: 'ring-danger/50', bar: 'bg-danger' }}
+		{@const pulse =
+			z.level.intensity === 2 ? (z.level.key === 'legendaer' ? 'zug-glow' : 'zug-alarm') : ''}
+		<section
+			class="card-surface relative overflow-hidden rounded-xl p-5 ring-1 {tone.bg} {tone.ring} {pulse}"
+			aria-label="Zugkraft der Gruppe"
+		>
+			<div class="flex flex-wrap items-start gap-4">
+				<div class="flex items-center gap-3">
+					<span class="text-4xl {z.level.intensity === 2 ? 'zug-emoji' : ''}" aria-hidden="true">{z.level.emoji}</span>
+					<div>
+						<p class="font-display text-[10px] font-semibold uppercase tracking-[0.22em] text-text-muted">Zugkraft</p>
+						<p class="flex items-baseline gap-2">
+							<span class="font-display text-4xl font-semibold tabular-nums {tone.text}">{z.percent}%</span>
+							<span class="text-sm font-semibold {tone.text}">{z.level.label}</span>
+						</p>
+					</div>
+				</div>
+				{#if z.trend !== 0}
+					<span
+						class="rounded-full px-2.5 py-1 text-xs font-semibold {z.trend > 0 ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'}"
+						title="Gegenüber den 14 Tagen davor"
+					>
+						{z.trend > 0 ? '↑' : '↓'} {Math.abs(z.trend)} Punkte
+					</span>
+				{/if}
+			</div>
+
+			<div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-bg-hover" aria-hidden="true">
+				<div class="h-full rounded-full {tone.bar} transition-[width] duration-700" style="width: {z.percent}%"></div>
+			</div>
+
+			<p class="mt-3 text-sm leading-relaxed text-text-secondary">{z.level.blurb}</p>
+			<p class="mt-1 text-xs text-text-muted">
+				Letzte 2 Wochen ⌀ {z.avgPast} von {z.avgAvailable} · kommende Woche ⌀ {z.avgUpcoming}
+			</p>
+
+			{#if z.sessions.length > 0}
+				<ul class="mt-4 space-y-1.5">
+					{#each z.sessions as s (s.sessionId)}
+						<li class="flex items-center gap-3 text-xs {s.isPast ? 'text-text-muted' : 'text-text-secondary'}">
+							<span class="w-24 shrink-0 tabular-nums">
+								{new Date(`${s.date}T12:00:00`).toLocaleDateString('de-CH', { weekday: 'short', day: 'numeric', month: 'short' })}
+							</span>
+							<span class="h-1.5 flex-1 overflow-hidden rounded-full bg-bg-hover" aria-hidden="true">
+								<span class="block h-full rounded-full {s.isPast ? tone.bar : tone.bar} {s.isPast ? 'opacity-60' : ''}" style="width: {s.percent}%"></span>
+							</span>
+							<span class="w-14 shrink-0 text-right tabular-nums">{s.attending}/{s.total}</span>
+							<span class="w-14 shrink-0 text-right text-[10px] uppercase tracking-wide opacity-70">
+								{s.isPast ? 'war' : 'geplant'}
+							</span>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+
+			<p class="mt-3 text-[11px] text-text-muted">
+				Probelauf — nur du siehst das. Grundlage: letzte 14 und kommende 7 Tage, nur reguläre Trainings.
+				Dauer-Abmeldungen (z. B. Donnerstag) zählen nicht gegen die Gruppe.
+			</p>
+		</section>
+	{/if}
+
 	{#if data.nextTrip}
 		<!-- Nächster Trip als eine Zeile — kein weiterer Block, nur ein Hinweis,
 		     der auffällt, solange die Terminumfrage eine Antwort braucht. -->

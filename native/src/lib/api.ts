@@ -219,10 +219,58 @@ export type NextTripSummary = {
 	joinedCount: number;
 };
 
+/**
+ * Zugkraft — Gruppen-Barometer: wie gut gerade gezogen wird, aus den
+ * letzten zwei Wochen plus der kommenden Woche. `null`, wenn die Person es
+ * nicht sehen darf (im Probelauf nur Admins).
+ */
+export type ZugkraftLevelKey =
+	| 'legendaer'
+	| 'stark'
+	| 'solide'
+	| 'wackelig'
+	| 'schwach'
+	| 'notstand';
+
+export type ZugkraftLevel = {
+	key: ZugkraftLevelKey;
+	label: string;
+	emoji: string;
+	blurb: string;
+	/** 0 = ruhig, 2 = Alarm/Feuerwerk — steuert die Effekte. */
+	intensity: 0 | 1 | 2;
+};
+
+export type ZugkraftSession = {
+	sessionId: number;
+	date: string;
+	dayOfWeek: string;
+	isPast: boolean;
+	attending: number;
+	total: number;
+	percent: number;
+};
+
+export type Zugkraft = {
+	percent: number;
+	level: ZugkraftLevel;
+	/** Prozentpunkte gegenüber den 14 Tagen davor; kann negativ sein. */
+	trend: number;
+	memberCount: number;
+	pastCount: number;
+	upcomingCount: number;
+	/** Personen pro Training, eine Dezimalstelle. */
+	avgPast: number;
+	avgUpcoming: number;
+	sessions: ZugkraftSession[];
+	headline: string;
+};
+
 export type TrainingPayload = {
 	/** Wer schaut zu — fürs Löschrecht bei Zusatztrainings. */
 	viewer?: { id: number; role: string } | null;
 	penalty: ActivePenalty | null;
+	zugkraft: Zugkraft | null;
 	nextTrip: NextTripSummary | null;
 	sessions: TrainingSession[];
 	allSpots: { id: number; name: string; city: string }[];

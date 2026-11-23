@@ -2,6 +2,7 @@ import { db } from '$lib/server/db';
 import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noShowPenalty';
 import { nextTripSummary } from '$lib/server/tripDatePoll';
 import { lateMarkedUserIds } from '$lib/server/lateAbsence';
+import { ZUGKRAFT_ADMIN_ONLY, computeZugkraft } from '$lib/server/zugkraft';
 import {
 	trainingSessions,
 	absences,
@@ -428,6 +429,8 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 	return {
 		penalty: viewerPenalty,
 		nextTrip: user ? nextTripSummary(user.id, today) : null,
+		zugkraft:
+			user && (!ZUGKRAFT_ADMIN_ONLY || user.role === 'admin') ? computeZugkraft() : null,
 		// Wer schaut zu — die Seite braucht das fürs Löschrecht bei
 		// Zusatztrainings (Ersteller oder Admin).
 		viewer: user ? { id: user.id, role: user.role ?? 'member' } : null,

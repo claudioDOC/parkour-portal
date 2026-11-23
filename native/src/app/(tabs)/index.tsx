@@ -42,6 +42,7 @@ import { NativeMap } from '../../lib/NativeMap';
 import { getLocation } from '../../lib/nativeModules';
 import { useAuth } from '../_layout';
 import { PushNudge } from '../../lib/PushNudge';
+import { ZugkraftCard } from '../../lib/ZugkraftCard';
 import { hasNativeExtras } from '../../lib/nativeModules';
 import { Linking } from 'react-native';
 
@@ -330,6 +331,10 @@ export default function Dashboard() {
 			    das in Akzentfarbe. */}
 			{/* Benachrichtigungen aus? Schmaler Hinweis mit Weg in die Einstellungen. */}
 			<PushNudge />
+
+			{/* Zugkraft: wie gut zieht die Gruppe gerade? Kommt vom Server nur,
+			    wer es sehen darf (im Probelauf nur Admins). */}
+			{data?.zugkraft ? <ZugkraftCard data={data.zugkraft} /> : null}
 
 			{data?.nextTrip
 				? (() => {

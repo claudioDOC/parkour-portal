@@ -8,6 +8,7 @@
 import { and, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { activePenaltiesForSession, wrongSpotFor } from '$lib/server/noShowPenalty';
 import { votingDeadlineFor } from '$lib/server/training';
+import { ZUGKRAFT_ADMIN_ONLY, computeZugkraft, zugkraftPushText } from '$lib/server/zugkraft';
 import {
 	MIN_YES,
 	evaluateTripLock,
@@ -31,7 +32,7 @@ import {
 	users
 } from './db/schema';
 import { todayYmdInAppTZ } from './calendarToday';
-import { isPushConfigured, sendToUsersWithPref } from './push';
+import { isPushConfigured, sendToUsers, sendToUsersWithPref } from './push';
 import { usersNotDeletedCondition } from './usersWhere';
 import {
 	normalizeUserForAttendance,
@@ -522,6 +523,48 @@ async function runTripDeadlines(now: Date): Promise<void> {
 	}
 }
 
+/**
+ * Wochenbericht Zugkraft, Sonntag ab 19:00. Ein Push pro Kalenderwoche —
+ * der Reminder-Schlüssel enthält die Woche, darum kann er nicht doppelt
+ * rausgehen, egal wie oft der Scheduler läuft.
+ */
+async function runZugkraftWeekly(now: Date): Promise<void> {
+	const parts = new Intl.DateTimeFormat('en-GB', {
+		timeZone: APP_CALENDAR_TZ,
+		weekday: 'short'
+	}).format(now);
+	if (parts !== 'Sun') return;
+	if (currentHourInAppTZ(now) < 19) return;
+
+	// ISO-Wochenschlüssel aus dem Datum in Zürich.
+	const ymd = todayYmdInAppTZ(now);
+	const d = new Date(`${ymd}T12:00:00Z`);
+	const day = (d.getUTCDay() + 6) % 7; // Mo=0
+	d.setUTCDate(d.getUTCDate() - day + 3); // Donnerstag der Woche
+	const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+	const week = 1 + Math.round((d.getTime() - firstThursday.getTime()) / 604800000);
+	const kind = `zugkraft-${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+	if (!claimReminder(-1, kind)) return;
+
+	const z = computeZugkraft(now);
+	if (z.pastCount === 0 && z.upcomingCount === 0) return;
+	const text = zugkraftPushText(z);
+
+	// Im Probelauf nur an Admins — sonst an alle, die es nicht abgeschaltet haben.
+	if (ZUGKRAFT_ADMIN_ONLY) {
+		const admins = db
+			.select({ id: users.id })
+			.from(users)
+			.where(and(usersNotDeletedCondition(), eq(users.role, 'admin')))
+			.all()
+			.map((u) => u.id);
+		if (admins.length === 0) return;
+		await sendToUsers(admins, { ...text, url: '/', tag: kind });
+		return;
+	}
+	await sendToUsersWithPref('zugkraft', { ...text, url: '/', tag: kind });
+}
+
 async function tick(): Promise<void> {
 	try {
 		const now = new Date();
@@ -530,6 +573,7 @@ async function tick(): Promise<void> {
 		await runRsvpReminder(now);
 		await runExtraRsvpReminder(now);
 		await runTripDeadlines(now);
+		await runZugkraftWeekly(now);
 		cleanupOldReminderLog();
 	} catch (err) {
 		console.error('[push] Erinnerungslauf fehlgeschlagen:', err);

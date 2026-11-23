@@ -30,6 +30,7 @@ import { computeTrainingStats } from '$lib/server/stats';
 import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noShowPenalty';
 import { nextTripSummary } from '$lib/server/tripDatePoll';
 import { lateMarkedUserIds } from '$lib/server/lateAbsence';
+import { ZUGKRAFT_ADMIN_ONLY, computeZugkraft } from '$lib/server/zugkraft';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const today = todayYmdInAppTZ();
@@ -287,6 +288,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		nextTrainings: trainingsWithDetails,
+		// Zugkraft-Barometer: im Probelauf nur für Admins (ZUGKRAFT_ADMIN_ONLY).
+		zugkraft:
+			locals.user && (!ZUGKRAFT_ADMIN_ONLY || locals.user.role === 'admin')
+				? computeZugkraft()
+				: null,
 		penalty: viewerPenalty,
 		nextTrip: locals.user ? nextTripSummary(locals.user.id, today) : null,
 		trainingForecast,
