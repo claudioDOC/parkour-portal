@@ -24,7 +24,7 @@ import {
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 import { asNum } from '$lib/server/asSqlNumber';
 import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
-import { todayYmdInAppTZ } from '$lib/server/calendarToday';
+import { FORECAST_HORIZON_DAYS, addDaysYmd, todayYmdInAppTZ } from '$lib/server/calendarToday';
 import { getTrainingWindowForecast } from '$lib/server/trainingForecast';
 import { ensureUpcomingTrainingSessions } from '$lib/server/ensureUpcomingTrainingSessions';
 import { computeTrainingStats } from '$lib/server/stats';
@@ -32,12 +32,6 @@ import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noSho
 import { nextTripSummary } from '$lib/server/tripDatePoll';
 import { lateMarkedUserIds } from '$lib/server/lateAbsence';
 import { ZUGKRAFT_ADMIN_ONLY, computeZugkraft } from '$lib/server/zugkraft';
-
-/** Tag in YYYY-MM-TT verschieben, ohne Zeitzonen-Überraschungen. */
-function addDaysYmdLocal(ymd: string, days: number): string {
-	const [y, m, d] = ymd.split('-').map(Number);
-	return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
-}
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const today = todayYmdInAppTZ();
@@ -272,7 +266,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	 * Weiter voraus liefert Open-Meteo kaum Verlässliches, und eine Zeile
 	 * „Prognose: keine Daten" hilft niemandem — die wird weggelassen.
 	 */
-	const forecastHorizon = addDaysYmdLocal(today, 7);
+	const forecastHorizon = addDaysYmd(today, FORECAST_HORIZON_DAYS);
 	const forecastBySession = new Map<number, Awaited<ReturnType<typeof getTrainingWindowForecast>>>();
 	for (const s of nextTrainings) {
 		if (s.date > forecastHorizon) continue;
@@ -282,7 +276,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				timeStart: s.timeStart,
 				timeEnd: s.timeEnd
 			});
-			if (f && f.condition !== 'unsicher') forecastBySession.set(s.id, f);
+			if (f?.hasData) forecastBySession.set(s.id, f);
 		} catch {
 			// Prognose ist Beiwerk — ein Ausfall darf das Dashboard nicht kippen.
 		}

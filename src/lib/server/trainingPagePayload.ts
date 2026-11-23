@@ -27,7 +27,7 @@ import {
 import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady';
 import { asNum } from '$lib/server/asSqlNumber';
 import { andWithUsersNotDeleted, usersNotDeletedCondition } from '$lib/server/usersWhere';
-import { todayYmdInAppTZ } from '$lib/server/calendarToday';
+import { FORECAST_HORIZON_DAYS, addDaysYmd, todayYmdInAppTZ } from '$lib/server/calendarToday';
 import { ensureUpcomingTrainingSessions } from '$lib/server/ensureUpcomingTrainingSessions';
 import { votingDeadlineFor } from '$lib/server/training';
 
@@ -120,12 +120,19 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 		/* Tabelle optional */
 	}
 
+	// Horizont für die Prognose: sieben Tage ab heute. Weiter voraus ist
+	// Open-Meteo Raten — und für diese Termine wird gar nicht erst gefragt:
+	// Jeder Abruf wartet bis zu 1,2 s, und ausserhalb des Fensters antwortet
+	// der Dienst ohnehin mit einem Fehler.
+	const forecastHorizon = addDaysYmd(today, FORECAST_HORIZON_DAYS);
+
 	const forecastBySessionKey = new Map<
 		string,
 		Awaited<ReturnType<typeof getTrainingWindowForecast>>
 	>();
 
 	for (const session of sessions) {
+		if (session.date > forecastHorizon) continue;
 		const key = `${session.date}|${session.timeStart}|${session.timeEnd}`;
 		if (forecastBySessionKey.has(key)) continue;
 		try {
@@ -142,12 +149,14 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 		}
 	}
 
-	const trainingForecast =
+	// Kopfzeile: nur echte Daten — sonst stünde dort „Prognose: keine Daten".
+	const firstForecast =
 		sessions.length > 0
 			? forecastBySessionKey.get(
 					`${sessions[0].date}|${sessions[0].timeStart}|${sessions[0].timeEnd}`
 				) ?? null
 			: null;
+	const trainingForecast = firstForecast?.hasData ? firstForecast : null;
 
 	const sessionsWithDetails = sessions.map((session) => {
 		const sessionAbsences = db.select({
@@ -302,6 +311,12 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 		const fc = forecastBySessionKey.get(
 			`${session.date}|${session.timeStart}|${session.timeEnd}`
 		);
+		/**
+		 * Prognose je Training — aber nur für die kommenden sieben Tage und
+		 * nur wenn Open-Meteo wirklich Daten liefert. Weiter voraus ist es
+		 * Raten, und eine Zeile „keine Daten" hilft niemandem.
+		 */
+		const forecastForCard = fc?.hasData ? fc : null;
 
 		let winnerSpot = null;
 		let autoSpot = null;
@@ -388,6 +403,7 @@ export async function buildTrainingPagePayload(user: TrainingViewer) {
 				session.createdBy != null
 					? (allUsers.find((u) => u.id === session.createdBy)?.username ?? null)
 					: null,
+			forecast: forecastForCard,
 			spotThumbnail: effectiveSpotId ? (spotThumbs.get(effectiveSpotId) ?? null) : null,
 			overrideSpot,
 			absences: absencesForList.map((a) => ({ ...a, lateMarked: lateMarked.has(a.userId) })),

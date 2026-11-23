@@ -29,6 +29,13 @@ export interface TrainingForecast {
 	isWet: boolean;
 	/** Nur bei stark dunkel: SQL lighting != nein (wie früher isDark). */
 	applyLightingHardFilter: boolean;
+	/**
+	 * Echte Daten von Open-Meteo (true) oder Platzhalter, weil der Abruf
+	 * scheiterte oder der Termin ausserhalb des Vorhersagefensters liegt
+	 * (false). Nicht aus `condition` ablesen: „unsicher" ist auch eine
+	 * gewöhnliche Wetterklasse (z. B. 44–57 % Regenwahrscheinlichkeit).
+	 */
+	hasData: boolean;
 }
 
 interface OpenMeteoHourly {
@@ -302,7 +309,8 @@ async function refreshForecast(
 		summaryLine,
 		fetchedAt: new Date().toISOString(),
 		isWet,
-		applyLightingHardFilter: lightCategory === 'dunkel'
+		applyLightingHardFilter: lightCategory === 'dunkel',
+		hasData: true
 	};
 
 	cache.set(cacheKey, { forecast, expires: now + CACHE_TTL_MS });
@@ -325,6 +333,7 @@ function fallbackForecast(date: string, timeStart: string, timeEnd: string): Tra
 		summaryLine: 'Prognose: keine Daten',
 		fetchedAt: now,
 		isWet: false,
-		applyLightingHardFilter: false
+		applyLightingHardFilter: false,
+		hasData: false
 	};
 }
