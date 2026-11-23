@@ -65,37 +65,38 @@
 	</header>
 
 	{#if data.zugkraft}
-		<!-- Zugkraft: absichtlich klein. Eine Zeile Kopf, ein farbiger Balken als
-		     Blickfang (an den Extremen mit Effekt), ein Satz. Die Details stehen
-		     in der Statistik — das Dashboard soll nicht zugedeckt werden. -->
+		<!-- Zugkraft: eine Zeile, ein Balken, ein Satz. Der Balken läuft fest von
+		     rot nach grün — die Füllung zeigt, wo die Gruppe gerade steht. Die
+		     Stufe hängt an Köpfen, nicht an Prozent: 3 von 6 sind eben nur „geht
+		     so". Details per Klick in der Statistik. -->
 		{@const z = data.zugkraft}
-		{@const tone =
-			z.level.key === 'legendaer' || z.level.key === 'stark'
-				? { text: 'text-success', bar: 'bg-success' }
-				: z.level.key === 'solide'
-					? { text: 'text-accent', bar: 'bg-accent' }
-					: z.level.key === 'wackelig'
-						? { text: 'text-warning', bar: 'bg-warning' }
-						: { text: 'text-danger', bar: 'bg-danger' }}
-		{@const fx =
-			z.level.intensity === 2 ? (z.level.key === 'legendaer' ? 'zug-bar-glow' : 'zug-bar-alarm') : ''}
+		{@const good = z.level.key === 'grossartig' || z.level.key === 'super'}
+		{@const bad = z.level.key === 'schwach' || z.level.key === 'katastrophe'}
+		{@const toneText = good
+			? 'text-success'
+			: z.level.key === 'gut'
+				? 'text-success'
+				: z.level.key === 'ok'
+					? 'text-warning'
+					: 'text-danger'}
+		{@const glow = z.level.intensity === 2 ? (bad ? 'zug-glow-bad' : 'zug-glow-good') : 'zug-glow-calm'}
 		<a href="/statistik" class="block rounded-lg px-1 py-1 transition-colors hover:bg-bg-hover" aria-label="Zugkraft der Gruppe — Details in der Statistik">
 			<div class="flex items-baseline gap-2 text-sm">
 				<span class="text-base {z.level.intensity === 2 ? 'zug-emoji' : ''}" aria-hidden="true">{z.level.emoji}</span>
-				<span class="font-semibold tabular-nums {tone.text}">{z.percent}%</span>
-				<span class="text-text-secondary">Zugkraft · {z.level.label}</span>
+				<span class="font-semibold tabular-nums {toneText}">{z.avgAll}</span>
+				<span class="text-xs text-text-muted">von {z.memberCount}</span>
+				<span class="text-text-secondary">· {z.level.label}</span>
 				{#if z.trend !== 0}
 					<span class="text-xs {z.trend > 0 ? 'text-success' : 'text-danger'}" title="Gegenüber den 14 Tagen davor">
 						{z.trend > 0 ? '↑' : '↓'}{Math.abs(z.trend)}
 					</span>
 				{/if}
-				<span class="ml-auto text-xs text-text-muted tabular-nums">⌀ {z.avgPast}/{z.memberCount}</span>
+				<span class="ml-auto text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">Zugkraft</span>
 			</div>
-			<div class="mt-1.5 h-2.5 w-full overflow-hidden rounded-full bg-bg-hover" aria-hidden="true">
-				<div
-					class="h-full rounded-full {tone.bar} {fx} transition-[width] duration-700"
-					style="width: {Math.max(z.percent, 2)}%"
-				></div>
+			<div class="zug-track mt-1.5 {glow}" aria-hidden="true">
+				<!-- Nicht erreichter Teil wird abgedeckt: so bleibt der Farbverlauf
+				     ortsfest und die Farbe sagt etwas über den Stand aus. -->
+				<div class="zug-rest" style="width: {100 - Math.max(z.percent, 2)}%"></div>
 			</div>
 			<p class="mt-1 text-xs text-text-muted">{z.level.blurb}</p>
 		</a>

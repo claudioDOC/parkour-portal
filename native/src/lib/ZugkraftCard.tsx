@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { fonts, type ThemeColors } from './theme';
 import { textAlpha } from './tokens';
@@ -10,25 +10,35 @@ import type { Zugkraft, ZugkraftLevelKey } from './api';
 /**
  * Zugkraft-Barometer auf der Startseite — absichtlich klein.
  *
- * Eine Zeile Kopf, ein farbiger Balken als Blickfang, ein Satz. Mehr würde
- * das Dashboard zudecken; die Details stehen in der Statistik. Der Balken
- * trägt den Effekt: in der guten Phase leuchtet er auf, im Notstand pocht
- * er rot. Dazwischen bleibt alles ruhig.
+ * Eine Zeile Kopf, ein Balken, ein Satz. Die Stufe hängt an KÖPFEN, nicht
+ * an Prozent: drei von sechs sind eben nur „geht so". Der Balken ist fest
+ * von rot nach grün gefärbt, die Füllung zeigt den Stand — so sagt schon
+ * die Farbe, wo die Gruppe steht. An den Extremen glüht er pulsierend.
  */
 
-/** Levelfarbe: eine Farbe trägt die Zeile, sonst wird es Kirmes. */
+/** Farbe für Zahl und Glühen — der Balken selbst trägt den Verlauf. */
 function colorFor(key: ZugkraftLevelKey, colors: ThemeColors): string {
 	switch (key) {
-		case 'legendaer':
-		case 'stark':
+		case 'grossartig':
+		case 'super':
+		case 'gut':
 			return colors.success;
-		case 'solide':
-			return colors.accent;
-		case 'wackelig':
+		case 'ok':
 			return colors.warning;
 		default:
 			return colors.danger;
 	}
+}
+
+/**
+ * Fester Verlauf rot → grün. RN 0.86 kann native Verläufe über
+ * `experimental_backgroundImage`; `backgroundImage` ist der Web-Fallback
+ * (Expo-Web-Export).
+ */
+function gradientStyle(): ViewStyle {
+	const gradient =
+		'linear-gradient(90deg, #ef4444 0%, #f97316 25%, #eab308 45%, #84cc16 70%, #22c55e 100%)';
+	return { experimental_backgroundImage: gradient, backgroundImage: gradient } as ViewStyle;
 }
 
 export function ZugkraftCard({ data }: { data: Zugkraft }) {
@@ -36,9 +46,9 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 	const styles = useThemedStyles(makeStyles);
 	const router = useRouter();
 	const tone = colorFor(data.level.key, colors);
+	const bad = data.level.key === 'schwach' || data.level.key === 'katastrophe';
 	// Nur die Extreme dürfen zappeln; „Bewegung reduzieren" schlägt alles.
 	const animate = data.level.intensity === 2 && getMotion();
-	const good = data.level.key === 'legendaer';
 	const pulse = useRef(new Animated.Value(0)).current;
 
 	useEffect(() => {
@@ -46,17 +56,18 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 			pulse.setValue(0);
 			return;
 		}
+		const dur = bad ? 700 : 1100;
 		const loop = Animated.loop(
 			Animated.sequence([
 				Animated.timing(pulse, {
 					toValue: 1,
-					duration: good ? 1100 : 750,
+					duration: dur,
 					easing: Easing.inOut(Easing.quad),
 					useNativeDriver: false
 				}),
 				Animated.timing(pulse, {
 					toValue: 0,
-					duration: good ? 1100 : 750,
+					duration: dur,
 					easing: Easing.inOut(Easing.quad),
 					useNativeDriver: false
 				})
@@ -64,23 +75,32 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 		);
 		loop.start();
 		return () => loop.stop();
-	}, [animate, good, pulse]);
+	}, [animate, bad, pulse]);
 
-	// Guter Fall: der Balken wird heller. Schlechter Fall: er pocht kräftig.
-	const barOpacity = animate ? pulse.interpolate({ inputRange: [0, 1], outputRange: good ? [0.75, 1] : [0.55, 1] }) : 1;
+	// Glühen über einen farbigen Halo hinter dem Balken: funktioniert auf
+	// Android zuverlässig, anders als Schatten.
+	const haloOpacity = animate
+		? pulse.interpolate({ inputRange: [0, 1], outputRange: [0.18, 0.75] })
+		: 0.14;
+	const haloScale = animate
+		? pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] })
+		: 1;
+
+	const restPercent = Math.max(0, 100 - Math.max(data.percent, 2));
 
 	return (
 		<Pressable
 			onPress={() => router.push('/stats')}
 			style={({ pressed }) => [styles.wrap, pressed && { opacity: 0.7 }]}
 			accessibilityRole="button"
-			accessibilityLabel={`Zugkraft ${data.percent} Prozent, ${data.level.label}`}
+			accessibilityLabel={`Zugkraft: im Schnitt ${data.avgAll} von ${data.memberCount} dabei, ${data.level.label}`}
 		>
 			<View style={styles.head}>
 				<Text style={styles.emoji}>{data.level.emoji}</Text>
-				<Text style={[styles.percent, { color: tone }]}>{data.percent}%</Text>
+				<Text style={[styles.value, { color: tone }]}>{data.avgAll}</Text>
+				<Text style={styles.of}>von {data.memberCount}</Text>
 				<Text style={styles.label} numberOfLines={1}>
-					Zugkraft · {data.level.label}
+					· {data.level.label}
 				</Text>
 				{data.trend !== 0 ? (
 					<Text style={[styles.trend, { color: data.trend > 0 ? colors.success : colors.danger }]}>
@@ -88,22 +108,22 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 						{Math.abs(data.trend)}
 					</Text>
 				) : null}
-				<Text style={styles.avg}>
-					⌀ {data.avgPast}/{data.memberCount}
-				</Text>
+				<Text style={styles.kicker}>ZUGKRAFT</Text>
 			</View>
 
-			<View style={styles.track}>
+			<View style={styles.barBox}>
 				<Animated.View
+					pointerEvents="none"
 					style={[
-						styles.fill,
-						{
-							backgroundColor: tone,
-							opacity: barOpacity,
-							width: `${Math.max(data.percent, 2)}%`
-						}
+						styles.halo,
+						{ backgroundColor: tone, opacity: haloOpacity, transform: [{ scaleX: haloScale }] }
 					]}
 				/>
+				<View style={[styles.track, gradientStyle()]}>
+					{/* Was die Gruppe nicht erreicht, wird rechts abgedeckt —
+					    so bleibt der Verlauf ortsfest. */}
+					<View style={[styles.rest, { width: `${restPercent}%`, backgroundColor: colors.hover }]} />
+				</View>
 			</View>
 
 			<Text style={styles.blurb} numberOfLines={2}>
@@ -116,19 +136,29 @@ export function ZugkraftCard({ data }: { data: Zugkraft }) {
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
 		wrap: { gap: 5, paddingVertical: 2 },
-		head: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+		head: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
 		emoji: { fontSize: 15 },
-		percent: { fontFamily: fonts.sansBold, fontSize: 15, lineHeight: 20 },
-		label: { color: colors.fg + textAlpha.secondary, fontFamily: fonts.sans, fontSize: 13, lineHeight: 18 },
+		value: { fontFamily: fonts.sansBold, fontSize: 16, lineHeight: 21 },
+		of: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 11, lineHeight: 16 },
+		label: {
+			color: colors.fg + textAlpha.secondary,
+			fontFamily: fonts.sans,
+			fontSize: 13,
+			lineHeight: 18,
+			flexShrink: 1
+		},
 		trend: { fontFamily: fonts.sansSemi, fontSize: 12, lineHeight: 16 },
-		avg: {
+		kicker: {
 			marginLeft: 'auto',
 			color: colors.fg + textAlpha.muted,
-			fontFamily: fonts.sans,
-			fontSize: 11,
-			lineHeight: 16
+			fontFamily: fonts.sansSemi,
+			fontSize: 9,
+			lineHeight: 16,
+			letterSpacing: 1.6
 		},
-		track: { height: 10, borderRadius: 999, backgroundColor: colors.fg + '14', overflow: 'hidden' },
-		fill: { height: '100%', borderRadius: 999 },
+		barBox: { justifyContent: 'center' },
+		halo: { position: 'absolute', left: 0, right: 0, height: 16, borderRadius: 999 },
+		track: { height: 10, borderRadius: 999, overflow: 'hidden', backgroundColor: colors.hover },
+		rest: { position: 'absolute', top: 0, bottom: 0, right: 0 },
 		blurb: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 11, lineHeight: 15 }
 	});

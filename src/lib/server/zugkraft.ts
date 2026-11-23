@@ -35,7 +35,13 @@ export const ZUGKRAFT_ADMIN_ONLY = true;
 export const PAST_DAYS = 14;
 export const FUTURE_DAYS = 7;
 
-export type ZugkraftLevelKey = 'legendaer' | 'stark' | 'solide' | 'wackelig' | 'schwach' | 'notstand';
+export type ZugkraftLevelKey =
+	| 'grossartig'
+	| 'super'
+	| 'gut'
+	| 'ok'
+	| 'schwach'
+	| 'katastrophe';
 
 export type ZugkraftLevel = {
 	key: ZugkraftLevelKey;
@@ -67,8 +73,10 @@ export type Zugkraft = {
 	upcomingCount: number;
 	/** Schnitt der vergangenen Trainings im Fenster (Personen pro Training). */
 	avgPast: number;
-	/** Verfügbare Plätze im Schnitt — Dauer-Abmeldungen sind abgezogen. */
+	/** Nenner: aktive Mitglieder, die mitspielen. */
 	avgAvailable: number;
+	/** Schnitt über das ganze Fenster — bestimmt die Stufe. */
+	avgAll: number;
 	/** Erwarteter Schnitt der kommenden Trainings. */
 	avgUpcoming: number;
 	sessions: ZugkraftSession[];
@@ -81,52 +89,64 @@ function addDays(ymd: string, days: number): string {
 	return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
-function levelFor(percent: number): ZugkraftLevel {
-	if (percent >= 80)
+/**
+ * Stufe nach KÖPFEN, nicht nach Prozent.
+ *
+ * Entscheidend ist, wie viele am Spot stehen: Sechs ist grossartig, fünf
+ * super, vier gut, drei geht so, zwei ist sehr schwach — und bei einem
+ * trainiert faktisch niemand, weil allein keiner Lust hat. Prozent allein
+ * würde täuschen: „50 %" klingt solide, sind aber bloss drei von sechs.
+ *
+ * `members` deckelt die Spitze: Ist die Gruppe kleiner, gilt „alle da"
+ * trotzdem als grossartig.
+ */
+function levelFor(avg: number, members: number): ZugkraftLevel {
+	const alleDa = members > 0 && avg >= members - 0.25;
+	if (avg >= 5.5 || alleDa)
 		return {
-			key: 'legendaer',
-			label: 'Legendär',
-			emoji: '🔥',
-			blurb: 'Die Gruppe brennt. Wer jetzt fehlt, verpasst die gute Phase.',
+			key: 'grossartig',
+			label: 'Grossartig',
+			emoji: '🏆',
+			blurb: 'Volle Hütte. Mehr geht nicht — so muss das sein.',
 			intensity: 2
 		};
-	if (percent >= 65)
+	if (avg >= 4.5)
 		return {
-			key: 'stark',
-			label: 'Stark',
-			emoji: '💪',
-			blurb: 'Läuft. Haltet die Serie.',
+			key: 'super',
+			label: 'Super',
+			emoji: '🔥',
+			blurb: 'Fünf am Start. Die Gruppe brennt gerade.',
 			intensity: 1
 		};
-	if (percent >= 50)
+	if (avg >= 3.5)
 		return {
-			key: 'solide',
-			label: 'Solide',
-			emoji: '👍',
-			blurb: 'Geht in Ordnung — mit einer Zusage mehr wird es stark.',
+			key: 'gut',
+			label: 'Gut',
+			emoji: '💪',
+			blurb: 'Vier ziehen mit — gute Trainings. Haltet das.',
 			intensity: 0
 		};
-	if (percent >= 35)
+	if (avg >= 2.5)
 		return {
-			key: 'wackelig',
-			label: 'Wackelig',
-			emoji: '😬',
-			blurb: 'Dünn besetzt. Jetzt wäre ein schlechter Moment, sich abzumelden.',
-			intensity: 1
+			key: 'ok',
+			label: 'Geht so',
+			emoji: '👍',
+			blurb: 'Drei am Spot. Reicht zum Trainieren, mehr wäre deutlich besser.',
+			intensity: 0
 		};
-	if (percent >= 20)
+	if (avg >= 1.5)
 		return {
 			key: 'schwach',
-			label: 'Schwach',
-			emoji: '🥀',
-			blurb: 'Es zieht kaum. Jede Person zählt doppelt — komm trotzdem.',
+			label: 'Sehr schwach',
+			emoji: '😬',
+			blurb: 'Nur noch zwei. Jetzt bloss nicht auch noch abmelden.',
 			intensity: 2
 		};
 	return {
-		key: 'notstand',
-		label: 'Notstand',
+		key: 'katastrophe',
+		label: 'Katastrophe',
 		emoji: '💀',
-		blurb: 'Fast niemand zieht. Wenn das so bleibt, trainiert bald keiner mehr.',
+		blurb: 'Fast niemand zieht. Allein trainiert keiner — das stirbt gerade weg.',
 		intensity: 2
 	};
 }
@@ -284,7 +304,11 @@ export function computeZugkraft(now = new Date()): Zugkraft {
 		};
 	});
 
-	const level = levelFor(percent);
+	// Schnitt über das gesamte Fenster (Vergangenheit + kommende Woche) —
+	// das ist die Zahl, die die Stufe bestimmt.
+	const avgAll =
+		all.length > 0 ? (pastRes.sum + upcomingRes.sum) / all.length : 0;
+	const level = levelFor(avgAll, ctx.members.length);
 	const avgPast = past.length > 0 ? Math.round((pastRes.sum / past.length) * 10) / 10 : 0;
 	const availableSum = all.reduce((acc, s) => acc + attendingCount(ctx, s).available, 0);
 	const avgAvailable = all.length > 0 ? Math.round((availableSum / all.length) * 10) / 10 : 0;
@@ -302,9 +326,10 @@ export function computeZugkraft(now = new Date()): Zugkraft {
 		upcomingCount: upcoming.length,
 		avgPast,
 		avgAvailable,
+		avgAll: Math.round(avgAll * 10) / 10,
 		avgUpcoming,
 		sessions,
-		headline: `${level.emoji} Zugkraft ${percent} % — ${level.label}`
+		headline: `${level.emoji} Zugkraft: ⌀ ${Math.round(avgAll * 10) / 10} von ${ctx.members.length} — ${level.label}`
 	};
 }
 
@@ -313,9 +338,9 @@ export function zugkraftPushText(z: Zugkraft): { title: string; body: string } {
 	const trendText =
 		z.trend > 4 ? ` (↑ ${z.trend} Punkte)` : z.trend < -4 ? ` (↓ ${Math.abs(z.trend)} Punkte)` : '';
 	return {
-		title: `${z.level.emoji} Zugkraft: ${z.percent} % — ${z.level.label}`,
+		title: `${z.level.emoji} Zugkraft: ⌀ ${z.avgAll} von ${z.memberCount} — ${z.level.label}`,
 		body:
-			`Letzte 2 Wochen im Schnitt ${z.avgPast} von ${z.avgAvailable} dabei, kommende Woche ${z.avgUpcoming}${trendText}. ` +
+			`Letzte 2 Wochen im Schnitt ${z.avgPast} dabei, kommende Woche ${z.avgUpcoming}${trendText}. ` +
 			z.level.blurb
 	};
 }

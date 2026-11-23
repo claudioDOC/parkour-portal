@@ -225,12 +225,12 @@ export type NextTripSummary = {
  * nicht sehen darf (im Probelauf nur Admins).
  */
 export type ZugkraftLevelKey =
-	| 'legendaer'
-	| 'stark'
-	| 'solide'
-	| 'wackelig'
+	| 'grossartig'
+	| 'super'
+	| 'gut'
+	| 'ok'
 	| 'schwach'
-	| 'notstand';
+	| 'katastrophe';
 
 export type ZugkraftLevel = {
 	key: ZugkraftLevelKey;
@@ -261,6 +261,8 @@ export type Zugkraft = {
 	upcomingCount: number;
 	/** Personen pro Training, eine Dezimalstelle. */
 	avgPast: number;
+	/** Schnitt über das ganze Fenster — bestimmt die Stufe. */
+	avgAll: number;
 	avgUpcoming: number;
 	sessions: ZugkraftSession[];
 	headline: string;
