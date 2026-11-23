@@ -3,7 +3,7 @@
 	 * Zug-O-Meter-Block: Titel links, rechts Emoji + Stufe + Spruch in EINER
 	 * Zeile, darunter der Balken. Nur der Balken trägt Farbe und Glühen — der
 	 * Block bleibt ruhig, sonst dominiert er das Dashboard. Bei „Grossartig"
-	 * bleibt der Balken grün und grüne Flammen züngeln aus ihm heraus; bei
+	 * ist der Balken ganz voll und grün, und grünes Feuer lodert aus ihm; bei
 	 * den zwei schlechtesten Stufen pulsiert er als Alarm.
 	 *
 	 * Eine Zeile auch auf schmalen Handys: Die Kopfzeile ist ein Container und
@@ -42,25 +42,32 @@
 	const width = $derived(Math.max(z.fill ?? z.percent, 3));
 
 	/**
-	 * Flammenzungen entlang der Oberkante: Position (% der Füllung), Höhe,
-	 * Flacker-Dauer und Versatz — feste Werte statt Zufall, damit Server und
-	 * Browser dasselbe zeichnen und nichts springt.
+	 * Feuer bei „Grossartig": viele glühende Teilchen, die aus dem Balken
+	 * aufsteigen, dabei schrumpfen und verlöschen — übereinander ergeben sie
+	 * lodernde Flammen statt einzelner Kerzen. Feste Formel statt Zufall
+	 * (Server und Browser zeichnen dasselbe), dieselbe wie in der App
+	 * (native/src/lib/ZugkraftCard.tsx). Jedes dritte Teilchen ist ein
+	 * kleiner, heller Kern, der tiefer bleibt.
+	 * x = Position (% der Füllung), s = Grösse, r = Steighöhe, dx = Drift
+	 * (rem), d = Dauer (s), p = Phase 0–1.
 	 */
-	const FLAMES = [
-		{ x: 3, h: 0.8, d: 0.62, o: 0 },
-		{ x: 11, h: 1.15, d: 0.74, o: 0.21 },
-		{ x: 19, h: 0.9, d: 0.58, o: 0.4 },
-		{ x: 27, h: 1.3, d: 0.81, o: 0.1 },
-		{ x: 35, h: 1, d: 0.66, o: 0.33 },
-		{ x: 43, h: 1.4, d: 0.77, o: 0.05 },
-		{ x: 51, h: 0.95, d: 0.6, o: 0.45 },
-		{ x: 59, h: 1.25, d: 0.7, o: 0.18 },
-		{ x: 67, h: 1.05, d: 0.84, o: 0.36 },
-		{ x: 75, h: 1.35, d: 0.63, o: 0.08 },
-		{ x: 83, h: 0.9, d: 0.72, o: 0.27 },
-		{ x: 91, h: 1.2, d: 0.59, o: 0.42 },
-		{ x: 98, h: 0.85, d: 0.79, o: 0.14 }
-	];
+	const frac = (n: number) => n - Math.floor(n);
+	const r2 = (n: number) => Math.round(n * 100) / 100;
+	const FIRE = Array.from({ length: 34 }, (_, i) => {
+		const core = i % 3 === 0;
+		const b = frac(i * 0.754878 + 0.13);
+		const c = frac(i * 0.56984 + 0.29);
+		const d = frac(i * 0.414214 + 0.07);
+		return {
+			core,
+			x: r2(2 + frac(i * 0.618034) * 96),
+			s: r2(core ? 0.45 + b * 0.2 : 0.75 + b * 0.45),
+			r: r2(core ? 0.6 + c * 0.45 : 1.1 + c * 0.8),
+			dx: r2((frac(i * 0.207107 + 0.5) - 0.5) * 0.5),
+			d: r2(core ? 0.7 + d * 0.4 : 0.95 + d * 0.6),
+			p: r2(frac(i * 0.324718 + 0.41))
+		};
+	});
 </script>
 
 {#snippet body()}
@@ -74,13 +81,16 @@
 			<span class="text-text-muted" style="font-size: 0.93em">· {z.level.blurb}</span>
 		</span>
 	</div>
-	<div class="zug-track {fire ? 'mt-5' : 'mt-1.5'}" aria-hidden="true">
+	<div class="zug-track {fire ? 'mt-8' : 'mt-1.5'}" aria-hidden="true">
 		{#if fire}
-			<!-- Vor der Füllung im DOM: Die Füllung deckt die Flammenwurzeln ab,
-			     sichtbar bleibt nur, was oben herauszüngelt. -->
+			<!-- Vor der Füllung im DOM: Die Füllung deckt den Ursprung der
+			     Teilchen ab, sichtbar ist nur, was oben herauslodert. -->
 			<div class="zug-flames" style="width: {width}%">
-				{#each FLAMES as f (f.x)}
-					<span style="left: {f.x}%; --zug-h: {f.h}; --zug-d: {f.d}s; --zug-o: -{f.o}s"></span>
+				{#each FIRE as f, i (i)}
+					<span
+						class={f.core ? 'core' : ''}
+						style="left: {f.x}%; --s: {f.s}rem; --r: {f.r}rem; --dx: {f.dx}rem; --d: {f.d}s; --o: -{r2(f.p * f.d)}s; --p: {f.p}"
+					></span>
 				{/each}
 			</div>
 		{/if}

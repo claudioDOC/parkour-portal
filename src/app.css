@@ -343,7 +343,7 @@ header a,
    animieren ruckelt und lässt sich nicht sauber überblenden.
    Mehrere Lagen mit wachsendem Weichzeichner und fallender Deckkraft lassen
    den Schein auslaufen, statt als heller Ring am Rand zu kleben.
-   Stufen: ruhiges Atmen (normale Stufen), Alarm (zwei schlechteste), grüne Flammen (Grossartig).
+   Stufen: ruhiges Atmen (normale Stufen), Alarm (zwei schlechteste), grünes Feuer (Grossartig).
    Die Farbe kommt über --zug-rgb als reine Zahlen, damit rgba() daraus
    Transparenz machen kann (color-mix wäre vom Browser abhängig). */
 .zug-track {
@@ -394,10 +394,12 @@ header a,
 		0 0 52px 20px rgba(var(--zug-rgb), 0.12);
 	animation: zug-breathe 1.2s ease-in-out infinite;
 }
-/* Grossartig: Balken bleibt grün, kräftiger grüner Schein — und grüne
-   Flammenzungen, die aus der Oberkante züngeln. Jede Zunge ist eine Hülle
-   (span, flackert per scaleY von unten) mit einer Tropfenform (::before:
-   Quadrat mit einer spitzen Ecke, um 45° gedreht, Spitze nach oben). */
+/* Grossartig: Balken ganz voll und grün, kräftiger grüner Schein — und
+   grünes Feuer: viele glühende Teilchen (weicher runder Verlauf) steigen aus
+   dem Balken auf, schrumpfen und verlöschen. Übereinander ergeben sie
+   lodernde Flammen. Jedes Teilchen hat eigene Grösse, Steighöhe, Drift,
+   Dauer und Phase (Variablen aus ZugOMeter.svelte). Die Wurzeln liegen
+   hinter der Füllung, sichtbar ist nur, was oben herauslodert. */
 .zug-fire::after {
 	box-shadow:
 		0 0 6px 1px rgba(0, 230, 118, 0.9),
@@ -409,47 +411,53 @@ header a,
 .zug-flames {
 	position: absolute;
 	left: 0;
-	bottom: 45%;
-	height: 1.25rem;
+	bottom: 50%;
+	height: 2rem;
 	pointer-events: none;
+	filter: drop-shadow(0 0 0.3rem rgba(0, 230, 118, 0.55));
 }
 .zug-flames span {
 	position: absolute;
 	bottom: 0;
-	width: 0.6rem;
-	height: 0.6rem;
-	margin-left: -0.3rem;
-	transform-origin: 50% 100%;
-	transform: scaleY(calc(1.6 * var(--zug-h, 1)));
-	animation: zug-flicker var(--zug-d, 0.7s) ease-in-out var(--zug-o, 0s) infinite alternate;
-	filter: drop-shadow(0 0 3px rgba(0, 230, 118, 0.85));
-}
-.zug-flames span::before {
-	content: '';
-	position: absolute;
-	inset: 0;
-	border-radius: 0 50% 50% 50%;
-	transform: rotate(45deg);
+	width: var(--s, 0.9rem);
+	height: var(--s, 0.9rem);
+	border-radius: 50%;
 	background: radial-gradient(
-		circle at 68% 68%,
-		#eafff2 0%,
-		#9cf6c4 28%,
-		#00e676 62%,
-		rgba(0, 200, 83, 0.25) 100%
+		circle,
+		rgba(200, 255, 225, 0.95) 0%,
+		rgba(0, 230, 118, 0.9) 32%,
+		rgba(0, 200, 83, 0.4) 58%,
+		rgba(0, 180, 80, 0) 72%
+	);
+	opacity: 0;
+	transform: translate(-50%, 50%);
+	animation: zug-rise var(--d, 1.2s) linear var(--o, 0s) infinite;
+	will-change: transform, opacity;
+}
+/* Heller Kern: klein, fast weiss, bleibt tiefer. */
+.zug-flames span.core {
+	background: radial-gradient(
+		circle,
+		#ffffff 0%,
+		rgba(210, 255, 230, 0.95) 30%,
+		rgba(0, 230, 118, 0.6) 60%,
+		rgba(0, 230, 118, 0) 75%
 	);
 }
-@keyframes zug-flicker {
+@keyframes zug-rise {
 	0% {
-		transform: scaleY(calc(1.1 * var(--zug-h, 1))) scaleX(1.05) skewX(-5deg);
-		opacity: 0.75;
+		opacity: 0;
+		transform: translate(-50%, 50%) scale(1);
 	}
-	50% {
-		transform: scaleY(calc(2 * var(--zug-h, 1))) scaleX(0.85) skewX(3deg);
+	15% {
 		opacity: 1;
 	}
+	65% {
+		opacity: 0.8;
+	}
 	100% {
-		transform: scaleY(calc(1.5 * var(--zug-h, 1))) scaleX(0.95) skewX(6deg);
-		opacity: 0.85;
+		opacity: 0;
+		transform: translate(calc(-50% + var(--dx, 0rem)), calc(50% - var(--r, 1.4rem))) scale(0.15);
 	}
 }
 @keyframes zug-emoji {
@@ -480,5 +488,19 @@ html[data-motion='aus'] .zug-emoji {
 	.zug-flames span,
 	.zug-emoji {
 		animation: none !important;
+	}
+}
+/* Feuer ohne Bewegung: jedes Teilchen steht still an seiner Phase (--p),
+   so bleibt ein ruhiges Flammenbild statt nichts. */
+html[data-motion='aus'] .zug-flames span {
+	opacity: calc(1 - var(--p, 0.5));
+	transform: translate(calc(-50% + var(--dx, 0rem) * var(--p, 0.5)), calc(50% - var(--r, 1.4rem) * var(--p, 0.5)))
+		scale(calc(1 - 0.85 * var(--p, 0.5)));
+}
+@media (prefers-reduced-motion: reduce) {
+	.zug-flames span {
+		opacity: calc(1 - var(--p, 0.5));
+		transform: translate(calc(-50% + var(--dx, 0rem) * var(--p, 0.5)), calc(50% - var(--r, 1.4rem) * var(--p, 0.5)))
+			scale(calc(1 - 0.85 * var(--p, 0.5)));
 	}
 }

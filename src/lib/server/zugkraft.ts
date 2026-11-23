@@ -40,22 +40,21 @@ export const ZUGKRAFT_ADMIN_ONLY = true;
  * Wochen gemittelt lag das beste Stück bei ⌀ 3,7. Mit „⌀ 6 = grossartig"
  * hätte die Anzeige darum ewig auf „Geht so" geklebt.
  *
- * Jetzt: ⌀ 4 über drei Wochen ist grossartig (bisher nie erreicht, aber
- * machbar), der Rekord von 3,7 ist super, der normale Schnitt (≈ 3) ist
- * „geht so". Untere Grenze jeweils inklusive.
+ * Grenzen (auf Wunsch eine Spur strenger als der erste Wurf, je +0,2):
+ * ⌀ 4,2 über drei Wochen ist grossartig, 3,8 super — beides bisher nie
+ * erreicht, also echte Ziele. Der Rekord von 3,7 ist „gut", der normale
+ * Schnitt (≈ 3) „geht so". Untere Grenze jeweils inklusive.
  */
 export const LEVEL_MIN: Record<ZugkraftLevelKey, number> = {
-	grossartig: 4.0,
-	super: 3.6,
-	gut: 3.2,
-	ok: 2.8,
-	schwach: 2.3,
+	grossartig: 4.2,
+	super: 3.8,
+	gut: 3.4,
+	ok: 3.0,
+	schwach: 2.5,
 	katastrophe: 0
 };
 /** Stufen von oben nach unten. */
 const LEVEL_ORDER: ZugkraftLevelKey[] = ['grossartig', 'super', 'gut', 'ok', 'schwach', 'katastrophe'];
-/** Ab diesem Schnitt ist der Balken ganz voll. */
-const FILL_FULL_AT = 4.8;
 
 /** Montag der Woche (JJJJ-MM-TT) — Wochen laufen Mo–So. */
 function mondayOf(ymd: string): string {
@@ -66,16 +65,17 @@ function mondayOf(ymd: string): string {
 
 /**
  * Balkenfüllung 0–100 als Anzeige der Stufe: Jede Stufe bekommt ein gleich
- * breites Sechstel, innerhalb wird anteilig gefüllt. So sieht man auch
- * kleine Bewegungen — roh in Prozent der Mitglieder wäre „grossartig" nur
- * ein zu zwei Dritteln voller Balken.
+ * breites Sechstel. Unterhalb von „grossartig" wird innerhalb der Stufe
+ * anteilig gefüllt, damit man auch kleine Bewegungen sieht; „grossartig"
+ * ist immer ganz voll — roh in Prozent der Mitglieder wäre es nur ein zu
+ * zwei Dritteln voller Balken.
  */
 export function fillFor(avg: number): number {
+	if (avg >= LEVEL_MIN.grossartig) return 100;
 	const bounds = [...LEVEL_ORDER].reverse().map((k) => LEVEL_MIN[k]); // katastrophe … grossartig
-	const tops = [...bounds.slice(1), FILL_FULL_AT];
-	for (let i = 0; i < bounds.length; i++) {
-		if (avg < tops[i] || i === bounds.length - 1) {
-			const within = Math.min(1, Math.max(0, (avg - bounds[i]) / (tops[i] - bounds[i])));
+	for (let i = 0; i < bounds.length - 1; i++) {
+		if (avg < bounds[i + 1]) {
+			const within = Math.min(1, Math.max(0, (avg - bounds[i]) / (bounds[i + 1] - bounds[i])));
 			return Math.round(((i + within) / bounds.length) * 100);
 		}
 	}
@@ -367,7 +367,7 @@ export function computeZugkraft(now = new Date()): Zugkraft {
 
 	return {
 		percent,
-		fill: fillFor(avgAll),
+		fill: level.key === 'grossartig' ? 100 : fillFor(avgAll),
 		level,
 		trend,
 		memberCount: ctx.members.length,
@@ -400,9 +400,9 @@ export function zugkraftPreview(): {
 }[] {
 	return LEVEL_ORDER.map((key, i) => {
 		const min = LEVEL_MIN[key];
-		const above = i === 0 ? FILL_FULL_AT : LEVEL_MIN[LEVEL_ORDER[i - 1]];
-		// Musterwert: Mitte der Stufe (ganz unten etwas über null).
-		const avg = key === 'katastrophe' ? 1.8 : Math.round(((min + above) / 2) * 100) / 100;
+		const above = i === 0 ? min + 0.6 : LEVEL_MIN[LEVEL_ORDER[i - 1]];
+		// Musterwert: Mitte der Stufe (ganz unten etwas unter der Grenze).
+		const avg = key === 'katastrophe' ? 2 : Math.round(((min + above) / 2) * 100) / 100;
 		const range =
 			key === 'grossartig'
 				? `ab ⌀ ${de1(min)}`

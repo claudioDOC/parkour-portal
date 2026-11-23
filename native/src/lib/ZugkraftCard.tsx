@@ -23,10 +23,11 @@ import type { Zugkraft, ZugkraftLevelKey } from './api';
  * (vorher nur bei drei von sechs, im Alltag also nie). Ruhig und langsam im
  * Normalfall, schnell und kräftig bei den zwei schlechtesten Stufen.
  *
- * „Grossartig": Balken bleibt grün, dazu grüne Flammenzungen, die aus der
- * Oberkante züngeln — wie im Web. Jede Zunge ist ein um 45° gedrehtes
- * Quadrat mit einer spitzen Ecke (Tropfen, Spitze oben) in einer Hülle, die
- * per scaleY von unten her flackert. Alles über den nativen Treiber.
+ * „Grossartig": Balken ganz voll und grün, dazu grünes Feuer — wie im Web.
+ * Viele glühende Teilchen (weicher runder Verlauf über
+ * `experimental_backgroundImage`, in der installierten APK vorhanden)
+ * steigen aus dem Balken auf, schrumpfen und verlöschen; übereinander
+ * ergeben sie lodernde Flammen. Alles über den nativen Treiber.
  */
 
 /** Stufenfarbe. Bewusst feste Werte: Die Skala muss in jedem Farbschema gleich lesbar sein. */
@@ -40,24 +41,33 @@ const LEVEL_COLOR: Record<ZugkraftLevelKey, string> = {
 };
 
 /**
- * Flammenzungen: Position (% der Füllung), Höhe, halbe Flacker-Dauer (ms)
- * und Startphase. Feste Werte, damit es ruhig und gleichmässig wirkt.
+ * Feuerteilchen — dieselbe Formel wie im Web (src/lib/components/ZugOMeter.svelte),
+ * dort in rem, hier in px (× 16). Jedes dritte Teilchen ist ein kleiner,
+ * heller Kern, der tiefer bleibt. x = Position (% der Füllung), s = Grösse,
+ * r = Steighöhe, dx = Drift, d = Dauer (ms), p = Phase 0–1.
  */
-const FLAMES = [
-	{ x: 3, h: 0.8, d: 310, p: 0 },
-	{ x: 12, h: 1.15, d: 370, p: 0.5 },
-	{ x: 21, h: 0.9, d: 290, p: 0.8 },
-	{ x: 30, h: 1.3, d: 400, p: 0.2 },
-	{ x: 39, h: 1, d: 330, p: 0.65 },
-	{ x: 48, h: 1.4, d: 385, p: 0.1 },
-	{ x: 57, h: 0.95, d: 300, p: 0.9 },
-	{ x: 66, h: 1.25, d: 350, p: 0.35 },
-	{ x: 75, h: 1.05, d: 420, p: 0.7 },
-	{ x: 84, h: 1.35, d: 315, p: 0.15 },
-	{ x: 93, h: 0.9, d: 360, p: 0.55 },
-	{ x: 99, h: 1.1, d: 295, p: 0.85 }
-];
-const TONGUE = 9;
+const frac = (n: number) => n - Math.floor(n);
+const r2 = (n: number) => Math.round(n * 100) / 100;
+const FIRE = Array.from({ length: 34 }, (_, i) => {
+	const core = i % 3 === 0;
+	const b = frac(i * 0.754878 + 0.13);
+	const c = frac(i * 0.56984 + 0.29);
+	const d = frac(i * 0.414214 + 0.07);
+	return {
+		core,
+		x: r2(2 + frac(i * 0.618034) * 96),
+		s: Math.round(16 * r2(core ? 0.45 + b * 0.2 : 0.75 + b * 0.45)),
+		r: Math.round(16 * r2(core ? 0.6 + c * 0.45 : 1.1 + c * 0.8)),
+		dx: Math.round(16 * r2((frac(i * 0.207107 + 0.5) - 0.5) * 0.5)),
+		d: Math.round(1000 * r2(core ? 0.7 + d * 0.4 : 0.95 + d * 0.6)),
+		p: r2(frac(i * 0.324718 + 0.41))
+	};
+});
+/** Weicher runder Verlauf wie im Web: heller Kern, grüner Rand, aussen durchsichtig. */
+const SPARK_BG =
+	'radial-gradient(circle, rgba(200, 255, 225, 0.95) 0%, rgba(0, 230, 118, 0.9) 32%, rgba(0, 200, 83, 0.4) 58%, rgba(0, 180, 80, 0) 72%)';
+const CORE_BG =
+	'radial-gradient(circle, #ffffff 0%, rgba(210, 255, 230, 0.95) 30%, rgba(0, 230, 118, 0.6) 60%, rgba(0, 230, 118, 0) 75%)';
 
 /** Weicher Schein: vier Lagen, damit er ausläuft statt als Ring zu kleben. */
 function glowLayers(color: string, strong: boolean): BoxShadowValue[] {
@@ -91,8 +101,25 @@ export function ZugkraftCard({
 
 	// Atmen der Schein-Ebene (Deckkraft, nativer Treiber).
 	const breath = useRef(new Animated.Value(0)).current;
-	// Flackern der Flammenzungen (nur „Grossartig").
-	const tongues = useRef(FLAMES.map((f) => new Animated.Value(f.p))).current;
+	// Aufsteigen der Feuerteilchen (nur „Grossartig"): jedes läuft 0 → 1 in
+	// seiner Dauer; die Phase kommt per modulo dazu, so starten nicht alle
+	// gleichzeitig unten. Ohne Bewegung bleibt jedes an seiner Phase stehen.
+	const sparks = useRef(FIRE.map(() => new Animated.Value(0))).current;
+	const sparkStyles = useMemo(
+		() =>
+			FIRE.map((f, i) => {
+				const t = Animated.modulo(Animated.add(sparks[i], f.p), 1);
+				return {
+					opacity: t.interpolate({ inputRange: [0, 0.15, 0.65, 1], outputRange: [0, 1, 0.8, 0] }),
+					transform: [
+						{ translateX: t.interpolate({ inputRange: [0, 1], outputRange: [0, f.dx] }) },
+						{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -f.r] }) },
+						{ scale: t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.15] }) }
+					]
+				};
+			}),
+		[sparks]
+	);
 
 	useEffect(() => {
 		if (!motion) {
@@ -123,30 +150,22 @@ export function ZugkraftCard({
 
 	useEffect(() => {
 		if (!motion || !flame) {
-			tongues.forEach((t) => t.setValue(0.5));
+			sparks.forEach((v) => v.setValue(0));
 			return;
 		}
-		const loops = tongues.map((t, i) =>
+		const loops = sparks.map((v, i) =>
 			Animated.loop(
-				Animated.sequence([
-					Animated.timing(t, {
-						toValue: 1,
-						duration: FLAMES[i].d,
-						easing: Easing.inOut(Easing.sin),
-						useNativeDriver: true
-					}),
-					Animated.timing(t, {
-						toValue: 0,
-						duration: FLAMES[i].d,
-						easing: Easing.inOut(Easing.sin),
-						useNativeDriver: true
-					})
-				])
+				Animated.timing(v, {
+					toValue: 1,
+					duration: FIRE[i].d,
+					easing: Easing.linear,
+					useNativeDriver: true
+				})
 			)
 		);
 		loops.forEach((l) => l.start());
 		return () => loops.forEach((l) => l.stop());
-	}, [motion, flame, tongues]);
+	}, [motion, flame, sparks]);
 
 	// Untergrenze des Atmens: Im Normalfall bleibt immer ein Rest sichtbar.
 	const glowOpacity = breath.interpolate({
@@ -180,36 +199,27 @@ export function ZugkraftCard({
 			</View>
 
 			<View style={[styles.barBox, flame && styles.barBoxFire]}>
-				{/* Flammen VOR dem Balken: Die grüne Füllung deckt ihre Wurzeln ab,
-				    sichtbar bleibt nur, was oben herauszüngelt. */}
+				{/* Feuer VOR dem Balken: Die grüne Füllung deckt den Ursprung der
+				    Teilchen ab, sichtbar ist nur, was oben herauslodert. */}
 				{flame ? (
 					<View pointerEvents="none" style={[styles.flames, { width }]}>
-						{FLAMES.map((f, i) => (
+						{FIRE.map((f, i) => (
 							<Animated.View
-								key={f.x}
+								key={i}
 								style={[
-									styles.tongue,
+									styles.spark,
 									{
 										left: `${f.x}%`,
-										opacity: tongues[i].interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] }),
-										transform: [
-											{
-												scaleY: tongues[i].interpolate({
-													inputRange: [0, 1],
-													outputRange: [1.1 * f.h, 2 * f.h]
-												})
-											},
-											{
-												scaleX: tongues[i].interpolate({ inputRange: [0, 1], outputRange: [1.05, 0.85] })
-											}
-										]
-									}
+										width: f.s,
+										height: f.s,
+										marginLeft: -f.s / 2,
+										bottom: -f.s / 2,
+										borderRadius: f.s / 2,
+										experimental_backgroundImage: f.core ? CORE_BG : SPARK_BG
+									},
+									sparkStyles[i]
 								]}
-							>
-								<View style={styles.drop}>
-									<View style={styles.core} />
-								</View>
-							</Animated.View>
+							/>
 						))}
 					</View>
 				) : null}
@@ -246,39 +256,12 @@ const makeStyles = (colors: ThemeColors) =>
 		label: { fontFamily: fonts.sansSemi, fontSize: 13 },
 		/* Höhe für den Schein lassen, damit er oben/unten nicht abgeschnitten wirkt. */
 		barBox: { justifyContent: 'center', paddingVertical: 6 },
-		/* Platz nach oben für die Flammen. */
-		barBoxFire: { paddingTop: 18 },
+		/* Platz nach oben für das Feuer. */
+		barBoxFire: { paddingTop: 30 },
 		/* Unterkante auf der Balkenmitte (6 Abstand + 5 halbe Balkenhöhe). */
-		flames: { position: 'absolute', left: 0, bottom: 11, height: 20 },
-		tongue: {
-			position: 'absolute',
-			bottom: 0,
-			width: TONGUE,
-			height: TONGUE,
-			marginLeft: -TONGUE / 2,
-			transformOrigin: 'bottom'
-		},
-		/* Tropfen: Quadrat, eine spitze Ecke, 45° gedreht → Spitze oben. */
-		drop: {
-			width: TONGUE,
-			height: TONGUE,
-			borderTopLeftRadius: 0,
-			borderTopRightRadius: TONGUE / 2,
-			borderBottomLeftRadius: TONGUE / 2,
-			borderBottomRightRadius: TONGUE / 2,
-			backgroundColor: '#2ee98a',
-			transform: [{ rotate: '45deg' }],
-			boxShadow: [{ offsetX: 0, offsetY: 0, blurRadius: 4, spreadDistance: 0, color: '#00e676cc' }],
-			alignItems: 'flex-end',
-			justifyContent: 'flex-end'
-		},
-		/* Heller Kern unten (vor der Drehung: Ecke unten rechts). */
-		core: {
-			width: TONGUE * 0.55,
-			height: TONGUE * 0.55,
-			borderRadius: TONGUE,
-			backgroundColor: '#d9ffe9'
-		},
+		flames: { position: 'absolute', left: 0, bottom: 11, height: 36 },
+		/* Ein Teilchen; Grösse, Lage und Verlauf kommen pro Teilchen dazu. */
+		spark: { position: 'absolute' },
 		glow: { position: 'absolute', left: 0, height: 10, borderRadius: 999 },
 		track: {
 			height: 10,
