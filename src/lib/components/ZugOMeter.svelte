@@ -42,18 +42,19 @@
 	const width = $derived(Math.max(z.fill ?? z.percent, 3));
 
 	/**
-	 * Feuer bei „Grossartig": viele glühende Teilchen, die aus dem Balken
-	 * aufsteigen, dabei schrumpfen und verlöschen — übereinander ergeben sie
-	 * lodernde Flammen statt einzelner Kerzen. Feste Formel statt Zufall
+	 * Feuer bei „Grossartig": ein flackerndes Glutband direkt über dem Balken
+	 * und darauf viele Flammenzungen (Tropfen, Spitze oben), die aufsteigen,
+	 * sich in die Länge ziehen und verlöschen — dicht und verschieden hoch,
+	 * damit es lodert statt wie eine Reihe Kerzen. Feste Formel statt Zufall
 	 * (Server und Browser zeichnen dasselbe), dieselbe wie in der App
-	 * (native/src/lib/ZugkraftCard.tsx). Jedes dritte Teilchen ist ein
-	 * kleiner, heller Kern, der tiefer bleibt.
+	 * (native/src/lib/ZugkraftCard.tsx). Jede dritte Zunge ist ein kleiner,
+	 * heller Kern, der tief bleibt.
 	 * x = Position (% der Füllung), s = Grösse, r = Steighöhe, dx = Drift
-	 * (rem), d = Dauer (s), p = Phase 0–1.
+	 * (px), d = Dauer (s), p = Phase 0–1.
 	 */
 	const frac = (n: number) => n - Math.floor(n);
 	const r2 = (n: number) => Math.round(n * 100) / 100;
-	const FIRE = Array.from({ length: 34 }, (_, i) => {
+	const FIRE = Array.from({ length: 64 }, (_, i) => {
 		const core = i % 3 === 0;
 		const b = frac(i * 0.754878 + 0.13);
 		const c = frac(i * 0.56984 + 0.29);
@@ -61,9 +62,9 @@
 		return {
 			core,
 			x: r2(2 + frac(i * 0.618034) * 96),
-			s: r2(core ? 0.45 + b * 0.2 : 0.75 + b * 0.45),
-			r: r2(core ? 0.6 + c * 0.45 : 1.1 + c * 0.8),
-			dx: r2((frac(i * 0.207107 + 0.5) - 0.5) * 0.5),
+			s: Math.round(core ? 8 + b * 5 : 13 + b * 9),
+			r: Math.round(core ? 6 + c * 8 : 12 + c * 20),
+			dx: Math.round((frac(i * 0.207107 + 0.5) - 0.5) * 8),
 			d: r2(core ? 0.7 + d * 0.4 : 0.95 + d * 0.6),
 			p: r2(frac(i * 0.324718 + 0.41))
 		};
@@ -81,15 +82,16 @@
 			<span class="text-text-muted" style="font-size: 0.93em">· {z.level.blurb}</span>
 		</span>
 	</div>
-	<div class="zug-track {fire ? 'mt-8' : 'mt-1.5'}" aria-hidden="true">
+	<div class="zug-track {fire ? 'mt-10' : 'mt-1.5'}" aria-hidden="true">
 		{#if fire}
 			<!-- Vor der Füllung im DOM: Die Füllung deckt den Ursprung der
 			     Teilchen ab, sichtbar ist nur, was oben herauslodert. -->
 			<div class="zug-flames" style="width: {width}%">
+				<b class="zug-base"></b>
 				{#each FIRE as f, i (i)}
 					<span
 						class={f.core ? 'core' : ''}
-						style="left: {f.x}%; --s: {f.s}rem; --r: {f.r}rem; --dx: {f.dx}rem; --d: {f.d}s; --o: -{r2(f.p * f.d)}s; --p: {f.p}"
+						style="left: {f.x}%; --s: {f.s}px; --r: {f.r}px; --dx: {f.dx}px; --d: {f.d}s; --o: -{r2(f.p * f.d)}s; --p: {f.p}"
 					></span>
 				{/each}
 			</div>
