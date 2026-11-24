@@ -213,10 +213,11 @@ export function ZugkraftCard({
 			accessibilityLabel={`Zug-O-Meter: ${data.level.label}. ${data.level.blurb}`}
 			style={({ pressed }) => [styles.box, pressed && { opacity: 0.7 }]}
 		>
-			{/* Titel links, rechts Emoji · Stufe · Spruch in EINER Zeile. Auf
-			    schmalen Handys schrumpft die Schrift (adjustsFontSizeToFit —
+			{/* Titel links, rechts Emoji · Stufe · Spruch in EINER Zeile, so gross
+			    wie möglich: Grundgrösse 17 wie im Web (höchstens 17 px), und wo
+			    das nicht passt, schrumpft die Schrift (adjustsFontSizeToFit —
 			    Android skaliert dabei alle Teilstücke gleichmässig), statt
-			    umzubrechen. */}
+			    umzubrechen. Kurze Stufen wie „Katastrophe" bleiben so grösser. */}
 			<View style={styles.head}>
 				<Text style={styles.kicker}>ZUG-O-METER</Text>
 				<Text style={styles.right} numberOfLines={1} adjustsFontSizeToFit>
@@ -289,14 +290,14 @@ const makeStyles = (colors: ThemeColors) =>
 		kicker: {
 			color: colors.fg + textAlpha.muted,
 			fontFamily: fonts.sansSemi,
-			fontSize: 10,
-			lineHeight: 16,
-			letterSpacing: 1.6
+			fontSize: 11.5,
+			lineHeight: 18,
+			letterSpacing: 1.8
 		},
 		/* Nimmt den Rest der Zeile, Text rechtsbündig. */
-		right: { flex: 1, textAlign: 'right', fontSize: 13, lineHeight: 18 },
-		emoji: { fontSize: 14 },
-		label: { fontFamily: fonts.sansSemi, fontSize: 13 },
+		right: { flex: 1, textAlign: 'right', fontSize: 17, lineHeight: 23 },
+		emoji: { fontSize: 17 },
+		label: { fontFamily: fonts.sansSemi, fontSize: 17 },
 		/* Höhe für den Schein lassen, damit er oben/unten nicht abgeschnitten wirkt. */
 		barBox: { justifyContent: 'center', paddingVertical: 6 },
 		/* Platz nach oben für das Feuer. */
@@ -327,5 +328,5 @@ const makeStyles = (colors: ThemeColors) =>
 			backgroundColor: colors.fg + '12'
 		},
 		fill: { height: '100%', borderRadius: 999 },
-		blurb: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 12 }
+		blurb: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 15.5 }
 	});
