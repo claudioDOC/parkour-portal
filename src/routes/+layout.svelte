@@ -21,6 +21,7 @@
 	import PenaltyGate from '$lib/components/PenaltyGate.svelte';
 	import { refreshActivity, setActivitySelf } from '$lib/activityStore.svelte';
 	import { ANDROID_APP_VERSION } from '$lib/appVersion';
+	import { pulseSync } from '$lib/pulseSync';
 
 type NavIcon =
 		| 'home'
@@ -534,9 +535,10 @@ let mobileMoreOpen = $state(false);
 		<PushOnboarding />
 
 		{#if data.zugAlarm}
-			<!-- Zug-O-Meter auf „Katastrophe": roter Rahmen pulsiert um den
-			     ganzen Bildschirm, egal auf welcher Seite. Klicks gehen durch. -->
-			<div class="zug-screen-alarm" aria-hidden="true"></div>
+			<!-- Zug-O-Meter auf „Katastrophe": Rahmen in Balkenfarbe pulsiert um
+			     den ganzen Bildschirm, egal auf welcher Seite, im Takt des Balkens
+			     (pulseSync). Klicks gehen durch. -->
+			<div class="zug-screen-alarm" aria-hidden="true" use:pulseSync></div>
 		{/if}
 	</div>
 {/if}

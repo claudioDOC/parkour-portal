@@ -512,23 +512,25 @@ header a,
 	animation: zug-emoji 1.6s ease-in-out infinite;
 	display: inline-block;
 }
-/* Bildschirm-Alarm bei „Katastrophe": roter Rahmen um den ganzen Bildschirm,
-   auf jeder Seite (Root-Layout). Ein scharfer 4-px-Rand plus Schein nach
-   innen, in Lagen auslaufend wie beim Balken — knapp gehalten, damit er
-   auch auf hellen Farbschemen rot wirkt statt rosa-neblig. Nichts ragt
-   über den Bildschirm hinaus. Animiert wird nur die Deckkraft — derselbe Takt wie der
-   Alarm-Balken, so pulsieren beide zusammen. Klicks gehen durch.
+/* Bildschirm-Alarm bei „Katastrophe": Rahmen um den ganzen Bildschirm, auf
+   jeder Seite (Root-Layout). Gleiche Farbe wie der Katastrophe-Balken
+   (#991b1b) und gleicher Puls: dieselbe Animation (zug-breathe, 1,2 s),
+   über pulseSync() an die gemeinsame Seitenuhr gehängt — so atmen Balken
+   und Rahmen exakt zusammen, auch nach Seitenwechseln. Ein scharfer
+   4-px-Rand plus Schein nach innen in Lagen; nichts ragt über den
+   Bildschirm hinaus, Klicks gehen durch.
    Gleiche Werte in der App (native/src/lib/ZugAlarmFrame.tsx). */
 .zug-screen-alarm {
 	position: fixed;
 	inset: 0;
 	z-index: 200;
 	pointer-events: none;
+	--zug-rgb: 153, 27, 27; /* = Katastrophe-Farbe des Balkens (#991b1b) */
 	box-shadow:
-		inset 0 0 0 4px rgb(239, 68, 68),
-		inset 0 0 10px 4px rgba(239, 68, 68, 0.8),
-		inset 0 0 26px 9px rgba(220, 38, 38, 0.45),
-		inset 0 0 50px 16px rgba(185, 28, 28, 0.18);
+		inset 0 0 0 4px rgb(var(--zug-rgb)),
+		inset 0 0 10px 4px rgba(var(--zug-rgb), 0.8),
+		inset 0 0 26px 9px rgba(var(--zug-rgb), 0.5),
+		inset 0 0 50px 16px rgba(var(--zug-rgb), 0.22);
 	opacity: 0.85;
 	animation: zug-breathe 1.2s ease-in-out infinite;
 }
