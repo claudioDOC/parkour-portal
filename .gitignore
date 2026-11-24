@@ -92,3 +92,8 @@ android/build/
 
 # Build-Zwischenprodukte des lokalen Expo-Moduls
 native/modules/*/android/build/
+
+# SSH-Schlüssel (Deploy-Key fürs GitHub-Repo) und lokale Schriften des
+# Server-Benutzers — das Repo ist öffentlich, der Schlüssel darf nie hinein.
+.ssh/
+.fonts/
