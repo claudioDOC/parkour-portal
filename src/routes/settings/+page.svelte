@@ -378,6 +378,10 @@
 				iPhone: Einstellungen → Kalender → Accounts → Kalenderabo. Google Kalender: Weitere
 				Kalender → Per URL. Link einfügen, fertig.
 			</p>
+			<p class="text-text-muted text-xs mt-2">
+				Der Link ist persönlich — bitte nicht weitergeben. Nach „Auf allen Geräten abmelden" oder
+				einem Passwortwechsel gibt es einen neuen.
+			</p>
 		</div>
 	{/if}
 

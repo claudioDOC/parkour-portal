@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcryptjs from 'bcryptjs';
+import { createHmac } from 'node:crypto';
 import { getUserCoreById } from '$lib/server/userCoreQuery';
 import type { Cookies } from '@sveltejs/kit';
 
@@ -23,6 +24,14 @@ function jwtSecret(): string {
 	return cachedSecret;
 }
 const COOKIE_NAME = 'session';
+
+/**
+ * Eigener Schlüssel je Verwendungszweck, abgeleitet aus JWT_SECRET — so
+ * taugt etwa ein Kalender-Link nie als Sitzungs-Token und umgekehrt.
+ */
+export function derivedSecret(purpose: string): Buffer {
+	return createHmac('sha256', jwtSecret()).update(`parkour-portal:${purpose}`).digest();
+}
 
 export interface JwtPayload {
 	userId: number;

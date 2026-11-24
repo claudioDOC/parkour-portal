@@ -1,16 +1,13 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { calendarUrlFor } from '$lib/server/calendarFeed';
 
 /**
- * Kalender-Abo-Link inklusive Schlüssel — die App hatte den Link bisher
- * ohne `?key=` geteilt, was beim Abonnieren zu „Unauthorized" führte.
- * Gleiche Logik wie die Einstellungsseite im Web.
+ * Persönlicher Kalender-Abo-Link für die App — gleiche Logik wie die
+ * Einstellungsseite im Web (siehe calendarFeed.ts).
  */
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
-	const raw = process.env.PUBLIC_STATUS_API_KEYS ?? process.env.PUBLIC_STATUS_API_KEY ?? '';
-	const key = raw.split(',')[0]?.trim() ?? '';
-	const origin = (process.env.ORIGIN ?? url.origin).replace(/\/$/, '');
-	const calendarUrl = key ? `${origin}/calendar.ics?key=${encodeURIComponent(key)}` : null;
+	const calendarUrl = calendarUrlFor(locals.user.id, process.env.ORIGIN ?? url.origin);
 	return json({ calendarUrl });
 };

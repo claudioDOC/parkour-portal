@@ -589,14 +589,14 @@ export default function Settings() {
 				<Row
 					icon="calendar-outline"
 					label="Kalender abonnieren"
-					hint="Trainings und Trips im Handy-Kalender"
+					hint="Persönlicher Link für den Handy-Kalender – nicht weitergeben"
 					onPress={() => {
-						// Der Link braucht den Schlüssel — ohne ihn antwortet das Abo mit
-						// „Unauthorized". Darum vom Server holen statt fest verdrahten.
+						// Persönlicher Link mit Schlüssel — vom Server holen statt fest
+						// verdrahten. Nach „überall abmelden" gibt es einen neuen.
 						void getCalendarUrl()
 							.then(({ calendarUrl }) => {
 								if (!calendarUrl) {
-									Alert.alert('Kein Kalender-Schlüssel gesetzt');
+									Alert.alert('Kalender-Link nicht verfügbar');
 									return;
 								}
 								return Share.share({ message: calendarUrl });

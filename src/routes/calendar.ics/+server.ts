@@ -5,23 +5,16 @@ import { db } from '$lib/server/db';
 import { spots, trainingSessions, trainingSpotVotes, tripPlans } from '$lib/server/db/schema';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
 import { isValidYmd } from '$lib/server/inputLimits';
+import { userIdForCalendarKey } from '$lib/server/calendarFeed';
 import { sql } from 'drizzle-orm';
 
 /**
  * iCal-Abo für Kalender-Apps: kommende Trainings (inkl. Absagen) und Trips.
  *
  * Kalender-Apps können keine Header setzen — der Schlüssel kommt deshalb als
- * `?key=` und wird gegen PUBLIC_STATUS_API_KEY(S) geprüft (gleiche Schlüssel
- * wie die Status-API). Abo-Link steht in den Einstellungen.
+ * `?key=`. Jedes Mitglied hat einen eigenen (calendarFeed.ts); der Link
+ * steht in den Einstellungen.
  */
-
-function configuredKeys(): string[] {
-	const raw = process.env.PUBLIC_STATUS_API_KEYS ?? process.env.PUBLIC_STATUS_API_KEY ?? '';
-	return raw
-		.split(',')
-		.map((s) => s.trim())
-		.filter(Boolean);
-}
 
 /**
  * RFC-5545-Textescaping: Backslash, Semikolon, Komma, Zeilenumbruch.
@@ -56,10 +49,10 @@ function addDaysYmd(ymd: string, days: number): string {
 }
 
 export const GET: RequestHandler = async ({ url }) => {
-	const keys = configuredKeys();
-	if (keys.length === 0) throw error(503, 'PUBLIC_STATUS_API_KEY ist nicht gesetzt');
+	// Persönlicher Link je Mitglied (calendarFeed.ts) — der frühere
+	// gemeinsame Schlüssel gilt hier nicht mehr.
 	const provided = url.searchParams.get('key')?.trim() ?? '';
-	if (!provided || !keys.includes(provided)) throw error(401, 'Unauthorized');
+	if (!provided || userIdForCalendarKey(provided) === null) throw error(401, 'Unauthorized');
 
 	const today = todayYmdInAppTZ();
 	const lines: string[] = [
