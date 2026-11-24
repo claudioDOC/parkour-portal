@@ -18,7 +18,12 @@ Es gibt zwei getrennte Wege — das ist der wichtigste Punkt in diesem Ordner:
    `../data/expo-updates/android/` ab. Das Portal liefert es über
    `/api/expo/manifest` + `/api/expo/assets/…` aus (self-hosted expo-updates).
    Jede installierte App lädt es beim nächsten Start automatisch — ohne Store,
-   ohne Zutun der Nutzer.
+   ohne Zutun der Nutzer. Übernommen wird es nach dem Hinweis „Neue Version
+   bereit“ oder beim nächsten Kaltstart. Mit dem Server-Schalter
+   `OTA_UPDATE_PFLICHT` (`src/lib/appVersion.ts`, an die App als
+   `otaPflicht` in `/api/v1/app-version`) gibt es kein „Später“: Der
+   Hinweis lässt sich nicht wegklicken (`useSelfHostedUpdates` in
+   `src/app/_layout.tsx`).
 
 2. **Neue APK (nur bei nativen Änderungen):**
    Nötig, sobald sich native Module, Berechtigungen, Icons oder der Splash
