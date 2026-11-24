@@ -5,6 +5,7 @@ import { fonts, type ThemeColors } from './theme';
 import { textAlpha } from './tokens';
 import { useTheme, useThemedStyles } from './themeContext';
 import { getMotion } from './prefs';
+import { useAlarmPulse } from './alarmPulse';
 import type { Zugkraft, ZugkraftLevelKey } from './api';
 
 /**
@@ -129,13 +130,18 @@ export function ZugkraftCard({
 		[sparks]
 	);
 
+	// Alarm: gemeinsamer Puls mit dem Bildschirm-Rahmen (ZugAlarmFrame) —
+	// derselbe Wert, also exakt derselbe Takt.
+	const alarmPulse = useAlarmPulse(alarm && motion);
+
 	useEffect(() => {
 		if (!motion) {
 			breath.setValue(0.6);
 			return;
 		}
-		// Ruhig im Normalfall, schnell bei Alarm, mittel beim Feuer.
-		const half = alarm ? 600 : flame ? 900 : 1700;
+		if (alarm) return; // läuft über alarmPulse
+		// Ruhig im Normalfall, mittel beim Feuer.
+		const half = flame ? 900 : 1700;
 		const loop = Animated.loop(
 			Animated.sequence([
 				Animated.timing(breath, {
@@ -196,7 +202,7 @@ export function ZugkraftCard({
 	}, [motion, flame, sparks, baseFlicker]);
 
 	// Untergrenze des Atmens: Im Normalfall bleibt immer ein Rest sichtbar.
-	const glowOpacity = breath.interpolate({
+	const glowOpacity = (alarm && motion ? alarmPulse : breath).interpolate({
 		inputRange: [0, 1],
 		outputRange: strong ? [0.25, 1] : [0.4, 1]
 	});
