@@ -98,10 +98,14 @@ export const PATCH: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	assertAdmin(locals);
 
-	const { userId, action, newPassword, newRole, trainingAttendance, autoAbsentWeekdays } =
+	const { userId: rawUserId, action, newPassword, newRole, trainingAttendance, autoAbsentWeekdays } =
 		await request.json();
+	// Immer als Zahl: Kam die ID als Text ("5"), griffen die Schutzregeln
+	// „nicht dich selbst" nicht (5 !== "5"), SQLite fand die Zeile aber
+	// trotzdem — so liess sich etwa der letzte Admin selbst herabstufen.
+	const userId = Number(rawUserId);
 
-	if (!userId) {
+	if (!Number.isInteger(userId) || userId <= 0) {
 		return json({ error: 'User-ID erforderlich' }, { status: 400 });
 	}
 

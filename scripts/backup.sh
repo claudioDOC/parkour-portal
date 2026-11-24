@@ -10,6 +10,10 @@
 # Portal entfernt, bleibt die Kopie hier liegen. Genau dafür ist sie da.
 set -euo pipefail
 
+# Sicherungen enthalten Passwort-Hashes und persönliche Daten — nur für
+# den Dienst-Benutzer lesbar, nicht für andere Konten auf dem Server.
+umask 077
+
 ROOT="/opt/parkour-portal"
 DB="$ROOT/data/parkour.db"
 DEST="$ROOT/backups/db"

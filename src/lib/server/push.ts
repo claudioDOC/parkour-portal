@@ -342,8 +342,9 @@ export function registerFcmToken(userId: number, token: string): void {
 		.run();
 }
 
-export function removeFcmToken(token: string): void {
-	db.delete(fcmTokens).where(eq(fcmTokens.token, token)).run();
+/** Token abmelden — nur das eigene: Wer ein fremdes Token kennt, löscht damit nichts. */
+export function removeFcmToken(token: string, userId: number): void {
+	db.delete(fcmTokens).where(and(eq(fcmTokens.token, token), eq(fcmTokens.userId, userId))).run();
 }
 
 /**

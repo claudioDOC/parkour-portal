@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createReadStream, statSync } from 'node:fs';
-import { join, normalize } from 'node:path';
+import { join, normalize, sep } from 'node:path';
 import { Readable } from 'node:stream';
 
 /**
@@ -26,7 +26,8 @@ const EXT_MIME: Record<string, string> = {
 export const GET: RequestHandler = async ({ params }) => {
 	// Pfad normalisieren und im Update-Verzeichnis einsperren (kein ../).
 	const filePath = normalize(join(FILES_DIR, params.path));
-	if (!filePath.startsWith(FILES_DIR)) throw error(400, 'Ungültiger Pfad');
+	// Mit Trenner prüfen — sonst wäre ein Nachbarordner „files-…" erreichbar.
+	if (!filePath.startsWith(FILES_DIR + sep)) throw error(400, 'Ungültiger Pfad');
 
 	let size: number;
 	try {

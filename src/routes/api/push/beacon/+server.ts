@@ -10,11 +10,13 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const body = (await request.json()) as { stage?: string; detail?: string };
 		const ua = request.headers.get('user-agent')?.slice(0, 80) ?? '?';
-		console.log(
+		// Ohne Login erreichbar: Steuerzeichen raus, sonst liessen sich mit
+		// einem Zeilenumbruch gefälschte Protokollzeilen einschleusen.
+		const line =
 			`[push-beacon] ${String(body.stage ?? '?').slice(0, 40)}` +
-				(body.detail ? ` — ${String(body.detail).slice(0, 200)}` : '') +
-				` — UA: ${ua}`
-		);
+			(body.detail ? ` — ${String(body.detail).slice(0, 200)}` : '') +
+			` — UA: ${ua}`;
+		console.log(line.replace(/[\u0000-\u001F\u007F]+/g, ' '));
 	} catch {
 		/* Diagnose darf nie werfen */
 	}

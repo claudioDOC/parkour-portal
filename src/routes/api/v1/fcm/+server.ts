@@ -22,7 +22,7 @@ export const DELETE: RequestHandler = async ({ locals, request }) => {
 	const token = String(body?.token || '').trim();
 	if (token) {
 		try {
-			removeFcmToken(token);
+			removeFcmToken(token, locals.user.id);
 		} catch {
 			/* Tabelle fehlt — nichts zu löschen */
 		}

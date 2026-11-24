@@ -43,11 +43,14 @@ export const POST: RequestHandler = async (event) => {
 	if (!message) return json({ error: 'message fehlt' }, { status: 400 });
 
 	const kind = trim(body.kind, 20) ?? 'error';
+	const claimed = trim(body.username, 60);
 	try {
 		db.insert(clientLogs)
 			.values({
 				userId: locals.user?.id ?? null,
-				username: locals.user?.username ?? trim(body.username, 60),
+				// Ohne Login ist der mitgeschickte Name nur eine Behauptung —
+				// sonst liessen sich Fehlerberichte beliebigen Personen unterschieben.
+				username: locals.user?.username ?? (claimed ? `${claimed} (unbestätigt)` : null),
 				platform: trim(body.platform, 20),
 				appVersion: trim(body.appVersion, 30),
 				appBuild: trim(body.appBuild, 20),
@@ -69,8 +72,13 @@ export const POST: RequestHandler = async (event) => {
 
 		// Im Server-Protokoll mitschreiben, damit es auch ohne Admin-Ansicht
 		// sofort sichtbar ist.
-		const who = locals.user?.username ?? trim(body.username, 60) ?? 'unbekannt';
-		const line = `[app-${kind}] ${who} · ${trim(body.appVersion, 30) ?? '?'} · ${message.slice(0, 300)}`;
+		const who = locals.user?.username ?? (claimed ? `${claimed}?` : 'unbekannt');
+		// Steuerzeichen raus: Ein Zeilenumbruch im Text ergäbe sonst eine
+		// gefälschte zweite Protokollzeile.
+		const line = `[app-${kind}] ${who} · ${trim(body.appVersion, 30) ?? '?'} · ${message.slice(0, 300)}`.replace(
+			/[\u0000-\u001F\u007F]+/g,
+			' '
+		);
 		if (kind === 'crash' || kind === 'error') console.error(line);
 		else console.log(line);
 
