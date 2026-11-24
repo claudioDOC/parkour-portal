@@ -14,6 +14,7 @@ import {
 } from '$lib/server/db/schema';
 import { usersNotDeletedCondition } from '$lib/server/usersWhere';
 import { logAudit } from '$lib/server/audit';
+import { cleanText, isValidYmd, TEXT_MAX } from '$lib/server/inputLimits';
 import { recordEvent } from '$lib/server/activity';
 import { sendToUsersWithPref } from '$lib/server/push';
 import {
@@ -45,12 +46,17 @@ export const POST: RequestHandler = async (event) => {
 	const action = String(body?.action || '');
 
 	if (action === 'create_trip') {
-		const title = String(body?.title || '').trim();
+		const title = cleanText(body?.title, TEXT_MAX.short);
 		const startDate = String(body?.startDate || '').trim();
 		const endDate = String(body?.endDate || '').trim();
-		const notes = String(body?.notes || '').trim();
+		const notes = cleanText(body?.notes, TEXT_MAX.long);
 		if (!title || !startDate || !endDate) {
 			return json({ error: 'Titel, Start- und Enddatum sind erforderlich' }, { status: 400 });
+		}
+		// Fehlte hier (beim Bearbeiten gab es die Prüfung schon): Ein Datum mit
+		// Zeilenumbruch landete unverändert im Kalender-Abo aller Mitglieder.
+		if (!isValidYmd(startDate) || !isValidYmd(endDate)) {
+			return json({ error: 'Datum im Format JJJJ-MM-TT angeben' }, { status: 400 });
 		}
 		if (endDate < startDate) {
 			return json({ error: 'Enddatum darf nicht vor Startdatum liegen' }, { status: 400 });
@@ -147,14 +153,14 @@ export const POST: RequestHandler = async (event) => {
 		if (!canEdit) {
 			return json({ error: 'Nur Trip-Ersteller oder Admin kann den Trip bearbeiten' }, { status: 403 });
 		}
-		const title = String(body?.title || '').trim();
+		const title = cleanText(body?.title, TEXT_MAX.short);
 		const startDate = String(body?.startDate || '').trim();
 		const endDate = String(body?.endDate || '').trim();
-		const notes = String(body?.notes ?? '').trim();
+		const notes = cleanText(body?.notes, TEXT_MAX.long);
 		if (!title || !startDate || !endDate) {
 			return json({ error: 'Titel, Start- und Enddatum sind erforderlich' }, { status: 400 });
 		}
-		if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+		if (!isValidYmd(startDate) || !isValidYmd(endDate)) {
 			return json({ error: 'Datum im Format JJJJ-MM-TT angeben' }, { status: 400 });
 		}
 		if (endDate < startDate) {
@@ -241,7 +247,7 @@ export const POST: RequestHandler = async (event) => {
 
 		const lat = parseCoord(body?.latitude);
 		const lon = parseCoord(body?.longitude);
-		const label = String(body?.label || '').trim() || null;
+		const label = cleanText(body?.label, TEXT_MAX.short) || null;
 		if (lat == null || lon == null) {
 			return json({ error: 'Breiten- und Längengrad für das Ziel sind erforderlich' }, { status: 400 });
 		}
@@ -267,7 +273,7 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	if (action === 'propose_stopover') {
-		const label = String(body?.label || '').trim();
+		const label = cleanText(body?.label, TEXT_MAX.short);
 		const lat = parseCoord(body?.latitude);
 		const lon = parseCoord(body?.longitude);
 		if (!label || lat == null || lon == null) {
@@ -337,7 +343,7 @@ export const POST: RequestHandler = async (event) => {
 		 */
 		const raw = String(body?.mode ?? body?.transportMode ?? 'dabei').trim();
 		const transportMode = raw === 'bedingt' ? 'bedingt' : raw || 'dabei';
-		const note = String(body?.note || '').trim();
+		const note = cleanText(body?.note, TEXT_MAX.note);
 		const existing = db
 			.select({ id: tripParticipants.id })
 			.from(tripParticipants)
@@ -476,7 +482,7 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	if (action === 'decline_trip') {
-		const note = String(body?.note || '').trim();
+		const note = cleanText(body?.note, TEXT_MAX.note);
 		const existing = db
 			.select({ id: tripParticipants.id })
 			.from(tripParticipants)
@@ -536,7 +542,7 @@ export const POST: RequestHandler = async (event) => {
 		// Beide Arten liegen in derselben Tabelle: Ablauf-Vorschlag ('plan')
 		// und Zielort-Vorschlag ('ziel'). Jede Person hat je Art eine Stimme.
 		const kind = action === 'propose_destination' ? 'ziel' : 'plan';
-		const text = String(body?.text ?? body?.name ?? '').trim();
+		const text = cleanText(body?.text ?? body?.name, kind === 'ziel' ? TEXT_MAX.short : TEXT_MAX.text);
 		if (!text) {
 			return json(
 				{ error: kind === 'ziel' ? 'Name des Ziels fehlt' : 'Text für den Ablauf-Vorschlag ist erforderlich' },
@@ -550,8 +556,8 @@ export const POST: RequestHandler = async (event) => {
 			.values({
 				tripId,
 				name: text,
-				city: String(body?.city ?? '').trim(),
-				note: String(body?.note ?? '').trim() || null,
+				city: cleanText(body?.city, TEXT_MAX.short),
+				note: cleanText(body?.note, TEXT_MAX.note) || null,
 				kind,
 				latitude: lat,
 				longitude: lon,
@@ -627,9 +633,9 @@ export const POST: RequestHandler = async (event) => {
 		}
 		const startDate = String(body?.startDate || '').trim();
 		const endDate = String(body?.endDate || '').trim();
-		const noteRaw = String(body?.note || '').trim();
+		const noteRaw = cleanText(body?.note, TEXT_MAX.note);
 		const note = noteRaw || null;
-		if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+		if (!isValidYmd(startDate) || !isValidYmd(endDate)) {
 			return json({ error: 'Start- und Enddatum im Format JJJJ-MM-TT erforderlich' }, { status: 400 });
 		}
 		if (endDate < startDate) {

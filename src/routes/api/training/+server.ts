@@ -20,13 +20,16 @@ import { isTrainingAttendanceSchemaReady } from '$lib/server/trainingSchemaReady
 import { todayYmdInAppTZ, germanWeekdayInAppTZ } from '$lib/server/calendarToday';
 import { recordEvent } from '$lib/server/activity';
 import { desc } from 'drizzle-orm';
+import { cleanText } from '$lib/server/inputLimits';
 
 export const POST: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
 	const body = await request.json();
-	const { action, sessionId, reason, spotId } = body;
+	const { action, sessionId, spotId } = body;
+	// Abmeldegrund: nur Text, ohne Steuerzeichen, höchstens 500 Zeichen.
+	const reason = cleanText(body?.reason, 500);
 
 	/**
 	 * Zusatztraining eintragen — jedes Mitglied darf das, wie beim Anlegen

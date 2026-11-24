@@ -4,6 +4,7 @@ import { and, eq, gte } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { spots, trainingSessions, trainingSpotVotes, tripPlans } from '$lib/server/db/schema';
 import { todayYmdInAppTZ } from '$lib/server/calendarToday';
+import { isValidYmd } from '$lib/server/inputLimits';
 import { sql } from 'drizzle-orm';
 
 /**
@@ -22,10 +23,23 @@ function configuredKeys(): string[] {
 		.filter(Boolean);
 }
 
-/** RFC-5545-Textescaping: Backslash, Semikolon, Komma, Zeilenumbruch. */
+/**
+ * RFC-5545-Textescaping: Backslash, Semikolon, Komma, Zeilenumbruch.
+ * Auch `\r` und andere Steuerzeichen — ein nacktes `\r` beendet in
+ * Kalender-Apps die Zeile, danach könnte beliebiger Kalenderinhalt folgen.
+ */
 function esc(s: string): string {
-	return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+	return s
+		.replace(/\r\n?/g, '\n')
+		.replace(/[\u0000-\u0009\u000B-\u001F\u007F]/g, ' ')
+		.replace(/\\/g, '\\\\')
+		.replace(/;/g, '\\;')
+		.replace(/,/g, '\\,')
+		.replace(/\n/g, '\\n');
 }
+
+/** Uhrzeit „HH:MM" — alles andere ist ein kaputter Datensatz. */
+const HM = /^\d{2}:\d{2}$/;
 
 /** "2026-08-12" + "18:15" → "20260812T181500" (Wandzeit, TZID macht den Rest). */
 function icsLocal(dateStr: string, timeStr: string): string {
@@ -82,6 +96,9 @@ export const GET: RequestHandler = async ({ url }) => {
 			.limit(1)
 			.get();
 
+		// Kaputte Datensätze überspringen, statt den ganzen Kalender
+		// (für alle Abonnenten) mit einem Fehler abbrechen zu lassen.
+		if (!isValidYmd(s.date) || !HM.test(s.timeStart ?? '') || !HM.test(s.timeEnd ?? '')) continue;
 		const cancelled = Boolean(s.cancelled);
 		lines.push(
 			'BEGIN:VEVENT',
@@ -108,6 +125,9 @@ export const GET: RequestHandler = async ({ url }) => {
 		.all();
 
 	for (const t of trips) {
+		// Gleiches gilt für Trips: Ein Datum, das keins ist, fliegt raus,
+		// statt ungeprüft in die Kalender aller zu wandern.
+		if (!isValidYmd(t.startDate) || !isValidYmd(t.endDate)) continue;
 		lines.push(
 			'BEGIN:VEVENT',
 			`UID:trip-${t.id}@parkour-portal`,

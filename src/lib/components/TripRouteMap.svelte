@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
+	import { escapeHtml } from '$lib/escapeHtml';
 
 	/** Fester Startpunkt für alle Trip-Routen (Trainingsregion). */
 	const ROUTE_START_LAT = 46.758;
@@ -16,11 +17,16 @@
 		return `ca. ${m} Min`;
 	}
 
-	/** Geocoding-Namen auf der Karte: nicht volle Adresszeilen. */
+	/**
+	 * Geocoding-Namen auf der Karte: nicht volle Adresszeilen.
+	 * Maskiert, weil Leaflet Tooltip-Text als HTML einsetzt — Zwischenstopps
+	 * und Ziele tippen Mitglieder selbst ein (vorher liess sich so etwa mit
+	 * einem Style-Tag die Trip-Seite für alle leeren).
+	 */
 	function labelForMap(text: string, maxChars = 38): string {
 		const t = text.trim();
-		if (t.length <= maxChars) return t;
-		return `${t.slice(0, maxChars - 1).trimEnd()}…`;
+		const short = t.length <= maxChars ? t : `${t.slice(0, maxChars - 1).trimEnd()}…`;
+		return escapeHtml(short);
 	}
 
 	export type TripStopoverRow = {

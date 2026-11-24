@@ -4,6 +4,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { spots, spotChallenges, spotChallengeCompletions } from '$lib/server/db/schema';
 import { logAudit } from '$lib/server/audit';
+import { cleanText, TEXT_MAX } from '$lib/server/inputLimits';
 import { isSpotChallengesSchemaReady } from '$lib/server/spotChallengesSchemaReady';
 import { sendToUsersWithPref } from '$lib/server/push';
 import { recordEvent } from '$lib/server/activity';
@@ -24,8 +25,8 @@ export const POST: RequestHandler = async (event) => {
 
 	const body = await request.json();
 	const spotId = Number(body?.spotId);
-	const title = String(body?.title ?? '').trim();
-	const descriptionRaw = String(body?.description ?? '').trim();
+	const title = cleanText(body?.title, TEXT_MAX.short);
+	const descriptionRaw = cleanText(body?.description, TEXT_MAX.long);
 	const description = descriptionRaw.length > 0 ? descriptionRaw : null;
 
 	if (!spotId || !title) {

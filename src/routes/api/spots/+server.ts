@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { spots, users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
+import { cleanList, cleanText, lightingOf, numOrNull, TEXT_MAX } from '$lib/server/inputLimits';
 import { sendToUsersWithPref } from '$lib/server/push';
 import { spotsTableHasMicrospotColumns } from '$lib/server/spotsTableColumns';
 import { recordEvent } from '$lib/server/activity';
@@ -47,30 +48,34 @@ export const POST: RequestHandler = async (event) => {
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
 	const body = await request.json();
-	const { name, city, latitude, longitude, lighting, techniques, goodWeather, description, isMicro, parentSpotId } = body;
+	const { latitude, longitude, techniques, goodWeather, isMicro, parentSpotId } = body ?? {};
+	const name = cleanText(body?.name, TEXT_MAX.short);
+	const city = cleanText(body?.city, TEXT_MAX.short);
+	const lighting = lightingOf(body?.lighting);
+	const description = cleanText(body?.description, TEXT_MAX.long);
 	const hasMicro = spotsTableHasMicrospotColumns();
 
 	if (!name || !city) {
 		return json({ error: 'Name und Stadt sind erforderlich' }, { status: 400 });
 	}
 
-	const techniquesStr = Array.isArray(techniques) ? techniques.join(',') : (techniques || '');
-	const weatherStr = Array.isArray(goodWeather) ? goodWeather.join(',') : (goodWeather || 'trocken,nass');
+	const techniquesStr = cleanList(techniques, '');
+	const weatherStr = cleanList(goodWeather, 'trocken,nass');
 	const isMicroBool = Boolean(isMicro);
 	const parentIdNum = parentSpotId ? Number(parentSpotId) : null;
 
 	const result = db.insert(spots).values({
 		name,
 		city,
-		latitude: latitude || null,
-		longitude: longitude || null,
+		latitude: numOrNull(latitude),
+		longitude: numOrNull(longitude),
 		...(hasMicro
 			? {
 					isMicro: isMicroBool,
 					parentSpotId: isMicroBool ? parentIdNum : null
 				}
 			: {}),
-		lighting: lighting || 'teilweise',
+		lighting,
 		techniques: techniquesStr,
 		goodWeather: weatherStr,
 		description: description || null,

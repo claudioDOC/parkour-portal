@@ -1,9 +1,10 @@
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { spots, spotParkingLocations, users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { logAudit } from '$lib/server/audit';
+import { cleanList, cleanText, lightingOf, numOrNull, TEXT_MAX } from '$lib/server/inputLimits';
 import {
 	spotsParkingTableExists,
 	spotsTableHasDeletedColumn,
@@ -83,6 +84,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 export const PATCH: RequestHandler = async (event) => {
 	const { request, locals } = event;
+	// Erst die Rolle, dann alles andere: Vorher prüfte erst die einzelne
+	// Aktion die Berechtigung — innerhalb des try, sodass Unbefugte einen
+	// 500er statt 403 bekamen und nebenbei erfuhren, ob es den Spot gibt.
+	assertCanManageSpots(locals);
 
 	try {
 		const body = await request.json();
@@ -143,26 +148,19 @@ export const PATCH: RequestHandler = async (event) => {
 
 		if (action === 'edit') {
 			assertCanManageSpots(locals);
-			const {
-				name,
-				city,
-				latitude,
-				longitude,
-				lighting,
-				techniques,
-				goodWeather,
-				description,
-				isMicro,
-				parentSpotId,
-				parkingLocations
-			} = body;
+			const { latitude, longitude, techniques, goodWeather, isMicro, parentSpotId, parkingLocations } =
+				body;
+			const name = cleanText(body?.name, TEXT_MAX.short);
+			const city = cleanText(body?.city, TEXT_MAX.short);
+			const lighting = lightingOf(body?.lighting);
+			const description = cleanText(body?.description, TEXT_MAX.long);
 
 			if (!name || !city) {
 				return json({ error: 'Name und Stadt sind erforderlich' }, { status: 400 });
 			}
 
-			const techniquesStr = Array.isArray(techniques) ? techniques.join(',') : (techniques || '');
-			const weatherStr = Array.isArray(goodWeather) ? goodWeather.join(',') : (goodWeather || 'trocken,nass');
+			const techniquesStr = cleanList(techniques, '');
+			const weatherStr = cleanList(goodWeather, 'trocken,nass');
 
 			const parentIdNum = parentSpotId ? Number(parentSpotId) : null;
 			if (parentIdNum && parentIdNum === Number(spotId)) {
@@ -172,15 +170,15 @@ export const PATCH: RequestHandler = async (event) => {
 			db.update(spots).set({
 				name,
 				city,
-				latitude: latitude || null,
-				longitude: longitude || null,
+				latitude: numOrNull(latitude),
+				longitude: numOrNull(longitude),
 				...(spotsTableHasMicrospotColumns()
 					? {
 							isMicro: Boolean(isMicro),
 							parentSpotId: Boolean(isMicro) ? parentIdNum : null
 						}
 					: {}),
-				lighting: lighting || 'teilweise',
+				lighting,
 				techniques: techniquesStr,
 				goodWeather: weatherStr,
 				description: description || null
@@ -189,7 +187,7 @@ export const PATCH: RequestHandler = async (event) => {
 			const parkingRows = Array.isArray(parkingLocations)
 				? parkingLocations
 						.map((p) => ({
-							name: typeof p?.name === 'string' ? p.name.trim() : '',
+							name: cleanText(p?.name, TEXT_MAX.short),
 							latitude: Number(p?.latitude),
 							longitude: Number(p?.longitude)
 						}))
@@ -222,6 +220,8 @@ export const PATCH: RequestHandler = async (event) => {
 
 		return json({ error: 'Ungültige Aktion' }, { status: 400 });
 	} catch (e) {
+		// 403 aus assertAdmin bleibt 403 (nicht als „fehlgeschlagen" verschlucken).
+		if (isHttpError(e)) throw e;
 		console.error('PATCH /api/admin/spots', e);
 		const mapped = jsonFromSqliteOrSchemaError(e);
 		if (mapped) return mapped;
