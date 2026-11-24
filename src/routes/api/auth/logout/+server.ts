@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { clearSession, getRawToken, getSession, getSessionFromCookiesOrBearer } from '$lib/server/auth';
+import { clearSession, getVerifiedSession } from '$lib/server/auth';
 import { revokeToken } from '$lib/server/revokedTokens';
 import { logAudit } from '$lib/server/audit';
 
@@ -14,10 +14,10 @@ import { logAudit } from '$lib/server/audit';
  * `/api/auth/logout-all`.
  */
 export const POST: RequestHandler = async (event) => {
-	const session = getSessionFromCookiesOrBearer(event.cookies, event.request) ?? getSession(event.cookies);
-	const raw = getRawToken(event.cookies, event.request);
-	if (session && raw) {
-		revokeToken(raw, session.userId, session.exp);
+	const verified = getVerifiedSession(event.cookies, event.request);
+	const session = verified?.payload ?? null;
+	if (verified) {
+		revokeToken(verified.raw, verified.payload.userId, verified.payload.exp);
 	}
 	if (session) {
 		logAudit({

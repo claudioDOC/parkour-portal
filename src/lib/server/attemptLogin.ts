@@ -2,12 +2,21 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { verifyPassword, createSession, signSessionToken } from '$lib/server/auth';
 import { getUserCoreByUsername } from '$lib/server/userCoreQuery';
 import { logAudit } from '$lib/server/audit';
-import {
-	getClientIp,
-	assertLoginFailuresBelowLimit,
-	recordLoginAuthFailure,
-	clearLoginAuthFailures
-} from '$lib/server/rateLimitAuth';
+import { getClientIp, reserveLoginAttempt, clearLoginAuthFailures } from '$lib/server/rateLimitAuth';
+import { randomBytes } from 'node:crypto';
+import bcryptjs from 'bcryptjs';
+
+/**
+ * Vergleichs-Hash für unbekannte Benutzernamen. Ohne ihn antwortete der
+ * Login bei unbekannten Namen sofort, bei bekannten erst nach dem
+ * bcrypt-Vergleich — an der Antwortzeit liess sich ablesen, welche
+ * Benutzernamen es gibt. Jetzt rechnet jeder Versuch gleich lang.
+ */
+let dummyHash: string | null = null;
+function getDummyHash(): string {
+	dummyHash ??= bcryptjs.hashSync(randomBytes(18).toString('base64'), 10);
+	return dummyHash;
+}
 
 export type AttemptLoginResult =
 	| { kind: 'success'; user: { id: number; username: string; role: string }; token?: string }
@@ -20,7 +29,16 @@ export async function attemptLogin(
 	includeToken?: boolean
 ): Promise<AttemptLoginResult> {
 	const ip = getClientIp(event);
-	const limited = assertLoginFailuresBelowLimit(ip);
+
+	const u = typeof username === 'string' ? username.trim() : String(username ?? '').trim();
+	const p = typeof password === 'string' ? password : String(password ?? '');
+
+	if (!u || !p) {
+		return { kind: 'error', status: 400, error: 'Username und Passwort erforderlich' };
+	}
+
+	// Platz belegen, bevor irgendetwas gerechnet wird (siehe reserveLoginAttempt).
+	const limited = reserveLoginAttempt(ip, u);
 	if (!limited.ok) {
 		const s = limited.retryAfterSec;
 		return {
@@ -31,16 +49,9 @@ export async function attemptLogin(
 		};
 	}
 
-	const u = typeof username === 'string' ? username.trim() : String(username ?? '').trim();
-	const p = typeof password === 'string' ? password : String(password ?? '');
-
-	if (!u || !p) {
-		return { kind: 'error', status: 400, error: 'Username und Passwort erforderlich' };
-	}
-
 	const user = getUserCoreByUsername(u);
 	if (!user) {
-		recordLoginAuthFailure(ip);
+		await bcryptjs.compare(p, getDummyHash());
 		logAudit({
 			event,
 			action: 'auth.login.failed',
@@ -51,7 +62,6 @@ export async function attemptLogin(
 
 	const valid = await verifyPassword(p, user.passwordHash);
 	if (!valid) {
-		recordLoginAuthFailure(ip);
 		logAudit({
 			event,
 			action: 'auth.login.failed',
@@ -61,7 +71,6 @@ export async function attemptLogin(
 	}
 
 	if (user.deleted) {
-		recordLoginAuthFailure(ip);
 		logAudit({
 			event,
 			action: 'auth.login.failed',
@@ -73,7 +82,6 @@ export async function attemptLogin(
 	}
 
 	if (!user.active) {
-		recordLoginAuthFailure(ip);
 		logAudit({
 			event,
 			action: 'auth.login.failed',
@@ -88,7 +96,7 @@ export async function attemptLogin(
 		};
 	}
 
-	clearLoginAuthFailures(ip);
+	clearLoginAuthFailures(ip, u);
 	createSession(user, event.cookies);
 	const token = includeToken ? signSessionToken(user) : undefined;
 	logAudit({

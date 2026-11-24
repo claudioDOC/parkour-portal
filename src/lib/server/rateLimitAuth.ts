@@ -3,6 +3,8 @@ import type { RequestEvent } from '@sveltejs/kit';
 type Bucket = { count: number; resetAt: number };
 
 const loginFailureBuckets = new Map<string, Bucket>();
+/** Fehlversuche je Benutzername — gegen Raten von vielen Adressen aus. */
+const loginUserBuckets = new Map<string, Bucket>();
 const registerBuckets = new Map<string, Bucket>();
 /** Fehlerberichte der App — nimmt der Server bewusst ohne Login entgegen. */
 const clientLogBuckets = new Map<string, Bucket>();
@@ -13,6 +15,19 @@ const uploadBuckets = new Map<string, Bucket>();
 
 const LOGIN_FAIL_MAX = 5;
 const LOGIN_FAIL_WINDOW_MS = 60_000;
+/**
+ * Je Benutzername grosszügiger als je Adresse: Wer selbst fünfmal danebentippt,
+ * soll nicht gleich gesperrt sein — wer aber von vielen Adressen aus rät,
+ * kommt pro Konto nicht über 20 Versuche je Viertelstunde.
+ */
+const LOGIN_USER_MAX = 20;
+const LOGIN_USER_WINDOW_MS = 15 * 60_000;
+
+/** Abgelaufene Zähler gelegentlich wegräumen, damit die Maps nicht wachsen. */
+function prune(buckets: Map<string, Bucket>, now: number) {
+	if (buckets.size < 2000) return;
+	for (const [k, b] of buckets) if (now >= b.resetAt) buckets.delete(k);
+}
 
 /**
  * Client-IP für Sperren und Audit-Log.
@@ -68,6 +83,7 @@ function consume(
 	const now = Date.now();
 	let b = buckets.get(key);
 	if (!b || now >= b.resetAt) {
+		prune(buckets, now);
 		b = { count: 0, resetAt: now + windowMs };
 		buckets.set(key, b);
 	}
@@ -78,37 +94,48 @@ function consume(
 	return { ok: true };
 }
 
+function liveBucket(buckets: Map<string, Bucket>, key: string, windowMs: number, now: number): Bucket {
+	let b = buckets.get(key);
+	if (!b || now >= b.resetAt) {
+		prune(buckets, now);
+		b = { count: 0, resetAt: now + windowMs };
+		buckets.set(key, b);
+	}
+	return b;
+}
+
 /**
- * Vor dem Login: blockiert nur nach mehreren Fehlversuchen (falsches Passwort, …).
- * Erfolgreiche Logins zählen nicht — verhindert Sperre, wenn Session/Cookie separat hakt.
+ * Login-Versuch anmelden — VOR der Passwortprüfung, ohne `await` dazwischen.
+ *
+ * Vorher wurde erst nachgesehen („unter 5 Fehlversuchen?") und der
+ * Fehlversuch erst NACH dem bcrypt-Vergleich gezählt. Weil bcrypt andere
+ * Anfragen dazwischen lässt, kamen 50 gleichzeitige Versuche alle durch
+ * die Prüfung — die Bremse liess sich mit parallelen Anfragen aushebeln.
+ * Jetzt belegt jeder Versuch sofort einen Platz (je Adresse UND je
+ * Benutzername); ein erfolgreicher Login gibt die Zähler wieder frei.
  */
-export function assertLoginFailuresBelowLimit(
-	ip: string
+export function reserveLoginAttempt(
+	ip: string,
+	username: string
 ): { ok: true } | { ok: false; retryAfterSec: number } {
 	const now = Date.now();
-	const b = loginFailureBuckets.get(ip);
-	if (!b || now >= b.resetAt) {
-		return { ok: true };
+	const byIp = liveBucket(loginFailureBuckets, ip, LOGIN_FAIL_WINDOW_MS, now);
+	if (byIp.count >= LOGIN_FAIL_MAX) {
+		return { ok: false, retryAfterSec: Math.max(1, Math.ceil((byIp.resetAt - now) / 1000)) };
 	}
-	if (b.count >= LOGIN_FAIL_MAX) {
-		return { ok: false, retryAfterSec: Math.max(1, Math.ceil((b.resetAt - now) / 1000)) };
+	const byUser = liveBucket(loginUserBuckets, username.toLowerCase(), LOGIN_USER_WINDOW_MS, now);
+	if (byUser.count >= LOGIN_USER_MAX) {
+		return { ok: false, retryAfterSec: Math.max(1, Math.ceil((byUser.resetAt - now) / 1000)) };
 	}
+	byIp.count += 1;
+	byUser.count += 1;
 	return { ok: true };
 }
 
-/** Nach fehlgeschlagenem Login (unbekannter User, falsches Passwort, inaktiv, Papierkorb). */
-export function recordLoginAuthFailure(ip: string) {
-	const now = Date.now();
-	let b = loginFailureBuckets.get(ip);
-	if (!b || now >= b.resetAt) {
-		b = { count: 0, resetAt: now + LOGIN_FAIL_WINDOW_MS };
-		loginFailureBuckets.set(ip, b);
-	}
-	b.count += 1;
-}
-
-export function clearLoginAuthFailures(ip: string) {
+/** Nach erfolgreichem Login: Zähler für Adresse und Konto leeren. */
+export function clearLoginAuthFailures(ip: string, username: string) {
 	loginFailureBuckets.delete(ip);
+	loginUserBuckets.delete(username.toLowerCase());
 }
 
 /** Max. 10 Registrierungen pro Stunde pro IP (Invite + Massen-Accounts). */

@@ -1,5 +1,5 @@
 import type { Handle, RequestEvent } from '@sveltejs/kit';
-import { clearSession, getRawToken, getSessionFromCookiesOrBearer } from '$lib/server/auth';
+import { clearSession, getVerifiedSession } from '$lib/server/auth';
 import { isTokenRevoked } from '$lib/server/revokedTokens';
 import { redirect } from '@sveltejs/kit';
 import { parseAutoAbsentWeekdays } from '$lib/server/trainingAttendance';
@@ -52,10 +52,25 @@ function redirectHttpToHttpsIfNeeded(event: RequestEvent) {
 	throw redirect(308, `https://${publicHost}${event.url.pathname}${event.url.search}`);
 }
 
+/**
+ * Gehört der Pfad zu einem der Präfixe? Nur exakt oder als Unterpfad —
+ * `/app` deckt `/app/datei.apk` ab, aber NICHT `/apps…` oder `/application`.
+ * Vorher reichte ein simples startsWith: Jede künftige Seite, deren Name
+ * zufällig mit einem öffentlichen Präfix beginnt, wäre ohne Login offen
+ * gewesen.
+ */
+function underPrefix(path: string, prefix: string): boolean {
+	if (prefix.endsWith('/')) return path.startsWith(prefix);
+	return path === prefix || path.startsWith(prefix + '/');
+}
+
 /** Mutationen, die keinen Live-Reload bei allen auslösen sollen. */
 const LIVE_IGNORED_PATHS = [
 	'/api/live',
 	'/api/push/beacon',
+	// Fehlerberichte der App — ohne Login erreichbar; sonst könnte jede
+	// beliebige Person alle offenen Browser im Takt neu laden lassen.
+	'/api/v1/client-log',
 	'/api/auth/',
 	// Rein persönlich (Gelesen-Stand) — würde sonst bei allen einen Reload
 	// auslösen und das gerade geöffnete Glocken-Panel zuklappen.
@@ -80,37 +95,63 @@ function isForbiddenCrossSiteForm(event: Parameters<Handle>[0]['event']): boolea
 	if (method !== 'POST' && method !== 'PUT' && method !== 'PATCH' && method !== 'DELETE') {
 		return false;
 	}
+
+	// Native App: authentifiziert sich per Token, nicht per Cookie.
+	const auth = event.request.headers.get('authorization') ?? '';
+	if (auth.toLowerCase().startsWith('bearer ')) return false;
+
+	// Fremder Origin = abgelehnt, egal welcher Inhaltstyp. Vorher galt das
+	// nur für Formular-Typen; eine fremde Seite konnte etwa einen POST ohne
+	// Content-Type schicken. Sicher war das bisher nur dank SameSite=Lax.
+	const origin = event.request.headers.get('origin');
+	if (origin && origin !== event.url.origin) return true;
+
 	const type = (event.request.headers.get('content-type') ?? '').split(';')[0].trim();
 	const formLike = [
 		'application/x-www-form-urlencoded',
 		'multipart/form-data',
 		'text/plain'
 	].includes(type);
-	if (!formLike) return false;
+	// Browser senden bei Formular-POSTs immer einen Origin — fehlt er, ist
+	// es kein normaler Browser-Aufruf.
+	return formLike && !origin;
+}
 
-	// Native App: authentifiziert sich per Token, nicht per Cookie.
-	const auth = event.request.headers.get('authorization') ?? '';
-	if (auth.toLowerCase().startsWith('bearer ')) return false;
+/**
+ * Grosse Anfragen nur dort, wo Dateien hochgeladen werden.
+ *
+ * BODY_SIZE_LIMIT (64 MB) gilt für den ganzen Server — nötig für Videos.
+ * Ohne diese Bremse durfte aber auch der Login ohne Anmeldung 64 MB
+ * schicken; ein paar solche Anfragen parallel füllen den Arbeitsspeicher.
+ * Alle anderen Endpunkte bekommen höchstens 1 MB (das reicht für jeden
+ * Text um ein Vielfaches).
+ */
+const LARGE_BODY_PATHS = ['/api/spots/images', '/api/spots/challenges/images', '/api/profile/avatar'];
+const SMALL_BODY_LIMIT = 1024 * 1024;
 
-	const origin = event.request.headers.get('origin');
-	if (!origin) return true; // Browser senden bei Formular-POSTs immer einen Origin.
-	return origin !== event.url.origin;
+function isTooLargeBody(event: RequestEvent): boolean {
+	const method = event.request.method;
+	if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return false;
+	if (LARGE_BODY_PATHS.some((p) => underPrefix(event.url.pathname, p))) return false;
+	const len = Number(event.request.headers.get('content-length') ?? '');
+	return Number.isFinite(len) && len > SMALL_BODY_LIMIT;
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
 	if (isForbiddenCrossSiteForm(event)) {
 		return new Response('Cross-site POST form submissions are forbidden', { status: 403 });
 	}
+	if (isTooLargeBody(event)) {
+		return new Response('Payload too large', { status: 413 });
+	}
 
 	redirectHttpToHttpsIfNeeded(event);
 
-	const rawToken = getRawToken(event.cookies, event.request);
 	// Abgemeldete Tokens gelten nicht mehr, auch wenn sie noch nicht
-	// abgelaufen sind.
-	const sessionJwt =
-		rawToken && isTokenRevoked(rawToken)
-			? null
-			: getSessionFromCookiesOrBearer(event.cookies, event.request);
+	// abgelaufen sind. Geprüft wird genau das Token, aus dem die Sitzung
+	// stammt (nicht irgendein mitgeschickter Bearer-Wert).
+	const verified = getVerifiedSession(event.cookies, event.request);
+	const sessionJwt = verified && !isTokenRevoked(verified.raw) ? verified.payload : null;
 
 	if (sessionJwt) {
 		const row = getSessionUserCheckRow(sessionJwt.userId);
@@ -141,9 +182,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.user = null;
 	}
 
-	const isPublic = publicPaths.some((p) => event.url.pathname.startsWith(p));
+	const isPublic = publicPaths.some((p) => underPrefix(event.url.pathname, p));
 
-	if (!isPublic && !event.locals.user && !event.url.pathname.startsWith('/api')) {
+	if (!isPublic && !event.locals.user && !underPrefix(event.url.pathname, '/api')) {
 		throw redirect(303, '/login');
 	}
 
@@ -156,6 +197,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.request.method !== 'HEAD' &&
 		event.url.pathname.startsWith('/api/') &&
 		response.status < 400 &&
+		// Bewusst startsWith: '/api/live' deckt auch '/api/live-location' ab.
 		!LIVE_IGNORED_PATHS.some((p) => event.url.pathname.startsWith(p))
 	) {
 		broadcastDataChanged();

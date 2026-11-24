@@ -52,17 +52,27 @@ export function signSessionToken(user: {
 	);
 }
 
+/**
+ * Nur HS256 annehmen. jsonwebtoken lehnt `none` zwar schon ab, aber das
+ * Verfahren gehört festgenagelt statt dem Token überlassen.
+ */
+const VERIFY_OPTS: jwt.VerifyOptions = { algorithms: ['HS256'] };
+
+function verifyToken(token: string): JwtPayload | null {
+	try {
+		return jwt.verify(token, jwtSecret(), VERIFY_OPTS) as JwtPayload;
+	} catch {
+		return null;
+	}
+}
+
 export function verifyBearerJwt(authHeader: string | null): JwtPayload | null {
 	if (!authHeader) return null;
 	const v = authHeader.trim();
 	if (!v.toLowerCase().startsWith('bearer ')) return null;
 	const token = v.slice(7).trim();
 	if (!token) return null;
-	try {
-		return jwt.verify(token, jwtSecret()) as JwtPayload;
-	} catch {
-		return null;
-	}
+	return verifyToken(token);
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -94,28 +104,35 @@ export function createSession(
 export function getSession(cookies: Cookies): JwtPayload | null {
 	const token = cookies.get(COOKIE_NAME);
 	if (!token) return null;
-
-	try {
-		return jwt.verify(token, jwtSecret()) as JwtPayload;
-	} catch {
-		return null;
-	}
+	return verifyToken(token);
 }
 
-export function getSessionFromCookiesOrBearer(cookies: Cookies, request: Request): JwtPayload | null {
-	const fromBearer = verifyBearerJwt(request.headers.get('authorization'));
-	if (fromBearer) return fromBearer;
-	return getSession(cookies);
-}
-
-/** Rohes Token der aktuellen Anfrage — für das Entwerten beim Abmelden. */
-export function getRawToken(cookies: Cookies, request: Request): string | null {
+/**
+ * Gültige Sitzung der Anfrage — zusammen mit GENAU dem Token, das geprüft
+ * wurde: zuerst Bearer (App), sonst Cookie (Browser).
+ *
+ * Das rohe Token gehört zur Prüfung dazu: Vorher wurde die Sperrliste
+ * (Abmelden) gegen den Bearer-Wert geprüft, die Sitzung aber notfalls aus
+ * dem Cookie genommen. Ein abgemeldetes Cookie-Token galt so weiter,
+ * sobald man irgendeinen Unsinn als Bearer mitschickte.
+ */
+export function getVerifiedSession(
+	cookies: Cookies,
+	request: Request
+): { payload: JwtPayload; raw: string } | null {
 	const header = request.headers.get('authorization') ?? '';
 	if (header.toLowerCase().startsWith('bearer ')) {
 		const raw = header.slice(7).trim();
-		if (raw) return raw;
+		const payload = raw ? verifyToken(raw) : null;
+		if (payload) return { payload, raw };
 	}
-	return cookies.get(COOKIE_NAME) ?? null;
+	const raw = cookies.get(COOKIE_NAME);
+	const payload = raw ? verifyToken(raw) : null;
+	return payload && raw ? { payload, raw } : null;
+}
+
+export function getSessionFromCookiesOrBearer(cookies: Cookies, request: Request): JwtPayload | null {
+	return getVerifiedSession(cookies, request)?.payload ?? null;
 }
 
 export function clearSession(cookies: Cookies) {
