@@ -73,6 +73,13 @@
 	 */
 	const frac = (n: number) => n - Math.floor(n);
 	const r2 = (n: number) => Math.round(n * 100) / 100;
+	/**
+	 * Stufengrenzen als Striche im Balken: Jede Stufe belegt ein Sechstel
+	 * (fillFor in zugkraft.ts), die Grenzen liegen also bei 1/6 … 5/6. So
+	 * sieht man, ob der Schnitt eher am unteren oder oberen Ende der Stufe
+	 * steht. Bei „Grossartig" ist der Balken ganz voll — dort keine Striche.
+	 */
+	const TICKS = [1, 2, 3, 4, 5].map((k) => r2((k * 100) / 6));
 	const FIRE = Array.from({ length: 64 }, (_, i) => {
 		const core = i % 3 === 0;
 		const b = frac(i * 0.754878 + 0.13);
@@ -116,6 +123,11 @@
 			</div>
 		{/if}
 		<div class="zug-fill {fx}" style="width: {width}%; background-color: {c.hex}"></div>
+		{#if !fire}
+			{#each TICKS as t (t)}
+				<i class="zug-tick" style="left: {t}%"></i>
+			{/each}
+		{/if}
 	</div>
 {/snippet}
 
