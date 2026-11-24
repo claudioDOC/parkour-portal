@@ -2,11 +2,12 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ANDROID_APP_VERSION, ANDROID_APP_VERSION_CODE } from '$lib/appVersion';
+import { ANDROID_APP_VERSION, ANDROID_APP_VERSION_CODE, OTA_UPDATE_PFLICHT } from '$lib/appVersion';
 
 /**
  * Neueste APK-Version — damit die App selbst merken kann, dass eine
- * neue Installation bereitsteht, und sie direkt anbieten kann.
+ * neue Installation bereitsteht, und sie direkt anbieten kann. Dazu
+ * `otaPflicht`: geladene JS-Updates ohne „Später" übernehmen.
  * Bewusst ohne Login: die Datei unter /app ist ohnehin öffentlich.
  */
 export const GET: RequestHandler = async ({ url }) => {
@@ -18,6 +19,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		available,
 		sizeBytes: available ? statSync(path).size : 0,
 		builtAt: available ? statSync(path).mtime.toISOString() : null,
-		url: `${url.origin}/app/parkour-portal-${ANDROID_APP_VERSION}.apk`
+		url: `${url.origin}/app/parkour-portal-${ANDROID_APP_VERSION}.apk`,
+		otaPflicht: OTA_UPDATE_PFLICHT
 	});
 };
