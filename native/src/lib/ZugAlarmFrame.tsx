@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, AppState, StyleSheet, type BoxShadowValue } from 'react-native';
+import { Animated, AppState, Easing, StyleSheet, type BoxShadowValue } from 'react-native';
 import { getZugAlarm } from './api';
-import { useAlarmPulse } from './alarmPulse';
 import { getMotion } from './prefs';
 import { onDataRefreshed } from './store';
 
@@ -13,11 +12,10 @@ import { onDataRefreshed } from './store';
  * freischalten.
  *
  * Optik wie im Web (.zug-screen-alarm in src/app.css): gleiche Farbe wie
- * der Katastrophe-Balken (#991b1b), scharfer 4-px-Rand plus Schein nach
- * innen in drei Lagen. Nur die Deckkraft atmet — am selben Puls-Wert wie
- * der Alarm-Balken (alarmPulse.ts), also exakt im gleichen Takt. Der Rand
- * ist hier ein echter Border, der Schein liegt innen daran an.
- * Berührungen gehen durch.
+ * der Katastrophe-Balken (#991b1b), aber zurückhaltend — 3-px-Rand plus
+ * Schein nach innen in drei Lagen. Nur die Deckkraft atmet (0,4 → 1),
+ * langsamer als der Balken: 2 s statt 1,2 s. Der Rand ist hier ein echter
+ * Border, der Schein liegt innen daran an. Berührungen gehen durch.
  *
  * Nachgefragt wird beim Start, bei jeder Rückkehr in die App, jede Minute
  * und sofort, wenn die Trainingsdaten frisch geladen wurden (An- oder
@@ -25,11 +23,11 @@ import { onDataRefreshed } from './store';
  */
 
 /** Katastrophe-Farbe des Balkens (#991b1b, LEVEL_COLOR in ZugkraftCard). */
-const RED = 'rgb(153, 27, 27)';
+const RED = 'rgba(153, 27, 27, 0.85)';
 const GLOW: BoxShadowValue[] = [
-	{ offsetX: 0, offsetY: 0, blurRadius: 10, spreadDistance: 4, color: 'rgba(153, 27, 27, 0.8)', inset: true },
-	{ offsetX: 0, offsetY: 0, blurRadius: 26, spreadDistance: 9, color: 'rgba(153, 27, 27, 0.5)', inset: true },
-	{ offsetX: 0, offsetY: 0, blurRadius: 50, spreadDistance: 16, color: 'rgba(153, 27, 27, 0.22)', inset: true }
+	{ offsetX: 0, offsetY: 0, blurRadius: 10, spreadDistance: 3, color: 'rgba(153, 27, 27, 0.55)', inset: true },
+	{ offsetX: 0, offsetY: 0, blurRadius: 24, spreadDistance: 8, color: 'rgba(153, 27, 27, 0.32)', inset: true },
+	{ offsetX: 0, offsetY: 0, blurRadius: 46, spreadDistance: 14, color: 'rgba(153, 27, 27, 0.14)', inset: true }
 ];
 
 export function ZugAlarmFrame() {
@@ -76,10 +74,26 @@ export function ZugAlarmFrame() {
 
 function Pulse() {
 	const motion = getMotion();
-	// Derselbe Wert wie der Alarm-Balken im Zug-O-Meter, gleich abgebildet
-	// (0,25 → 1) — Balken und Rahmen pulsieren exakt zusammen.
-	const pulse = useAlarmPulse(motion);
-	const opacity = motion ? pulse.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] }) : 0.85;
+	const breath = useRef(new Animated.Value(0.85)).current;
+
+	useEffect(() => {
+		if (!motion) {
+			breath.setValue(0.85);
+			return;
+		}
+		breath.setValue(0.4);
+		// 2 s pro Atemzug — ruhiger als der Alarm-Balken (1,2 s).
+		const step = (toValue: number) =>
+			Animated.timing(breath, {
+				toValue,
+				duration: 1000,
+				easing: Easing.inOut(Easing.sin),
+				useNativeDriver: true
+			});
+		const loop = Animated.loop(Animated.sequence([step(1), step(0.4)]));
+		loop.start();
+		return () => loop.stop();
+	}, [motion, breath]);
 
 	return (
 		<Animated.View
@@ -87,7 +101,7 @@ function Pulse() {
 			// Als Textur zwischenspeichern: Animiert wird nur die Deckkraft, der
 			// weiche Schein muss so nicht in jedem Bild neu gezeichnet werden.
 			renderToHardwareTextureAndroid
-			style={[StyleSheet.absoluteFill, styles.frame, { opacity }]}
+			style={[StyleSheet.absoluteFill, styles.frame, { opacity: breath }]}
 		/>
 	);
 }
@@ -95,7 +109,7 @@ function Pulse() {
 const styles = StyleSheet.create({
 	frame: {
 		zIndex: 1000,
-		borderWidth: 4,
+		borderWidth: 3,
 		borderColor: RED,
 		boxShadow: GLOW
 	}
