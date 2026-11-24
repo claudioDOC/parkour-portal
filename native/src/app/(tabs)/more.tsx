@@ -18,7 +18,7 @@ import {
 	canSelfInstall
 } from '../../lib/apkUpdate';
 import { useAuth } from '../_layout';
-import { restartForUpdate } from '../../lib/updateRestart';
+import { restartForUpdate, restartReopensApp } from '../../lib/updateRestart';
 
 /**
  * Bewusst kurz gehalten. Nicht mehr hier:
@@ -157,12 +157,25 @@ export default function More() {
 
 		if (contentUpdated) {
 			// Gleicher Weg wie beim Hinweis: erst alles abbauen, dann neu starten.
-			await restartForUpdate('mehr').catch(() => {
+			const restart = () =>
+				restartForUpdate('mehr').catch(() => {
+					Alert.alert(
+						'Neustart hat nicht geklappt',
+						'Die neue Version ist schon geladen. Bitte die App ganz schliessen und wieder öffnen.'
+					);
+				});
+			if (restartReopensApp()) {
+				await restart();
+			} else {
 				Alert.alert(
-					'Neustart hat nicht geklappt',
-					'Die neue Version ist schon geladen. Bitte die App ganz schliessen und wieder öffnen.'
+					'Update geladen',
+					'Zum Übernehmen schliesst sich die App – danach bitte wieder öffnen.',
+					[
+						{ text: 'Später', style: 'cancel' },
+						{ text: 'App schliessen', onPress: () => void restart() }
+					]
 				);
-			});
+			}
 			return;
 		}
 		Alert.alert('Aktuell', 'Du hast bereits die neueste Version.');

@@ -1,0 +1,14 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!--
+      Eigener, kurzlebiger Prozess: Er beendet den App-Prozess und öffnet
+      die App danach frisch. Durchsichtig, damit nichts aufblitzt.
+    -->
+    <activity
+      android:name="expo.modules.apprestart.RestartActivity"
+      android:process=":restart"
+      android:exported="false"
+      android:excludeFromRecents="true"
+      android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+  </application>
+</manifest>

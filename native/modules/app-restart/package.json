@@ -1,0 +1,6 @@
+{
+  "name": "app-restart",
+  "version": "0.1.0",
+  "description": "App wirklich neu starten, damit ein geladenes Update aktiv wird (lokales Expo-Modul)",
+  "main": "index.ts"
+}

@@ -44,6 +44,26 @@ wer Server oder Domain übernimmt, kann so keinen fremden Code verteilen.
   ab 1.10 kein Update mehr, bis eine neue APK mit neuem Zertifikat installiert
   ist. Eine Kopie gehört ausserhalb des Servers.
 
+### Neustart nach einem Update (ab APK 1.11)
+
+`Updates.reloadAsync()` baut die App im laufenden Prozess neu auf. Auf APK 1.10
+(expo-updates 57.0.28, React Native 0.86) beendet genau das den ganzen Prozess:
+Im expo-updates-Protokoll folgt auf „Restart" kein Neuladen, sondern Sekunden
+später ein frischer Start — die App ging zu und blieb zu. Darum:
+
+- **Eigenes Modul `modules/app-restart`** (nur Android): `RestartActivity` läuft
+  im eigenen Prozess `:restart`, beendet den App-Prozess und öffnet die App
+  frisch (Muster wie ProcessPhoenix). Beim Kaltstart startet expo-updates von
+  selbst das neueste geladene Update.
+- `src/lib/updateRestart.ts` nimmt das Modul, wenn es da ist; sonst
+  `reloadAsync()` (iOS, APK ≤ 1.10). Auf APK 1.10 sagt der Hinweis offen: „Zum
+  Übernehmen schliesst sich die App – danach bitte wieder öffnen."
+- Vor dem Neustart wird der ganze Bildschirm abgebaut, und beim nächsten Start
+  meldet die App ins Fehlerprotokoll, ob es geklappt hat (`weg: nativ|reload`,
+  samt Ablauf aus `Updates.readLogEntriesAsync`).
+- Neue native Module brauchen eine neue APK, keinen `prebuild`: lokale Module
+  unter `modules/` bindet Gradle beim Bauen selbst ein.
+
 ### runtimeVersion — Vorsicht
 
 `runtimeVersion` in `app.json` ist bewusst auf **`1.1.0` eingefroren**, obwohl

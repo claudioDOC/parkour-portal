@@ -49,7 +49,8 @@ import {
 	registerRestartCurtain,
 	reportRecentRestartLog,
 	reportRestartOutcome,
-	restartForUpdate
+	restartForUpdate,
+	restartReopensApp
 } from '../lib/updateRestart';
 
 /**
@@ -143,13 +144,18 @@ function useSelfHostedUpdates(ready: boolean): void {
 		// Pro Vordergrund-Phase höchstens einmal fragen.
 		if (askedFor.current === foregrounds) return;
 		askedFor.current = foregrounds;
+		// APK 1.10 kann nicht von selbst wieder aufgehen — dann ehrlich sagen,
+		// dass man die App danach wieder öffnen muss.
+		const reopens = restartReopensApp();
 		Alert.alert(
 			'Neue Version bereit',
-			'Ein Update für die App ist geladen. Jetzt neu starten, um es zu übernehmen?',
+			reopens
+				? 'Ein Update für die App ist geladen. Jetzt neu starten, um es zu übernehmen?'
+				: 'Ein Update für die App ist geladen. Zum Übernehmen schliesst sich die App – danach bitte wieder öffnen.',
 			[
 				{ text: 'Später', style: 'cancel' },
 				{
-					text: 'Jetzt neu starten',
+					text: reopens ? 'Jetzt neu starten' : 'App schliessen',
 					onPress: () => {
 						restartForUpdate('hinweis').catch(() => {
 							Alert.alert(

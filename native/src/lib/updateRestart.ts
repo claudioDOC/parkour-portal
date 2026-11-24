@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as Updates from 'expo-updates';
 import { readToken, writeToken } from './tokenStore';
 import { report } from './report';
@@ -18,12 +19,37 @@ import { report } from './report';
  *     regulär entfernt.
  *  3. Erst dann neu starten.
  *
+ * Ab APK 1.11 ersetzt ein eigenes Modul (modules/app-restart) den ganzen
+ * Prozess, statt im laufenden neu zu laden — `reloadAsync()` beendete auf
+ * 1.10 die App nur. Ältere App-Dateien nehmen weiter `reloadAsync()`; der
+ * Hinweis sagt dann offen, dass man die App wieder öffnen muss.
+ *
  * Beim nächsten Start meldet `reportRestartOutcome()`, ob der Neustart
- * geklappt hat (restartCount > 0) oder die App zu war und von Hand
- * geöffnet wurde — samt Fehlern aus dem Protokoll von expo-updates.
+ * geklappt hat oder die App zu war und von Hand geöffnet wurde — samt
+ * Fehlern aus dem Protokoll von expo-updates.
  */
 
 const KEY = 'update-restart';
+
+type NativeRestart = { restart: () => boolean };
+
+/**
+ * Echter Neustart (APK ab 1.11, modules/app-restart): ersetzt den ganzen
+ * Prozess, statt im laufenden neu zu laden. Auf APK 1.10 beendet
+ * `reloadAsync()` die App nur — sie muss dann von Hand wieder geöffnet
+ * werden (nachgewiesen im expo-updates-Protokoll, 24.11.2026).
+ */
+function nativeRestart(): NativeRestart | null {
+	if (Platform.OS !== 'android') return null;
+	try {
+		return (require('../../modules/app-restart').default as NativeRestart | null) ?? null;
+	} catch {
+		return null;
+	}
+}
+
+/** Geht die App nach dem Neustart von selbst wieder auf? (iOS: reloadAsync, ab APK 1.11: ja) */
+export const restartReopensApp = (): boolean => Platform.OS !== 'android' || nativeRestart() !== null;
 
 let setCurtain: ((on: boolean) => void) | null = null;
 
@@ -39,18 +65,28 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
 
 export async function restartForUpdate(source: 'hinweis' | 'mehr'): Promise<void> {
 	const from = Updates.updateId ?? 'eingebaut';
+	const native = nativeRestart();
+	const method = native ? 'nativ' : 'reload';
 	try {
-		await writeToken(KEY, JSON.stringify({ at: Date.now(), from, source }));
+		await writeToken(KEY, JSON.stringify({ at: Date.now(), from, source, method }));
 	} catch {
 		/* ohne Vermerk nur ohne Auswertung */
 	}
 	// Die Meldung soll ankommen, bevor neu gestartet wird — aber nie bremsen.
-	await Promise.race([report('schritt', 'Neustart für Update angefordert', { quelle: source }), wait(1500)]);
+	await Promise.race([
+		report('schritt', 'Neustart für Update angefordert', { quelle: source, weg: method }),
+		wait(1500)
+	]);
 
 	setCurtain?.(true);
 	// Zwei, drei Bilder Zeit, damit React Karte & Co. wirklich abbaut.
 	await wait(400);
 	try {
+		if (native) {
+			// Ersetzt den Prozess — danach läuft hier nichts mehr.
+			native.restart();
+			return;
+		}
 		await Updates.reloadAsync();
 	} catch (e) {
 		setCurtain?.(false);
@@ -82,7 +118,7 @@ export async function reportRestartOutcome(restartCount: number): Promise<void> 
 	} catch {
 		/* egal */
 	}
-	let info: { at: number; from: string; source: string };
+	let info: { at: number; from: string; source: string; method?: 'nativ' | 'reload' };
 	try {
 		info = JSON.parse(raw);
 	} catch {
@@ -91,7 +127,11 @@ export async function reportRestartOutcome(restartCount: number): Promise<void> 
 	const ageMs = Date.now() - info.at;
 	if (!(ageMs >= 0) || ageMs > 6 * 3600_000) return;
 
-	const ok = restartCount > 0;
+	const jetzt = Updates.updateId ?? 'eingebaut';
+	// Neu geladen im selben Prozess (restartCount) oder — beim echten
+	// Neustart — frischer Prozess, kurz danach, mit der neuen Version.
+	const ok =
+		restartCount > 0 || (info.method === 'nativ' && jetzt !== info.from && ageMs < 60_000);
 	let fehler: string[] = [];
 	/** Ging es schief, der ganze Ablauf rund um den Neustart (alle Stufen). */
 	let ablauf: string[] = [];
@@ -117,8 +157,9 @@ export async function reportRestartOutcome(restartCount: number): Promise<void> 
 
 	void report(ok ? 'schritt' : 'error', ok ? 'Neustart für Update geklappt' : 'Neustart für Update: App war zu, von Hand neu geöffnet', {
 		quelle: info.source,
+		weg: info.method ?? 'reload',
 		vorher: info.from,
-		jetzt: Updates.updateId ?? 'eingebaut',
+		jetzt,
 		sekunden: Math.round(ageMs / 1000),
 		restartCount,
 		notstart: Updates.isEmergencyLaunch ? (Updates.emergencyLaunchReason ?? 'ja') : null,
