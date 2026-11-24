@@ -338,13 +338,13 @@ const makeStyles = (colors: ThemeColors) =>
 			backgroundColor: colors.fg + '12'
 		},
 		fill: { height: '100%', borderRadius: 999 },
-		/* Wie .zug-tick im Web: schmale dunkle Kerbe quer durch den Balken. */
+		/* Wie .zug-tick im Web: feine dunkle Kerbe quer durch den Balken. */
 		tick: {
 			position: 'absolute',
 			top: 0,
 			bottom: 0,
-			width: 2,
-			marginLeft: -1,
+			width: 1,
+			marginLeft: -0.5,
 			backgroundColor: 'rgba(0, 0, 0, 0.5)'
 		},
 		blurb: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 15.5 }
