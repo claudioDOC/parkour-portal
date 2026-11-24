@@ -12,10 +12,16 @@ import { onDataRefreshed } from './store';
  * freischalten.
  *
  * Optik wie im Web (.zug-screen-alarm in src/app.css): gleiche Farbe wie
- * der Katastrophe-Balken (#991b1b), aber zurückhaltend — 3-px-Rand plus
- * Schein nach innen in drei Lagen. Nur die Deckkraft atmet (0,4 → 1),
- * langsamer als der Balken: 2 s statt 1,2 s. Der Rand ist hier ein echter
- * Border, der Schein liegt innen daran an. Berührungen gehen durch.
+ * der Katastrophe-Balken (#991b1b), KEINE Linie — nur weicher Schein ohne
+ * Spread am Rand, der in drei Lagen nach innen ausläuft (Vignette).
+ *
+ * Puls: 3,2 s pro Atemzug, Deckkraft 0,3 → 1 → 0,3 als Sinus. Bewusst EINE
+ * lineare Animation 0 → 1 mit Sinus-Abbildung statt einer Folge
+ * hin/zurück: `Animated.loop` kann eine `Animated.sequence` nicht nativ
+ * wiederholen und startet sie jede Runde über JavaScript neu — ist JS
+ * gerade beschäftigt, stockt der Rahmen am Umkehrpunkt. Eine einzelne
+ * Animation läuft nativ endlos, ganz ohne JS.
+ * Berührungen gehen durch.
  *
  * Nachgefragt wird beim Start, bei jeder Rückkehr in die App, jede Minute
  * und sofort, wenn die Trainingsdaten frisch geladen wurden (An- oder
@@ -23,12 +29,18 @@ import { onDataRefreshed } from './store';
  */
 
 /** Katastrophe-Farbe des Balkens (#991b1b, LEVEL_COLOR in ZugkraftCard). */
-const RED = 'rgba(153, 27, 27, 0.85)';
 const GLOW: BoxShadowValue[] = [
-	{ offsetX: 0, offsetY: 0, blurRadius: 10, spreadDistance: 3, color: 'rgba(153, 27, 27, 0.55)', inset: true },
-	{ offsetX: 0, offsetY: 0, blurRadius: 24, spreadDistance: 8, color: 'rgba(153, 27, 27, 0.32)', inset: true },
-	{ offsetX: 0, offsetY: 0, blurRadius: 46, spreadDistance: 14, color: 'rgba(153, 27, 27, 0.14)', inset: true }
+	{ offsetX: 0, offsetY: 0, blurRadius: 26, spreadDistance: 0, color: 'rgba(153, 27, 27, 0.85)', inset: true },
+	{ offsetX: 0, offsetY: 0, blurRadius: 60, spreadDistance: 4, color: 'rgba(153, 27, 27, 0.36)', inset: true },
+	{ offsetX: 0, offsetY: 0, blurRadius: 110, spreadDistance: 10, color: 'rgba(153, 27, 27, 0.14)', inset: true }
 ];
+
+/** Ein Atemzug in ms. */
+const PERIOD = 3200;
+/** Sinus-Kurve als Stützstellen: t 0 → 1 ergibt Deckkraft 0,3 → 1 → 0,3. */
+const STEPS = 32;
+const SINE_IN = Array.from({ length: STEPS + 1 }, (_, i) => i / STEPS);
+const SINE_OUT = SINE_IN.map((t) => 0.3 + 0.7 * ((1 - Math.cos(2 * Math.PI * t)) / 2));
 
 export function ZugAlarmFrame() {
 	const [on, setOn] = useState(false);
@@ -74,26 +86,25 @@ export function ZugAlarmFrame() {
 
 function Pulse() {
 	const motion = getMotion();
-	const breath = useRef(new Animated.Value(0.85)).current;
+	const t = useRef(new Animated.Value(0)).current;
 
 	useEffect(() => {
-		if (!motion) {
-			breath.setValue(0.85);
-			return;
-		}
-		breath.setValue(0.4);
-		// 2 s pro Atemzug — ruhiger als der Alarm-Balken (1,2 s).
-		const step = (toValue: number) =>
-			Animated.timing(breath, {
-				toValue,
-				duration: 1000,
-				easing: Easing.inOut(Easing.sin),
+		if (!motion) return;
+		t.setValue(0);
+		// Einzelne Animation → läuft nativ endlos (siehe oben), kein Stocken.
+		const loop = Animated.loop(
+			Animated.timing(t, {
+				toValue: 1,
+				duration: PERIOD,
+				easing: Easing.linear,
 				useNativeDriver: true
-			});
-		const loop = Animated.loop(Animated.sequence([step(1), step(0.4)]));
+			})
+		);
 		loop.start();
 		return () => loop.stop();
-	}, [motion, breath]);
+	}, [motion, t]);
+
+	const opacity = motion ? t.interpolate({ inputRange: SINE_IN, outputRange: SINE_OUT }) : 0.85;
 
 	return (
 		<Animated.View
@@ -101,7 +112,7 @@ function Pulse() {
 			// Als Textur zwischenspeichern: Animiert wird nur die Deckkraft, der
 			// weiche Schein muss so nicht in jedem Bild neu gezeichnet werden.
 			renderToHardwareTextureAndroid
-			style={[StyleSheet.absoluteFill, styles.frame, { opacity: breath }]}
+			style={[StyleSheet.absoluteFill, styles.frame, { opacity }]}
 		/>
 	);
 }
@@ -109,8 +120,6 @@ function Pulse() {
 const styles = StyleSheet.create({
 	frame: {
 		zIndex: 1000,
-		borderWidth: 3,
-		borderColor: RED,
 		boxShadow: GLOW
 	}
 });
