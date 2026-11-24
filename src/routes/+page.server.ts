@@ -32,7 +32,7 @@ import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noSho
 import { nextTripSummary } from '$lib/server/tripDatePoll';
 import { lateMarkedUserIds } from '$lib/server/lateAbsence';
 import { zugkraftFor } from '$lib/server/zugkraft';
-import { placeholderCollage } from '$lib/server/spotPlaceholder';
+import { votingDeadlineFor } from '$lib/server/training';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const today = todayYmdInAppTZ();
@@ -221,6 +221,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			attending: attending.map((u) => ({ ...u, lateMarked: u.id > 0 && lateMarked.has(u.id) })),
 			guests,
 			userEffectivelyAbsent,
+			// Spot noch offen (nichts gesetzt, Voting läuft) — dann zeigt die
+			// Karte ohne Spot-Foto ein Fragezeichen statt einer leeren Fläche.
+			spotOpen: !session.overrideSpotId && Date.now() <= votingDeadlineFor(session).getTime(),
 			topVote: effectiveVote
 				? {
 						...effectiveVote,
@@ -325,9 +328,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		trainingForecast,
 		topSpots,
 		myStreak,
-		// Leiser Hintergrund der nächsten Trainingskarte, solange noch kein
-		// Spot mit Foto vorne liegt (siehe spotPlaceholder.ts).
-		placeholderCollage: placeholderCollage(today),
 		calendarToday: today
 	};
 };

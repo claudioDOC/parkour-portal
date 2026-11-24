@@ -61,6 +61,47 @@ function fadeStyle(card: string) {
 	return { experimental_backgroundImage: gradient, backgroundImage: gradient } as ViewStyle;
 }
 
+/**
+ * Spot noch offen und ohne Foto: ein grosses, leises Fragezeichen hinter der
+ * nächsten Trainingskarte statt leerer Fläche — bewusst kein fremdes
+ * Spot-Foto, das sähe aus, als stünde der Spot schon fest. Gleiche Form wie
+ * im Web (src/routes/+page.svelte, `.spot-open`): Teko 600, 150 % der
+ * Kartenhöhe, rechts, 10° gedreht, 9 % Deckkraft.
+ */
+function SpotOpenMark({ color }: { color: string }) {
+	const [h, setH] = useState(0);
+	const size = h * 1.5;
+	// Grosszügige Zeilenhöhe, damit Android den Glyphen oben nicht abschneidet;
+	// der Versatz gleicht sie aus (Mitte wie im Web bei Zeilenhöhe 1).
+	const line = size * 1.4;
+	return (
+		<View
+			style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}
+			pointerEvents="none"
+			onLayout={(e) => setH(e.nativeEvent.layout.height)}
+		>
+			{h > 0 ? (
+				<Text
+					style={{
+						position: 'absolute',
+						right: '4%',
+						top: h / 2 - size * 0.44 - (line - size) / 2,
+						fontFamily: fonts.display,
+						fontSize: size,
+						lineHeight: line,
+						color,
+						opacity: 0.09,
+						includeFontPadding: false,
+						transform: [{ rotate: '10deg' }]
+					}}
+				>
+					?
+				</Text>
+			) : null}
+		</View>
+	);
+}
+
 /** „Heute", „Morgen", sonst „in N Tagen" — wie auf der Website. */
 function countdownLabel(dateStr: string, calendarToday: string): string {
 	const target = new Date(dateStr + 'T00:00:00').getTime();
@@ -164,7 +205,6 @@ export default function Dashboard() {
 	const isAdmin = me?.role === 'admin';
 
 	const data = training.data;
-	const placeholderUri = mediaUrl(data?.placeholderCollage?.square);
 	const myStreak =
 		stats.data?.stats.leaderboard.find((r) => r.userId === me?.id)?.streakNoAbsence ?? 0;
 	const optIn = data?.viewerTrainingAttendance === 'opt_in';
@@ -406,16 +446,12 @@ export default function Dashboard() {
 						    meistgewählten Spots liegt sehr leise hinter der Karte.
 						    Gleichmässig statt mit Abdunklung unten — eine harte
 						    Kante mitten in der Karte fällt mehr auf als das Bild.
-						    Liegt noch kein Spot mit Foto vorne (keine Stimmen, oder
-						    der Spot hat keins), zeigen drei oft besuchte Spots —
-						    schwarz-weiss und weich überblendet, vom Server als ein
-						    Bild gerechnet —, dass hier bald einer steht. Wie im Web. */}
-						{sessionIndex === 0 && !s.cancelled && (s.spotThumbnail || placeholderUri) ? (
+						    Ist der Spot noch offen und liegt keiner mit Foto vorne,
+						    steht dort ein Fragezeichen (wie im Web). */}
+						{sessionIndex === 0 && !s.cancelled && s.spotThumbnail ? (
 							<View style={StyleSheet.absoluteFill} pointerEvents="none">
 								<Image
-									source={{
-										uri: (s.spotThumbnail ? mediaUrl(s.spotThumbnail, 960) : placeholderUri) ?? undefined
-									}}
+									source={{ uri: mediaUrl(s.spotThumbnail, 960) ?? undefined }}
 									style={[StyleSheet.absoluteFill, { opacity: 0.3 }]}
 									contentFit="cover"
 									transition={250}
@@ -425,6 +461,8 @@ export default function Dashboard() {
 								    und Knöpfe. */}
 								<View style={[StyleSheet.absoluteFill, fadeStyle(colors.card)]} />
 							</View>
+						) : sessionIndex === 0 && !s.cancelled && !s.overrideSpot && !s.votingClosed ? (
+							<SpotOpenMark color={colors.fg} />
 						) : null}
 						{sessionIndex === 0 ? (
 							<View style={styles.band}>

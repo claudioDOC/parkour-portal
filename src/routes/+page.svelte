@@ -163,21 +163,13 @@
 								<div class="absolute inset-0 bg-gradient-to-r from-bg-card via-bg-card/85 to-bg-card/40"></div>
 								<div class="absolute inset-0 bg-gradient-to-t from-bg-card via-transparent to-transparent"></div>
 							</div>
-						{:else if data.placeholderCollage && !session.cancelled}
-							<!-- Noch kein Spot mit Foto vorne (keine Stimmen, oder der Spot
-							     hat keins): drei oft besuchte Spots, schwarz-weiss und
-							     ineinander überblendet. Verlauf von oben nach unten wie in
-							     der App, damit alle drei sichtbar bleiben. -->
-							<div class="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
-								<picture class="block h-full w-full">
-									<source media="(min-width: 640px)" srcset={data.placeholderCollage.wide} />
-									<img
-										src={data.placeholderCollage.square}
-										alt=""
-										class="h-full w-full object-cover opacity-30"
-									/>
-								</picture>
-								<div class="placeholder-fade absolute inset-0"></div>
+						{:else if session.spotOpen && !session.cancelled}
+							<!-- Spot noch offen und (noch) ohne Foto: ein grosses, leises
+							     Fragezeichen statt leerer Fläche. Bewusst kein fremdes
+							     Spot-Foto — das sähe aus, als stünde der Spot schon fest.
+							     Gleiche Form wie in der App (Teko 600, gedreht). -->
+							<div class="spot-open pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+								<span class="font-display">?</span>
 							</div>
 						{/if}
 						<div
@@ -358,15 +350,20 @@
 </div>
 
 <style>
-	/* Wie fadeStyle() in der App: oben sieht man die Spots, unten geht das
-	   Bild in die Kartenfläche über — dort stehen Namen und Knöpfe. */
-	.placeholder-fade {
-		background: linear-gradient(
-			to bottom,
-			transparent 0%,
-			color-mix(in srgb, var(--color-bg-card) 25%, transparent) 20%,
-			color-mix(in srgb, var(--color-bg-card) 85%, transparent) 52%,
-			var(--color-bg-card) 78%
-		);
+	/* Grösse relativ zur Kartenhöhe (Container-Einheiten), damit das
+	   Fragezeichen auf dem Handy wie am breiten Bildschirm ganz drin steht. */
+	.spot-open {
+		container-type: size;
+	}
+	.spot-open span {
+		position: absolute;
+		right: 4%;
+		top: 50%;
+		font-size: 150cqh;
+		font-weight: 600;
+		line-height: 1;
+		color: var(--color-text-primary);
+		opacity: 0.09;
+		transform: translateY(-44%) rotate(10deg);
 	}
 </style>
