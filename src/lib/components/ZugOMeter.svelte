@@ -6,9 +6,11 @@
 	 * ist der Balken ganz voll und grün, und grünes Feuer lodert aus ihm; bei
 	 * den zwei schlechtesten Stufen pulsiert er als Alarm.
 	 *
-	 * Eine Zeile auch auf schmalen Handys: Die Kopfzeile ist ein Container und
-	 * ihre Schrift skaliert mit dessen Breite (cqi), höchstens 14 px — so
-	 * passt auch „🔥🔥🔥 Grossartig · Maximaler Zug!!!" neben den Titel.
+	 * Eine Zeile auch auf schmalen Handys, und trotzdem so gross wie möglich:
+	 * Die Kopfzeile ist ein Container, ihre Schrift füllt dessen Breite (cqi)
+	 * je nach Länge der aktuellen Zeile (lineEm unten), höchstens 17 px wie in
+	 * der App. Kurze Stufen wie „💀 Katastrophe · Zugausfall!" werden darum
+	 * grösser als „🔥🔥🔥 Grossartig · Maximaler Zug!!!".
 	 *
 	 * Startseite und Admin-Vorschau nutzen dieselbe Komponente.
 	 */
@@ -40,6 +42,19 @@
 	const fire = $derived(z.level.key === 'grossartig');
 	const fx = $derived(fire ? 'zug-fire' : z.level.intensity === 2 ? 'zug-alarm' : 'zug-steady');
 	const width = $derived(Math.max(z.fill ?? z.percent, 3));
+
+	/**
+	 * Breite der ganzen Kopfzeile in em der Grundschrift, geschätzt aus der
+	 * Zeichenzahl (in Plus Jakarta Sans gemessen): Titel 7,4 em, je Emoji
+	 * 1,25 em, sonst 0,445 em je Zeichen — das liegt bei allen Stufen 0–5 %
+	 * über der echten Breite. Dazu 3 % Reserve für andere Emoji-Schriften.
+	 * Passt es doch einmal nicht, kürzt die Ellipse den Spruch.
+	 */
+	const lineEm = $derived.by(() => {
+		const emojis = z.level.emoji.match(/\p{Extended_Pictographic}/gu)?.length ?? 0;
+		const chars = [...` ${z.level.label} · ${z.level.blurb}`].length;
+		return Math.round((7.4 + emojis * 1.25 + chars * 0.445) * 1.03 * 100) / 100;
+	});
 	/** Vorlesetext: Spruch behält sein „?" bzw. „!", ein Punkt kommt nur dazu, wenn keiner da ist. */
 	const spoken = $derived(
 		`Zug-O-Meter: ${z.level.label} — ${z.level.blurb}${/[.!?]$/.test(z.level.blurb) ? '' : '.'}`
@@ -76,7 +91,7 @@
 </script>
 
 {#snippet body()}
-	<div class="zug-head flex items-baseline gap-2 whitespace-nowrap">
+	<div class="zug-head flex items-baseline gap-2 whitespace-nowrap" style="--zug-em: {lineEm}">
 		<span class="shrink-0 font-semibold uppercase tracking-[0.18em] text-text-muted" style="font-size: 0.79em">
 			Zug-O-Meter
 		</span>
@@ -123,8 +138,9 @@
 	.zug-box {
 		container-type: inline-size;
 	}
-	/* 3.7 % der Breite ≈ die längste Zeile passt noch; nie grösser als 14 px. */
+	/* Zeile füllt die Breite (abzüglich Lücke zwischen Titel und Stand), nie
+	   grösser als 17 px. */
 	.zug-head {
-		font-size: min(0.875rem, 3.7cqi);
+		font-size: min(1.0625rem, calc((100cqi - 0.5rem) / var(--zug-em, 26)));
 	}
 </style>
