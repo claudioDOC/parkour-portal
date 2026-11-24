@@ -18,6 +18,7 @@ import {
 	canSelfInstall
 } from '../../lib/apkUpdate';
 import { useAuth } from '../_layout';
+import { restartForUpdate } from '../../lib/updateRestart';
 
 /**
  * Bewusst kurz gehalten. Nicht mehr hier:
@@ -155,7 +156,13 @@ export default function More() {
 		}
 
 		if (contentUpdated) {
-			await Updates.reloadAsync();
+			// Gleicher Weg wie beim Hinweis: erst alles abbauen, dann neu starten.
+			await restartForUpdate('mehr').catch(() => {
+				Alert.alert(
+					'Neustart hat nicht geklappt',
+					'Die neue Version ist schon geladen. Bitte die App ganz schliessen und wieder öffnen.'
+				);
+			});
 			return;
 		}
 		Alert.alert('Aktuell', 'Du hast bereits die neueste Version.');

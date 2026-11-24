@@ -45,6 +45,7 @@ import { DecisionGate } from '../lib/DecisionGate';
 import { PenaltyGate } from '../lib/PenaltyGate';
 import { ActivityProvider } from '../lib/activity';
 import { Splash } from '../lib/Splash';
+import { registerRestartCurtain, reportRestartOutcome, restartForUpdate } from '../lib/updateRestart';
 
 /**
  * Auth-Kontext: hält den eingeloggten User. Beim Start wird das gespeicherte
@@ -83,10 +84,19 @@ export const useAuth = () => useContext(AuthContext);
  * Der Hinweis wartet, bis der Startbildschirm weg ist (`ready`).
  */
 function useSelfHostedUpdates(ready: boolean): void {
-	const { isUpdatePending } = Updates.useUpdates();
+	const { isUpdatePending, restartCount } = Updates.useUpdates();
 	// Zählt jede Rückkehr in den Vordergrund — damit nach „Später" erneut gefragt wird.
 	const [foregrounds, setForegrounds] = useState(0);
 	const askedFor = useRef(-1);
+
+	// Einmal je Start: Kam die App aus „Jetzt neu starten"? Dann melden, ob
+	// der Neustart geklappt hat (siehe lib/updateRestart.ts).
+	const outcomeReported = useRef(false);
+	useEffect(() => {
+		if (__DEV__ || outcomeReported.current) return;
+		outcomeReported.current = true;
+		void reportRestartOutcome(restartCount);
+	}, [restartCount]);
 
 	useEffect(() => {
 		if (__DEV__) return;
@@ -126,7 +136,12 @@ function useSelfHostedUpdates(ready: boolean): void {
 				{
 					text: 'Jetzt neu starten',
 					onPress: () => {
-						void Updates.reloadAsync().catch(() => undefined);
+						restartForUpdate('hinweis').catch(() => {
+							Alert.alert(
+								'Neustart hat nicht geklappt',
+								'Die neue Version ist schon geladen. Bitte die App ganz schliessen und wieder öffnen.'
+							);
+						});
 					}
 				}
 			],
@@ -196,6 +211,12 @@ export default function RootLayout() {
 	const [pendingLink, setPendingLink] = useState<string | null>(null);
 	/** Fortschritt der APK-Installation in Prozent; null = läuft nicht. */
 	const [installing, setInstalling] = useState<number | null>(null);
+	/**
+	 * Neustart für ein Update läuft: Alles wird abgebaut (Karte, Video,
+	 * Webansicht), bevor die App neu startet — siehe lib/updateRestart.ts.
+	 */
+	const [restarting, setRestarting] = useState(false);
+	useEffect(() => registerRestartCurtain(setRestarting), []);
 	// Theme folgt dem Profil (uiTheme), wie data-theme auf der Website.
 	const [themeId, setThemeId] = useState<UiThemeId>(DEFAULT_THEME);
 	useEffect(() => {
@@ -411,6 +432,23 @@ export default function RootLayout() {
 		clearDataCache();
 		setMe(null);
 	};
+
+	if (restarting) {
+		return (
+			<View
+				style={{
+					flex: 1,
+					backgroundColor: colors.bg,
+					alignItems: 'center',
+					justifyContent: 'center',
+					gap: 14
+				}}
+			>
+				<ActivityIndicator color={colors.accent} />
+				<Text style={{ color: colors.fg, fontSize: 15 }}>Neue Version wird gestartet …</Text>
+			</View>
+		);
+	}
 
 	// Startanimation läuft, während Token und Schriften geladen werden.
 	// Die Animation läuft IMMER — sie darf nie an einer Bedingung hängen.
