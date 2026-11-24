@@ -198,6 +198,12 @@ function addDays(ymd: string, days: number): string {
 /**
  * Stufe aus dem Schnitt der Köpfe (Grenzen in LEVEL_MIN). Ist die Gruppe
  * klein und sind trotzdem alle da, gilt das immer als grossartig.
+ *
+ * Die Sprüche der schwachen Stufen rufen zum Mitmachen auf, statt den
+ * Stand zu beklagen (bis 24.11.2026: „Wo ist der Zug?", „Der Zug steht
+ * still.", „Zugausfall!") — sie sollen Lust machen, dabei zu sein. Kurz
+ * halten: Die Kopfzeile ist einzeilig, lange Sprüche machen die Schrift
+ * kleiner.
  */
 function levelFor(avg: number, members: number): ZugkraftLevel {
 	const alleDa = members > 0 && avg >= members - 0.25;
@@ -230,7 +236,7 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			key: 'ok',
 			label: 'Geht so',
 			emoji: '😬',
-			blurb: 'Wo ist der Zug?',
+			blurb: 'Da geht noch mehr!',
 			intensity: 0
 		};
 	if (avg >= LEVEL_MIN.schwach)
@@ -238,14 +244,14 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 			key: 'schwach',
 			label: 'Sehr schwach',
 			emoji: '😭',
-			blurb: 'Der Zug steht still.',
+			blurb: 'Komm, steig ein!',
 			intensity: 2
 		};
 	return {
 		key: 'katastrophe',
 		label: 'Katastrophe',
 		emoji: '💀',
-		blurb: 'Zugausfall!',
+		blurb: 'Der Zug braucht dich!',
 		intensity: 2
 	};
 }
