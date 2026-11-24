@@ -2,6 +2,7 @@ import type { LayoutServerLoad } from './$types';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
+import { zugAlarmFor } from '$lib/server/zugkraft';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	// Avatar separat nachladen — steckt nicht im Session-JWT.
@@ -19,6 +20,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		}
 	}
 	return {
-		user: locals.user ? { ...locals.user, avatar } : null
+		user: locals.user ? { ...locals.user, avatar } : null,
+		// Roter Rahmen um den ganzen Bildschirm bei „Katastrophe" (jede Seite).
+		// Läuft bei jeder Live-Änderung (invalidateAll) neu mit.
+		zugAlarm: zugAlarmFor(locals.user)
 	};
 };

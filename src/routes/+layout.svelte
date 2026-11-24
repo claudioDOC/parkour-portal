@@ -532,5 +532,11 @@ let mobileMoreOpen = $state(false);
 		<PenaltyGate />
 		<PwaInstallBanner />
 		<PushOnboarding />
+
+		{#if data.zugAlarm}
+			<!-- Zug-O-Meter auf „Katastrophe": roter Rahmen pulsiert um den
+			     ganzen Bildschirm, egal auf welcher Seite. Klicks gehen durch. -->
+			<div class="zug-screen-alarm" aria-hidden="true"></div>
+		{/if}
 	</div>
 {/if}

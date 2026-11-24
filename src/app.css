@@ -512,20 +512,42 @@ header a,
 	animation: zug-emoji 1.6s ease-in-out infinite;
 	display: inline-block;
 }
+/* Bildschirm-Alarm bei „Katastrophe": roter Rahmen um den ganzen Bildschirm,
+   auf jeder Seite (Root-Layout). Ein scharfer 4-px-Rand plus Schein nach
+   innen, in Lagen auslaufend wie beim Balken — knapp gehalten, damit er
+   auch auf hellen Farbschemen rot wirkt statt rosa-neblig. Nichts ragt
+   über den Bildschirm hinaus. Animiert wird nur die Deckkraft — derselbe Takt wie der
+   Alarm-Balken, so pulsieren beide zusammen. Klicks gehen durch.
+   Gleiche Werte in der App (native/src/lib/ZugAlarmFrame.tsx). */
+.zug-screen-alarm {
+	position: fixed;
+	inset: 0;
+	z-index: 200;
+	pointer-events: none;
+	box-shadow:
+		inset 0 0 0 4px rgb(239, 68, 68),
+		inset 0 0 10px 4px rgba(239, 68, 68, 0.8),
+		inset 0 0 26px 9px rgba(220, 38, 38, 0.45),
+		inset 0 0 50px 16px rgba(185, 28, 28, 0.18);
+	opacity: 0.85;
+	animation: zug-breathe 1.2s ease-in-out infinite;
+}
 /* Bewegung aus: wirklich anhalten statt (wie die globale Regel oben) bloss
    auf 0,001 s zu beschleunigen — sonst friert der Schein auf einer
    zufälligen Phase ein. Der ruhige Schein (opacity 0.85) bleibt sichtbar. */
 html[data-motion='aus'] .zug-fill,
 html[data-motion='aus'] .zug-fill::after,
 html[data-motion='aus'] .zug-flames span,
-html[data-motion='aus'] .zug-emoji {
+html[data-motion='aus'] .zug-emoji,
+html[data-motion='aus'] .zug-screen-alarm {
 	animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
 	.zug-fill,
 	.zug-fill::after,
 	.zug-flames span,
-	.zug-emoji {
+	.zug-emoji,
+	.zug-screen-alarm {
 		animation: none !important;
 	}
 }

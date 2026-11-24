@@ -69,6 +69,22 @@ export function zugkraftFor(
 }
 
 /**
+ * Bildschirm-Alarm: Bei „Katastrophe" pulsiert ein roter Rahmen um den
+ * ganzen Bildschirm — auf jeder Seite, in App und Web, nicht nur beim
+ * Zug-O-Meter. true = Probelauf, nur Admins sehen ihn (seit 24.11.2026).
+ */
+export const ZUG_ALARM_ADMIN_ONLY = true;
+
+/** Soll diese Person gerade den roten Rahmen sehen? Nie, wenn die Rechnung scheitert. */
+export function zugAlarmFor(
+	user: { role?: string | null; trainingAttendance?: string | null } | null | undefined
+): boolean {
+	if (!user) return false;
+	if (ZUG_ALARM_ADMIN_ONLY && user.role !== 'admin') return false;
+	return zugkraftFor(user)?.level.key === 'katastrophe';
+}
+
+/**
  * Stufen nach dem Schnitt der Köpfe pro Training — angesetzt an der echten
  * Gruppe, nicht an der Theorie: In 45 Trainings (Juni–Nov. 2026) waren nie
  * alle sechs da, fünf nur viermal, der Schnitt liegt bei gut drei. Über drei
