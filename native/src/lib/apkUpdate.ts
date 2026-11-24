@@ -58,6 +58,22 @@ export async function checkApkUpdate(baseUrl: string): Promise<ApkInfo | null> {
 }
 
 /**
+ * Muss ein geladenes JS-Update übernommen werden (Hinweis ohne „Später")?
+ * Server-Schalter `otaPflicht` in /api/v1/app-version
+ * (OTA_UPDATE_PFLICHT in src/lib/appVersion.ts). Im Zweifel nein.
+ */
+export async function otaUpdateIsMandatory(baseUrl: string): Promise<boolean> {
+	try {
+		const res = await fetch(`${baseUrl}/api/v1/app-version`);
+		if (!res.ok) return false;
+		const info = (await res.json()) as { otaPflicht?: boolean };
+		return info.otaPflicht === true;
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Lädt die APK und startet Androids Installationsdialog.
  * Beim ersten Mal fragt Android einmalig nach der Erlaubnis, Apps aus
  * dieser App zu installieren — danach nie wieder.

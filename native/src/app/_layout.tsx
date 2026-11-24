@@ -24,6 +24,7 @@ import { getMe, getToken, logout, type Me } from '../lib/api';
 import { loadPrefs, getStartTab } from '../lib/prefs';
 import {
 	checkApkUpdate,
+	otaUpdateIsMandatory,
 	downloadAndInstallApk,
 	openInstallPermissionSettings,
 	canSelfInstall
@@ -89,6 +90,9 @@ export const useAuth = () => useContext(AuthContext);
  * sodass ein Hinweis praktisch nie zu sehen war.
  *
  * „Später" fragt bei der nächsten Rückkehr in den Vordergrund wieder.
+ * Steht auf dem Server der Schalter Pflicht-Update (`otaPflicht` in
+ * /api/v1/app-version), gibt es kein „Später": Der Hinweis lässt sich nicht
+ * wegklicken, nur neu starten.
  * Der Hinweis wartet, bis der Startbildschirm weg ist (`ready`).
  */
 function useSelfHostedUpdates(ready: boolean): void {
@@ -105,6 +109,8 @@ function useSelfHostedUpdates(ready: boolean): void {
 	// Zählt jede Rückkehr in den Vordergrund — damit nach „Später" erneut gefragt wird.
 	const [foregrounds, setForegrounds] = useState(0);
 	const askedFor = useRef(-1);
+	/** Ein Pflicht-Hinweis ist offen — nicht noch einen darüberlegen. */
+	const mandatoryOpen = useRef(false);
 
 	// Einmal je Start: Kam die App aus „Jetzt neu starten"? Dann melden, ob
 	// der Neustart geklappt hat (siehe lib/updateRestart.ts).
@@ -142,33 +148,46 @@ function useSelfHostedUpdates(ready: boolean): void {
 
 	useEffect(() => {
 		if (__DEV__ || !ready || !pendingIsNew) return;
-		// Pro Vordergrund-Phase höchstens einmal fragen.
-		if (askedFor.current === foregrounds) return;
+		// Pro Vordergrund-Phase höchstens einmal fragen — und nie, solange ein
+		// Pflicht-Hinweis offen ist (der lässt sich nicht wegklicken).
+		if (askedFor.current === foregrounds || mandatoryOpen.current) return;
 		askedFor.current = foregrounds;
-		// APK 1.10 kann nicht von selbst wieder aufgehen — dann ehrlich sagen,
-		// dass man die App danach wieder öffnen muss.
-		const reopens = restartReopensApp();
-		Alert.alert(
-			'Neue Version bereit',
-			reopens
-				? 'Ein Update für die App ist geladen. Jetzt neu starten, um es zu übernehmen?'
-				: 'Ein Update für die App ist geladen. Zum Übernehmen schliesst sich die App – danach bitte wieder öffnen.',
-			[
-				{ text: 'Später', style: 'cancel' },
-				{
-					text: reopens ? 'Jetzt neu starten' : 'App schliessen',
-					onPress: () => {
-						restartForUpdate('hinweis').catch(() => {
-							Alert.alert(
-								'Neustart hat nicht geklappt',
-								'Die neue Version ist schon geladen. Bitte die App ganz schliessen und wieder öffnen.'
-							);
-						});
-					}
+		let cancelled = false;
+		void otaUpdateIsMandatory(BASE_URL || 'https://matetraining.duckdns.org').then((pflicht) => {
+			if (cancelled) return;
+			// APK 1.10 kann nicht von selbst wieder aufgehen — dann ehrlich sagen,
+			// dass man die App danach wieder öffnen muss.
+			const reopens = restartReopensApp();
+			if (pflicht) mandatoryOpen.current = true;
+			const restart = {
+				text: reopens ? 'Jetzt neu starten' : 'App schliessen',
+				onPress: () => {
+					restartForUpdate('hinweis').catch(() => {
+						mandatoryOpen.current = false;
+						Alert.alert(
+							'Neustart hat nicht geklappt',
+							'Die neue Version ist schon geladen. Bitte die App ganz schliessen und wieder öffnen.'
+						);
+					});
 				}
-			],
-			{ cancelable: true }
-		);
+			};
+			// Pflicht-Update (Server-Schalter): kein „Später", nicht wegklickbar.
+			Alert.alert(
+				'Neue Version bereit',
+				pflicht
+					? reopens
+						? 'Ein Update für die App ist geladen und muss übernommen werden. Die App startet dafür kurz neu.'
+						: 'Ein Update für die App ist geladen und muss übernommen werden. Dafür schliesst sich die App – danach bitte wieder öffnen.'
+					: reopens
+						? 'Ein Update für die App ist geladen. Jetzt neu starten, um es zu übernehmen?'
+						: 'Ein Update für die App ist geladen. Zum Übernehmen schliesst sich die App – danach bitte wieder öffnen.',
+				pflicht ? [restart] : [{ text: 'Später', style: 'cancel' }, restart],
+				{ cancelable: !pflicht }
+			);
+		});
+		return () => {
+			cancelled = true;
+		};
 	}, [ready, pendingIsNew, foregrounds]);
 }
 
