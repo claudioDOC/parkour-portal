@@ -103,11 +103,15 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
 			}
 
 			// Verkleinerte Fassung, falls angefragt und die Breite erlaubt ist.
+			// `gray=1` liefert sie schwarz-weiss (Platzhalter der Trainingskarte) —
+			// fertig vom Server, weil der Graufilter in der App nicht auf jedem
+			// Handy greift.
 			const wanted = Number(url.searchParams.get('w') ?? '');
 			if (THUMB_SET.has(wanted) && THUMB_SOURCE.has(ext)) {
 				const name = segments[0];
+				const gray = url.searchParams.get('gray') === '1';
 				const cacheDir = join(baseResolved, THUMB_DIR);
-				const cachedFile = thumbPath(baseResolved, wanted, name);
+				const cachedFile = thumbPath(baseResolved, wanted, name, gray);
 				const cachedBuf = thumbnail(filepath, cachedFile);
 				if (cachedBuf) {
 					return new Response(new Uint8Array(cachedBuf), {
@@ -119,11 +123,11 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
 					});
 				}
 				try {
-					const small = await sharp(filepath)
+					let pipeline = sharp(filepath)
 						.rotate()
-						.resize({ width: wanted, withoutEnlargement: true })
-						.webp({ quality: 80 })
-						.toBuffer();
+						.resize({ width: wanted, withoutEnlargement: true });
+					if (gray) pipeline = pipeline.grayscale();
+					const small = await pipeline.webp({ quality: 80 }).toBuffer();
 					try {
 						mkdirSync(cacheDir, { recursive: true });
 						writeFileSync(cachedFile, small);

@@ -34,9 +34,12 @@ export function isServedUploadName(name: string): boolean {
 	return SERVED_NAME.test(name);
 }
 
-/** Pfad einer zwischengespeicherten Vorschau. */
-export function thumbPath(dir: string, width: number, filename: string): string {
-	return join(dir, THUMB_DIR, `${width}-${filename}.webp`);
+/**
+ * Pfad einer zwischengespeicherten Vorschau. `gray` ist die Schwarz-Weiss-
+ * Fassung (`?w=…&gray=1`) — der Platzhalter der nächsten Trainingskarte.
+ */
+export function thumbPath(dir: string, width: number, filename: string, gray = false): string {
+	return join(dir, THUMB_DIR, `${width}${gray ? 'g' : ''}-${filename}.webp`);
 }
 
 /**
@@ -47,7 +50,10 @@ export function thumbPath(dir: string, width: number, filename: string): string 
 export function removeUploadFile(filename: string | null | undefined): void {
 	if (!filename || !isServedUploadName(filename)) return;
 	for (const dir of getUploadReadDirs()) {
-		const targets = [join(dir, filename), ...THUMB_WIDTHS.map((w) => thumbPath(dir, w, filename))];
+		const targets = [
+			join(dir, filename),
+			...THUMB_WIDTHS.flatMap((w) => [thumbPath(dir, w, filename), thumbPath(dir, w, filename, true)])
+		];
 		for (const p of targets) {
 			try {
 				if (existsSync(p)) unlinkSync(p);
