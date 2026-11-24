@@ -71,9 +71,10 @@ export function zugkraftFor(
 /**
  * Bildschirm-Alarm: Bei „Katastrophe" pulsiert ein roter Rahmen um den
  * ganzen Bildschirm — auf jeder Seite, in App und Web, nicht nur beim
- * Zug-O-Meter. true = Probelauf, nur Admins sehen ihn (seit 24.11.2026).
+ * Zug-O-Meter. true = Probelauf, nur Admins sehen ihn. Seit 24.11.2026 für
+ * alle, die das Zug-O-Meter sehen (zugkraftVisibleTo).
  */
-export const ZUG_ALARM_ADMIN_ONLY = true;
+export const ZUG_ALARM_ADMIN_ONLY = false;
 
 /** Soll diese Person gerade den roten Rahmen sehen? Nie, wenn die Rechnung scheitert. */
 export function zugAlarmFor(
