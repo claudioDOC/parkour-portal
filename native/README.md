@@ -192,7 +192,11 @@ src/app/map.tsx        exportiert <SpotsMap/> — im Spots-Tab als zweite
 src/app/               trips, challenge/[id], spot/[id], spot-new, profile,
                        activity (hängt an der Glocke), settings, admin, login
 src/lib/api.ts         kompletter API-Client (Bearer-JWT, Upload-Feld „image")
-src/lib/store.ts       useData(key, fetcher): Cache + Refresh bei Fokus
+src/lib/store.ts       useData(key, fetcher): Cache + Refresh bei Fokus;
+                       onDataRefreshed(fn) meldet jedes frische Laden
+src/lib/ZugAlarmFrame.tsx  roter Bildschirmrahmen bei Zug-O-Meter
+                       „Katastrophe" (über allem im Root-Layout; Server
+                       entscheidet per /api/v1/zug-alarm, wer ihn sieht)
 src/lib/theme.ts       alle 8 Portal-Themes; Textfarben über fg + textAlpha
 src/lib/NativeMap.tsx  MapLibre-Karte (Exports: Map, Marker[lngLat], Camera)
 src/lib/nativeModules.ts  vorsichtige Modul-Erkennung (siehe oben)
