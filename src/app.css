@@ -359,14 +359,14 @@ header a,
 	border-radius: 999px;
 	transition: width 0.7s ease;
 }
-/* Stufengrenzen (ZugOMeter.svelte): schmale dunkle Kerben quer durch den
+/* Stufengrenzen (ZugOMeter.svelte): feine dunkle Kerben quer durch den
    Balken — auf der Füllung wie auf der leeren Spur sichtbar. */
 .zug-tick {
 	position: absolute;
 	top: 0;
 	bottom: 0;
-	width: 2px;
-	margin-left: -1px;
+	width: 1px;
+	margin-left: -0.5px;
 	background-color: rgba(0, 0, 0, 0.5);
 	pointer-events: none;
 }

@@ -9,7 +9,7 @@
 	 * Eine Zeile auch auf schmalen Handys, und trotzdem so gross wie möglich:
 	 * Die Kopfzeile ist ein Container, ihre Schrift füllt dessen Breite (cqi)
 	 * je nach Länge der aktuellen Zeile (lineEm unten), höchstens 17 px wie in
-	 * der App. Kurze Stufen wie „💀 Katastrophe · Zugausfall!" werden darum
+	 * der App. Kurze Stufen wie „😬 Geht so · Da geht noch mehr!" werden darum
 	 * grösser als „🔥🔥🔥 Grossartig · Maximaler Zug!!!".
 	 *
 	 * Startseite und Admin-Vorschau nutzen dieselbe Komponente.
@@ -46,14 +46,14 @@
 	/**
 	 * Breite der ganzen Kopfzeile in em der Grundschrift, geschätzt aus der
 	 * Zeichenzahl (in Plus Jakarta Sans gemessen): Titel 7,4 em, je Emoji
-	 * 1,25 em, sonst 0,445 em je Zeichen — das liegt bei allen Stufen 0–5 %
-	 * über der echten Breite. Dazu 3 % Reserve für andere Emoji-Schriften.
-	 * Passt es doch einmal nicht, kürzt die Ellipse den Spruch.
+	 * 1,25 em, sonst 0,46 em je Zeichen. Dazu 5 % Reserve — breite
+	 * Buchstaben (m, w) und kleine Schrift auf 320-px-Handys laufen sonst
+	 * über. Passt es doch einmal nicht, kürzt die Ellipse den Spruch.
 	 */
 	const lineEm = $derived.by(() => {
 		const emojis = z.level.emoji.match(/\p{Extended_Pictographic}/gu)?.length ?? 0;
 		const chars = [...` ${z.level.label} · ${z.level.blurb}`].length;
-		return Math.round((7.4 + emojis * 1.25 + chars * 0.445) * 1.03 * 100) / 100;
+		return Math.round((7.4 + emojis * 1.25 + chars * 0.46) * 1.05 * 100) / 100;
 	});
 	/** Vorlesetext: Spruch behält sein „?" bzw. „!", ein Punkt kommt nur dazu, wenn keiner da ist. */
 	const spoken = $derived(
