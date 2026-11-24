@@ -69,8 +69,7 @@ export function zugkraftFor(
 }
 
 /**
- * Bildschirm-Alarm: Auf der untersten Stufe (Schlüssel katastrophe,
- * angezeigt als „⏰ Weckruf") pulsiert ein roter Rahmen um den
+ * Bildschirm-Alarm: Bei „Katastrophe" pulsiert ein roter Rahmen um den
  * ganzen Bildschirm — auf jeder Seite, in App und Web, nicht nur beim
  * Zug-O-Meter. true = Probelauf, nur Admins sehen ihn. Seit 24.11.2026 für
  * alle, die das Zug-O-Meter sehen (zugkraftVisibleTo).
@@ -95,8 +94,8 @@ export function zugAlarmFor(
  *
  * Grenzen seit 24.11.2026 (vorher 2,5 / 3,0 / 3,4 / 3,8 / 4,2 — im Winter
  * lag der Schnitt bei 2,3, und das Zug-O-Meter stand dauernd auf
- * Katastrophe samt rotem Bildschirmrahmen): Weckruf (katastrophe) unter
- * ⌀ 2,0, Aufholjagd (schwach) 2,0–2,6, Luft nach oben (ok) 2,7–3,0, Gut
+ * Katastrophe samt rotem Bildschirmrahmen): Katastrophe unter ⌀ 2,0,
+ * Bitte zieht! (schwach) 2,0–2,6, Luft nach oben (ok) 2,7–3,0, Gut
  * 3,1–3,4, Super 3,5–3,9, Grossartig ab 4,0 — knapp über dem Rekord von
  * 3,7, also ein echtes Ziel. Verglichen wird der angezeigte Schnitt (eine
  * Nachkommastelle, siehe computeZugkraft), damit ⌀ 2,7 in der Anzeige auch
@@ -202,10 +201,11 @@ function addDays(ymd: string, days: number): string {
  * klein und sind trotzdem alle da, gilt das immer als grossartig.
  *
  * Die schwachen Stufen sollen Lust machen, dabei zu sein, statt den Stand
- * zu beklagen: Namen nach Aufholen statt Versagen und Sprüche, die zum
- * Mitmachen aufrufen. Bis 24.11.2026 hiessen sie „😬 Geht so · Wo ist der
- * Zug?", „😭 Sehr schwach · Der Zug steht still." und „💀 Katastrophe ·
- * Zugausfall!". Die Schlüssel (ok, schwach, katastrophe) sind geblieben.
+ * zu beklagen: Sprüche, die zum Mitmachen aufrufen, und Namen, die nach
+ * vorne schauen (auf Wunsch so gewählt; „Katastrophe" bleibt bewusst).
+ * Bis 24.11.2026 hiessen sie „😬 Geht so · Wo ist der Zug?", „😭 Sehr
+ * schwach · Der Zug steht still." und „💀 Katastrophe · Zugausfall!". Die
+ * Schlüssel (ok, schwach, katastrophe) sind geblieben.
  * Kurz halten: Die Kopfzeile ist einzeilig, lange Texte machen die Schrift
  * kleiner.
  */
@@ -246,15 +246,15 @@ function levelFor(avg: number, members: number): ZugkraftLevel {
 	if (avg >= LEVEL_MIN.schwach)
 		return {
 			key: 'schwach',
-			label: 'Aufholjagd',
-			emoji: '🏃',
+			label: 'Bitte zieht!',
+			emoji: '😭',
 			blurb: 'Komm, steig ein!',
 			intensity: 2
 		};
 	return {
 		key: 'katastrophe',
-		label: 'Weckruf',
-		emoji: '⏰',
+		label: 'Katastrophe',
+		emoji: '💀',
 		blurb: 'Der Zug braucht dich!',
 		intensity: 2
 	};
@@ -421,7 +421,7 @@ export function computeZugkraft(now = new Date()): Zugkraft {
 	// Schnitt über das gesamte Fenster (Vergangenheit + kommende Woche) —
 	// das ist die Zahl, die die Stufe bestimmt. Gerundet wie angezeigt, damit
 	// Anzeige und Stufe zusammenpassen (16 Köpfe in 6 Trainings = ⌀ 2,7 →
-	// „Luft nach oben", nicht 2,67 → „Aufholjagd").
+	// „Luft nach oben", nicht 2,67 → „Bitte zieht!").
 	const avgAll =
 		all.length > 0 ? Math.round(((pastRes.sum + upcomingRes.sum) / all.length) * 10) / 10 : 0;
 	const level = levelFor(avgAll, ctx.members.length);
