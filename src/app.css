@@ -514,11 +514,10 @@ header a,
 }
 /* Bildschirm-Alarm bei „Katastrophe": Rahmen um den ganzen Bildschirm, auf
    jeder Seite (Root-Layout). Gleiche Farbe wie der Katastrophe-Balken
-   (#991b1b) und gleicher Puls: dieselbe Animation (zug-breathe, 1,2 s),
-   über pulseSync() an die gemeinsame Seitenuhr gehängt — so atmen Balken
-   und Rahmen exakt zusammen, auch nach Seitenwechseln. Ein scharfer
-   4-px-Rand plus Schein nach innen in Lagen; nichts ragt über den
-   Bildschirm hinaus, Klicks gehen durch.
+   (#991b1b), aber zurückhaltender: 3-px-Rand plus Schein nach innen in
+   Lagen. Atmet langsamer als der Balken (2 s statt 1,2 s) — eine ruhige
+   Mahnung am Rand, kein Flackern. Nichts ragt über den Bildschirm hinaus,
+   Klicks gehen durch.
    Gleiche Werte in der App (native/src/lib/ZugAlarmFrame.tsx). */
 .zug-screen-alarm {
 	position: fixed;
@@ -527,12 +526,12 @@ header a,
 	pointer-events: none;
 	--zug-rgb: 153, 27, 27; /* = Katastrophe-Farbe des Balkens (#991b1b) */
 	box-shadow:
-		inset 0 0 0 4px rgb(var(--zug-rgb)),
-		inset 0 0 10px 4px rgba(var(--zug-rgb), 0.8),
-		inset 0 0 26px 9px rgba(var(--zug-rgb), 0.5),
-		inset 0 0 50px 16px rgba(var(--zug-rgb), 0.22);
+		inset 0 0 0 3px rgba(var(--zug-rgb), 0.85),
+		inset 0 0 10px 3px rgba(var(--zug-rgb), 0.55),
+		inset 0 0 24px 8px rgba(var(--zug-rgb), 0.32),
+		inset 0 0 46px 14px rgba(var(--zug-rgb), 0.14);
 	opacity: 0.85;
-	animation: zug-breathe 1.2s ease-in-out infinite;
+	animation: zug-breathe 2s ease-in-out infinite;
 }
 /* Bewegung aus: wirklich anhalten statt (wie die globale Regel oben) bloss
    auf 0,001 s zu beschleunigen — sonst friert der Schein auf einer

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { pulseSync } from '$lib/pulseSync';
 	/**
 	 * Zug-O-Meter-Block: Titel links, rechts Emoji + Stufe + Spruch in EINER
 	 * Zeile, darunter der Balken. Nur der Balken trägt Farbe und Glühen — der
@@ -101,8 +100,7 @@
 				{/each}
 			</div>
 		{/if}
-		<!-- pulseSync: gleicher Takt wie der Bildschirm-Alarm-Rahmen. -->
-		<div class="zug-fill {fx}" style="width: {width}%; background-color: {c.hex}" use:pulseSync={fx}></div>
+		<div class="zug-fill {fx}" style="width: {width}%; background-color: {c.hex}"></div>
 	</div>
 {/snippet}
 
