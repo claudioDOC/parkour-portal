@@ -43,6 +43,7 @@ import {
 import { clearDataCache } from '../lib/store';
 import { DecisionGate } from '../lib/DecisionGate';
 import { PenaltyGate } from '../lib/PenaltyGate';
+import { ZugAlarmFrame } from '../lib/ZugAlarmFrame';
 import { ActivityProvider } from '../lib/activity';
 import { Splash } from '../lib/Splash';
 import {
@@ -493,6 +494,9 @@ export default function RootLayout() {
 				{me ? <DecisionGate onDecided={() => clearDataCache()} /> : null}
 				{/* Strafrunde: 20-Sekunden-Hinweis nach stillem Fernbleiben. */}
 				{me ? <PenaltyGate /> : null}
+				{/* Zug-O-Meter auf „Katastrophe": roter Rahmen um den ganzen
+				    Bildschirm, auf jeder Seite (Server entscheidet, wer ihn sieht). */}
+				{me ? <ZugAlarmFrame /> : null}
 				{installing !== null ? <InstallOverlay percent={installing} colors={colors} /> : null}
 
 			</ActivityProvider>

@@ -295,6 +295,9 @@ export type TrainingPayload = {
 
 export const getTraining = () => get<TrainingPayload>('/api/v1/training');
 
+/** Roter Bildschirmrahmen bei „Katastrophe" — der Server entscheidet, wer ihn sieht. */
+export const getZugAlarm = () => get<{ alarm: boolean }>('/api/v1/zug-alarm');
+
 export type TrainingAction =
 	| 'absence'
 	| 'cancel_absence'

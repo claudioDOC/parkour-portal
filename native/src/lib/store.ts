@@ -8,6 +8,17 @@ import { useFocusEffect } from 'expo-router';
  */
 const cache = new Map<string, unknown>();
 
+/** Wer wissen will, wann Daten frisch geladen wurden (z. B. der Zug-Alarm-Rahmen). */
+const refreshListeners = new Set<(key: string) => void>();
+
+/** Meldet jedes frische Laden mit seinem Schlüssel; gibt die Abmeldung zurück. */
+export function onDataRefreshed(fn: (key: string) => void): () => void {
+	refreshListeners.add(fn);
+	return () => {
+		refreshListeners.delete(fn);
+	};
+}
+
 export function useData<T>(key: string, fetcher: () => Promise<T>) {
 	const [data, setData] = useState<T | null>(() => (cache.get(key) as T) ?? null);
 	const [error, setError] = useState('');
@@ -21,6 +32,7 @@ export function useData<T>(key: string, fetcher: () => Promise<T>) {
 			cache.set(key, fresh);
 			setData(fresh);
 			setError('');
+			refreshListeners.forEach((l) => l(key));
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Laden fehlgeschlagen');
 		}
