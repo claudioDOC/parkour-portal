@@ -97,3 +97,4 @@ native/modules/*/android/build/
 # Server-Benutzers — das Repo ist öffentlich, der Schlüssel darf nie hinein.
 .ssh/
 .fonts/
+.pki/
