@@ -8,8 +8,8 @@
  * Ablauf: npx expo export --platform all && node scripts/deploy-update.mjs
  * (oder einfach ./deploy.sh)
  */
-import { createHash, randomUUID } from 'node:crypto';
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash, createSign, randomUUID } from 'node:crypto';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,6 +22,30 @@ const runtimeVersion = appJson.expo.runtimeVersion;
 const baseUrl = new URL(appJson.expo.updates.url).origin;
 
 const metadata = JSON.parse(readFileSync(join(dist, 'metadata.json'), 'utf8'));
+
+/**
+ * Code-Signatur (expo-updates): Apps ab der signierten APK nehmen nur
+ * Updates an, deren Manifest mit diesem Schlüssel signiert ist — wer den
+ * Server oder die Domain übernimmt, kann ohne ihn keinen fremden Code
+ * unterschieben. Der private Schlüssel liegt bewusst NICHT im Repo und
+ * nicht im Datenordner des Portals, sondern in backups/codesigning/
+ * (das Zertifikat dazu steckt in der APK: native/certs/certificate.pem).
+ * Ohne Schlüssel bricht das Skript ab — ein unsigniertes Update würden
+ * die neuen Apps ohnehin verwerfen.
+ */
+const keyPath =
+	process.env.CODESIGNING_KEY ?? join(nativeRoot, '..', 'backups', 'codesigning', 'private-key.pem');
+if (!existsSync(keyPath)) {
+	throw new Error(`Signaturschlüssel fehlt: ${keyPath} — ohne ihn nehmen die Apps kein Update an.`);
+}
+const privateKey = readFileSync(keyPath, 'utf8');
+const KEY_ID = appJson.expo.updates.codeSigningMetadata?.keyid ?? 'main';
+
+/** Wert für den Header `expo-signature` (Structured-Field-Dictionary). */
+function signatureHeader(body) {
+	const sig = createSign('RSA-SHA256').update(body, 'utf8').sign(privateKey, 'base64');
+	return `sig="${sig}", keyid="${KEY_ID}", alg="rsa-v1_5-sha256"`;
+}
 
 const EXT_MIME = {
 	hbc: 'application/javascript',
@@ -67,9 +91,14 @@ for (const platform of platforms) {
 	mkdirSync(target, { recursive: true });
 	cpSync(dist, join(target, 'files'), { recursive: true });
 	writeFileSync(join(target, 'manifest.json'), JSON.stringify(manifest, null, '\t'));
+	// Signiert wird genau die Bytefolge, die der Server ausliefert — darum
+	// liegt sie fertig daneben, der Server ändert daran nichts mehr.
+	const signedBody = JSON.stringify(manifest);
+	writeFileSync(join(target, 'manifest.signed.json'), signedBody);
+	writeFileSync(join(target, 'manifest.sig'), signatureHeader(signedBody));
 
 	console.log(
-		`${platform}: Update ${manifest.id.slice(0, 8)} — Runtime ${runtimeVersion}, ${manifest.assets.length + 1} Dateien`
+		`${platform}: Update ${manifest.id.slice(0, 8)} — Runtime ${runtimeVersion}, ${manifest.assets.length + 1} Dateien, signiert`
 	);
 }
 console.log('Alle Installationen laden es beim nächsten App-Start automatisch.');

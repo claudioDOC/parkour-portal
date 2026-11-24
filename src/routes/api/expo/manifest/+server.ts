@@ -28,6 +28,7 @@ export const GET: RequestHandler = async ({ request }) => {
 		throw error(404, 'Kein Update veröffentlicht');
 	}
 	const manifest = JSON.parse(manifestRaw);
+	const manifestRuntime: string = manifest.runtimeVersion;
 
 	/**
 	 * Auch ältere Installationen beliefern.
@@ -60,7 +61,33 @@ export const GET: RequestHandler = async ({ request }) => {
 	}
 
 	const protocol = request.headers.get('expo-protocol-version') ?? '0';
-	const json = JSON.stringify(manifest);
+	let json = JSON.stringify(manifest);
+
+	/**
+	 * Signierte Auslieferung: Apps ab der signierten APK schicken
+	 * `expo-expect-signature` und nehmen nur ein Manifest an, dessen
+	 * Signatur zu ihrem eingebauten Zertifikat passt. Signiert wird beim
+	 * Veröffentlichen (deploy-update.mjs) — der private Schlüssel liegt
+	 * nicht beim Server, hier wird nur die fertige Signatur mitgeschickt.
+	 * Dafür muss das Manifest Byte für Byte so bleiben, wie es signiert
+	 * wurde; das passt, solange die App dieselbe Runtime hat wie das Update
+	 * (ältere Runtimes prüfen keine Signatur und bekommen das angepasste,
+	 * unsignierte Manifest wie bisher).
+	 */
+	let signature: string | null = null;
+	if (request.headers.has('expo-expect-signature') && manifest.runtimeVersion === manifestRuntime) {
+		try {
+			const signedBody = readFileSync(join(UPDATES_DIR, platform, 'manifest.signed.json'), 'utf8');
+			const sig = readFileSync(join(UPDATES_DIR, platform, 'manifest.sig'), 'utf8').trim();
+			// Gehören Signatur und Manifest zum selben Update?
+			if ((JSON.parse(signedBody) as { id?: string }).id === manifest.id && sig) {
+				json = signedBody;
+				signature = sig;
+			}
+		} catch {
+			/* noch kein signiertes Update veröffentlicht */
+		}
+	}
 
 	if (protocol === '0') {
 		return new Response(json, {
@@ -73,12 +100,14 @@ export const GET: RequestHandler = async ({ request }) => {
 		});
 	}
 
-	// Protokoll 1: multipart/mixed mit einem "manifest"-Teil (ohne Signatur).
+	// Protokoll 1: multipart/mixed mit einem "manifest"-Teil (signiert, wenn verlangt).
 	const boundary = 'ParkourPortalUpdate';
 	const body =
 		`--${boundary}\r\n` +
 		`Content-Disposition: form-data; name="manifest"\r\n` +
-		`Content-Type: application/json\r\n\r\n` +
+		`Content-Type: application/json; charset=utf-8\r\n` +
+		(signature ? `expo-signature: ${signature}\r\n` : '') +
+		`\r\n` +
 		`${json}\r\n` +
 		`--${boundary}--\r\n`;
 

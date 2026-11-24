@@ -56,7 +56,12 @@
       "enabled": true,
       "url": "https://matetraining.duckdns.org/api/expo/manifest",
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 3000
+      "fallbackToCacheTimeout": 3000,
+      "codeSigningCertificate": "./certs/certificate.pem",
+      "codeSigningMetadata": {
+        "keyid": "main",
+        "alg": "rsa-v1_5-sha256"
+      }
     },
     "runtimeVersion": "1.1.0",
     "ios": {
