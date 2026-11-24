@@ -161,10 +161,20 @@ Zwischenspeicher — die Vollansicht nimmt 1600 px, nicht das Original.
 `scripts/shrink-uploads.mjs` zieht denselben Schnitt einmalig über den
 Bestand (`--apply` schreibt, ohne den Schalter wird nur gerechnet).
 
+Jede hochgeladene Datei wird **ohne Metadaten** neu geschrieben (`src/lib/server/mediaSanitize.ts`):
+Fotos ohne EXIF/GPS/Kamera (die EXIF-Drehung wird vorher angewendet),
+Videos per `ffmpeg -c copy` ohne Neukodieren neu verpackt — Ort, Zeit und
+Gerät fallen weg, die Drehung bleibt. `/uploads` ist ohne Login lesbar (die
+App lädt Bilder ohne Sitzung), darum gehört nichts Privates in die Dateien.
+Ausgeliefert werden nur Dateinamen, wie der Server sie vergibt; der
+Vorschau-Ordner `.thumbs` ist von aussen nicht erreichbar, und beim Löschen
+verschwinden alle Vorschaugrössen mit (`removeUploadFile()` in
+`src/lib/server/uploads.ts`).
+
 ## Sicherheit
 
-Zwei externe Audits (Aug. 2026) haben je eine Runde Befunde geliefert; beide
-sind abgearbeitet. Was dabei gilt:
+Zwei externe Audits (Aug. 2026) und eine eigene Prüfung (Nov. 2026) haben
+je eine Runde Befunde geliefert; alle sind abgearbeitet. Was dabei gilt:
 
 - **`JWT_SECRET` ist Pflicht.** Ohne gesetzte Variable (mind. 16 Zeichen)
   verweigert das Portal den Dienst — früher gab es einen Standardwert im
@@ -178,14 +188,37 @@ sind abgearbeitet. Was dabei gilt:
 - **Abmelden entwertet das Token** (Tabelle `revoked_tokens`, Migration
   0029) — andere Geräte bleiben angemeldet. `logout-all` erhöht wie bisher
   `session_version` und wirft alle Geräte raus.
-- **Sperren**: Login 5 Fehlversuche/Minute, Passwortwechsel 5/15 min,
-  Registrierung 10/h, Bild-Uploads 40/h je Person, Fehlerberichte 40/15 min.
+- **Sperren**: Login 5 Fehlversuche/Minute je Adresse und 20/15 min je
+  Benutzername — jeder Versuch belegt seinen Platz vor dem Passwortvergleich,
+  parallele Anfragen kommen also nicht vorbei; unbekannte Namen werden gleich
+  lang geprüft wie bekannte. Passwortwechsel 5/15 min, Registrierung 10/h,
+  Uploads (Bilder, Videos, Profilbild) 40/h je Person, Fehlerberichte 40/15 min.
+- **Grösse von Anfragen**: über 1 MB nur auf den drei Upload-Endpunkten,
+  alles andere bekommt 413 (Hook, zusätzlich zu `BODY_SIZE_LIMIT`).
+- **Herkunft**: POST/PUT/PATCH/DELETE mit fremdem `Origin` werden abgelehnt
+  (die App mit Bearer-Token ist ausgenommen). Öffentliche Pfade gelten nur
+  exakt oder als Unterpfad (`/app` deckt nicht `/apps…` ab).
+- **Abmelden** prüft und sperrt genau das Token, aus dem die Sitzung stammt
+  (nicht einen mitgeschickten Bearer-Wert). JWT nur HS256.
+- **Kalender-Abo**: persönlicher Link je Mitglied (`src/lib/server/calendarFeed.ts`,
+  `<userId>.<HMAC>`), hängt an der Sitzungsversion — „Auf allen Geräten
+  abmelden“ oder ein Passwortwechsel gibt einen neuen, deaktivierte Konten
+  bekommen keinen. Der Schlüssel der Status-API (`PUBLIC_STATUS_API_KEY`)
+  öffnet den Kalender nicht mehr.
+- **App-Updates sind signiert** (expo-updates Code-Signing). Das Zertifikat
+  steckt in der APK (`native/certs/certificate.pem`), signiert wird beim
+  Veröffentlichen mit `backups/codesigning/private-key.pem` — **diesen
+  Schlüssel nie verlieren und nie neu erzeugen**: APKs mit dem Zertifikat
+  nehmen sonst kein Update mehr an. Ältere APKs prüfen keine Signatur.
+- **Eingaben**: Freitext nur als Text, ohne Steuerzeichen, mit
+  Längengrenze (`src/lib/server/inputLimits.ts`); Trip-Daten müssen echte
+  Kalendertage sein, das Kalender-Abo überspringt kaputte Einträge.
 - **Passwörter**: mind. 10 Zeichen, keine bekannten Wörter, nicht der eigene
   Name, nicht nur Ziffern (`src/lib/passwordPolicy.ts`).
 - **Push-Ziele** werden gegen eine Liste bekannter Dienste geprüft, damit der
   Server nicht als Bote für interne Adressen missbraucht wird.
-- **Namen und Spot-Daten** werden vor jeder Ausgabe in Karten-Popups
-  maskiert (`src/lib/escapeHtml.ts`); Benutzernamen lassen bei der
+- **Namen, Spot- und Trip-Daten** werden vor jeder Ausgabe in Karten-Popups
+  und -Beschriftungen maskiert (`src/lib/escapeHtml.ts`); Benutzernamen lassen bei der
   Registrierung nur Buchstaben, Ziffern, Leerzeichen und `. _ -` zu.
 
 ## Setup

@@ -26,6 +26,24 @@ Es gibt zwei getrennte Wege — das ist der wichtigste Punkt in diesem Ordner:
    der Portal-Seite `/app` mit versioniertem Dateinamen
    (`parkour-portal-<version>.apk`) angeboten.
 
+### Signierte Updates (ab APK 1.10)
+
+Seit APK 1.10 steckt das Zertifikat `certs/certificate.pem` in der App
+(`updates.codeSigningCertificate` in `app.json`). Diese Apps nehmen nur noch
+Updates an, deren Manifest mit dem passenden privaten Schlüssel signiert ist —
+wer Server oder Domain übernimmt, kann so keinen fremden Code verteilen.
+
+- Signiert wird in `scripts/deploy-update.mjs` mit
+  `../backups/codesigning/private-key.pem` (bewusst nicht im Repo und nicht im
+  Datenordner des Portals; anderer Pfad über `CODESIGNING_KEY`). Fehlt der
+  Schlüssel, bricht das Skript ab.
+- Der Server liefert nur die fertige Signatur aus (`manifest.signed.json` +
+  `manifest.sig`) — und nur Apps, die sie verlangen und dieselbe Runtime haben.
+  Ältere APKs prüfen nichts und bekommen Updates wie bisher.
+- **Schlüssel nie verlieren, nie neu erzeugen**: Ohne ihn bekommen alle APKs
+  ab 1.10 kein Update mehr, bis eine neue APK mit neuem Zertifikat installiert
+  ist. Eine Kopie gehört ausserhalb des Servers.
+
 ### runtimeVersion — Vorsicht
 
 `runtimeVersion` in `app.json` ist bewusst auf **`1.1.0` eingefroren**, obwohl
