@@ -32,7 +32,7 @@ import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noSho
 import { nextTripSummary } from '$lib/server/tripDatePoll';
 import { lateMarkedUserIds } from '$lib/server/lateAbsence';
 import { zugkraftFor } from '$lib/server/zugkraft';
-import { placeholderSpotImages } from '$lib/server/spotPlaceholder';
+import { placeholderCollage } from '$lib/server/spotPlaceholder';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const today = todayYmdInAppTZ();
@@ -327,13 +327,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		myStreak,
 		// Leiser Hintergrund der nächsten Trainingskarte, solange noch kein
 		// Spot mit Foto vorne liegt (siehe spotPlaceholder.ts).
-		placeholderImages: (() => {
-			try {
-				return placeholderSpotImages(today);
-			} catch {
-				return [] as string[];
-			}
-		})(),
+		placeholderCollage: placeholderCollage(today),
 		calendarToday: today
 	};
 };

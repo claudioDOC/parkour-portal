@@ -152,31 +152,32 @@
 						: 'p-5 md:p-6'}"
 				>
 					{#if i === 0}
-						<!-- Hero: Spot-Foto als Bühne, dunkler Verlauf für Lesbarkeit.
-						     Liegt noch kein Spot mit Foto vorne (keine Stimmen, oder
-						     der Spot hat keins), zeigen drei oft besuchte Spots
-						     schwarz-weiss, dass hier bald einer steht. -->
-						{#if !session.cancelled && (session.topVote?.thumbnail || data.placeholderImages.length > 0)}
+						<!-- Hero: Spot-Foto als Bühne, dunkler Verlauf für Lesbarkeit. -->
+						{#if session.topVote?.thumbnail && !session.cancelled}
 							<div class="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
-								{#if session.topVote?.thumbnail}
-									<img
-										src="{session.topVote.thumbnail}?w=960"
-										alt=""
-										class="h-full w-full object-cover opacity-35"
-									/>
-								{:else}
-									<div class="flex h-full w-full">
-										{#each data.placeholderImages as src (src)}
-											<img
-												src="{src}?w=480&gray=1"
-												alt=""
-												class="h-full min-w-0 flex-1 object-cover opacity-30"
-											/>
-										{/each}
-									</div>
-								{/if}
+								<img
+									src="{session.topVote.thumbnail}?w=960"
+									alt=""
+									class="h-full w-full object-cover opacity-35"
+								/>
 								<div class="absolute inset-0 bg-gradient-to-r from-bg-card via-bg-card/85 to-bg-card/40"></div>
 								<div class="absolute inset-0 bg-gradient-to-t from-bg-card via-transparent to-transparent"></div>
+							</div>
+						{:else if data.placeholderCollage && !session.cancelled}
+							<!-- Noch kein Spot mit Foto vorne (keine Stimmen, oder der Spot
+							     hat keins): drei oft besuchte Spots, schwarz-weiss und
+							     ineinander überblendet. Verlauf von oben nach unten wie in
+							     der App, damit alle drei sichtbar bleiben. -->
+							<div class="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+								<picture class="block h-full w-full">
+									<source media="(min-width: 640px)" srcset={data.placeholderCollage.wide} />
+									<img
+										src={data.placeholderCollage.square}
+										alt=""
+										class="h-full w-full object-cover opacity-30"
+									/>
+								</picture>
+								<div class="placeholder-fade absolute inset-0"></div>
 							</div>
 						{/if}
 						<div
@@ -355,3 +356,17 @@
 		</a>
 	</section>
 </div>
+
+<style>
+	/* Wie fadeStyle() in der App: oben sieht man die Spots, unten geht das
+	   Bild in die Kartenfläche über — dort stehen Namen und Knöpfe. */
+	.placeholder-fade {
+		background: linear-gradient(
+			to bottom,
+			transparent 0%,
+			color-mix(in srgb, var(--color-bg-card) 25%, transparent) 20%,
+			color-mix(in srgb, var(--color-bg-card) 85%, transparent) 52%,
+			var(--color-bg-card) 78%
+		);
+	}
+</style>
