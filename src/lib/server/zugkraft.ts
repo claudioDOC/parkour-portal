@@ -92,20 +92,20 @@ export function zugAlarmFor(
  * Wochen gemittelt lag das beste Stück bei ⌀ 3,7. Mit „⌀ 6 = grossartig"
  * hätte die Anzeige darum ewig auf „Geht so" geklebt.
  *
- * Grenzen (auf Wunsch eine Spur strenger als der erste Wurf, je +0,2):
- * ⌀ 4,2 über drei Wochen ist grossartig, 3,8 super — beides bisher nie
- * erreicht, also echte Ziele. Der Rekord von 3,7 ist „gut", der normale
- * Schnitt (≈ 3) „geht so". Untere Grenze jeweils inklusive.
- *
- * „Katastrophe" erst unter ⌀ 2 Köpfen pro Training (bis 24.11.2026: 2,5).
- * Im Winter lag der Schnitt bei 2,3, und das Zug-O-Meter stand sonst
- * dauernd auf Katastrophe — samt rotem Bildschirmrahmen.
+ * Grenzen seit 24.11.2026 (vorher 2,5 / 3,0 / 3,4 / 3,8 / 4,2 — im Winter
+ * lag der Schnitt bei 2,3, und das Zug-O-Meter stand dauernd auf
+ * Katastrophe samt rotem Bildschirmrahmen): Katastrophe unter ⌀ 2,0,
+ * Sehr schwach 2,0–2,6, Geht so 2,7–3,0, Gut 3,1–3,4, Super 3,5–3,9,
+ * Grossartig ab 4,0 — knapp über dem Rekord von 3,7, also ein echtes Ziel.
+ * Verglichen wird der angezeigte Schnitt (eine Nachkommastelle, siehe
+ * computeZugkraft), damit ⌀ 2,7 in der Anzeige auch „Geht so" ist.
+ * Untere Grenze jeweils inklusive.
  */
 export const LEVEL_MIN: Record<ZugkraftLevelKey, number> = {
-	grossartig: 4.2,
-	super: 3.8,
-	gut: 3.4,
-	ok: 3.0,
+	grossartig: 4.0,
+	super: 3.5,
+	gut: 3.1,
+	ok: 2.7,
 	schwach: 2.0,
 	katastrophe: 0
 };
@@ -409,9 +409,11 @@ export function computeZugkraft(now = new Date()): Zugkraft {
 	});
 
 	// Schnitt über das gesamte Fenster (Vergangenheit + kommende Woche) —
-	// das ist die Zahl, die die Stufe bestimmt.
+	// das ist die Zahl, die die Stufe bestimmt. Gerundet wie angezeigt, damit
+	// Anzeige und Stufe zusammenpassen (16 Köpfe in 6 Trainings = ⌀ 2,7 →
+	// „Geht so", nicht 2,67 → „Sehr schwach").
 	const avgAll =
-		all.length > 0 ? (pastRes.sum + upcomingRes.sum) / all.length : 0;
+		all.length > 0 ? Math.round(((pastRes.sum + upcomingRes.sum) / all.length) * 10) / 10 : 0;
 	const level = levelFor(avgAll, ctx.members.length);
 	const avgPast = past.length > 0 ? Math.round((pastRes.sum / past.length) * 10) / 10 : 0;
 	const availableSum = all.reduce((acc, s) => acc + attendingCount(ctx, s).available, 0);
@@ -431,7 +433,7 @@ export function computeZugkraft(now = new Date()): Zugkraft {
 		upcomingCount: upcoming.length,
 		avgPast,
 		avgAvailable,
-		avgAll: Math.round(avgAll * 10) / 10,
+		avgAll,
 		avgUpcoming,
 		sessions,
 		headline: `${level.emoji} Zug-O-Meter: ${level.label}`
