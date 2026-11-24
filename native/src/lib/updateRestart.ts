@@ -91,7 +91,10 @@ export async function reportRestartOutcome(restartCount: number): Promise<void> 
 	const ageMs = Date.now() - info.at;
 	if (!(ageMs >= 0) || ageMs > 6 * 3600_000) return;
 
+	const ok = restartCount > 0;
 	let fehler: string[] = [];
+	/** Ging es schief, der ganze Ablauf rund um den Neustart (alle Stufen). */
+	let ablauf: string[] = [];
 	try {
 		const entries = await Updates.readLogEntriesAsync(Math.min(ageMs + 60_000, 3600_000));
 		fehler = entries
@@ -100,11 +103,18 @@ export async function reportRestartOutcome(restartCount: number): Promise<void> 
 			.map((e) =>
 				[`${e.code}: ${e.message}`, ...(e.stacktrace ?? []).slice(0, 3)].join(' | ').slice(0, 400)
 			);
+		if (!ok) {
+			ablauf = entries
+				.filter((e) => e.timestamp >= info.at - 5_000)
+				.slice(0, 25)
+				.map((e) =>
+					`${Math.round((e.timestamp - info.at) / 100) / 10}s ${e.level} ${e.code}: ${e.message}`.slice(0, 180)
+				);
+		}
 	} catch {
 		/* Protokoll nicht lesbar */
 	}
 
-	const ok = restartCount > 0;
 	void report(ok ? 'schritt' : 'error', ok ? 'Neustart für Update geklappt' : 'Neustart für Update: App war zu, von Hand neu geöffnet', {
 		quelle: info.source,
 		vorher: info.from,
@@ -112,6 +122,7 @@ export async function reportRestartOutcome(restartCount: number): Promise<void> 
 		sekunden: Math.round(ageMs / 1000),
 		restartCount,
 		notstart: Updates.isEmergencyLaunch ? (Updates.emergencyLaunchReason ?? 'ja') : null,
-		fehler
+		fehler,
+		...(ok ? {} : { ablauf })
 	});
 }

@@ -73,7 +73,8 @@ export const useAuth = () => useContext(AuthContext);
  * Hintergrund. Angewendet wird es NICHT mehr ungefragt: Liegt ein geladenes
  * Update bereit, erscheint ein Hinweis mit „Jetzt neu starten".
  *
- * Massgeblich ist `useUpdates().isUpdatePending` — das ist true, sobald ein
+ * Massgeblich ist `useUpdates().isUpdatePending` (plus: das geladene Update
+ * ist nicht das laufende, siehe `pendingIsNew`) — true, sobald ein
  * Bundle geladen ist, das noch nicht läuft, egal ob dieser JS-Abruf es
  * geholt hat oder der native Abruf beim Start (app.json: checkAutomatically
  * ON_LOAD). Der frühere Weg über `fetchUpdateAsync().isNew` hat genau den
@@ -84,7 +85,16 @@ export const useAuth = () => useContext(AuthContext);
  * Der Hinweis wartet, bis der Startbildschirm weg ist (`ready`).
  */
 function useSelfHostedUpdates(ready: boolean): void {
-	const { isUpdatePending, restartCount } = Updates.useUpdates();
+	const { isUpdatePending, downloadedUpdate, restartCount } = Updates.useUpdates();
+	/**
+	 * Nur fragen, wenn das geladene Update ein ANDERES ist als das laufende.
+	 * Lädt der native Abruf beim Start (ON_LOAD) ein Update schnell genug,
+	 * startet die App gleich damit — expo-updates meldet es danach trotzdem
+	 * als „pending". Dann kam „Neue Version bereit" für die Version, die
+	 * schon lief, und der überflüssige Neustart schloss die App.
+	 */
+	const pendingIsNew =
+		isUpdatePending && !!downloadedUpdate?.updateId && downloadedUpdate.updateId !== Updates.updateId;
 	// Zählt jede Rückkehr in den Vordergrund — damit nach „Später" erneut gefragt wird.
 	const [foregrounds, setForegrounds] = useState(0);
 	const askedFor = useRef(-1);
@@ -124,7 +134,7 @@ function useSelfHostedUpdates(ready: boolean): void {
 	}, []);
 
 	useEffect(() => {
-		if (__DEV__ || !ready || !isUpdatePending) return;
+		if (__DEV__ || !ready || !pendingIsNew) return;
 		// Pro Vordergrund-Phase höchstens einmal fragen.
 		if (askedFor.current === foregrounds) return;
 		askedFor.current = foregrounds;
@@ -147,7 +157,7 @@ function useSelfHostedUpdates(ready: boolean): void {
 			],
 			{ cancelable: true }
 		);
-	}, [ready, isUpdatePending, foregrounds]);
+	}, [ready, pendingIsNew, foregrounds]);
 }
 
 /** Vollbild-Hinweis während des APK-Downloads — sonst wirkt die App tot. */
