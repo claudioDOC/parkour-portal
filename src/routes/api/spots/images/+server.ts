@@ -8,8 +8,8 @@ import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { logAudit } from '$lib/server/audit';
-import { getUploadWriteDir } from '$lib/server/uploads';
-import sharp from 'sharp';
+import { getUploadWriteDir, removeUploadFile } from '$lib/server/uploads';
+import { cleanImage } from '$lib/server/mediaSanitize';
 import { validateSpotImageBuffer } from '$lib/server/validateSpotImageBuffer';
 
 // Handyfotos sind heute 10–25 MB; wird beim Speichern verkleinert.
@@ -69,37 +69,22 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		/**
-		 * Bilder werden beim Ablegen normalisiert:
-		 *  - HEIC/HEIF zeigt kein Browser an → WebP.
-		 *  - Alles über 2560 px wird auf 2560 px gebracht. Handyfotos kommen
-		 *    heute mit 4000–8000 px und 4–8 MB an; für die Vollansicht
-		 *    (max. 1600 px) ist das um ein Vielfaches zu viel — es kostet nur
-		 *    Platz, Backup-Zeit und Bandbreite.
-		 * Kleinere Bilder bleiben unverändert liegen.
+		 * Bilder werden beim Ablegen neu geschrieben (cleanImage):
+		 *  - ohne Metadaten — /uploads ist ohne Login lesbar, Kamera, Zeit und
+		 *    GPS-Position gehören da nicht hin;
+		 *  - HEIC/HEIF zeigt kein Browser an → WebP;
+		 *  - alles über 2560 px wird verkleinert (Vollansicht zeigt max. 1600 px).
 		 */
-		const MAX_EDGE = 2560;
-		let toWrite = buffer;
-		let converted = false;
+		let cleaned;
 		try {
-			const meta = await sharp(buffer).metadata();
-			const tooBig = Math.max(meta.width ?? 0, meta.height ?? 0) > MAX_EDGE;
-			const isHeic = magic.mime === 'image/heic' || magic.mime === 'image/heif';
-			if (isHeic || tooBig) {
-				toWrite = await sharp(buffer)
-					.rotate()
-					.resize(MAX_EDGE, MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
-					.webp({ quality: 86 })
-					.toBuffer();
-				converted = true;
-			}
+			cleaned = await cleanImage(buffer, magic.ext);
 		} catch (e) {
 			console.error('Bildaufbereitung fehlgeschlagen', e);
 			return json({ error: 'Bild konnte nicht verarbeitet werden.' }, { status: 400 });
 		}
-
-		// Endung muss zum Inhalt passen: Wurde umgewandelt, ist es WebP —
-		// sonst liefert der Server später den falschen MIME-Typ aus.
-		const ext = converted ? 'webp' : magic.ext;
+		const toWrite = cleaned.data;
+		// Endung muss zum Inhalt passen, sonst liefert der Server den falschen MIME-Typ.
+		const ext = cleaned.ext;
 		// Zufallsanteil im Namen: Ohne ihn liessen sich Bilder fremder Spots
 		// erraten (`<spotId>-<zeitstempel>`), obwohl /uploads ohne Login
 		// erreichbar sein MUSS — die App lädt Bilder ohne Sitzung.
@@ -170,17 +155,7 @@ export const DELETE: RequestHandler = async (event) => {
 		return json({ error: 'Keine Berechtigung' }, { status: 403 });
 	}
 
-	const filepath = join(getUploadWriteDir(), image.filename);
-	try {
-		unlinkSync(filepath);
-	} catch {
-		const legacy = join(process.cwd(), 'static', 'uploads', image.filename);
-		try {
-			unlinkSync(legacy);
-		} catch {
-			/* ignore */
-		}
-	}
+	removeUploadFile(image.filename);
 
 	db.delete(spotImages).where(eq(spotImages.id, imageId)).run();
 

@@ -4,7 +4,7 @@ import { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeF
 import sharp from 'sharp';
 import { Readable } from 'node:stream';
 import { join, resolve } from 'node:path';
-import { getUploadReadDirs } from '$lib/server/uploads';
+import { getUploadReadDirs, isServedUploadName, THUMB_DIR, THUMB_WIDTHS, thumbPath } from '$lib/server/uploads';
 
 const MIME: Record<string, string> = {
 	jpg: 'image/jpeg',
@@ -24,18 +24,16 @@ const STREAMED = new Set(['mp4', 'mov', 'webm']);
  *
  * Vorher lieferte jede Vorschau das Original — bei Handyfotos gern 4–8 MB
  * pro Bild. Eine Spot-Seite mit zehn Bildern zog damit zig Megabyte und
- * ruckelte entsprechend. Erlaubte Breiten sind fest vorgegeben, damit
- * niemand den Server mit beliebigen Grössen beschäftigen kann; erzeugte
- * Fassungen liegen als WebP im Zwischenspeicher auf der Platte.
+ * ruckelte entsprechend. Erlaubte Breiten sind fest vorgegeben
+ * (THUMB_WIDTHS), damit niemand den Server mit beliebigen Grössen
+ * beschäftigen kann; erzeugte Fassungen liegen als WebP im
+ * Zwischenspeicher `.thumbs` — der selbst nie ausgeliefert wird.
  */
-// 1600 ist die Vollansicht (Lightbox): scharf auch auf grossen Displays,
-// aber ein Bruchteil eines 8-MB-Originals.
-const THUMB_WIDTHS = new Set([120, 240, 480, 960, 1600]);
+const THUMB_SET = new Set(THUMB_WIDTHS);
+const THUMB_SOURCE = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']);
 
-function thumbnail(filepath: string, width: number, cacheDir: string, name: string): Buffer | null {
+function thumbnail(filepath: string, cached: string): Buffer | null {
 	try {
-		mkdirSync(cacheDir, { recursive: true });
-		const cached = join(cacheDir, `${width}-${name}.webp`);
 		if (existsSync(cached) && statSync(cached).mtimeMs >= statSync(filepath).mtimeMs) {
 			return readFileSync(cached);
 		}
@@ -49,8 +47,13 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
 	const raw = params.path;
 	if (!raw) throw error(404, 'Not found');
 
+	// Nur Dateinamen, wie der Server sie selbst vergibt: ein Segment, kein
+	// Punkt am Anfang. Damit sind Unterordner, `..` und vor allem der
+	// Vorschau-Ordner `.thumbs` gar nicht erst erreichbar — vorher liessen
+	// sich ohne Login Vorschauen von Vorschauen erzeugen, endlos, bis die
+	// Platte voll ist.
 	const segments = raw.split('/').filter(Boolean);
-	if (segments.length === 0 || segments.some((s) => s === '..' || s.includes('\\'))) {
+	if (segments.length !== 1 || !isServedUploadName(segments[0])) {
 		throw error(404, 'Not found');
 	}
 
@@ -101,10 +104,11 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
 
 			// Verkleinerte Fassung, falls angefragt und die Breite erlaubt ist.
 			const wanted = Number(url.searchParams.get('w') ?? '');
-			if (THUMB_WIDTHS.has(wanted)) {
-				const name = segments.at(-1) ?? 'bild';
-				const cacheDir = join(baseResolved, '.thumbs');
-				const cachedBuf = thumbnail(filepath, wanted, cacheDir, name);
+			if (THUMB_SET.has(wanted) && THUMB_SOURCE.has(ext)) {
+				const name = segments[0];
+				const cacheDir = join(baseResolved, THUMB_DIR);
+				const cachedFile = thumbPath(baseResolved, wanted, name);
+				const cachedBuf = thumbnail(filepath, cachedFile);
 				if (cachedBuf) {
 					return new Response(new Uint8Array(cachedBuf), {
 						headers: {
@@ -121,7 +125,8 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
 						.webp({ quality: 80 })
 						.toBuffer();
 					try {
-						writeFileSync(join(cacheDir, `${wanted}-${name}.webp`), small);
+						mkdirSync(cacheDir, { recursive: true });
+						writeFileSync(cachedFile, small);
 					} catch {
 						/* ohne Zwischenspeicher halt jedes Mal neu */
 					}

@@ -1,5 +1,3 @@
-import { existsSync, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import {
@@ -15,17 +13,12 @@ import {
 	users,
 	votes
 } from '$lib/server/db/schema';
-import { getUploadReadDirs } from '$lib/server/uploads';
+import { removeUploadFile } from '$lib/server/uploads';
+import { avatarFullFilename } from '$lib/server/avatar';
 
 function unlinkImageFile(filename: string) {
-	for (const dir of getUploadReadDirs()) {
-		const p = join(dir, filename);
-		try {
-			if (existsSync(p)) unlinkSync(p);
-		} catch {
-			/* ignore */
-		}
-	}
+	// Original samt Vorschauen in allen Upload-Ordnern.
+	removeUploadFile(filename);
 }
 
 /** Löscht alle abhängigen Daten und die User-Zeile (irreversibel). */
@@ -67,6 +60,13 @@ export function purgeUserAccount(userId: number): void {
 
 	db.update(auditLogs).set({ actorUserId: null }).where(eq(auditLogs.actorUserId, userId)).run();
 	db.update(auditLogs).set({ targetUserId: null }).where(eq(auditLogs.targetUserId, userId)).run();
+
+	// Profilbild (Quadrat + Vollansicht) liegt im offenen /uploads — mit weg.
+	const avatar = db.select({ avatar: users.avatar }).from(users).where(eq(users.id, userId)).get()?.avatar;
+	if (avatar) {
+		removeUploadFile(avatar);
+		removeUploadFile(avatarFullFilename(avatar));
+	}
 
 	db.delete(users).where(eq(users.id, userId)).run();
 }

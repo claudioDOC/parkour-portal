@@ -6,10 +6,10 @@ import { spotChallenges, spotChallengeImages } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
-import sharp from 'sharp';
 import { join } from 'node:path';
 import { logAudit } from '$lib/server/audit';
-import { getUploadWriteDir } from '$lib/server/uploads';
+import { getUploadWriteDir, removeUploadFile } from '$lib/server/uploads';
+import { cleanImage, cleanVideo } from '$lib/server/mediaSanitize';
 import { validateChallengeMediaBuffer } from '$lib/server/validateChallengeMedia';
 import { isSpotChallengesSchemaReady, isSpotChallengeImagesReady } from '$lib/server/spotChallengesSchemaReady';
 
@@ -113,33 +113,26 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		/**
-		 * Wie bei Spot-Bildern: Fotos über 2560 px werden verkleinert und als
-		 * WebP abgelegt (die Vollansicht zeigt höchstens 1600 px). Videos
-		 * bleiben unangetastet — die rechnet der Server nicht neu.
+		 * Wie bei Spot-Bildern: jede Datei wird ohne Metadaten neu geschrieben
+		 * (/uploads ist ohne Login lesbar). Fotos über 2560 px werden dabei
+		 * verkleinert; Videos nur neu verpackt — Bild und Ton bleiben 1:1, Ort,
+		 * Zeit und Gerät fallen weg.
 		 */
-		const MAX_EDGE = 2560;
-		let toWrite = buffer;
-		let converted = false;
-		if (!magic.isVideo) {
+		let toWrite: Buffer;
+		let ext: string;
+		if (magic.isVideo) {
+			toWrite = await cleanVideo(buffer, magic.ext as 'mp4' | 'mov' | 'webm');
+			ext = magic.ext;
+		} else {
 			try {
-				const meta = await sharp(buffer).metadata();
-				// HEIC kommt hier gar nicht an (nur jpg/png/webp erlaubt),
-				// darum reicht die Grössenprüfung.
-				if (Math.max(meta.width ?? 0, meta.height ?? 0) > MAX_EDGE) {
-					toWrite = await sharp(buffer)
-						.rotate()
-						.resize(MAX_EDGE, MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
-						.webp({ quality: 86 })
-						.toBuffer();
-					converted = true;
-				}
+				const cleaned = await cleanImage(buffer, magic.ext);
+				toWrite = cleaned.data;
+				ext = cleaned.ext;
 			} catch (e) {
 				console.error('Bildaufbereitung fehlgeschlagen', e);
 				return json({ error: 'Bild konnte nicht verarbeitet werden.' }, { status: 400 });
 			}
 		}
-
-		const ext = converted ? 'webp' : magic.ext;
 		// Zufallsanteil wie bei Spot-Bildern — /uploads ist ohne Login lesbar,
 		// die Namen sollen sich nicht erraten lassen.
 		const filename = `ch${challengeId}-${Date.now()}-${randomBytes(6).toString('hex')}.${ext}`;
@@ -236,17 +229,7 @@ export const DELETE: RequestHandler = async (event) => {
 		return json({ error: 'Keine Berechtigung' }, { status: 403 });
 	}
 
-	const filepath = join(getUploadWriteDir(), image.filename);
-	try {
-		unlinkSync(filepath);
-	} catch {
-		const legacy = join(process.cwd(), 'static', 'uploads', image.filename);
-		try {
-			unlinkSync(legacy);
-		} catch {
-			/* ignore */
-		}
-	}
+	removeUploadFile(image.filename);
 
 	db.delete(spotChallengeImages).where(eq(spotChallengeImages.id, id)).run();
 

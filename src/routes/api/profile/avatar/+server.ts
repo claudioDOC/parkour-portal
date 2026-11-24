@@ -1,13 +1,14 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { eq } from 'drizzle-orm';
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import sharp from 'sharp';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
-import { getUploadWriteDir } from '$lib/server/uploads';
+import { getUploadWriteDir, removeUploadFile } from '$lib/server/uploads';
+import { rateLimitImageUpload } from '$lib/server/rateLimitAuth';
 import { validateSpotImageBuffer } from '$lib/server/validateSpotImageBuffer';
 import { logAudit } from '$lib/server/audit';
 import { avatarFullFilename } from '$lib/server/avatar';
@@ -24,14 +25,9 @@ function currentAvatar(userId: number): string | null {
 
 function deleteAvatarFile(filename: string | null) {
 	if (!filename) return;
-	for (const f of [filename, avatarFullFilename(filename)]) {
-		try {
-			const path = join(getUploadWriteDir(), f);
-			if (existsSync(path)) unlinkSync(path);
-		} catch {
-			/* Datei weg ist kein Drama */
-		}
-	}
+	// Quadrat und Vollansicht — jeweils samt Vorschauen.
+	removeUploadFile(filename);
+	removeUploadFile(avatarFullFilename(filename));
 }
 
 /** Eigenes Profilbild setzen — wird auf 256×256 WebP normalisiert. */
@@ -39,10 +35,19 @@ export const POST: RequestHandler = async (event) => {
 	const { request, locals } = event;
 	if (!locals.user) throw error(401, 'Nicht angemeldet');
 
+	// Gleiche Bremse wie bei Spot-Bildern: Jedes Profilbild kostet Rechenzeit.
+	const uploadLimit = rateLimitImageUpload(locals.user.id);
+	if (!uploadLimit.ok) {
+		return json(
+			{ error: `Zu viele Uploads. Bitte in ${uploadLimit.retryAfterSec} Sekunden erneut.` },
+			{ status: 429, headers: { 'Retry-After': String(uploadLimit.retryAfterSec) } }
+		);
+	}
+
 	const formData = await request.formData();
 	const file = formData.get('image') as File | null;
 	if (!file) return json({ error: 'Bild erforderlich' }, { status: 400 });
-	if (file.size > MAX_SIZE) return json({ error: 'Bild darf maximal 5MB gross sein' }, { status: 400 });
+	if (file.size > MAX_SIZE) return json({ error: 'Bild darf maximal 30 MB gross sein' }, { status: 400 });
 
 	const buffer = Buffer.from(await file.arrayBuffer());
 	const magic = await validateSpotImageBuffer(buffer);
