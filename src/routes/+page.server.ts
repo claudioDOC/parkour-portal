@@ -32,6 +32,7 @@ import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noSho
 import { nextTripSummary } from '$lib/server/tripDatePoll';
 import { lateMarkedUserIds } from '$lib/server/lateAbsence';
 import { zugkraftFor } from '$lib/server/zugkraft';
+import { placeholderSpotImages } from '$lib/server/spotPlaceholder';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const today = todayYmdInAppTZ();
@@ -162,7 +163,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.innerJoin(spots, eq(trainingSpotVotes.spotId, spots.id))
 			.where(eq(trainingSpotVotes.sessionId, session.id))
 			.groupBy(trainingSpotVotes.spotId)
-			.orderBy(desc(sql`vote_count`))
+			// Gleichstand: alphabetisch, wie die Push-Meldung „Spot steht fest".
+			.orderBy(desc(sql`vote_count`), asc(spots.name))
 			.limit(1)
 			.get();
 
@@ -323,6 +325,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		trainingForecast,
 		topSpots,
 		myStreak,
+		// Leiser Hintergrund der nächsten Trainingskarte, solange noch kein
+		// Spot mit Foto vorne liegt (siehe spotPlaceholder.ts).
+		placeholderImages: (() => {
+			try {
+				return placeholderSpotImages(today);
+			} catch {
+				return [] as string[];
+			}
+		})(),
 		calendarToday: today
 	};
 };

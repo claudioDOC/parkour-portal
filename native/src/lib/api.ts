@@ -290,6 +290,11 @@ export type TrainingPayload = {
 	trainingForecast: TrainingForecast | null;
 	viewerTrainingAttendance: string | null;
 	mySolo: { todayLogged: boolean; countMonth: number };
+	/**
+	 * Oft besuchte Spots (Bildpfade) — schwarz-weiss hinter der nächsten
+	 * Trainingskarte, solange noch kein Spot mit Foto vorne liegt.
+	 */
+	placeholderImages?: string[];
 	calendarToday: string;
 };
 

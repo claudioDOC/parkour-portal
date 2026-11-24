@@ -164,6 +164,7 @@ export default function Dashboard() {
 	const isAdmin = me?.role === 'admin';
 
 	const data = training.data;
+	const placeholderImages = data?.placeholderImages ?? [];
 	const myStreak =
 		stats.data?.stats.leaderboard.find((r) => r.userId === me?.id)?.streakNoAbsence ?? 0;
 	const optIn = data?.viewerTrainingAttendance === 'opt_in';
@@ -404,15 +405,34 @@ export default function Dashboard() {
 						{/* Nur beim nächsten Training: das Foto des gesetzten oder
 						    meistgewählten Spots liegt sehr leise hinter der Karte.
 						    Gleichmässig statt mit Abdunklung unten — eine harte
-						    Kante mitten in der Karte fällt mehr auf als das Bild. */}
-						{sessionIndex === 0 && s.spotThumbnail ? (
+						    Kante mitten in der Karte fällt mehr auf als das Bild.
+						    Liegt noch kein Spot mit Foto vorne (keine Stimmen, oder
+						    der Spot hat keins), zeigen drei oft besuchte Spots
+						    schwarz-weiss, dass hier bald einer steht — wie im Web. */}
+						{sessionIndex === 0 &&
+						!s.cancelled &&
+						(s.spotThumbnail || placeholderImages.length > 0) ? (
 							<View style={StyleSheet.absoluteFill} pointerEvents="none">
-								<Image
-									source={{ uri: mediaUrl(s.spotThumbnail, 960) ?? undefined }}
-									style={[StyleSheet.absoluteFill, { opacity: 0.3 }]}
-									contentFit="cover"
-									transition={250}
-								/>
+								{s.spotThumbnail ? (
+									<Image
+										source={{ uri: mediaUrl(s.spotThumbnail, 960) ?? undefined }}
+										style={[StyleSheet.absoluteFill, { opacity: 0.3 }]}
+										contentFit="cover"
+										transition={250}
+									/>
+								) : (
+									<View style={[StyleSheet.absoluteFill, { flexDirection: 'row' }]}>
+										{placeholderImages.map((p) => (
+											<Image
+												key={p}
+												source={{ uri: `${mediaUrl(p, 480)}&gray=1` }}
+												style={{ flex: 1, height: '100%', opacity: 0.3 }}
+												contentFit="cover"
+												transition={250}
+											/>
+										))}
+									</View>
+								)}
 								{/* Verlauf nach unten: oben sieht man den Spot, unten geht
 								    das Bild in die Kartenfläche über — dort stehen Namen
 								    und Knöpfe. */}

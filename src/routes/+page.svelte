@@ -152,14 +152,29 @@
 						: 'p-5 md:p-6'}"
 				>
 					{#if i === 0}
-						<!-- Hero: Spot-Foto als Bühne, dunkler Verlauf für Lesbarkeit -->
-						{#if session.topVote?.thumbnail && !session.cancelled}
+						<!-- Hero: Spot-Foto als Bühne, dunkler Verlauf für Lesbarkeit.
+						     Liegt noch kein Spot mit Foto vorne (keine Stimmen, oder
+						     der Spot hat keins), zeigen drei oft besuchte Spots
+						     schwarz-weiss, dass hier bald einer steht. -->
+						{#if !session.cancelled && (session.topVote?.thumbnail || data.placeholderImages.length > 0)}
 							<div class="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
-								<img
-									src={session.topVote.thumbnail}
-									alt=""
-									class="h-full w-full object-cover opacity-35"
-								/>
+								{#if session.topVote?.thumbnail}
+									<img
+										src="{session.topVote.thumbnail}?w=960"
+										alt=""
+										class="h-full w-full object-cover opacity-35"
+									/>
+								{:else}
+									<div class="flex h-full w-full">
+										{#each data.placeholderImages as src (src)}
+											<img
+												src="{src}?w=480&gray=1"
+												alt=""
+												class="h-full min-w-0 flex-1 object-cover opacity-30"
+											/>
+										{/each}
+									</div>
+								{/if}
 								<div class="absolute inset-0 bg-gradient-to-r from-bg-card via-bg-card/85 to-bg-card/40"></div>
 								<div class="absolute inset-0 bg-gradient-to-t from-bg-card via-transparent to-transparent"></div>
 							</div>

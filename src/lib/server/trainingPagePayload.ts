@@ -3,6 +3,7 @@ import { activePenaltyFor, maskAttending, wrongSpotFor } from '$lib/server/noSho
 import { nextTripSummary } from '$lib/server/tripDatePoll';
 import { lateMarkedUserIds } from '$lib/server/lateAbsence';
 import { zugkraftFor } from '$lib/server/zugkraft';
+import { placeholderSpotImages } from '$lib/server/spotPlaceholder';
 import {
 	trainingSessions,
 	absences,
@@ -295,7 +296,8 @@ export async function buildTrainingPagePayload(
 			.innerJoin(users, eq(trainingSpotVotes.userId, users.id))
 			.where(andWithUsersNotDeleted(eq(trainingSpotVotes.sessionId, session.id)))
 			.groupBy(trainingSpotVotes.spotId)
-			.orderBy(sql`vote_count DESC`)
+			// Gleichstand: alphabetisch, wie die Push-Meldung „Spot steht fest".
+			.orderBy(sql`vote_count DESC`, asc(spots.name))
 			.all();
 
 		let userVotedSpotId: number | null = null;
@@ -458,6 +460,15 @@ export async function buildTrainingPagePayload(
 		trainingForecast,
 		viewerTrainingAttendance: viewerAttendance,
 		mySolo,
+		// Leiser Hintergrund der nächsten Trainingskarte, solange noch kein
+		// Spot mit Foto vorne liegt (siehe spotPlaceholder.ts).
+		placeholderImages: (() => {
+			try {
+				return placeholderSpotImages(today);
+			} catch {
+				return [] as string[];
+			}
+		})(),
 		calendarToday: today
 	};
 };

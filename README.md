@@ -55,6 +55,7 @@ Die native App spricht mit dem Server über die JSON-API (`/api/v1/…`, Bearer-
 - Der Spot mit den meisten Stimmen gewinnt
 - Falls niemand voted: automatischer Vorschlag basierend auf aktuellem Wetter (Open-Meteo API)
 - Voting schliesst 2 Stunden vor Trainingsstart
+- Hinter der Karte **„Nächstes Training“** (Dashboard und App) liegt leise das Foto des Spots, der gerade vorne liegt: gesetzter Spot, sonst Gewinner bzw. Wetter-Vorschlag, und schon während des Votings der Spot mit den meisten Stimmen (bei Gleichstand alphabetisch, wie die Push-Meldung). Hat noch niemand abgestimmt oder der führende Spot kein Foto, zeigen drei Spots, an denen die Gruppe am häufigsten trainiert hat, **schwarz-weiss** nebeneinander, dass hier bald einer steht (`src/lib/server/spotPlaceholder.ts`, Feld `placeholderImages`). Bei einem abgesagten Training bleibt die Karte ohne Bild
 
 ### Spot-Finder
 - Schritt-für-Schritt Quiz: Wetter (automatisch oder manuell), Stadt, Technik
@@ -158,6 +159,9 @@ Hochgeladene Fotos werden beim Ablegen auf höchstens 2560 px Kantenlänge
 gebracht (Handykameras liefern 4000–8000 px und 4–8 MB). Ausgeliefert wird
 über `?w=120|240|480|960|1600`, gerechnete Fassungen liegen als WebP im
 Zwischenspeicher — die Vollansicht nimmt 1600 px, nicht das Original.
+`&gray=1` liefert dieselbe Fassung schwarz-weiss (Platzhalter der
+Trainingskarte; fertig vom Server, weil der Graufilter in der App nicht auf
+jedem Handy greift).
 `scripts/shrink-uploads.mjs` zieht denselben Schnitt einmalig über den
 Bestand (`--apply` schreibt, ohne den Schalter wird nur gerechnet).
 
