@@ -9,7 +9,7 @@
 	 * Eine Zeile auch auf schmalen Handys, und trotzdem so gross wie möglich:
 	 * Die Kopfzeile ist ein Container, ihre Schrift füllt dessen Breite (cqi)
 	 * je nach Länge der aktuellen Zeile (lineEm unten), höchstens 17 px wie in
-	 * der App. Kurze Stufen wie „😬 Geht so · Da geht noch mehr!" werden darum
+	 * der App. Kurze Stufen wie „🏃 Aufholjagd · Komm, steig ein!" werden darum
 	 * grösser als „🔥🔥🔥 Grossartig · Maximaler Zug!!!".
 	 *
 	 * Startseite und Admin-Vorschau nutzen dieselbe Komponente.
