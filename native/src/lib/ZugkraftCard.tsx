@@ -276,12 +276,22 @@ export function ZugkraftCard({
 				/>
 				<View style={styles.track}>
 					<View style={[styles.fill, { width, backgroundColor: tone }]} />
+					{/* Stufengrenzen: Jede Stufe belegt ein Sechstel des Balkens
+					    (fillFor auf dem Server), die Kerben bei 1/6 … 5/6 zeigen, ob
+					    der Schnitt eher am unteren oder oberen Ende der Stufe steht.
+					    Bei „Grossartig" ist der Balken ganz voll — keine Kerben. */}
+					{flame
+						? null
+						: TICKS.map((left) => <View key={left} pointerEvents="none" style={[styles.tick, { left }]} />)}
 				</View>
 			</View>
 
 		</Pressable>
 	);
 }
+
+/** Positionen der Stufengrenzen im Balken (1/6 … 5/6), wie im Web. */
+const TICKS: `${number}%`[] = [1, 2, 3, 4, 5].map((k) => `${Math.round((k * 10000) / 6) / 100}%` as const);
 
 const makeStyles = (colors: ThemeColors) =>
 	StyleSheet.create({
@@ -328,5 +338,14 @@ const makeStyles = (colors: ThemeColors) =>
 			backgroundColor: colors.fg + '12'
 		},
 		fill: { height: '100%', borderRadius: 999 },
+		/* Wie .zug-tick im Web: schmale dunkle Kerbe quer durch den Balken. */
+		tick: {
+			position: 'absolute',
+			top: 0,
+			bottom: 0,
+			width: 2,
+			marginLeft: -1,
+			backgroundColor: 'rgba(0, 0, 0, 0.5)'
+		},
 		blurb: { color: colors.fg + textAlpha.muted, fontFamily: fonts.sans, fontSize: 15.5 }
 	});
