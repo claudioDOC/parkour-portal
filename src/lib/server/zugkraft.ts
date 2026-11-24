@@ -96,13 +96,17 @@ export function zugAlarmFor(
  * ⌀ 4,2 über drei Wochen ist grossartig, 3,8 super — beides bisher nie
  * erreicht, also echte Ziele. Der Rekord von 3,7 ist „gut", der normale
  * Schnitt (≈ 3) „geht so". Untere Grenze jeweils inklusive.
+ *
+ * „Katastrophe" erst unter ⌀ 2 Köpfen pro Training (bis 24.11.2026: 2,5).
+ * Im Winter lag der Schnitt bei 2,3, und das Zug-O-Meter stand sonst
+ * dauernd auf Katastrophe — samt rotem Bildschirmrahmen.
  */
 export const LEVEL_MIN: Record<ZugkraftLevelKey, number> = {
 	grossartig: 4.2,
 	super: 3.8,
 	gut: 3.4,
 	ok: 3.0,
-	schwach: 2.5,
+	schwach: 2.0,
 	katastrophe: 0
 };
 /** Stufen von oben nach unten. */
@@ -454,7 +458,8 @@ export function zugkraftPreview(): {
 		const min = LEVEL_MIN[key];
 		const above = i === 0 ? min + 0.6 : LEVEL_MIN[LEVEL_ORDER[i - 1]];
 		// Musterwert: Mitte der Stufe (ganz unten etwas unter der Grenze).
-		const avg = key === 'katastrophe' ? 2 : Math.round(((min + above) / 2) * 100) / 100;
+		const avg =
+			key === 'katastrophe' ? Math.max(0, above - 0.5) : Math.round(((min + above) / 2) * 100) / 100;
 		const range =
 			key === 'grossartig'
 				? `ab ⌀ ${de1(min)}`
