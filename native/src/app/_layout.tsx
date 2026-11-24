@@ -45,7 +45,12 @@ import { DecisionGate } from '../lib/DecisionGate';
 import { PenaltyGate } from '../lib/PenaltyGate';
 import { ActivityProvider } from '../lib/activity';
 import { Splash } from '../lib/Splash';
-import { registerRestartCurtain, reportRestartOutcome, restartForUpdate } from '../lib/updateRestart';
+import {
+	registerRestartCurtain,
+	reportRecentRestartLog,
+	reportRestartOutcome,
+	restartForUpdate
+} from '../lib/updateRestart';
 
 /**
  * Auth-Kontext: hält den eingeloggten User. Beim Start wird das gespeicherte
@@ -105,7 +110,7 @@ function useSelfHostedUpdates(ready: boolean): void {
 	useEffect(() => {
 		if (__DEV__ || outcomeReported.current) return;
 		outcomeReported.current = true;
-		void reportRestartOutcome(restartCount);
+		void reportRestartOutcome(restartCount).then(() => reportRecentRestartLog());
 	}, [restartCount]);
 
 	useEffect(() => {

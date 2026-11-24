@@ -105,7 +105,7 @@ export async function reportRestartOutcome(restartCount: number): Promise<void> 
 			);
 		if (!ok) {
 			ablauf = entries
-				.filter((e) => e.timestamp >= info.at - 5_000)
+				.filter((e) => e.timestamp >= info.at - 5_000 && !e.message.includes('embeddedAssetFileMap'))
 				.slice(0, 25)
 				.map((e) =>
 					`${Math.round((e.timestamp - info.at) / 100) / 10}s ${e.level} ${e.code}: ${e.message}`.slice(0, 180)
@@ -125,4 +125,41 @@ export async function reportRestartOutcome(restartCount: number): Promise<void> 
 		fehler,
 		...(ok ? {} : { ablauf })
 	});
+}
+
+const KEY_LOG_SENT = 'restart-log-sent';
+
+/**
+ * Was geschah nach dem letzten Neustart-Befehl? Liest das Protokoll von
+ * expo-updates (bleibt einen Tag auf dem Gerät) und schickt die Einträge
+ * ab dem letzten „Restart" — ohne die lange Liste eingebauter Dateien, die
+ * vorher alles andere verdrängt hat. Jeder Neustart wird nur einmal
+ * gemeldet.
+ */
+export async function reportRecentRestartLog(): Promise<void> {
+	try {
+		const entries = await Updates.readLogEntriesAsync(3 * 3600_000);
+		const restarts = entries.filter((e) => e.message.includes('Updates state change: Restart'));
+		const last = restarts.reduce<number>((m, e) => Math.max(m, e.timestamp), 0);
+		if (!last) return;
+		const sent = Number(await readToken(KEY_LOG_SENT).catch(() => null)) || 0;
+		if (sent >= last) return;
+		await writeToken(KEY_LOG_SENT, String(last));
+		const after = entries
+			.filter((e) => e.timestamp >= last - 1_000 && !e.message.includes('embeddedAssetFileMap'))
+			.sort((a, b) => a.timestamp - b.timestamp)
+			.slice(0, 30)
+			.map((e) =>
+				[
+					`${Math.round((e.timestamp - last) / 100) / 10}s ${e.level} ${e.code}: ${e.message}`.slice(0, 160),
+					...(e.stacktrace ?? []).slice(0, 2).map((l) => l.slice(0, 120))
+				].join(' | ')
+			);
+		void report('schritt', 'Protokoll nach dem letzten Neustart-Befehl', {
+			neustartUm: new Date(last).toISOString(),
+			eintraege: after
+		});
+	} catch {
+		/* Protokoll nicht lesbar */
+	}
 }
